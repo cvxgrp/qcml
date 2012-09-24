@@ -1,4 +1,4 @@
-module Parser.CVX (Token,parse) where
+module Parser.CVX (Token(..),cvxParse, cvxLex) where
   -- how do we handle atoms?
   data Token = Literal Int  -- only ints are allowed to be literal
     | Identifier String
@@ -26,52 +26,65 @@ module Parser.CVX (Token,parse) where
     deriving (Show)
   
   -- an Expression is just a list of tokens
-  type Expression = [Token]
+  --type Expression = [Token]
   
-  -- parse should return an Expression tree
+  -- actually, eval should return an Expression tree (or [] if none) in RPN
+  --  eval :: Maybe [Token] -> Result
+  -- a Result is either Executed (e.g., Assign, literal operations, etc.)
+  --  or an Expression [Matrix "A" (5,5) [PSD, DIAGONAL], Matrix "x" (5,1) [], Multiply]
+  --  or a Problem, (objExpr, [constraintExpr])
+  --
+  -- a single line like A*x + b 
+  --   
+  --
+  -- parse should check syntax and shapes(?) and returns a list of tokens(?) in RPN
+  --   parse :: [Token] -> Maybe [Token]
+  -- returns Nothing on error?
+  --
+  --
+  -- the expression tree should be [objExpr, [constraintExpr]]
+  -- the objExpr and constraintExpr store the Expression in RPN
   -- Expression trees are just a *list* of tokens which we'll store in RPN notation
-  parse :: String -> Expression
-  parse s = parseRecursively "" s
+  cvxParse :: String -> [Token]
+  cvxParse s = cvxLex s
   
+  cvxLex :: String -> [Token]
+  cvxLex s = lexRecursively "" s
 
-  parseRecursively :: String -> String -> Expression
-  parseRecursively "minimize" next = Minimize:(parseRecursively "" next)  
-  parseRecursively "subjectTo" next = SubjectTo:(parseRecursively "" next)
-  parseRecursively "parameter" next = Parameter:(parseRecursively "" next)
-  parseRecursively "+" next = Plus:(parseRecursively "" next)
-  parseRecursively "-" next = Subtract:(parseRecursively "" next)
-  parseRecursively "*" next = Multiply:(parseRecursively "" next)
-  parseRecursively "/" next = Divide:(parseRecursively "" next)
-  parseRecursively "==" next = Equals:(parseRecursively "" next)
-  parseRecursively "<=" next = LessThanEquals:(parseRecursively "" next)
-  parseRecursively ">=" next = GreaterThanEquals:(parseRecursively "" next)
-  parseRecursively "=" (c:next) 
-    | c =='='   = parseRecursively ("="++[c]) next  -- lookahead in case "=="
-    | otherwise = Assign:(parseRecursively "" next)
-  parseRecursively "=" "" = [Assign]  -- a dangling ='s
-  parseRecursively "(" next = LeftParen:(parseRecursively "" next)
-  parseRecursively ")" next = RightParen:(parseRecursively "" next)
-  parseRecursively "," next = Comma:(parseRecursively "" next)
+  lexRecursively :: String -> String -> [Token]
+  lexRecursively "+" next = Plus:(lexRecursively "" next)
+  lexRecursively "-" next = Subtract:(lexRecursively "" next)
+  lexRecursively "*" next = Multiply:(lexRecursively "" next)
+  lexRecursively "/" next = Divide:(lexRecursively "" next)
+  lexRecursively "==" next = Equals:(lexRecursively "" next)
+  lexRecursively "<=" next = LessThanEquals:(lexRecursively "" next)
+  lexRecursively "<" (c:next) = lexRecursively ("<"++[c]) next  -- eat
+  lexRecursively ">=" next = GreaterThanEquals:(lexRecursively "" next)
+  lexRecursively ">" (c:next) = lexRecursively (">"++[c]) next  -- eat
+  lexRecursively "(" next = LeftParen:(lexRecursively "" next)
+  lexRecursively ")" next = RightParen:(lexRecursively "" next)
+  lexRecursively "," next = Comma:(lexRecursively "" next)
+  lexRecursively "=" (c:next) 
+    | c =='='   = lexRecursively ("="++[c]) next  -- lookahead in case "=="
+    | otherwise = Assign:(lexRecursively [c] next)
+  -- handle dangling ='s
+  lexRecursively "=" "" = [Assign]
   -- skip spaces
-  parseRecursively " " next = parseRecursively "" next
+  lexRecursively " " next = lexRecursively "" next
   -- end of line
-  parseRecursively cur "" = gobble cur
+  lexRecursively cur "" = gobble cur
+  -- handle case with singleton at the end
+  lexRecursively cur [c]
+    | isDelimiter c ' ' = gobble cur ++ lexRecursively [c] ""
+    | otherwise = lexRecursively (cur ++ [c]) ""
   -- common case is to eat a character
-  parseRecursively cur (c:next)
-    -- special case: candidate could be <= or >=
-    | cur == "<" || cur == ">" = parseRecursively (cur++[c]) next
-    -- special case: nothing left at the end, doesn't end with delimiter
-    | next == "" && not (isDelimiter c ' ') = parseRecursively (cur ++ [c]) ""
-    -- special case: nothing left at the end, ends with delimiter
-    | next == "" && isDelimiter c ' ' = gobble cur ++ parseRecursively [c] ""
+  lexRecursively cur (c:next)
     -- lookahead two characters to determine if we should gobble current
-    | isDelimiter c (head next) = gobble cur ++ parseRecursively [c] next
+    | isDelimiter c (head next) = gobble cur ++ lexRecursively [c] next
     -- otherwise, just eat a character
-    | otherwise = parseRecursively (cur++[c]) next
-  
-  
+    | otherwise = lexRecursively (cur++[c]) next
+    
   -- let's the left-right parser know when to gobble its previous characters
-  -- XXX: gobble just means "tell us if it's an ident or a literal"
   isDelimiter :: Char -> Char -> Bool
   isDelimiter ' ' _   = True
   isDelimiter '+' _   = True
@@ -86,14 +99,16 @@ module Parser.CVX (Token,parse) where
   isDelimiter ',' _   = True
   isDelimiter _ _     = False
   
-  
-  gobble :: String -> Expression
+  gobble :: String -> [Token]
   gobble s = case (gobble' s) of
     Just x  -> [x]
     Nothing -> []
   
   gobble' :: String -> Maybe Token
   gobble' "" = Nothing
+  gobble' "minimize" = Just Minimize
+  gobble' "subjectTo" = Just SubjectTo
+  gobble' "parameter" = Just Parameter
   gobble' s = case reads s :: [(Int,String)] of
     [] -> Just $ Identifier s
     [(a,"")] -> Just $ Literal a

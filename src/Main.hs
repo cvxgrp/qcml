@@ -14,10 +14,10 @@ module Main where
     if (map toUpper line) == "EXIT"
     then return ()
     else do
-      putStrLn (reverseWords line)
+      putStrLn $ "\""++line++"\" ="
       -- attempt to lookup the string on the line, if fails, call parser
       
-      putStrLn $ show $ parse line
+      putStrLn $ '\t':(show $ cvxParse line)
       -- call parser on the line
       -- if an assignment occurs, should store in parser's symbol table
         -- routine to lookup symbols should be exposed in symbol table
@@ -35,7 +35,5 @@ module Main where
         
       -- echo the result
       
-      main  -- run main again
-    
-  reverseWords :: String -> String
-  reverseWords = unwords . map reverse . words
+      main  -- run main again (our REPL)
+      
