@@ -1,6 +1,8 @@
 module Main where
   import Test.HUnit
   import Parser.CVX
+  import Parser.CVXDataTypes
+  import Rewriter.ECOS
   
   -- test cases for the lexer
   s1 = "ABC"
@@ -60,12 +62,20 @@ module Main where
       assertBool ("Expected " ++show t5++ " but got " ++ (show $ cvxLex s5)) e
     )
   
+  
+  -- expr1 = isDCP [(Var "x" Unknown), (Const 2.4), (BinaryOp "*" Affine Nonmonotone Nonmonotone Unknown)]
+  -- 
+  -- test6 = TestCase(do
+  --   assertBool "Expected true but got false" expr1
+  --   )
+  
   tests = TestList [
     TestLabel ("Test: " ++ s1) test1,
     TestLabel ("Test: " ++ s2) test2,
     TestLabel ("Test: " ++ s3) test3,  
     TestLabel ("Test: " ++ s4) test4,  
-    TestLabel ("Test: " ++ s5) test5   
+    TestLabel ("Test: " ++ s5) test5,   
+    TestLabel ("Test: DCP") test6
     ]
 
   main :: IO ()

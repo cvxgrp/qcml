@@ -1,29 +1,5 @@
 module Parser.CVX (Token(..),cvxParse, cvxLex) where
-  -- how do we handle atoms?
-  data Token = Literal Int  -- only ints are allowed to be literal
-    | Identifier String
-    | Assign 
-    -- grouping
-    | LeftParen
-    | RightParen
-    -- keywords
-    | Minimize
-    | SubjectTo
-    | Parameter
-    -- | Property String -- positive, etc.
-    -- | Atom String -- if we encounter an unitialized identifier, could be an atom
-    -- operators
-    | Plus
-    | Multiply
-    | Divide
-    | Subtract
-    -- boolean operators
-    | Equals 
-    | LessThanEquals 
-    | GreaterThanEquals
-    -- filler
-    | Comma
-    deriving (Show)
+  import Parser.CVXDataTypes
   
   -- an Expression is just a list of tokens
   --type Expression = [Token]
@@ -109,7 +85,8 @@ module Parser.CVX (Token(..),cvxParse, cvxLex) where
   gobble' "minimize" = Just Minimize
   gobble' "subjectTo" = Just SubjectTo
   gobble' "parameter" = Just Parameter
-  gobble' s = case reads s :: [(Int,String)] of
+  gobble' "variable" = Just Variable
+  gobble' s = case reads s :: [(Double,String)] of
     [] -> Just $ Identifier s
     [(a,"")] -> Just $ Literal a
     [(a, b)] -> Just $ Identifier s
