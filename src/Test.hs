@@ -63,11 +63,16 @@ module Main where
     )
   
   
-  -- expr1 = isDCP [(Var "x" Unknown), (Const 2.4), (BinaryOp "*" Affine Nonmonotone Nonmonotone Unknown)]
-  -- 
-  -- test6 = TestCase(do
-  --   assertBool "Expected true but got false" expr1
-  --   )
+  expr1 = [(Const 2.4)] --[(Var "x"), (Const 2.4), (BinaryOp "*")]
+  expr2 = [(Const 2.4), (Var "x"), (BinaryOp "mul"), (Const (-0.1)), (BinaryOp "plus"), (UnaryOp "square"), (UnaryOp "square")]
+  
+  test6 = TestCase(do
+    assertBool ("Expected true but got " ++ (show expr1)) (isDCP expr1)
+    )
+  
+  test7 = TestCase(do
+    assertBool ("Expected true but got " ++ (show expr2)) (isDCP expr2)
+    )
   
   tests = TestList [
     TestLabel ("Test: " ++ s1) test1,
@@ -75,7 +80,8 @@ module Main where
     TestLabel ("Test: " ++ s3) test3,  
     TestLabel ("Test: " ++ s4) test4,  
     TestLabel ("Test: " ++ s5) test5,   
-    TestLabel ("Test: DCP") test6
+    TestLabel ("Test: DCP") test6,
+    TestLabel ("Test: DCP") test7
     ]
 
   main :: IO ()
