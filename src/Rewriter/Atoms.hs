@@ -1,4 +1,4 @@
-module Rewriter.Atoms (evalBinaryOp, evalUnaryOp) where
+module Rewriter.Atoms (compose, CVXExpression, Atom(..), infer) where
   import qualified Data.Map as M
   import Expression.Expression
   
@@ -15,20 +15,46 @@ module Rewriter.Atoms (evalBinaryOp, evalUnaryOp) where
     
   data Node = Parameter String | Variable String deriving (Show, Eq)
 
-  instance Vexity CVXExpression where
-    vexity Leaf _ = Affine
-    vexity Binary op left right = compose op left right
-    vexity Unary op rest = compose op left
+  instance Function Atom where
+    -- end up having to list out all these cases....
+    monotonicity Plus [Positive, Positive] = [Increasing, Increasing]
+    monotonicity Plus [Negative, Negative] = [Decreasing, Decreasing]
+    monotonicity Plus [Positive, Negative] = [Increasing, Decreasing]
+    monotonicity Plus [Negative, Positive] = [Decreasing, Increasing]
+    monotonicity Plus _ = [Nonmonotone, Nonmonotone]
+    
+    monotonicity _ _ = []
+
+  instance (Function a) => Vexity (Expression a b) where
+    vexity (Leaf _) = Affine
+    vexity (Binary op left right) = compose op [left,right]
+    vexity (Unary op rest) = compose op [rest]
     vexity _ = Nonconvex
     
     sign (Leaf _) = Unknown
     sign _ = Unknown
-    
-  instance Function Atom where
-    monotonicity Plus [x,y]
-    
-    monotonicity _ = []
+
   
+  compose :: (Function a) => a -> [Expression a b] -> Vexity'
+  compose x xs = infer (map vexity xs) (monotonicity x (map sign xs))
+  
+  -- n-ary composition rule...
+  infer :: [Vexity'] -> [Monotonicity'] -> Vexity'  
+  infer [Convex] [Increasing] = Convex
+  infer [Convex] [Decreasing] = Concave
+  infer [Concave] [Decreasing] = Convex
+  infer [Concave] [Increasing] = Concave
+  infer [Affine] [_] = Affine
+  infer (x:xs) (y:ys) = case ( (infer [x] [y], infer xs ys) ) of
+    (Convex,Convex) -> Convex
+    (Concave,Concave) -> Concave
+    (Affine,x) -> x
+    (x,Affine) -> x
+    otherwise -> Nonconvex
+  infer _ _ = Nonconvex
+
+    
+    
   -- instance Vexity Atom where
   --   vexity Plus = invokeCompositionRule 
   --   vexity Sub
