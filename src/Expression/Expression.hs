@@ -1,114 +1,67 @@
-module Expression.Expression (Monotonicity'(..), 
-  Vexity'(..), 
-  Sign'(..), 
-  Expression(..), 
-  Vexity(..), 
-  Function(..), 
-  isConvex,
-  isConcave,
-  isAffine,
-  isPositive,
-  isNegative) where
-  -- TODO: eliminate distinction between 1 and 2 argument operations
-
-  -- quad over lin x y = minimize t subject to ((y+t)/2, (y-t)/2, x) in SOC3, y in SOC1
+module Expression.Expression (Parameter(..), Variable(..), Expression(..)) where
+  import DCP.DCP
   
-  data Monotonicity' = Increasing 
-    | Decreasing 
-    | Nonmonotone 
-    deriving (Show, Eq)
-  data Vexity' = Convex 
-    | Concave 
-    | Affine 
-    | Nonconvex 
-    deriving (Show, Eq)
-  data Sign' = Positive
-    | Negative
-    | Unknown
-    deriving (Show, Eq)
+  data Parameter = Parameter deriving (Show)
+  data Variable = Variable deriving (Show)
   
-  -- A function must have a vexity defined
-  class Function a where
-    monotonicity :: a -> [Sign'] -> [Monotonicity']
+  data Node a = Node deriving (Show)
   
-  -- All expressions must have a vexity
-  class Vexity a where
-    vexity :: a -> Vexity'
-    sign :: a -> Sign'
+  data Expression = Expression deriving (Show)
   
-  -- An expression is made up of operations *and* literals
-  data Expression a b = Nil
-    | Leaf b
-    | Binary a (Expression a b) (Expression a b)
-    | Unary a (Expression a b)
-    deriving (Show)
+  createNode :: Symbol a => a -> Node a
+  createNode _ = Node
   
-  -- helper functions
-  isConvex :: Vexity a => a -> Bool
-  isConvex x = not (vexity x == Concave)
-
-  isConcave :: Vexity a => a -> Bool
-  isConcave x = not (vexity x == Convex)
-
-  isAffine :: Vexity a => a -> Bool
-  isAffine x = isConvex x && isConcave x
-
-  isPositive :: Vexity a => a -> Bool
-  isPositive x = (sign x) == Positive
-
-  isNegative :: Vexity a => a -> Bool
-  isNegative x = not (isPositive x)
+  instance Symbol Parameter where
+    vexity _ = Affine
+    sign _ = Unknown
+  
+  instance Symbol Variable where
+    vexity _ = Affine
+    sign _ = Unknown
     
-    -- isPositive, isNegative
+  instance Symbol Expression where
+    vexity _ = Affine
+    sign _ = Unknown
+  
+  data ECOSPlus = ECOSPlus Expression Expression deriving (Show)
+  data ECOSMul = ECOSMul Expression Parameter deriving (Show)
+  
+  -- Plus atom
+  instance Atom ECOSPlus where
+    monotonicity _ [Positive,Positive] = [Increasing, Increasing]
+    monotonicity _ [Positive,Negative] = [Increasing, Decreasing]
+    monotonicity _ [Negative,Positive] = [Decreasing, Increasing]
+    monotonicity _ [Negative,Negative] = [Decreasing, Decreasing]
     
-    -- apply :: a -> a
-    -- rewrite
-    -- value :: a -> Double
-    -- vexity :: a -> Vexity
-    -- montonicity :: a -> Monotonicity
-  
-
-  
-  -- instance Function Operation where
-  --   monotonicity (BinaryOp s) sign = [Increasing, Increasing]
-  --   monotonicity (UnaryOp s) sign = [Increasing]
-  -- 
-  -- instance Vexity Operation where
-  --   vexity _ = Affine
-  --   sign _ = Unknown
-  
-
-    
-  
-  -- instance Vexity Blah where
-  --   isConvex A = True
-  --   isConcave A = False
-  --   isConvex B = True
-  --   isConcave B = True
-  --   isConvex _ = True
-  --   isConcave _ = True
-  -- 
-  
+    applySign _ [a,b] = case (a, b) of
+      (Positive, Positive) -> Positive
+      (Negative, Negative) -> Negative
+      otherwise -> Unknown
       
-  -- testme1 :: Expression -> [Bool]
-  -- testme1 (Leaf node) = [(isConvex node) || (isConcave node)]
-  -- testme1 (Unary op rest) = False:testme1 rest
-  -- testme1 (Binary op left right) = (testme1 left) ++ [False] ++ (testme1 right)
-  -- eval operation arg
-  -- eval Mul 4.0  => (4.0*)
+  instance Symbol ECOSPlus where
+    vexity _ = Affine
+    sign (ECOSPlus b c) = applySign (ECOSPlus b c) [sign b, sign c]
   
-  -- tree is somehow easier to deal with than RPN (abstractly, at least)
-  -- RPN is easier for rewriting
-  -- you just gobble operands and rewrite as needed
-  -- 
-  -- RPN for vexity inference?
-  -- tree for vexity inference that produces RPN?
-  --
-  -- things that can be.... "eval'd"? or "vex'd"?
-  -- an Expression is something that can be vex'd
-  -- given any Expression, i can determine if it's convex or concave or neither
-  -- Expression is stored as RPN
-  
-  -- a Tree lets you test vexity pretty quickly, an RPN lets you get the results you need
-  -- one possibility is to test DCP on the Tree and, in the process, convert it to RPN
-  -- another is to keep it in RPN form and return DCP *as well* as rewrite the problem
+  -- Multiply atom
+  -- error shows up in here!
+  -- [b,c], where b is an expression and c is a parameter
+  -- need some way to convert parameter and variables to expressions
+  instance Atom ECOSMul where
+    monotonicity _ [a,b] = case (a) of
+      Positive -> [Increasing]
+      Negative -> [Decreasing]
+      otherwise -> [Nonmonotone]
+    applySign _ [a,b] = case (a, b) of
+      (Positive, Positive) -> Positive
+      (Negative, Negative) -> Positive
+      (Positive, Negative) -> Negative
+      (Negative, Positive) -> Negative
+      otherwise -> Unknown
+
+  instance Symbol ECOSMul where
+    vexity _ = Affine
+    sign (ECOSMul b c) = applySign (ECOSMul b c) [sign b, sign c]
+    
+      
+  -- it turns out that Parameter, Variables, and Functions are symbols
+  -- but Expressions are *also* symbols, i.e., [Symbol] is also a Symbol
