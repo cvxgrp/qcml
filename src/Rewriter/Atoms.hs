@@ -39,6 +39,7 @@ module Rewriter.Atoms (compose, CVXExpression, Atom(..), infer) where
   compose x xs = infer (map vexity xs) (monotonicity x (map sign xs))
   
   -- n-ary composition rule...
+  -- also need to check that the function itself *is* convex
   infer :: [Vexity'] -> [Monotonicity'] -> Vexity'  
   infer [Convex] [Increasing] = Convex
   infer [Convex] [Decreasing] = Concave
