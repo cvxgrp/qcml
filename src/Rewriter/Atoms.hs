@@ -1,229 +1,189 @@
-module Rewriter.Atoms (compose, CVXExpression, Atom(..), infer) where
-  import qualified Data.Map as M
+module Rewriter.Atoms (ecosSquare,
+  ecosInvPos,
+  ecosQuadOverLin, 
+  ecosPlus, 
+  ecosMinus,
+  ecosNegate,
+  ecosPos,
+  ecosNeg,
+  ecosAbs,
+  ecosSqrt,
+  ecosGeoMean,
+  ecosMul) where
+  
   import Expression.Expression
+  -- TODO: in parser, need to check arguments and check parameteric functions
   
-  type CVXExpression = Expression Atom Node
   
-  data Atom = Plus
-    | Sub
-    | Mul
-    | QuadOverLin
-    | Square
-    | InvPos
-    | Abs
-    deriving (Show, Eq)
-    
-  data Node = Parameter String | Variable String deriving (Show, Eq)
-
-  instance Function Atom where
-    -- end up having to list out all these cases....
-    monotonicity Plus [Positive, Positive] = [Increasing, Increasing]
-    monotonicity Plus [Negative, Negative] = [Decreasing, Decreasing]
-    monotonicity Plus [Positive, Negative] = [Increasing, Decreasing]
-    monotonicity Plus [Negative, Positive] = [Decreasing, Increasing]
-    monotonicity Plus _ = [Nonmonotone, Nonmonotone]
-    
-    monotonicity _ _ = []
-
-  instance (Function a) => Vexity (Expression a b) where
-    vexity (Leaf _) = Affine
-    vexity (Binary op left right) = compose op [left,right]
-    vexity (Unary op rest) = compose op [rest]
-    vexity _ = Nonconvex
-    
-    sign (Leaf _) = Unknown
-    sign _ = Unknown
-
+  -- this might be one way to provide monotonicity
+  squareMonotonicity :: [Sign]->[Monotonicity]
+  squareMonotonicity [x] = [(monoQuadOverLin [x,Positive])!!0]
   
-  compose :: (Function a) => a -> [Expression a b] -> Vexity'
-  compose x xs = infer (map vexity xs) (monotonicity x (map sign xs))
+  monoQuadOverLin :: [Sign] -> [Monotonicity]
+  monoQuadOverLin [Positive, _] = [Increasing, Decreasing]
+  monoQuadOverLin [Negative, _] = [Decreasing, Decreasing]
+  monoQuadOverLin _ = [Nonmonotone, Decreasing]
   
-  -- n-ary composition rule...
-  -- also need to check that the function itself *is* convex
-  infer :: [Vexity'] -> [Monotonicity'] -> Vexity'  
-  infer [Convex] [Increasing] = Convex
-  infer [Convex] [Decreasing] = Concave
-  infer [Concave] [Decreasing] = Convex
-  infer [Concave] [Increasing] = Concave
-  infer [Affine] [_] = Affine
-  infer (x:xs) (y:ys) = case ( (infer [x] [y], infer xs ys) ) of
-    (Convex,Convex) -> Convex
-    (Concave,Concave) -> Concave
-    (Affine,x) -> x
-    (x,Affine) -> x
-    otherwise -> Nonconvex
-  infer _ _ = Nonconvex
-
-    
-    
-  -- instance Vexity Atom where
-  --   vexity Plus = invokeCompositionRule 
-  --   vexity Sub
-  --   vexity Mul
-  --   vexity QuadOverLin
-  --   vexity Square
-  --   vexity InvPos
-  --   vexity Abs
-  --   
-  --   sign 
-
-  -- -- data types for annotating the expression tree
-  -- data Vexity = Convex
-  --   | Concave
-  --   | Affine
-  --   deriving(Show, Eq)
-  -- 
-  -- data Sign = Positive
-  --   | Negative
-  --   deriving (Show, Eq)
-  -- 
-  -- data Expr = Expr { sign' :: Maybe Sign,
-  --                    vexity' :: Maybe Vexity }
-  --           | Constant Double
-  --           deriving (Show)
-  -- 
-  -- vexity :: Expr -> Maybe Vexity
-  -- vexity (Constant _) = Just Affine
-  -- vexity s = vexity' s
-  -- 
-  -- sign :: Expr -> Maybe Sign
-  -- sign (Constant d)
-  --   | d >= 0 = Just Positive
-  --   | otherwise = Just Negative
-  -- sign s = sign' s
-  --           
-  -- -- utility functions for manipulating expressions
-  -- constExpr :: Double -> Expr
-  -- constExpr d = Constant d
-  -- 
-  -- convexExpr :: Sign -> Expr
-  -- convexExpr s = Expr (Just s) (Just Convex)
-  -- 
-  -- concaveExpr :: Sign -> Expr
-  -- concaveExpr s = Expr (Just s) (Just Concave)
-  -- 
-  -- affineExpr :: Sign -> Expr
-  -- affineExpr s = Expr (Just s) (Just Affine)
-  -- 
-  -- negateExpr :: Expr -> Expr
-  -- negateExpr (Constant d) = constExpr $ negate d
-  -- negateExpr (Expr (Just Positive) v) = Expr (Just Negative) v
-  -- negateExpr (Expr (Just Negative) v) = Expr (Just Positive) v
-  -- 
-  -- isConvex :: Expr -> Bool
-  -- isConvex expr = not $ (vexity expr) == Just Concave
-  -- 
-  -- isConcave :: Expr -> Bool
-  -- isConcave expr = not $ (vexity expr) == Just Convex
-  -- 
-  -- isAffine :: Expr -> Bool
-  -- isAffine expr = isConvex expr && isConcave expr
-  -- 
-  -- isPositive :: Expr -> Bool
-  -- isPositive expr = (sign expr) == Just Positive
-  -- 
-  -- isNegative :: Expr -> Bool
-  -- isNegative expr = not (isPositive expr)
-  -- 
-  -- isConstant :: Expr -> Bool
-  -- isConstant expr = case (expr) of
-  --   Constant _ -> True
-  --   otherwise -> False
-    
-  -- Atom function vexity reasoning
+  -- this is how you define atoms
   
-  -- ecos_quad_over_lin :: Expr -> Expr -> Expr
-  -- ecos_quad_over_lin x y
-  --   | isPositive y && isAffine x && isConcave y = convexExpr Positive
-  --   | isNegative y && isAffine x && isConvex y = concaveExpr Negative -- this could be wrong...
-  --   | isPositive x && isPositive y && isConvex x && isConcave y = convexExpr Positive
-  --   | isPositive x && isNegative y && isConvex x && isConcave y = concaveExpr Negative
-  --   | otherwise = Expr (Nothing) (Nothing)
-  -- 
-  -- ecos_square :: Expr -> Expr
-  -- ecos_square x = (\x -> ecos_quad_over_lin x (constExpr 1)) x
-  -- 
-  -- ecos_inv :: Expr -> Expr
-  -- ecos_inv x = ecos_quad_over_lin (constExpr 1) x
-  -- 
-  -- ecos_abs :: Expr -> Expr
-  -- ecos_abs x
-  --   | isPositive x && isConvex x = convexExpr Positive
-  --   | isAffine x = convexExpr Positive
-  --   | otherwise = Expr (Just Positive) (Nothing)
-  -- 
-  -- ecos_plus :: Expr -> Expr -> Expr
-  -- ecos_plus x y
-  --   | isAffine x && isAffine y = Expr (add_sign x y) (Just Affine)
-  --   | isConvex x && isConvex y = Expr (add_sign x y) (Just Convex)
-  --   | isConcave x && isConcave y = Expr (add_sign x y) (Just Concave)
-  --   | otherwise = Expr (add_sign x y) Nothing
-  -- 
-  -- ecos_sub :: Expr -> Expr -> Expr
-  -- ecos_sub x y = ecos_plus x (negateExpr y)
-  -- 
-  -- ecos_mul :: Expr -> Expr -> Expr
-  -- ecos_mul x y 
-  --   | isConstant x && isAffine y = Expr (mul_sign x y) (Just Affine)
-  --   | isConstant y && isAffine x = Expr (mul_sign x y) (Just Affine)
-  --   | isConstant x && isConvex y = case (sign x) of
-  --       Just Positive -> Expr (mul_sign x y) (Just Convex)
-  --       Just Negative -> Expr (mul_sign x y) (Just Concave)
-  --       otherwise -> Expr (Nothing) (Nothing)
-  --   | isConstant x && isConcave y = case (sign x) of
-  --       Just Positive -> Expr (mul_sign x y) (Just Concave)
-  --       Just Negative -> Expr (mul_sign x y) (Just Convex)
-  --       otherwise -> Expr (Nothing) (Nothing)
-  --   | isConstant y && isConvex x = case (sign y) of
-  --       Just Positive -> Expr (mul_sign x y) (Just Convex)
-  --       Just Negative -> Expr (mul_sign x y) (Just Concave)
-  --       otherwise -> Expr (Nothing) (Nothing)
-  --   | isConstant y && isConcave x = case (sign y) of
-  --       Just Positive -> Expr (mul_sign x y) (Just Concave)
-  --       Just Negative -> Expr (mul_sign x y) (Just Convex)
-  --       otherwise -> Expr (Nothing) (Nothing)
-  --   | otherwise = Expr (Nothing) (Nothing)
-  --   
-  -- add_sign :: Expr -> Expr -> Maybe Sign
-  -- add_sign x y = case (sign x, sign y) of
-  --   (Just Positive, Just Positive) -> Just Positive
-  --   (Just Negative, Just Negative) -> Just Negative
-  --   otherwise -> Nothing
-  -- 
-  -- mul_sign :: Expr -> Expr -> Maybe Sign
-  -- mul_sign x y = case (sign x, sign y) of
-  --   (Just Positive, Just Positive) -> Just Positive
-  --   (Just Negative, Just Negative) -> Just Positive
-  --   (Just Positive, Just Negative) -> Just Negative
-  --   (Just Negative, Just Positive) -> Just Negative
-  --   otherwise -> Nothing
-  -- 
-  -- -- evaluators
-  -- 
-  -- evalBinaryOp :: String -> [Expr] -> [Expr]
-  -- evalBinaryOp s (x:y:rest) = case (M.lookup s $ binaryOps) of
-  --   Just f -> (f x y):rest
-  --   Nothing -> (x:y:rest)
-  -- evalBinaryOp s expr = expr
-  -- 
-  -- 
-  -- evalUnaryOp :: String -> [Expr] -> [Expr]
-  -- evalUnaryOp s (x:rest) = case (M.lookup s $ unaryOps) of
-  --   Just f -> (f x):rest
-  --   Nothing -> (x:rest)
-  -- evalUnaryOp s expr = expr
-  -- 
-  -- -- list of atoms
-  -- 
-  -- binaryOps = M.fromList [
-  --   ("plus", ecos_plus),
-  --   ("sub", ecos_sub),
-  --   ("mul", ecos_mul),
-  --   ("quad_over_lin", ecos_quad_over_lin)
-  --   ]
-  -- 
-  -- unaryOps = M.fromList [
-  --   ("square", ecos_square),
-  --   ("inv_pos", ecos_inv),
-  --   ("abs", ecos_abs)
-  --   ]
+  -- square(x) = x^2
+  ecosSquare :: CVXSymbol
+  ecosSquare = Function {
+    name="square",
+    nargs=1,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\x -> case(x) of
+      [Positive] -> [Increasing]
+      [Negative] -> [Decreasing]
+      otherwise -> [Nonmonotone]
+    )}
+  
+  -- inv_pos(x) = 1/x for x >= 0
+  ecosInvPos :: CVXSymbol
+  ecosInvPos = Function {
+    name="inv_pos",
+    nargs=1,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Decreasing])
+    }
+  
+  
+  -- quad_over_lin(x) = x^2/y
+  ecosQuadOverLin :: CVXSymbol
+  ecosQuadOverLin = Function {
+    name="quad_over_lin",
+    nargs=2,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\x -> case (x) of
+      [Positive, _] -> [Increasing, Decreasing]
+      [Negative, _] -> [Decreasing, Decreasing]
+      otherwise -> [Nonmonotone,Decreasing]
+      )}
+  
+  -- plus(x,y) = x + y
+  ecosPlus :: CVXSymbol
+  ecosPlus = Function {
+    name="plus",
+    nargs=2,
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive,Positive] -> Positive
+      [Negative,Negative] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\x -> [Increasing, Increasing])
+    }
+    
+  -- minus(x,y) = x - y
+  ecosMinus :: CVXSymbol
+  ecosMinus = Function {
+    name="minus",
+    nargs=2,
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive,Negative] -> Positive
+      [Negative,Positive] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing, Decreasing])
+    }
+  
+  -- negate(x) = -x
+  ecosNegate :: CVXSymbol
+  ecosNegate = Function {
+    name="negate",
+    nargs=1,
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive] -> Negative
+      [Negative] -> Positive
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Decreasing])
+    }
+  
+  -- pos(x) = max(x,0)
+  ecosPos :: CVXSymbol
+  ecosPos = Function {
+    name="pos",
+    nargs=1,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Increasing])
+    }
+    
+  -- neg(x) = max(-x,0)
+  ecosNeg :: CVXSymbol
+  ecosNeg = Function {
+    name="neg",
+    nargs=1,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Decreasing])
+    }
+    
+  -- abs(x) = |x|
+  ecosAbs :: CVXSymbol
+  ecosAbs = Function {
+    name="abs",
+    nargs=1,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\x -> case(x) of
+      [Positive] -> [Increasing]
+      [Negative] -> [Decreasing]
+      otherwise -> [Nonmonotone]
+    )}
+    
+  -- norm2, norm1, norm_inf <-- not implemented since no vectors yet
+  -- sqrt(x) = geo_mean(x,1)
+  ecosSqrt :: CVXSymbol
+  ecosSqrt = Function {
+    name="sqrt",
+    nargs=1,
+    symbolVexity=Concave,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Increasing])
+    }
+    
+  -- geo_mean(x,y) = sqrt(x*y)
+  ecosGeoMean :: CVXSymbol
+  ecosGeoMean = Function {
+    name="geo_mean",
+    nargs=2,
+    symbolVexity=Concave,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Increasing, Increasing])
+    }
+    
+  -- pow_rat(x,p,q) <-- not implemented for the moment
+  -- sum_largest(x,k) <-- also not implemented (uses LP dual)
+  -- max(x), min(x) <-- also not implemented, since no vectors
+  
+  -- this is how you define *parameterized* atoms
+  -- hmm, no different... only restriction happens when we *construct* the tree...
+  -- alternative is to have ParamFunction take a Parameter as a type constructor argument
+  -- not sure if that will make a difference during code generation
+    
+  -- mul(x; a) = a*x
+  ecosMul :: CVXSymbol
+  ecosMul = ParamFunction {
+    name="multiply",
+    nargs=2,
+    symbolVexity=Affine,
+    symbolSign=(\x -> case (x) of
+      [Positive, Positive] -> Positive
+      [Negative, Negative] -> Positive
+      [Positive, Negative] -> Negative
+      [Negative, Positive] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\x -> case (x) of
+      [Positive, _] -> [Nonmonotone, Increasing]
+      [Negative, _] -> [Nonmonotone, Decreasing]
+      otherwise -> [Nonmonotone, Nonmonotone]
+    )
+  }
