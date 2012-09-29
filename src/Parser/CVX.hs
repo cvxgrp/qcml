@@ -21,8 +21,21 @@ module Parser.CVX (Token(..),cvxParse, cvxLex) where
   -- the expression tree should be [objExpr, [constraintExpr]]
   -- the objExpr and constraintExpr store the Expression in RPN
   -- Expression trees are just a *list* of tokens which we'll store in RPN notation
+  
+  -- having the parser output RPN is pretty cute, but i've got more
+  -- functional code for AST
   cvxParse :: String -> [Token]
   cvxParse s = cvxLex s
+  
+  -- parse will check the input language grammar and produce a "problem 
+  -- tree"
+  --
+  -- i.e., it will parse an expression like
+  --   square(x) + 1
+  -- as [obj=[BinaryOp plusFunc (UnaryOp square (Leaf x)) (Leaf 1)], constraints=[]]
+  -- the keyword "subject to" pushes expressions in to the constraint stack
+  -- the keyword "minimize" forces a rewrite on the problem
+  -- need a shunting yard algorithm
   
   cvxLex :: String -> [Token]
   cvxLex s = lexRecursively "" s

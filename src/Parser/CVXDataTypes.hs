@@ -24,7 +24,7 @@ module Parser.CVXDataTypes (Token(..)) where
     | GreaterThanEquals
     -- filler
     | Comma
-    deriving (Show)
+    deriving (Eq, Show)
   
   -- data types for annotating the language (TODO)
 
