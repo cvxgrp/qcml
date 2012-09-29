@@ -7,9 +7,11 @@ module Expression.Expression (positiveSign,
   negativeVariable,
   parameter,
   variable,
-  module Expression.DCP) where
+  module Expression.DCP,
+  module Expression.SOCP) where
     
   import Expression.DCP
+  import Expression.SOCP
   -- quad over lin x y = minimize t subject to ((y+t)/2, (y-t)/2, x) in SOC3, y in SOC1
 
   
@@ -18,15 +20,28 @@ module Expression.Expression (positiveSign,
   negativeSign = (\_ -> Negative)
   unknownSign = (\_ -> Unknown)
   
+  -- parameter rewriter 
+  -- parameter a becomes
+  --
+  -- minimize t
+  -- subject to 
+  --    a*z - t == 0
+  --    z == 1
+  --
+  paramProb s = (\out _ ->
+    -- create a new variable named "t0z0" (or in that form)
+    let newVar = VarId ((label out) ++"z0") 
+    in Problem (out) [[(newVar,"1")], [(newVar, s), (out,"-1")]] [1.0, 0.0] [])
+  
   -- constructors
   positiveParameter :: String -> CVXSymbol
-  positiveParameter s = Parameter s Affine positiveSign
+  positiveParameter s = Parameter s Affine positiveSign (paramProb s)
   
   negativeParameter :: String -> CVXSymbol
-  negativeParameter s = Parameter s Affine negativeSign
+  negativeParameter s = Parameter s Affine negativeSign (paramProb s)
   
   parameter :: String -> CVXSymbol
-  parameter s = Parameter s Affine unknownSign
+  parameter s = Parameter s Affine unknownSign (paramProb s)
   
   positiveVariable :: String -> CVXSymbol
   positiveVariable s = Variable s Affine positiveSign

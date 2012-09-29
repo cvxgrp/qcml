@@ -4,6 +4,8 @@ module TestCases.Expression (ExpressionTest(..),
   import Rewriter.Atoms
   import Test.HUnit
   
+  import Rewriter.ECOS
+  
   -- test expressions
   data ExpressionTest = ExpressionTest { 
       expr :: CVXExpression,

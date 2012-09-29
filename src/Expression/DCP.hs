@@ -6,8 +6,13 @@ module Expression.DCP (Monotonicity(..),
   CVXExpression,
   Vexable(..),
   Signable(..),
+  Prob(..),
   SignFunc,
-  MonoFunc) where
+  MonoFunc,
+  ProblemFunc) where
+  -- code can be made even shorter if we let Expression have the Functor
+  -- and fmap property...
+  import Expression.SOCP
   
   -- data types for signed monotonicity DCP rules
   data Monotonicity = Increasing 
@@ -35,9 +40,12 @@ module Expression.DCP (Monotonicity(..),
   
   class MFunc a where
     mfunc :: a -> MonoFunc
+  
+  class Prob a where
+    prob :: a -> ProblemFunc
 
   -- collect the properties of a node together
-  class (Vexable a, SFunc a, MFunc a) => Node a where
+  class (Vexable a, SFunc a, MFunc a, Prob a) => Node a where
   -- collect the properties of an expression together
   class (Vexable a, Signable a) => Expr a where
     
@@ -51,33 +59,37 @@ module Expression.DCP (Monotonicity(..),
   type CVXExpression = Expression CVXSymbol
   type SignFunc = [Sign]->Sign
   type MonoFunc = [Sign]->[Monotonicity]
+  type ProblemFunc = VarId -> [VarId] -> Problem
 
   -- parameter can be promoted to expression
   -- expression cannot be demoted to parameter
   data CVXSymbol
     = Parameter { 
-      name::String, 
+      name::String,
       symbolVexity::Vexity, 
-      symbolSign::SignFunc
+      symbolSign::SignFunc,
+      symbolRewrite::ProblemFunc
     }
     | Variable { 
-      name::String, 
+      name::String,
       symbolVexity::Vexity, 
-      symbolSign::SignFunc 
+      symbolSign::SignFunc
     }
     | Function { 
       name::String,
       nargs::Int,
       symbolVexity::Vexity, 
       symbolSign::SignFunc, 
-      monotonicity::MonoFunc 
+      monotonicity::MonoFunc,
+      symbolRewrite::ProblemFunc
     }
     | ParamFunction {
       name::String, 
       nargs::Int,
       symbolVexity::Vexity, 
       symbolSign::SignFunc, 
-      monotonicity::MonoFunc
+      monotonicity::MonoFunc,
+      symbolRewrite::ProblemFunc
     }
   
   -- symbols are vexable (can ask for its vexity)
@@ -90,9 +102,14 @@ module Expression.DCP (Monotonicity(..),
   
   -- symbols are "MFunc"-able (you can ask for monotonicity function)
   instance MFunc CVXSymbol where
-    mfunc (Parameter _ _ _) = (\_ -> [])
+    mfunc (Parameter _ _ _ _) = (\_ -> [])
     mfunc (Variable _ _ _) = (\_ -> [])
     mfunc x = monotonicity x
+  
+  -- symbols are "PFunc"-able (you can ask for a problem rewriter)
+  instance Prob CVXSymbol where
+    prob (Variable s _ _) = (\_ _ -> Problem (VarId s) [] [] [])
+    prob x = symbolRewrite x
   
   -- symbols are Nodes (a node is just Vexable, SFunc, and MFunc)
   instance Node CVXSymbol where
@@ -118,7 +135,7 @@ module Expression.DCP (Monotonicity(..),
   -- expressions are made up of nodes and are of class Expr
   -- the Expr class just says it's signable and vexable
   instance (Node a) => Expr (Expression a) where
-
+        
   -- symbols can be "shown"
   instance Show CVXSymbol where
     show x = name x
