@@ -30,8 +30,8 @@ module Expression.Expression (positiveSign,
   --
   paramProb s = (\out _ ->
     -- create a new variable named "t0z0" (or in that form)
-    let newVar = VarId ((label out) ++"z0") 
-    in Problem (out) [[(newVar,"1")], [(newVar, s), (out,"-1")]] [1.0, 0.0] [])
+    Problem (out) [[(out,"1")]] [s] [])
+    -- minimize out s.t. out == s
   
   -- constructors
   positiveParameter :: String -> CVXSymbol

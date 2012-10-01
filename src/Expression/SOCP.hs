@@ -8,7 +8,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..)) where
   data Problem = Problem {
     obj :: VarId,     -- objective is always just a single variable
     matrixA :: [Row],
-    vectorB :: [Double], 
+    vectorB :: [String], 
     conesK :: [SOC]
     }
     deriving (Show)

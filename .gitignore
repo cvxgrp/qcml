@@ -6,5 +6,7 @@
 *.pdf
 *.hi
 *.o
+*.ps
+*.synctex.gz
 src/main
 src/test

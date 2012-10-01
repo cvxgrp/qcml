@@ -163,6 +163,10 @@ module Rewriter.Atoms (ecosSquare,
   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
   -- max(x), min(x) <-- also not implemented, since no vectors
   
+  -- ==
+  -- <=
+  -- >=
+  
   -- this is how you define *parameterized* atoms
   -- hmm, no different... only restriction happens when we *construct* the tree...
   -- alternative is to have ParamFunction take a Parameter as a type constructor argument
