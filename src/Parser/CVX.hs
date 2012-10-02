@@ -27,6 +27,13 @@ module Parser.CVX (Token(..),cvxParse, cvxLex) where
   cvxParse :: String -> [Token]
   cvxParse s = cvxLex s
   
+  --
+  -- parameter NAME (sign)
+  -- variable NAME
+  -- minimize EXPRESSION s.t EXPRESSION == EXPRESSION, EXPRESSION <= EXPRESSION, EXPRESSION >= EXPRESSION
+  --    need some way to input "constraints"
+  -- everything else is a "problem"
+  
   -- parse will check the input language grammar and produce a "problem 
   -- tree"
   --
@@ -35,7 +42,7 @@ module Parser.CVX (Token(..),cvxParse, cvxLex) where
   -- as [obj=[BinaryOp plusFunc (UnaryOp square (Leaf x)) (Leaf 1)], constraints=[]]
   -- the keyword "subject to" pushes expressions in to the constraint stack
   -- the keyword "minimize" forces a rewrite on the problem
-  -- need a shunting yard algorithm
+  -- need a shunting yard algorithm to convert tokens to expressions
   
   cvxLex :: String -> [Token]
   cvxLex s = lexRecursively "" s

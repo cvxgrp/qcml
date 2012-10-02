@@ -9,7 +9,7 @@ module Main where
   
   main :: IO ()
   main = do
-    putStr "cvxi> "
+    putStr "ecos_front_end:> "
     hFlush stdout   -- to flush out the prompt
     line <- getLine
     if (map toUpper line) == "EXIT"
@@ -19,7 +19,7 @@ module Main where
       -- attempt to lookup the string on the line, if fails, call parser
       
       putStrLn $ '\t':(show $ cvxParse line)
-      putStrLn $ show $ testme line
+      putStrLn $ show $ line
       -- call parser on the line
       -- if an assignment occurs, should store in parser's symbol table
         -- routine to lookup symbols should be exposed in symbol table

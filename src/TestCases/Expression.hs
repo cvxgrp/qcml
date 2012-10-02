@@ -25,6 +25,10 @@ module TestCases.Expression (ExpressionTest(..),
   expr10 = UnaryNode ecosSqrt expr1 -- sqrt(x)
   expr11 = UnaryNode ecosInvPos expr10 -- 1/sqrt(x)
   expr12 = BinaryNode ecosMul expr3 expr1 -- 8*x
+  expr13 = UnaryNode ecosSquare expr4 -- square(x + 1)
+  expr14 = BinaryNode ecosMinus expr12 expr2 -- 8*x - 1
+  expr15 = UnaryNode ecosSquare expr14 -- square(8*x - 1)
+  expr16 = BinaryNode ecosPlus expr11 expr1 -- 1/sqrt(x) + x
   
   exprTests = [ExpressionTest expr1 Affine Unknown,
     ExpressionTest expr2 Affine Positive,
@@ -34,7 +38,8 @@ module TestCases.Expression (ExpressionTest(..),
     ExpressionTest expr8 Convex Positive,
     ExpressionTest expr9 Nonconvex Positive,
     ExpressionTest expr10 Concave Positive,
-    ExpressionTest expr11 Convex Positive]
+    ExpressionTest expr11 Convex Positive,
+    ExpressionTest expr13 Convex Positive]
   
   exprTestCases = map createExprTestCase exprTests
   

@@ -7,11 +7,10 @@ module Expression.Expression (positiveSign,
   negativeVariable,
   parameter,
   variable,
-  module Expression.DCP,
-  module Expression.SOCP) where
+  module Expression.DCP) where
     
   import Expression.DCP
-  import Expression.SOCP
+  import Problem.SOCP
   -- quad over lin x y = minimize t subject to ((y+t)/2, (y-t)/2, x) in SOC3, y in SOC1
 
   
@@ -51,6 +50,7 @@ module Expression.Expression (positiveSign,
   
   variable :: String -> CVXSymbol
   variable s = Variable s Affine unknownSign
+  
   
   
   

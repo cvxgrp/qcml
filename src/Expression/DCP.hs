@@ -9,24 +9,19 @@ module Expression.DCP (Monotonicity(..),
   Prob(..),
   SignFunc,
   MonoFunc,
-  ProblemFunc) where
+  ProblemFunc,
+  CVXProblem(..),
+  CVXConstraint(..)) where
   -- code can be made even shorter if we let Expression have the Functor
   -- and fmap property...
-  import Expression.SOCP
+  import Problem.SOCP
   
   -- data types for signed monotonicity DCP rules
-  data Monotonicity = Increasing 
-    | Decreasing 
-    | Nonmonotone 
+  data Monotonicity = Increasing | Decreasing | Nonmonotone 
     deriving (Show, Eq)
-  data Vexity = Convex 
-    | Concave 
-    | Affine 
-    | Nonconvex 
+  data Vexity = Convex | Concave | Affine | Nonconvex 
     deriving (Show, Eq)
-  data Sign = Positive
-    | Negative
-    | Unknown
+  data Sign = Positive | Negative | Unknown
     deriving (Show, Eq)
 
   class Vexable a where
@@ -60,7 +55,16 @@ module Expression.DCP (Monotonicity(..),
   type SignFunc = [Sign]->Sign
   type MonoFunc = [Sign]->[Monotonicity]
   type ProblemFunc = VarId -> [VarId] -> Problem
-
+  
+  -- constraint data type
+  data CVXConstraint = Eq {lhs::CVXExpression, rhs::CVXExpression}
+    | Leq {lhs::CVXExpression, rhs::CVXExpression}
+    | Geq {lhs::CVXExpression, rhs::CVXExpression}
+    
+  -- problem data type (all problems are convex!)
+  data CVXProblem = CVXProblem { objective::CVXExpression,
+    constraints::[CVXConstraint] }
+    
   -- parameter can be promoted to expression
   -- expression cannot be demoted to parameter
   data CVXSymbol
@@ -135,6 +139,24 @@ module Expression.DCP (Monotonicity(..),
   -- expressions are made up of nodes and are of class Expr
   -- the Expr class just says it's signable and vexable
   instance (Node a) => Expr (Expression a) where
+    
+  -- constraints are "vexable"
+  instance Vexable CVXConstraint where
+    vexity (Eq lhs rhs) = case (vexity lhs, vexity rhs) of
+      (Affine, Affine)-> Convex
+      _ -> Nonconvex
+    vexity (Leq lhs rhs) = case (vexity lhs, vexity rhs) of
+      (Convex, Affine) -> Convex
+      (Affine, Affine) -> Convex
+      _ -> Nonconvex
+    vexity (Geq lhs rhs) = case (vexity lhs, vexity rhs) of
+      (Concave, Affine) -> Convex
+      (Affine, Affine) -> Convex
+      _ -> Nonconvex
+    
+  -- problems are "vexable"
+  instance Vexable CVXProblem where
+    vexity p = foldl reduceVex (vexity $ objective p) (map vexity (constraints p))
         
   -- symbols can be "shown"
   instance Show CVXSymbol where
@@ -148,6 +170,17 @@ module Expression.DCP (Monotonicity(..),
     show (UnaryNode x y) 
       = (show x) ++ "(" ++ show y ++ ")"
     show _ = "Empty Expression"
+
+  -- constraints can be "shown"
+  instance Show CVXConstraint where
+    show (Eq lhs rhs) = (show lhs) ++ " == " ++ (show rhs) 
+    show (Leq lhs rhs) = (show lhs) ++ " <= " ++ (show rhs) 
+    show (Geq lhs rhs) = (show lhs) ++ " >= " ++ (show rhs) 
+    
+  -- problems can be "shown"
+  instance Show CVXProblem where
+    show p = unwords $ ["minimize " ++ (show $ (objective p)),
+      "subject to"] ++ (map show (constraints p))
 
 
   -- helper functions for DCP rules
