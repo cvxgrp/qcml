@@ -10,3 +10,4 @@
 *.synctex.gz
 src/main
 src/test
+src/probtocvx

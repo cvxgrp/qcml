@@ -11,10 +11,11 @@ module Expression.DCP (Monotonicity(..),
   MonoFunc,
   ProblemFunc,
   CVXProblem(..),
-  CVXConstraint(..)) where
+  CVXConstraint(..),
+  isConvex, isConcave, isAffine) where
   -- code can be made even shorter if we let Expression have the Functor
   -- and fmap property...
-  import Problem.SOCP
+  import Expression.SOCP
   
   -- data types for signed monotonicity DCP rules
   data Monotonicity = Increasing | Decreasing | Nonmonotone 
@@ -112,7 +113,7 @@ module Expression.DCP (Monotonicity(..),
   
   -- symbols are "PFunc"-able (you can ask for a problem rewriter)
   instance Prob CVXSymbol where
-    prob (Variable s _ _) = (\_ _ -> Problem (VarId s) [] [] [])
+    prob (Variable s _ _) = (\_ _ -> Problem (Just (VarId s)) [] [] [])
     prob x = symbolRewrite x
   
   -- symbols are Nodes (a node is just Vexable, SFunc, and MFunc)
@@ -142,21 +143,22 @@ module Expression.DCP (Monotonicity(..),
     
   -- constraints are "vexable"
   instance Vexable CVXConstraint where
-    vexity (Eq lhs rhs) = case (vexity lhs, vexity rhs) of
-      (Affine, Affine)-> Convex
-      _ -> Nonconvex
-    vexity (Leq lhs rhs) = case (vexity lhs, vexity rhs) of
-      (Convex, Affine) -> Convex
-      (Affine, Affine) -> Convex
-      _ -> Nonconvex
-    vexity (Geq lhs rhs) = case (vexity lhs, vexity rhs) of
-      (Concave, Affine) -> Convex
-      (Affine, Affine) -> Convex
-      _ -> Nonconvex
+    vexity (Eq lhs rhs)
+      | isAffine lhs && isAffine rhs = Convex
+      | otherwise = Nonconvex
+    vexity (Leq lhs rhs)
+      | isConvex lhs && isConcave rhs = Convex
+      | otherwise = Nonconvex
+    vexity (Geq lhs rhs)
+      | isConcave rhs && isConvex lhs = Convex
+      | otherwise = Nonconvex
     
   -- problems are "vexable"
   instance Vexable CVXProblem where
-    vexity p = foldl reduceVex (vexity $ objective p) (map vexity (constraints p))
+    vexity p = 
+      let constraintVexList = map vexity (constraints p)
+          objectiveVex = vexity $ objective p
+      in foldl reduceVex objectiveVex constraintVexList
         
   -- symbols can be "shown"
   instance Show CVXSymbol where
@@ -214,3 +216,16 @@ module Expression.DCP (Monotonicity(..),
   reduceVex Convex Convex = Convex
   reduceVex Concave Concave = Concave
   reduceVex _ _ = Nonconvex
+  
+  -- testing if isConvex, isConcave, isAffine
+  isConvex :: Vexable a => a -> Bool
+  isConvex x = (v == Convex) || (v == Affine)
+    where v = vexity x
+  
+  isConcave :: Vexable a => a -> Bool
+  isConcave x = (v == Concave) || (v == Affine)
+    where v = vexity x
+  
+  isAffine :: Vexable a => a -> Bool
+  isAffine x = (v == Affine)
+    where v = vexity x

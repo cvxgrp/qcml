@@ -1,7 +1,8 @@
 module Main where
   import Test.HUnit
   import TestCases.Lexer
-  import TestCases.Expression
+  import TestCases.Expressions
+  import TestCases.Problems
   
   listOfLexerTests 
     = zipWith (\x y -> TestLabel ("Test: " ++ (line x)) y) 

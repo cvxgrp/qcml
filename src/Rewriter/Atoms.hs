@@ -11,12 +11,20 @@ module Rewriter.Atoms (ecosSquare,
   ecosGeoMean,
   ecosMul, ecosAtoms) where
   
+  import qualified Data.Map as M
   import Expression.Expression
-  import Problem.SOCP
   -- TODO: in parser, need to check arguments and check parameteric functions
   
   -- list of valid atoms
-  ecosAtoms = ["square", "inv_pos", "quad_over_lin", "pos", "neg", "sqrt", "geo_mean", "abs"]
+  ecosAtoms = M.fromList [
+    ("square", ecosSquare), 
+    ("inv_pos", ecosInvPos),
+    ("quad_over_lin", ecosQuadOverLin),
+    ("pos", ecosPos),
+    ("neg", ecosNeg),
+    ("sqrt", ecosSqrt),
+    ("geo_mean", ecosGeoMean),
+    ("abs", ecosAbs)]
   
   
   -- this might be one way to provide monotonicity
@@ -45,10 +53,10 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
-        in Problem (out) [
+        in Problem (Just out) [
           [(out, "0.5"), (z0, "-1")],
           [(out, "-0.5"), (z1, "-1")]
-        ] ["-0.5", "-0.5"] [SOC3 [z0,z1,inputs!!0]]
+        ] ["-0.5", "-0.5"] [SOC [z0,z1,inputs!!0]]
   )}
   
   -- inv_pos(x) = 1/x for x >= 0
@@ -62,12 +70,12 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
-            one = VarId $ (label out) ++ "z3"
-        in Problem (out) [
+            one = VarId $ (label out) ++ "z2"
+        in Problem (Just out) [
           [(inputs!!0,"0.5"), (out, "0.5"), (z0, "-1")],
           [(inputs!!0,"0.5"), (out, "-0.5"), (z1, "-1")],
           [(one, "1")]
-        ] ["0", "0", "1"] [SOC3 [z0,z1,one], SOC1 [inputs!!0]]
+        ] ["0", "0", "1"] [SOC [z0,z1,one], SOC [inputs!!0]]
   )}
   
   
@@ -86,10 +94,10 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
-        in Problem (out) [
+        in Problem (Just out) [
           [(inputs!!1,"0.5"), (out, "0.5"), (z0, "-1")],
           [(inputs!!1,"0.5"), (out, "-0.5"), (z1, "-1")]
-        ] ["0", "0"] [SOC3 [z0,z1,inputs!!0], SOC1 [inputs!!1]]
+        ] ["0", "0"] [SOC [z0,z1,inputs!!0], SOC [inputs!!1]]
     )}
   
   -- plus(x,y) = x + y
@@ -105,7 +113,7 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\x -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        Problem (out) [[(inputs!!0,"1"), (inputs!!1,"1"), (out, "-1")]] ["0"] []
+        Problem (Just out) [[(inputs!!0,"1"), (inputs!!1,"1"), (out, "-1")]] ["0"] []
       )
     }
     
@@ -122,7 +130,7 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Decreasing]),
     symbolRewrite=(\out inputs ->
-        Problem (out) [[(inputs!!0,"1"), (inputs!!1,"-1"), (out, "-1")]] ["0"] []
+        Problem (Just out) [[(inputs!!0,"1"), (inputs!!1,"-1"), (out, "-1")]] ["0"] []
       )
     }
   
@@ -139,7 +147,7 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        Problem (out) [[(inputs!!0,"-1"), (out, "-1")]] ["0"] []
+        Problem (Just out) [[(inputs!!0,"-1"), (out, "-1")]] ["0"] []
   )}
   
   -- pos(x) = max(x,0)
@@ -152,7 +160,7 @@ module Rewriter.Atoms (ecosSquare,
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
-        in Problem (out) [[(out,"1"), (inputs!!0,"-1"), (z0, "-1")]] ["0"] [SOC1 [out], SOC1 [z0]]
+        in Problem (Just out) [[(out,"1"), (inputs!!0,"-1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
       )
     }
     
@@ -166,7 +174,7 @@ module Rewriter.Atoms (ecosSquare,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
-        in Problem (out) [[(out,"1"), (inputs!!0,"1"), (z0, "-1")]] ["0"] [SOC1 [out], SOC1 [z0]]
+        in Problem (Just out) [[(out,"1"), (inputs!!0,"1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
       )
     }
     
@@ -182,7 +190,7 @@ module Rewriter.Atoms (ecosSquare,
       [Negative] -> [Decreasing]
       otherwise -> [Nonmonotone]),
     symbolRewrite=(\out inputs ->
-      Problem (out) [] [] [SOC2 [out, inputs!!0]]
+      Problem (Just out) [] [] [SOC [out, inputs!!0]]
       )
     }
     
@@ -198,10 +206,10 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
-        in Problem (out) [
+        in Problem (Just out) [
           [(inputs!!0,"0.5"), (z0, "-1")],
           [(inputs!!0,"-0.5"), (z1, "-1")]
-        ] ["-0.5", "-0.5"] [SOC3 [z0,z1,out]]
+        ] ["-0.5", "-0.5"] [SOC [z0,z1,out]]
     )
     }
     
@@ -216,10 +224,10 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
-        in Problem (out) [
+        in Problem (Just out) [
           [(inputs!!0,"0.5"), (inputs!!1, "0.5"), (z0, "-1")],
           [(inputs!!0,"-0.5"), (inputs!!1, "0.5"), (z1, "-1")]
-        ] ["0", "0"] [SOC3 [z0,z1,out], SOC1 [inputs!!1]]
+        ] ["0", "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
@@ -251,6 +259,6 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone, Nonmonotone]
     ),
     symbolRewrite=(\out inputs ->
-        Problem (out) [[(inputs!!1,label $ inputs!!0), (out, "-1")]] ["0"] []
+        Problem (Just out) [[(inputs!!1,label $ inputs!!0), (out, "-1")]] ["0"] []
       )
   }

@@ -7,10 +7,11 @@ module Expression.Expression (positiveSign,
   negativeVariable,
   parameter,
   variable,
-  module Expression.DCP) where
+  module Expression.DCP,
+  module Expression.SOCP) where
     
   import Expression.DCP
-  import Problem.SOCP
+  import Expression.SOCP
   -- quad over lin x y = minimize t subject to ((y+t)/2, (y-t)/2, x) in SOC3, y in SOC1
 
   
@@ -29,7 +30,7 @@ module Expression.Expression (positiveSign,
   --
   paramProb s = (\out _ ->
     -- create a new variable named "t0z0" (or in that form)
-    Problem (out) [[(out,"1")]] [s] [])
+    Problem (Just out) [[(out,"1")]] [s] [])
     -- minimize out s.t. out == s
   
   -- constructors

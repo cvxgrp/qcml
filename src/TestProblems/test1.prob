@@ -1,0 +1,10 @@
+variable x
+parameter b
+parameter a
+parameter c
+parameter lambda positive
+
+minimize square(a*x - b) + lambda*abs(x)
+subject to
+  x >= c
+  c*x <= b

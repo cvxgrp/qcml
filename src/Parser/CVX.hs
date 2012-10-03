@@ -1,117 +1,222 @@
-module Parser.CVX (Token(..),cvxParse, cvxLex) where
-  import Parser.CVXDataTypes
+module Parser.CVX (runLex, cvxProb) where
+  import qualified Expression.Expression as E
+  import qualified Data.Map as M
+  import Rewriter.Atoms
   
-  -- an Expression is just a list of tokens
-  --type Expression = [Token]
+  import Text.ParserCombinators.Parsec.Token
+  import Text.ParserCombinators.Parsec.Language
+  import Text.ParserCombinators.Parsec
+  import Text.ParserCombinators.Parsec.Expr
   
-  -- actually, eval should return an Expression tree (or [] if none) in RPN
-  --  eval :: Maybe [Token] -> Result
-  -- a Result is either Executed (e.g., Assign, literal operations, etc.)
-  --  or an Expression [Matrix "A" (5,5) [PSD, DIAGONAL], Matrix "x" (5,1) [], Multiply]
-  --  or a Problem, (objExpr, [constraintExpr])
-  --
-  -- a single line like A*x + b 
-  --   
-  --
-  -- parse should check syntax and shapes(?) and returns a list of tokens(?) in RPN
-  --   parse :: [Token] -> Maybe [Token]
-  -- returns Nothing on error?
-  --
-  --
-  -- the expression tree should be [objExpr, [constraintExpr]]
-  -- the objExpr and constraintExpr store the Expression in RPN
-  -- Expression trees are just a *list* of tokens which we'll store in RPN notation
+  -- to be removed later
+  import Rewriter.ECOS
   
-  -- having the parser output RPN is pretty cute, but i've got more
-  -- functional code for AST
-  cvxParse :: String -> [Token]
-  cvxParse s = cvxLex s
-  
-  --
-  -- parameter NAME (sign)
-  -- variable NAME
-  -- minimize EXPRESSION s.t EXPRESSION == EXPRESSION, EXPRESSION <= EXPRESSION, EXPRESSION >= EXPRESSION
-  --    need some way to input "constraints"
-  -- everything else is a "problem"
-  
-  -- parse will check the input language grammar and produce a "problem 
-  -- tree"
-  --
-  -- i.e., it will parse an expression like
-  --   square(x) + 1
-  -- as [obj=[BinaryOp plusFunc (UnaryOp square (Leaf x)) (Leaf 1)], constraints=[]]
-  -- the keyword "subject to" pushes expressions in to the constraint stack
-  -- the keyword "minimize" forces a rewrite on the problem
-  -- need a shunting yard algorithm to convert tokens to expressions
-  
-  cvxLex :: String -> [Token]
-  cvxLex s = lexRecursively "" s
+  type CVXState = M.Map String E.CVXSymbol
+  type CVXParser a = GenParser Char CVXState a
+  symbolTable = M.empty :: CVXState
 
-  lexRecursively :: String -> String -> [Token]
-  lexRecursively "+" next = Plus:(lexRecursively "" next)
-  lexRecursively "-" next = Subtract:(lexRecursively "" next)
-  lexRecursively "*" next = Multiply:(lexRecursively "" next)
-  lexRecursively "/" next = Divide:(lexRecursively "" next)
-  lexRecursively "==" next = Equals:(lexRecursively "" next)
-  lexRecursively "<=" next = LessThanEquals:(lexRecursively "" next)
-  lexRecursively "<" (c:next) = lexRecursively ("<"++[c]) next  -- eat
-  lexRecursively ">=" next = GreaterThanEquals:(lexRecursively "" next)
-  lexRecursively ">" (c:next) = lexRecursively (">"++[c]) next  -- eat
-  lexRecursively "(" next = LeftParen:(lexRecursively "" next)
-  lexRecursively ")" next = RightParen:(lexRecursively "" next)
-  lexRecursively "," next = Comma:(lexRecursively "" next)
-  lexRecursively "=" (c:next) 
-    | c =='='   = lexRecursively ("="++[c]) next  -- lookahead in case "=="
-    | otherwise = Assign:(lexRecursively [c] next)
-  -- handle dangling ='s
-  lexRecursively "=" "" = [Assign]
-  -- skip spaces
-  lexRecursively " " next = lexRecursively "" next
-  -- end of line
-  lexRecursively cur "" = gobble cur
-  -- handle case with singleton at the end
-  lexRecursively cur [c]
-    | isDelimiter c ' ' = gobble cur ++ lexRecursively [c] ""
-    | otherwise = lexRecursively (cur ++ [c]) ""
-  -- common case is to eat a character
-  lexRecursively cur (c:next)
-    -- lookahead two characters to determine if we should gobble current
-    | isDelimiter c (head next) = gobble cur ++ lexRecursively [c] next
-    -- otherwise, just eat a character
-    | otherwise = lexRecursively (cur++[c]) next
+  lexer :: TokenParser CVXState
+  lexer = makeTokenParser (haskellDef {
+      reservedNames = ["minimize", "subject to", "parameter", "variable", "nonnegative", "nonpositive"],
+      reservedOpNames = ["*", "+", "-", "==", "<=", ">="] ++ (M.keys ecosAtoms)
+    })
     
-  -- let's the left-right parser know when to gobble its previous characters
-  isDelimiter :: Char -> Char -> Bool
-  isDelimiter ' ' _   = True
-  isDelimiter '+' _   = True
-  isDelimiter '-' _   = True
-  isDelimiter '*' _   = True
-  isDelimiter '/' _   = True
-  isDelimiter '=' _   = True
-  isDelimiter '<' '=' = True
-  isDelimiter '>' '=' = True
-  isDelimiter '(' _   = True
-  isDelimiter ')' _   = True
-  isDelimiter ',' _   = True
-  isDelimiter _ _     = False
+  -- verifyMul :: CVXParser E.CVXExpression -> CVXParser E.CVXExpression
+  -- verifyMul x = x
+  -- case (expr) of
+  --   E.BinaryNode
+  --   _ -> 
+    
+  cvxExpr :: CVXParser E.CVXExpression
+  cvxExpr = buildExpressionParser table term
+          <?> "expression"
   
-  gobble :: String -> [Token]
-  gobble s = case (gobble' s) of
-    Just x  -> [x]
-    Nothing -> []
+  binary name fun assoc 
+    = Infix (do{ reservedOp lexer name; return fun }) assoc
+  prefix name fun
+    = Prefix (do{ reservedOp lexer name; return fun })
   
-  gobble' :: String -> Maybe Token
-  gobble' "" = Nothing
-  gobble' "minimize" = Just Minimize
-  gobble' "subjectTo" = Just SubjectTo
-  gobble' "parameter" = Just Parameter
-  gobble' "variable" = Just Variable
-  gobble' s = case reads s :: [(Double,String)] of
-    [] -> Just $ Identifier s
-    [(a,"")] -> Just $ Literal a
-    [(a, b)] -> Just $ Identifier s
-    xs -> Nothing
+  table = [ [prefix "-" (E.UnaryNode ecosNegate)],
+            [binary "*" (E.BinaryNode ecosMul) AssocRight],
+            [binary "+" (E.BinaryNode ecosPlus) AssocLeft, 
+             binary "-" (E.BinaryNode ecosMinus) AssocLeft] ] 
+             
+  term = (parens lexer cvxExpr)
+      <|> choice (map function (M.keys ecosAtoms))
+      <|> try parameter 
+      <|> variable
+      <?> "simple expressions"
+  
+  args :: CVXParser [E.CVXExpression]
+  args = do {
+    sepBy cvxExpr (comma lexer)
+  }
+        
+  function :: String -> CVXParser E.CVXExpression
+  function atomName = 
+    let symbol = M.lookup atomName ecosAtoms
+        n = case (symbol) of 
+          Just x -> E.nargs x
+          _ -> 0
+    in do {
+      reserved lexer atomName;
+      p <- parens lexer args;
+      case (symbol) of
+        Just x ->      
+          if (length p /= n) 
+            then fail "number of arguments do not agree"
+            else case (n) of 
+              1 -> return (E.UnaryNode x (p!!0))
+              2 -> return (E.BinaryNode x (p!!0) (p!!1))
+              _ -> fail "no support for n-ary arguments"
+        _ -> fail "no such atom"
+    }
+  
+  variable :: CVXParser E.CVXExpression
+  variable = do { 
+    s <- identifier lexer;
+    t <- getState; 
+    case (M.lookup s t) of
+      Just (E.Variable name vex sign) 
+        -> return (E.Leaf $ E.Variable name vex sign)
+      _ -> fail $ "expected variable but got " ++ s 
+  }
+  
+  parameter :: CVXParser E.CVXExpression
+  parameter = do { 
+    s <- identifier lexer;
+    t <- getState; 
+    case (M.lookup s t) of
+      Just (E.Parameter name vex sign rewrite) 
+        -> return (E.Leaf $ E.Parameter name vex sign rewrite)
+      _ -> fail $ "expected parameter but got " ++ s 
+  }
+             
+  createVariable :: CVXParser E.CVXSymbol
+  createVariable = do { 
+    s <- identifier lexer; 
+    sign <- optionMaybe modifier;
+    return (case (sign) of
+      Just E.Positive -> (E.positiveVariable s)
+      Just E.Negative -> (E.negativeVariable s)
+      _ -> E.variable s)
+  } <?> "variable"
+  
+  createParameter :: CVXParser E.CVXSymbol
+  createParameter = do {
+    s <- identifier lexer;
+    sign <- optionMaybe modifier;
+    return (case (sign) of
+      Just E.Positive -> (E.positiveParameter s)
+      Just E.Negative -> (E.negativeParameter s)
+      _ -> E.parameter s)
+  } <?> "parameter"
+  
+  modifier :: CVXParser E.Sign
+  modifier = 
+    do {
+      reserved lexer "positive";
+      return E.Positive
+    } <|>
+    do {
+      reserved lexer "negative";
+      return E.Negative
+    } <?> "modifier"
+  
+  boolOp :: CVXParser String
+  boolOp = do {
+    reserved lexer "==";
+    return "=="
+    } <|> do {
+      reserved lexer "<=";
+      return "<="
+    } <|> do {
+      reserved lexer ">=";
+      return ">="
+    } <?> "boolean operator"
+    
+  constraint :: CVXParser E.CVXConstraint
+  constraint = do {
+    lhs <- cvxExpr;
+    p <- boolOp;
+    rhs <- cvxExpr;
+    case (p) of
+      "==" -> return (E.Eq lhs rhs)
+      "<=" -> return (E.Leq lhs rhs)
+      ">=" -> return (E.Geq lhs rhs)
+  }
+  
+  constraints :: CVXParser [E.CVXConstraint]
+  constraints = do { 
+    reserved lexer "subject to";
+    result <- many constraint;
+    return result 
+    } <?> "constraints"
+  
+  eol :: CVXParser String
+  eol = try (string "; ") 
+    <|> try (string "\r\n") 
+    <|> try (string "\n\r") 
+    <|> string ";" 
+    <|> string "\n"
+    <|> string "\r"
+    <?> "end of line"
+  
+  cvxProb :: CVXParser String
+  cvxProb = do {
+    result <- many cvxLine;
+    eof;
+    return (concat result)
+  } <?> "problem"
+  
+  cvxLine :: CVXParser String
+  cvxLine = 
+    do {
+      reserved lexer "minimize";
+      obj<-cvxExpr;
+      -- verify that the expression is a valid parse tree
+      c <- optionMaybe constraints;
+      t <- getState;
+      --eol;
+      case (c) of
+        Just x -> return (show $ rewrite (E.CVXProblem obj x))
+        _ -> return (show $ rewrite (E.CVXProblem obj []))
+    } <|>
+    do {
+      reserved lexer "parameter";
+      p <- createParameter;
+      updateState (M.insert (E.name p) p);
+      t <- getState;
+      --eol;
+      return ("")
+    } <|>
+    do {
+      reserved lexer "variable";
+      v <- createVariable;
+      updateState (M.insert (E.name v) v);
+      t <- getState;
+      --eol;
+      return ("")
+    } <|>
+    do {
+      obj<-cvxExpr;
+      --eol;
+      return (show $ rewrite (E.CVXProblem obj []))
+    }
 
-
-  --insertInSymbolTable :: Token -> [(String, String)]
-  --insertInSymbolTable Identifier s = 
+  -- these belong somewhere else?
+  run :: CVXParser String -> String -> IO ()
+  run p input
+          = case (runParser p M.empty "" input) of
+              Left err -> do{ putStr "parse error at "
+                            ; print err
+                            }
+              Right x  -> putStr x
+  
+  runLex :: CVXParser String -> String -> IO ()
+  runLex p input
+          = run (do{ whiteSpace lexer
+                   ; x <- p
+                   ; eof
+                   ; return x
+                   }) input
