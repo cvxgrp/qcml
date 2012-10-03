@@ -36,6 +36,8 @@ module Parser.CVX (runLex, cvxProb) where
   prefix name fun
     = Prefix (do{ reservedOp lexer name; return fun })
   
+  -- XXX: by binding unary "-" so high up, we have bugs with -a*x -> (-a)*x
+  -- XXX: currently not checking that multiply takes param on lhs
   table = [ [prefix "-" (E.UnaryNode ecosNegate)],
             [binary "*" (E.BinaryNode ecosMul) AssocRight],
             [binary "+" (E.BinaryNode ecosPlus) AssocLeft, 
