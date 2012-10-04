@@ -39,13 +39,16 @@ function run_test(directory, type)
     try
         eval(result);
     catch e
-        result;
-        throw e
+        %result
+        info_
+        throw(e)
     end
 %     C = [eye(size(A_,2)) A_'; A_ -eye(size(A_,1))];
 %     [L,D, p] = ldl(C);
 %     spy(L)
-    v2 = type*cvx_optval;
+
+    v2 = type*cvx_optval;   % need this with CVX, don't need it without
+    v2 = type*info_.pcost;  % only when running with paris
 
 
     x_ecos = zeros(length(x),1);
@@ -62,10 +65,10 @@ function run_test(directory, type)
     else
         fprintf('FAIL\n');
 
-        result
+        %result
     
         [x_ecos x]
-        cvx_status
+        %cvx_status
         [v1 v2]
         pause
     end

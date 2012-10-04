@@ -45,7 +45,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- define what happens when we display a problem (gives CVX output)
   instance Show Problem where
     show EmptyProblem = "Attempted to show an empty problem (likely because it's nonconvex)...."
-    show x = codegen x -- codegenECOS x
+    show x = codegenECOS x -- codegenECOS x
 
 {-- what follows is for displaying cvx code --}
   cvxgen :: Problem -> String
@@ -111,7 +111,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
                       varTable = zip vars indices
                       n = show $ length vars
                       m = show $ length (vectorB p)
-                      (k, cones) = getConeConstraintsForECOS p
+                      (k, pvec, cones) = getConeConstraintsForECOS p
                       nk = show (length vars - k)
                       kshow = show k
     in unlines $ ["c_ = sparse(" ++ n ++ ",1);",
@@ -120,17 +120,15 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
       getBForCodegen p ++
       "A_ = sparse(" ++ m ++ ", " ++ n ++ ");",
       getAForCodegen p varTable,
-      -- permute so cone variables are in the "back"
-      "pvec_ = ["++kshow++"+1:"++ n ++" 1:"++kshow++"];",
+      "pvec_ = ["++show pvec++" " ++ kshow ++ "+1:" ++ n ++ "];",
       "c_ = c_(pvec_);",
-      "A_ = A_(:, pvec_);",
+      "A_ = A_(:,pvec_);",
       -- for ecos call
-      "G_ = [sparse("++kshow++", " ++ nk ++ ") -speye(" ++ kshow ++ ")];",
+      "G_ = [-speye(" ++ kshow ++ ") sparse("++kshow++", " ++ nk ++ ") ];",
       "h_ = zeros("++ kshow ++ ", 1);",
       cones,
-      "dims.l = " ++ nk ++ ";",
-      "x_ = paris(full(c_), G_, h_, dims, A_, full(b_));",
-      "x_codegen = zeros(" ++ n ++",1);",
+      "[x_, y_, info_] = paris(full(c_), G_, h_, dims, A_, full(b_));",
+      "x_codegen = zeros("++n++",1);",
       "x_codegen(pvec_) = x_;"
     ] ++ socpToProb varTable
     
@@ -167,11 +165,26 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (conesK p)
   
   -- gets the dimensions for cone constraints
-  getConeConstraintsForECOS :: Problem -> (Int, String)
+  getConeConstraintsForECOS :: Problem -> (Int, [Int], String)
   getConeConstraintsForECOS p = 
     let coneSizes = map coneSize (conesK p)
-        total = foldl1 (+) coneSizes
-    in (total, "dims.q = " ++ show coneSizes ++ ";")
+        permute1 = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
+        permute = createPermute permute1 coneSizes (scanl1 (+) coneSizes)
+        m = foldl (+) 0 coneSizes
+        higherDimCones = takeWhile (>1) coneSizes
+        l = m - (foldl (+) 0 higherDimCones)
+    in (m, permute, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
+  
+  -- create permutation
+  createPermute :: [Int]->[Int]->[Int]->[Int]
+  createPermute [] _ _ =[]
+  createPermute _ [] _ = []
+  createPermute _ _ [] = []
+  createPermute (x:xs) y cumsum = 
+    let val = y!!(x-1)
+        end = cumsum!!(x-1)
+    in [(end-val+1)..end] ++ (createPermute xs y cumsum)
+  
   
   -- gets sizes of cone
   coneSize :: SOC -> Int
