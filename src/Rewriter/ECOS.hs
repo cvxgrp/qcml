@@ -3,8 +3,7 @@ module Rewriter.ECOS (rewrite) where
   import Expression.Expression
 
   -- can we do things like square(A*x == 3)? and that writes to square(x) s.t. A*x == 3?
-  
-  -- really returns a problem (c, A, b, and K)
+
   
   -- a node / symbol has the ability to rewrite
   -- symbolRewrite takes variable name, argument names, outputs a Problem

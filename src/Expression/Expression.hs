@@ -7,6 +7,7 @@ module Expression.Expression (positiveSign,
   negativeVariable,
   parameter,
   variable,
+  isValidExpr,
   module Expression.DCP,
   module Expression.SOCP) where
     
@@ -54,9 +55,18 @@ module Expression.Expression (positiveSign,
   
   
   
+  -- check tree validity, easy function to make sure that ParamFunction have 
+  -- *parameters* on one side
+  isValidExpr :: CVXExpression -> Bool
+  isValidExpr (Leaf _) = True
+  isValidExpr (UnaryNode f arg) = True && isValidExpr arg
+  isValidExpr (BinaryNode f arg1 arg2) = case (f) of
+    ParamFunction _ _ _ _ _ _ -> True && isParam arg1 && isValidExpr arg2
+    otherwise -> True && isValidExpr arg1 && isValidExpr arg2
   
-  -- check tree validity
-  -- TODO, easy function to make sure that ParamFunction have *parameters* on one side
+  isParam :: CVXExpression -> Bool
+  isParam (Leaf (Parameter _ _ _ _)) = True
+  isParam _ = False
   
 
   

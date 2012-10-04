@@ -1,0 +1,7 @@
+parameter a
+parameter b
+variable x
+
+maximize min(a,b)
+subject to
+  square(x) >= b

@@ -1,0 +1,4 @@
+variable x
+parameter b positive
+
+minimize x-geo_mean(x,b)

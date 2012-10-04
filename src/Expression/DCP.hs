@@ -150,7 +150,7 @@ module Expression.DCP (Monotonicity(..),
       | isConvex lhs && isConcave rhs = Convex
       | otherwise = Nonconvex
     vexity (Geq lhs rhs)
-      | isConcave rhs && isConvex lhs = Convex
+      | isConcave lhs && isConvex rhs = Convex
       | otherwise = Nonconvex
     
   -- problems are "vexable"

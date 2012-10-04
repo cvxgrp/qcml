@@ -1,0 +1,5 @@
+variable x
+parameter a
+parameter b
+
+minimize (a*b)*x

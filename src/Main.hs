@@ -18,7 +18,7 @@ module Main where
       putStrLn $ "\""++line++"\" ="
       -- attempt to lookup the string on the line, if fails, call parser
       
-      putStrLn $ '\t':(show $ cvxParse line)
+      -- putStrLn $ '\t':(show $ cvxParse line)
       putStrLn $ show $ line
       -- call parser on the line
       -- if an assignment occurs, should store in parser's symbol table

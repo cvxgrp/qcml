@@ -17,32 +17,40 @@ module Parser.CVX (runLex, cvxProb) where
 
   lexer :: TokenParser CVXState
   lexer = makeTokenParser (haskellDef {
-      reservedNames = ["minimize", "subject to", "parameter", "variable", "nonnegative", "nonpositive"],
+      reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "nonnegative", "nonpositive"],
       reservedOpNames = ["*", "+", "-", "==", "<=", ">="] ++ (M.keys ecosAtoms)
     })
     
-  -- verifyMul :: CVXParser E.CVXExpression -> CVXParser E.CVXExpression
-  -- verifyMul x = x
-  -- case (expr) of
-  --   E.BinaryNode
-  --   _ -> 
-    
-  cvxExpr :: CVXParser E.CVXExpression
-  cvxExpr = buildExpressionParser table term
+  expr :: CVXParser E.CVXExpression
+  expr = buildExpressionParser table term
           <?> "expression"
   
+  -- this function exists since I need to verify that the expression satisfies
+  -- the restricted multiply because of arithmetic precedence rules
+  cvxExpr :: CVXParser E.CVXExpression
+  cvxExpr = do {
+    e <- expr;
+    if(E.isValidExpr e)
+    then
+      return e
+    else
+      fail ("Expression " ++ show e ++ " does not adhere to restricted multiply.")
+  }
+  
+  -- constructors to help build the expression table
   binary name fun assoc 
     = Infix (do{ reservedOp lexer name; return fun }) assoc
   prefix name fun
     = Prefix (do{ reservedOp lexer name; return fun })
   
-  -- XXX: by binding unary "-" so high up, we have bugs with -a*x -> (-a)*x
-  -- XXX: currently not checking that multiply takes param on lhs
-  table = [ [prefix "-" (E.UnaryNode ecosNegate)],
-            [binary "*" (E.BinaryNode ecosMul) AssocRight],
+  -- XXX: precedence ordering is *mathematical* precedence (not C-style)
+  table = [ [binary "*" (E.BinaryNode ecosMul) AssocRight],
+            [prefix "-" (E.UnaryNode ecosNegate)],
             [binary "+" (E.BinaryNode ecosPlus) AssocLeft, 
              binary "-" (E.BinaryNode ecosMinus) AssocLeft] ] 
-             
+  
+  -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
+  -- variables
   term = (parens lexer cvxExpr)
       <|> choice (map function (M.keys ecosAtoms))
       <|> try parameter 
@@ -142,27 +150,39 @@ module Parser.CVX (runLex, cvxProb) where
     lhs <- cvxExpr;
     p <- boolOp;
     rhs <- cvxExpr;
-    case (p) of
-      "==" -> return (E.Eq lhs rhs)
-      "<=" -> return (E.Leq lhs rhs)
-      ">=" -> return (E.Geq lhs rhs)
-  }
+    
+    let result = case (p) of
+          "==" -> (E.Eq lhs rhs)
+          "<=" -> (E.Leq lhs rhs)
+          ">=" -> (E.Geq lhs rhs)
+    in case (E.vexity result) of
+      E.Convex -> return result
+      _ -> fail "Not a signed DCP compliant constraint."
+  } <?> "constraint"
   
   constraints :: CVXParser [E.CVXConstraint]
   constraints = do { 
     reserved lexer "subject to";
     result <- many constraint;
     return result 
-    } <?> "constraints"
+  } <?> "constraints"
   
-  eol :: CVXParser String
-  eol = try (string "; ") 
-    <|> try (string "\r\n") 
-    <|> try (string "\n\r") 
-    <|> string ";" 
-    <|> string "\n"
-    <|> string "\r"
-    <?> "end of line"
+  objective :: E.Vexity -> CVXParser E.CVXExpression
+  objective v = do {
+    obj<-cvxExpr;
+    case(E.vexity obj) of
+      vex | vex == v || vex == E.Affine -> return obj
+      _ -> fail ("Objective fails to satisfy DCP rule. Not " ++ show v ++ ".")
+  } <?> "objective"
+  -- 
+  -- eol :: CVXParser String
+  -- eol = try (string "; ") 
+  --   <|> try (string "\r\n") 
+  --   <|> try (string "\n\r") 
+  --   <|> string ";" 
+  --   <|> string "\n"
+  --   <|> string "\r"
+  --   <?> "end of line"
   
   cvxProb :: CVXParser String
   cvxProb = do {
@@ -175,7 +195,7 @@ module Parser.CVX (runLex, cvxProb) where
   cvxLine = 
     do {
       reserved lexer "minimize";
-      obj<-cvxExpr;
+      obj<-objective E.Convex;
       -- verify that the expression is a valid parse tree
       c <- optionMaybe constraints;
       t <- getState;
@@ -183,6 +203,19 @@ module Parser.CVX (runLex, cvxProb) where
       case (c) of
         Just x -> return (show $ rewrite (E.CVXProblem obj x))
         _ -> return (show $ rewrite (E.CVXProblem obj []))
+    } <|>
+    do {
+      reserved lexer "maximize";
+      obj<-objective E.Concave;
+        
+      -- verify that the expression is a valid parse tree
+      c <- optionMaybe constraints;
+      t <- getState;
+      --eol;
+      let newObj = E.UnaryNode ecosNegate obj
+      in case (c) of
+        Just x -> return (show $ rewrite (E.CVXProblem newObj x))
+        _ -> return (show $ rewrite (E.CVXProblem newObj []))
     } <|>
     do {
       reserved lexer "parameter";
@@ -199,12 +232,13 @@ module Parser.CVX (runLex, cvxProb) where
       t <- getState;
       --eol;
       return ("")
-    } <|>
-    do {
-      obj<-cvxExpr;
-      --eol;
-      return (show $ rewrite (E.CVXProblem obj []))
-    }
+    } <?> "line"
+    -- <|>
+    -- do {
+    --   obj<-cvxExpr;
+    --   --eol;
+    --   return (show $ rewrite (E.CVXProblem obj []))
+    -- }
 
   -- these belong somewhere else?
   run :: CVXParser String -> String -> IO ()

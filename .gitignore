@@ -8,6 +8,7 @@
 *.o
 *.ps
 *.synctex.gz
+*.m~
 src/main
 src/test
 src/probtocvx

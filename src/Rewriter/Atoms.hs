@@ -24,7 +24,9 @@ module Rewriter.Atoms (ecosSquare,
     ("neg", ecosNeg),
     ("sqrt", ecosSqrt),
     ("geo_mean", ecosGeoMean),
-    ("abs", ecosAbs)]
+    ("abs", ecosAbs),
+    ("max", ecosMax),
+    ("min", ecosMin)]
   
   
   -- this might be one way to provide monotonicity
@@ -224,17 +226,68 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
+            -- negOut = -out; gives the right solution to maximization problem
+            negOut = VarId $ (label out) ++ "z2"  
         in Problem (Just out) [
           [(inputs!!0,"0.5"), (inputs!!1, "0.5"), (z0, "-1")],
           [(inputs!!0,"-0.5"), (inputs!!1, "0.5"), (z1, "-1")]
+          --[(negOut, "1"), (out,"1")]
         ] ["0", "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
   -- pow_rat(x,p,q) <-- not implemented for the moment
   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
-  -- max(x), min(x) <-- also not implemented, since no vectors
   
+  -- max(x,y)
+  ecosMax:: CVXSymbol
+  ecosMax = Function {
+    name="max",
+    nargs=2,
+    symbolVexity=Convex,
+    symbolSign = (\x -> case(x) of
+      [Positive,_] -> Positive
+      [_,Positive] -> Positive
+      [Negative,Negative] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing, Increasing]),
+    symbolRewrite=(\out inputs ->
+        let z0 = VarId $ (label out) ++ "z0"
+            z1 = VarId $ (label out) ++ "z1"
+        in Problem (Just out) [
+          [(out,"1"), (inputs!!0,"-1"), (z0, "-1")],
+          [(out,"1"), (inputs!!1,"-1"), (z1, "-1")]
+        ] ["0", "0"] [SOC [z0], SOC [z1]]
+    )
+    }
+    
+  -- min(x,y)
+  ecosMin :: CVXSymbol
+  ecosMin = Function {
+    name="min",
+    nargs=2,
+    symbolVexity=Concave,
+    symbolSign = (\x -> case(x) of
+      [Negative,_] -> Negative
+      [_,Negative] -> Negative
+      [Positive,Positive] -> Positive
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing, Increasing]),
+    symbolRewrite=(\out inputs ->
+        let z0 = VarId $ (label out) ++ "z0"
+            z1 = VarId $ (label out) ++ "z1"
+            -- negOut = -out; gives the right solution to maximization problem
+            negOut = VarId $ (label out) ++ "z2"
+        in Problem (Just out) [
+          [(out,"-1"), (inputs!!0,"1"), (z0, "-1")],
+          [(out,"-1"), (inputs!!1,"1"), (z1, "-1")]
+          --[(out, "1"), (out,"1")]
+        ] ["0", "0"] [SOC [z0], SOC [z1]]
+    )
+    }
+    
   -- this is how you define *parameterized* atoms
   -- hmm, no different... only restriction happens when we *construct* the tree...
   -- alternative is to have ParamFunction take a Parameter as a type constructor argument

@@ -1,4 +1,4 @@
-module Parser.CVXDataTypes (Token(..)) where
+module OldParser.CVXDataTypes (Token(..)) where
   -- this file is around only to help us keep track of the lexer
   
   -- how do we handle atoms?
