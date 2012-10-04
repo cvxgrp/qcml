@@ -11,7 +11,9 @@ function ecos_tester()
         run_test('lp', 1); fprintf('\n');
         run_test('quadratic_over_linear', 1); fprintf('\n');
         run_test('inv_prob', 1); fprintf('\n');
-        run_test('min_max', -1); %fprintf('\n');
+        run_test('min_max', -1); fprintf('\n');
+        run_test('robust_ls', 1); %fprintf('\n');
+
     catch e
         cd ..   % return to top level directory
         e.message
@@ -27,7 +29,7 @@ function run_test(directory, type)
     eval(directory)
     fprintf('  cvx solve time %f\n', toc);
     v1 = cvx_optval;
-    
+        
     tic;
     [status, result] = system(['../../src/ProbToCVX ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
@@ -56,6 +58,8 @@ function run_test(directory, type)
         result
     
         [x_ecos x]
+        cvx_status
+        cvx_optval
         pause
     end
     cd ..

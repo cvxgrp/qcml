@@ -45,7 +45,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- define what happens when we display a problem (gives CVX output)
   instance Show Problem where
     show EmptyProblem = "Attempted to show an empty problem (likely because it's nonconvex)...."
-    show x = codegen x
+    show x = cvxgen x
 
 {-- what follows is for displaying cvx code --}
   cvxgen :: Problem -> String
