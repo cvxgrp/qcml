@@ -1,0 +1,7 @@
+variable x1
+variable x2
+parameter u
+
+minimize x1 + quad_over_lin(x1 - x2, sqrt(x2))
+subject to
+x1 <= u

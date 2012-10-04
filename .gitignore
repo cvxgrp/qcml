@@ -9,6 +9,7 @@
 *.ps
 *.synctex.gz
 *.m~
+*.prob~
 src/main
 src/test
 src/probtocvx

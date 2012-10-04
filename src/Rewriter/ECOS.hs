@@ -56,7 +56,7 @@ module Rewriter.ECOS (rewrite) where
   rewriteConstraintSet (c:cs) count = 
     let (leftCount, leftProb) = rewriteAndCount (lhs c) count
         (rightCount, rightProb) = rewriteAndCount (rhs c) (count+leftCount)
-        leftoverConstraints = (rewriteConstraintSet cs rightCount)
+        leftoverConstraints = (rewriteConstraintSet cs (count+rightCount))
     in case (c) of
       (Eq _ _) -> (leftProb <==> rightProb) <+ leftoverConstraints
       (Leq _ _) -> (leftProb <<=> rightProb) <+ leftoverConstraints
