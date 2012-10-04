@@ -45,7 +45,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- define what happens when we display a problem (gives CVX output)
   instance Show Problem where
     show EmptyProblem = "Attempted to show an empty problem (likely because it's nonconvex)...."
-    show x = cvxgen x
+    show x = codegen x -- codegenECOS x
 
 {-- what follows is for displaying cvx code --}
   cvxgen :: Problem -> String
@@ -104,6 +104,35 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
       "A_*x_codegen == b_"
     ] ++ getConeConstraintsForCodegen p varTable ++
     ["cvx_end"] ++ socpToProb varTable
+
+  codegenECOS :: Problem -> String
+  codegenECOS p = let vars = getVariableNames p
+                      indices = [1..length vars]  -- indices change for C code
+                      varTable = zip vars indices
+                      n = show $ length vars
+                      m = show $ length (vectorB p)
+                      (k, cones) = getConeConstraintsForECOS p
+                      nk = show (length vars - k)
+                      kshow = show k
+    in unlines $ ["c_ = sparse(" ++ n ++ ",1);",
+      "c_(" ++ n ++ ") = 1;",
+      "b_ = sparse(" ++ m ++ ",1);",
+      getBForCodegen p ++
+      "A_ = sparse(" ++ m ++ ", " ++ n ++ ");",
+      getAForCodegen p varTable,
+      -- permute so cone variables are in the "back"
+      "pvec_ = ["++kshow++"+1:"++ n ++" 1:"++kshow++"];",
+      "c_ = c_(pvec_);",
+      "A_ = A_(:, pvec_);",
+      -- for ecos call
+      "G_ = [sparse("++kshow++", " ++ nk ++ ") -speye(" ++ kshow ++ ")];",
+      "h_ = zeros("++ kshow ++ ", 1);",
+      cones,
+      "dims.l = " ++ nk ++ ";",
+      "x_ = paris(full(c_), G_, h_, dims, A_, full(b_));",
+      "x_codegen = zeros(" ++ n ++",1);",
+      "x_codegen(pvec_) = x_;"
+    ] ++ socpToProb varTable
     
   -- write out results
   socpToProb :: [(String, Int)] -> [String]
@@ -136,6 +165,17 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- gets the cone constraints
   getConeConstraintsForCodegen :: Problem -> [(String,Int)]->[String]
   getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (conesK p)
+  
+  -- gets the dimensions for cone constraints
+  getConeConstraintsForECOS :: Problem -> (Int, String)
+  getConeConstraintsForECOS p = 
+    let coneSizes = map coneSize (conesK p)
+        total = foldl1 (+) coneSizes
+    in (total, "dims.q = " ++ show coneSizes ++ ";")
+  
+  -- gets sizes of cone
+  coneSize :: SOC -> Int
+  coneSize (SOC vars) = length vars
 
   -- converts cone constraints to CVX string
   convertConeForCodegen :: [(String,Int)] -> SOC -> String

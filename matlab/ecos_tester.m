@@ -12,7 +12,8 @@ function ecos_tester()
         run_test('quadratic_over_linear', 1); fprintf('\n');
         run_test('inv_prob', 1); fprintf('\n');
         run_test('min_max', -1); fprintf('\n');
-        run_test('robust_ls', 1); %fprintf('\n');
+        run_test('robust_ls', 1); fprintf('\n');
+        run_test('ecos_mpc', 1); %fprintf('\n');
 
     catch e
         cd ..   % return to top level directory
@@ -34,7 +35,13 @@ function run_test(directory, type)
     [status, result] = system(['../../src/ProbToCVX ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
-    eval(result);
+%    result
+    try
+        eval(result);
+    catch e
+        result;
+        throw e
+    end
 %     C = [eye(size(A_,2)) A_'; A_ -eye(size(A_,1))];
 %     [L,D, p] = ldl(C);
 %     spy(L)
@@ -50,7 +57,7 @@ function run_test(directory, type)
     fprintf('  ||x error|| = %f\n', norm(x - x_ecos));
     fprintf('  objval error = %f\n', v1 - v2);
     
-    if(norm(x - x_ecos) <= 1e-6 && abs(v1 - v2) <= 1e-6)
+    if(norm(x - x_ecos) <= 1e-5 && abs(v1 - v2) <= 1e-5)
         fprintf('PASS\n');
     else
         fprintf('FAIL\n');
@@ -59,8 +66,9 @@ function run_test(directory, type)
     
         [x_ecos x]
         cvx_status
-        cvx_optval
+        [v1 v2]
         pause
     end
     cd ..
 end
+
