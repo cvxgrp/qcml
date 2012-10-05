@@ -68,6 +68,7 @@ module Expression.DCP (Monotonicity(..),
     
   -- parameter can be promoted to expression
   -- expression cannot be demoted to parameter
+  -- XXX: this data structure needs to reflect the paper better
   data CVXSymbol
     = Parameter { 
       name::String,

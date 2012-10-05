@@ -6,10 +6,9 @@ parameter a2
 parameter c1
 parameter c2
 parameter b
-parameter zero
 
 minimize c1*x1 + c2*x2
 subject to
 a1*x1 + a2*x2 == b
-x1 >= zero
-x2 >= zero
+x1 >= 0
+x2 >= 0

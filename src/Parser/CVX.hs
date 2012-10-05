@@ -55,6 +55,7 @@ module Parser.CVX (runLex, cvxProb) where
       <|> choice (map function (M.keys ecosAtoms))
       <|> try parameter 
       <|> variable
+      <|> constant
       <?> "simple expressions"
   
   args :: CVXParser [E.CVXExpression]
@@ -100,6 +101,16 @@ module Parser.CVX (runLex, cvxProb) where
       Just (E.Parameter name vex sign rewrite) 
         -> return (E.Leaf $ E.Parameter name vex sign rewrite)
       _ -> fail $ "expected parameter but got " ++ s 
+  }
+  
+  constant :: CVXParser E.CVXExpression
+  constant = do {
+    s <- naturalOrFloat lexer;
+    if(either (>=0) (>=0.0) s)
+    then
+      return (E.Leaf $ E.positiveParameter $ (either show show s))
+    else
+      return (E.Leaf $ E.negativeParameter $ (either show show s))
   }
              
   createVariable :: CVXParser E.CVXSymbol
@@ -240,7 +251,8 @@ module Parser.CVX (runLex, cvxProb) where
     --   return (show $ rewrite (E.CVXProblem obj []))
     -- }
 
-  -- these belong somewhere else?
+  -- these let you run the parser
+  -- need to be renamed....
   run :: CVXParser String -> String -> IO ()
   run p input
           = case (runParser p M.empty "" input) of
