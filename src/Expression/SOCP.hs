@@ -150,7 +150,6 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   assignToA x (row, Nothing) = ""
   assignToA x (row, Just y) = "A_(" ++ show x ++ ", " ++ show y ++ ") = " ++ (snd row) ++ ";"
   
-  
   -- get b
   getBForCodegen :: Problem -> String
   getBForCodegen p = let b = vectorB p
@@ -171,7 +170,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
         permute1 = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
         permute = createPermute permute1 coneSizes (scanl1 (+) coneSizes)
         m = foldl (+) 0 coneSizes
-        higherDimCones = takeWhile (>1) coneSizes
+        higherDimCones = sort $ filter (>1) coneSizes
         l = m - (foldl (+) 0 higherDimCones)
     in (m, permute, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
   

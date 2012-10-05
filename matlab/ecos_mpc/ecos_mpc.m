@@ -2,7 +2,7 @@
  
 % solve with cvx
 cvx_begin
-    variables t x0 u0 x1 u1 x2 u2 x3
+    variables x0 u0 x1 u1 x2 u2 x3
     minimize (q*square(x0) + r*square(u0) + q*max(x1,1) - r*min(u1,0) + quad_over_lin(x2,1/q) - r*sqrt(u2) + p*inv_pos(x3))
     subject to 
        x1 == a*x0 + b*u0;

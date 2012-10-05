@@ -1,3 +1,5 @@
+randn('state',0);
+
 m = 4; n = 2; p = 1;
 A = randn(m,n); b = randn(m,1);
 C = randn(p,n); d = randn(p,1); e = 5*rand;

@@ -30,7 +30,7 @@ function run_test(directory, type)
     eval(directory)
     fprintf('  cvx solve time %f\n', toc);
     v1 = cvx_optval;
-        
+    
     tic;
     [status, result] = system(['../../src/ProbToCVX ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
@@ -47,9 +47,8 @@ function run_test(directory, type)
 %     [L,D, p] = ldl(C);
 %     spy(L)
 
-    v2 = type*cvx_optval;   % need this with CVX, don't need it without
+    %v2 = type*cvx_optval;   % need this with CVX, don't need it without
     v2 = type*info_.pcost;  % only when running with paris
-
 
     x_ecos = zeros(length(x),1);
     for i = 1:length(x),
@@ -65,9 +64,9 @@ function run_test(directory, type)
     else
         fprintf('FAIL\n');
 
-        %result
-    
-        [x_ecos x]
+        result
+        info_
+        [x x_ecos]
         %cvx_status
         [v1 v2]
         pause
