@@ -12,3 +12,12 @@ The `src` folder contains the Haskell source to parse the input.
   the problem is signed DCP compliant).
 
 The `doc` folder contains the accompanying documentation. 
+
+The compiler can emit three kinds of code
+    -- CVX code
+    -- prob2socp code that calls a CVX SOCP
+    -- prob2socp code that calls ECOS
+
+The test cases agree in all three cases.
+
+I need to add a switch to let you output a particular one.
