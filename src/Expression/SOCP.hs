@@ -45,7 +45,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- define what happens when we display a problem (gives CVX output)
   instance Show Problem where
     show EmptyProblem = "Attempted to show an empty problem (likely because it's nonconvex)...."
-    show x = codegenECOS x -- codegenECOS x
+    show x = codegenECOS x -- codegenECOS x -- codegenECOS x
 
 {-- what follows is for displaying cvx code --}
   cvxgen :: Problem -> String
@@ -111,7 +111,7 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
                       varTable = zip vars indices
                       n = show $ length vars
                       m = show $ length (vectorB p)
-                      (k, pvec, cones) = getConeConstraintsForECOS p
+                      (k, g, cones) = getConeConstraintsForECOS p varTable
                       nk = show (length vars - k)
                       kshow = show k
     in unlines $ ["c_ = sparse(" ++ n ++ ",1);",
@@ -120,16 +120,12 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
       getBForCodegen p ++
       "A_ = sparse(" ++ m ++ ", " ++ n ++ ");",
       getAForCodegen p varTable,
-      "pvec_ = ["++show pvec++" " ++ kshow ++ "+1:" ++ n ++ "];",
-      "c_ = c_(pvec_);",
-      "A_ = A_(:,pvec_);",
       -- for ecos call
-      "G_ = [-speye(" ++ kshow ++ ") sparse("++kshow++", " ++ nk ++ ") ];",
+      "G_ = sparse("++kshow++", " ++ n ++ ");\n" ++
+      g ++
       "h_ = zeros("++ kshow ++ ", 1);",
       cones,
-      "[x_, y_, info_] = paris(full(c_), G_, h_, dims, A_, full(b_));",
-      "x_codegen = zeros("++n++",1);",
-      "x_codegen(pvec_) = x_;"
+      "[x_codegen, y_, info_] = paris(full(c_), G_, h_, dims, A_, full(b_));"
     ] ++ socpToProb varTable
     
   -- write out results
@@ -164,30 +160,41 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (conesK p)
   
   -- gets the dimensions for cone constraints
-  getConeConstraintsForECOS :: Problem -> (Int, [Int], String)
-  getConeConstraintsForECOS p = 
-    let coneSizes = map coneSize (conesK p)
-        permute1 = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
-        permute = createPermute permute1 coneSizes (scanl1 (+) coneSizes)
+  getConeConstraintsForECOS :: Problem -> [(String,Int)]->(Int, String, String)
+  getConeConstraintsForECOS p table = 
+    let coneVariables = map coneVar (conesK p)
+        coneSizes = map length coneVariables
+        -- generate permutation vector
+        permute = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
+        permuteVars = permuteVariables permute coneVariables
+        matrixG = createMatrixG (concat permuteVars) 1 table
         m = foldl (+) 0 coneSizes
         higherDimCones = sort $ filter (>1) coneSizes
         l = m - (foldl (+) 0 higherDimCones)
-    in (m, permute, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
+    in (m, matrixG, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
   
-  -- create permutation
-  createPermute :: [Int]->[Int]->[Int]->[Int]
-  createPermute [] _ _ =[]
-  createPermute _ [] _ = []
-  createPermute _ _ [] = []
-  createPermute (x:xs) y cumsum = 
-    let val = y!!(x-1)
-        end = cumsum!!(x-1)
-    in [(end-val+1)..end] ++ (createPermute xs y cumsum)
+
+  -- permute the variables
+  permuteVariables :: [Int]->[[VarId]]->[[VarId]]
+  permuteVariables [] _ = []
+  permuteVariables _ [] = []
+  permuteVariables (p:ps) xs =
+    let val = xs!!(p-1)
+    in val:permuteVariables ps xs
+
+  createMatrixG :: [VarId] -> Int -> [(String,Int)] -> String
+  createMatrixG [] _ _ = ""
+  createMatrixG (x:xs) count table = 
+    let newNames = (flip lookup table) (label x)
+        ind = case (newNames) of
+          Nothing -> ""
+          Just x -> show x
+    in "G_("++ show count ++", " ++ ind ++ ") = -1;\n" 
+      ++ createMatrixG xs (count+1) table
   
-  
-  -- gets sizes of cone
-  coneSize :: SOC -> Int
-  coneSize (SOC vars) = length vars
+  -- gets the variables in the cone
+  coneVar :: SOC -> [VarId]
+  coneVar (SOC vars) = vars
 
   -- converts cone constraints to CVX string
   convertConeForCodegen :: [(String,Int)] -> SOC -> String

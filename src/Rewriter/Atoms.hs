@@ -211,9 +211,8 @@ module Rewriter.Atoms (ecosSquare,
             negOut = VarId $ (label out) ++ "z2"
         in Problem (Just out) [
           [(inputs!!0,"0.5"), (z0, "-1")],
-          [(inputs!!0,"-0.5"), (z1, "-1")],
-          [(negOut, "1"), (out,"1")]
-        ] ["-0.5", "-0.5", "0"] [SOC [z0,z1,negOut]]
+          [(inputs!!0,"-0.5"), (z1, "-1")]
+        ] ["-0.5", "-0.5"] [SOC [z0,z1,out]]
     )
     }
     
@@ -229,12 +228,11 @@ module Rewriter.Atoms (ecosSquare,
         let z0 = VarId $ (label out) ++ "z0"
             z1 = VarId $ (label out) ++ "z1"
             -- negOut = -out; gives the right solution to maximization problem
-            negOut = VarId $ (label out) ++ "z2"  
+            -- negOut = VarId $ (label out) ++ "z2"  
         in Problem (Just out) [
           [(inputs!!0,"0.5"), (inputs!!1, "0.5"), (z0, "-1")],
-          [(inputs!!0,"-0.5"), (inputs!!1, "0.5"), (z1, "-1")],
-          [(negOut, "1"), (out,"1")]
-        ] ["0", "0", "0"] [SOC [z0,z1,negOut], SOC [inputs!!1]]
+          [(inputs!!0,"-0.5"), (inputs!!1, "0.5"), (z1, "-1")]
+        ] ["0", "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
