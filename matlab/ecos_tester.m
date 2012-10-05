@@ -13,7 +13,8 @@ function ecos_tester()
         run_test('inv_prob', 1); fprintf('\n');
         run_test('min_max', -1); fprintf('\n');
         run_test('robust_ls', 1); fprintf('\n');
-        run_test('ecos_mpc', 1); %fprintf('\n');
+        run_test('ecos_mpc', 1); fprintf('\n');
+        run_test('lasso', 1); %fprintf('\n');
 
     catch e
         cd ..   % return to top level directory

@@ -1,0 +1,27 @@
+parameter a11
+parameter a12
+parameter a13
+parameter a21
+parameter a22
+parameter a23
+
+parameter b1
+parameter b2
+
+parameter lambda positive
+
+parameter u
+parameter l
+
+variable x1
+variable x2
+variable x3
+
+minimize square(a11*x1 + a12*x2 + a13*x3 - b1) + square(a21*x1 + a22*x2 + a23*x3 - b2) + lambda*(abs(x1) + abs(x2) + abs(x3))
+subject to
+    l <= x1
+    l <= x2
+    l <= x3
+    x1 <= u
+    x2 <= u
+    x3 <= u
