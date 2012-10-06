@@ -26,8 +26,7 @@ module Expression.Expression (positiveSign,
   --
   -- minimize t
   -- subject to 
-  --    a*z - t == 0
-  --    z == 1
+  --    t == a
   --
   paramProb s = (\out _ ->
     -- create a new variable named "t0z0" (or in that form)
@@ -52,7 +51,6 @@ module Expression.Expression (positiveSign,
   
   variable :: String -> CVXSymbol
   variable s = Variable s Affine unknownSign
-  
   
   
   -- check tree validity, easy function to make sure that ParamFunction have 

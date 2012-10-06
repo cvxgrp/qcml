@@ -10,6 +10,7 @@ module Expression.DCP (Monotonicity(..),
   SignFunc,
   MonoFunc,
   ProblemFunc,
+  CVXSense(..),
   CVXProblem(..),
   CVXConstraint(..),
   isConvex, isConcave, isAffine) where
@@ -63,12 +64,19 @@ module Expression.DCP (Monotonicity(..),
     | Geq {lhs::CVXExpression, rhs::CVXExpression}
     
   -- problem data type (all problems are convex!)
-  data CVXProblem = CVXProblem { objective::CVXExpression,
-    constraints::[CVXConstraint] }
+  data CVXSense = Maximize | Minimize deriving (Show, Eq)
+  
+  data CVXProblem = CVXProblem { 
+    sense::CVXSense,
+    objective::CVXExpression,
+    constraints::[CVXConstraint] 
+  }
     
   -- parameter can be promoted to expression
   -- expression cannot be demoted to parameter
   -- XXX: this data structure needs to reflect the paper better
+  -- need to have Constant, and remove ParamFunction
+  -- functions need to have restrictions
   data CVXSymbol
     = Parameter { 
       name::String,
@@ -158,8 +166,17 @@ module Expression.DCP (Monotonicity(..),
   instance Vexable CVXProblem where
     vexity p = 
       let constraintVexList = map vexity (constraints p)
-          objectiveVex = vexity $ objective p
-      in foldl reduceVex objectiveVex constraintVexList
+          objectiveVex = reduceVex (vexity $ sense p) (vexity $ objective p)
+          problemVex = case(objectiveVex) of
+            Convex -> Convex
+            Concave -> Convex
+            _ -> Nonconvex
+      in foldl reduceVex problemVex constraintVexList
+
+  -- problem senses are vexalbe
+  instance Vexable CVXSense where
+    vexity Minimize = Convex
+    vexity Maximize = Concave
         
   -- symbols can be "shown"
   instance Show CVXSymbol where

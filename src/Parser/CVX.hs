@@ -1,7 +1,11 @@
-module Parser.CVX (runLex, cvxProb) where
+module Parser.CVX (cvxProb, CVXParser, lexer, 
+  module Text.ParserCombinators.Parsec,
+  module Text.ParserCombinators.Parsec.Token) where
   import qualified Expression.Expression as E
   import qualified Data.Map as M
   import Rewriter.Atoms
+  
+  import Data.Maybe
   
   import Text.ParserCombinators.Parsec.Token
   import Text.ParserCombinators.Parsec.Language
@@ -178,11 +182,11 @@ module Parser.CVX (runLex, cvxProb) where
     return result 
   } <?> "constraints"
   
-  objective :: E.Vexity -> CVXParser E.CVXExpression
+  objective :: E.CVXSense -> CVXParser E.CVXExpression
   objective v = do {
     obj<-cvxExpr;
     case(E.vexity obj) of
-      vex | vex == v || vex == E.Affine -> return obj
+      vex | vex == (E.vexity v) || vex == E.Affine -> return obj
       _ -> fail ("Objective fails to satisfy DCP rule. Not " ++ show v ++ ".")
   } <?> "objective"
   -- 
@@ -195,38 +199,28 @@ module Parser.CVX (runLex, cvxProb) where
   --   <|> string "\r"
   --   <?> "end of line"
   
-  cvxProb :: CVXParser String
-  cvxProb = do {
-    result <- many cvxLine;
-    eof;
-    return (concat result)
-  } <?> "problem"
+  sense :: CVXParser E.CVXSense
+  sense = do {
+    reserved lexer "minimize";
+    return E.Minimize
+    } <|>
+    do {
+      reserved lexer "maximize";
+      return E.Maximize
+    } <?> "problem sense (maximize or minimize)"
   
-  cvxLine :: CVXParser String
+  cvxLine :: CVXParser (Maybe E.CVXProblem)
   cvxLine = 
     do {
-      reserved lexer "minimize";
-      obj<-objective E.Convex;
+      probSense<-sense;
+      obj<-objective probSense;
       -- verify that the expression is a valid parse tree
       c <- optionMaybe constraints;
       t <- getState;
       --eol;
       case (c) of
-        Just x -> return (show $ rewrite (E.CVXProblem obj x))
-        _ -> return (show $ rewrite (E.CVXProblem obj []))
-    } <|>
-    do {
-      reserved lexer "maximize";
-      obj<-objective E.Concave;
-        
-      -- verify that the expression is a valid parse tree
-      c <- optionMaybe constraints;
-      t <- getState;
-      --eol;
-      let newObj = E.UnaryNode ecosNegate obj
-      in case (c) of
-        Just x -> return (show $ rewrite (E.CVXProblem newObj x))
-        _ -> return (show $ rewrite (E.CVXProblem newObj []))
+        Just x -> return (Just (E.CVXProblem probSense obj x))
+        _ -> return (Just (E.CVXProblem probSense obj []))
     } <|>
     do {
       reserved lexer "parameter";
@@ -234,7 +228,7 @@ module Parser.CVX (runLex, cvxProb) where
       updateState (M.insert (E.name p) p);
       t <- getState;
       --eol;
-      return ("")
+      return Nothing
     } <|>
     do {
       reserved lexer "variable";
@@ -242,7 +236,7 @@ module Parser.CVX (runLex, cvxProb) where
       updateState (M.insert (E.name v) v);
       t <- getState;
       --eol;
-      return ("")
+      return Nothing
     } <?> "line"
     -- <|>
     -- do {
@@ -250,21 +244,16 @@ module Parser.CVX (runLex, cvxProb) where
     --   --eol;
     --   return (show $ rewrite (E.CVXProblem obj []))
     -- }
-
-  -- these let you run the parser
-  -- need to be renamed....
-  run :: CVXParser String -> String -> IO ()
-  run p input
-          = case (runParser p M.empty "" input) of
-              Left err -> do{ putStr "parse error at "
-                            ; print err
-                            }
-              Right x  -> putStr x
   
-  runLex :: CVXParser String -> String -> IO ()
-  runLex p input
-          = run (do{ whiteSpace lexer
-                   ; x <- p
-                   ; eof
-                   ; return x
-                   }) input
+  cvxEmptyProb = E.CVXProblem E.Minimize (E.Leaf $ E.parameter "0") []
+  
+  cvxProb :: CVXParser E.CVXProblem
+  cvxProb = do {
+    whiteSpace lexer;
+    result <- many cvxLine;
+    eof;
+    -- only returns the *first* problem
+    return (((fromMaybe cvxEmptyProb).head) $ dropWhile isNothing result)
+  } <?> "problem"
+
+
