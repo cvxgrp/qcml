@@ -31,6 +31,8 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
       "[x_codegen, y_, info_] = "++solver++"(full(c_), G_, h_, dims, A_, full(b_));"
     ] ++ socpToProb varTable
     ++ ["ecos_optval = "++csign++"*info_.pcost;"]
+    -- dump data to a header file to call ecos c code...
+    ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
   
   -- gets the dimensions for cone constraints
   getConeConstraintsForECOS :: Problem -> [(String,Int)]->(Int, String, String)

@@ -1,7 +1,7 @@
-SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs)  $(wildcard Rewriter/*.hs)
+SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Rewriter/*.hs) 
 MAINSRC = Main.hs $(SRC)
 TESTSRC = Test.hs $(SRC) $(wildcard TestCases/*.hs) $(wildcard OldParser/*.hs)
-PROBSRC = ProbToCVX.hs $(SRC)
+PROBSRC = ProbToCVX.hs $(SRC) $(wildcard CodeGenerator/*.hs)
 
 .PHONY: all
 all: main test probtocvx

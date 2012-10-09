@@ -1,4 +1,5 @@
 function ecos_tester()
+    addpath(pwd)
     randn('state', 0);
     cvx_precision best
     cvx_quiet true
@@ -20,6 +21,7 @@ function ecos_tester()
         cd ..   % return to top level directory
         e.message
     end
+    rmpath(pwd)
 end
 
 function run_test(directory, type)
