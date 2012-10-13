@@ -38,16 +38,16 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   getConeConstraintsForECOS :: Problem -> [(String,Int)]->(Int, String, String)
   getConeConstraintsForECOS p table = 
    let coneVariables = map coneVar (conesK p)
-       coneSizes = map length coneVariables
-       -- generate permutation vector
+       coneSizes = map coneLength coneVariables
+       -- generate permutation vector (put smallest cones up front)
        permute = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
-       permuteVars = permuteVariables permute coneVariables
-       matrixG = createMatrixG (concat permuteVars) 1 table
+       -- permuted cone variables
+       permuteVars = concat (permuteVariables permute coneVariables)
+       matrixG = createMatrixG permuteVars 1 table
        m = foldl (+) 0 coneSizes
        higherDimCones = sort $ filter (>1) coneSizes
        l = m - (foldl (+) 0 higherDimCones)
    in (m, matrixG, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
-
 
   -- permute the variables
   permuteVariables :: [Int]->[[VarId]]->[[VarId]]
@@ -60,7 +60,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   createMatrixG :: [VarId] -> Int -> [(String,Int)] -> String
   createMatrixG [] _ _ = ""
   createMatrixG (x:xs) count table = 
-   let newNames = (flip lookup table) (label x)
+   let newNames = (flip lookup table) (label x) -- lookup index
        ind = case (newNames) of
          Nothing -> ""
          Just x -> show x
@@ -70,4 +70,9 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   -- gets the variables in the cone
   coneVar :: SOC -> [VarId]
   coneVar (SOC vars) = vars
+
+  -- gets the size of the cone by looking at the variables' sizes in the cone
+  coneLength :: [VarId] -> Int
+  coneLength x = let varSizes = map (\x -> (rows x)*(cols x)) x
+    in foldl (+) 0 varSizes
 

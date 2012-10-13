@@ -21,22 +21,22 @@ module Rewriter.ECOS (rewrite) where
   -- parser ensures that obj of prob1 and obj of prob2 is not Nothing
   rewriteAndCount :: CVXExpression -> Int -> (Int,Problem)
   rewriteAndCount (Leaf x) count = 
-    let newVar = VarId ("t" ++ (show count)) 
+    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on size of leaf!
     in (1, prob x newVar [])
   
   rewriteAndCount (BinaryNode x left right) count =
-    let newVar = VarId ("t" ++ (show count))
+    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on output of function
         (leftCount, prob1) = rewriteAndCount left (count+1)
         (rightCount, prob2) = rewriteAndCount right (count+1+leftCount)
         total = leftCount + rightCount
     in case(x) of
       ParamFunction _ _ _ _ _ _ -> 
-        (total+1, (prob x newVar [VarId (value left), objVar prob2]) <+ prob2)
+        (total+1, (prob x newVar [VarId (value left) 1 1, objVar prob2]) <+ prob2)
       otherwise -> 
         (total+1, (prob x newVar [objVar prob1, objVar prob2]) <+ prob1 <+ prob2)
         
   rewriteAndCount (UnaryNode x rest) count =
-    let newVar = VarId ("t" ++ (show count))
+    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on output of function
         (total, prob1) = rewriteAndCount rest (count+1)
     in (total+1, (prob x newVar [objVar prob1]) <+ prob1)
     
@@ -51,6 +51,7 @@ module Rewriter.ECOS (rewrite) where
         cones = (conesK x) ++ (conesK y)
     in Problem objective aMatrix bVector cones
   
+  -- rewrites the constraints
   rewriteConstraintSet :: [CVXConstraint]->Int->Problem
   rewriteConstraintSet [] _ = Problem Nothing [] [] []
   rewriteConstraintSet (c:cs) count = 
@@ -76,7 +77,7 @@ module Rewriter.ECOS (rewrite) where
   -- comparing two problems / expressions via <=
   (<<=>) :: Problem -> Problem -> Problem
   x <<=> y = 
-    let t = VarId ((objLabel x)++"LT"++(objLabel y))
+    let t = VarId ((objLabel x)++"LT"++(objLabel y)) 1 1
         aMatrix = [[(objVar x,"1"), (t,"1"), (objVar y, "-1")]]
           ++(matrixA x) ++ (matrixA y)
         bVector = "0":(vectorB x) ++ (vectorB y)
@@ -87,7 +88,7 @@ module Rewriter.ECOS (rewrite) where
   -- comparing two problems / expressions via >=
   (<>=>) :: Problem -> Problem -> Problem
   x <>=> y =  
-    let t = VarId ((objLabel x)++"GT"++(objLabel y))
+    let t = VarId ((objLabel x)++"GT"++(objLabel y)) 1 1
         aMatrix = [[(objVar x,"1"), (t,"-1"), (objVar y, "-1")]]
           ++(matrixA x) ++ (matrixA y)
         bVector = "0":(vectorB x) ++ (vectorB y)
@@ -96,5 +97,5 @@ module Rewriter.ECOS (rewrite) where
     
   -- returns the name of the parameter (if the expression is a paramter)
   value :: CVXExpression -> String
-  value (Leaf (Parameter s _ _ _)) = s
+  value (Leaf (Parameter s _ _ _ _)) = s
   value _ = "NaN" -- otherwise...?

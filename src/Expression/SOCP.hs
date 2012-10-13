@@ -2,9 +2,20 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   import Data.List
 
   -- for indexing in to the matrix
-  data VarId = VarId { label :: String } deriving (Eq,Show)
+  data VarId = VarId { 
+                label :: String, 
+                rows :: Int, 
+                cols :: Int 
+              }
+  
+  -- for showing VarId
+  instance Show VarId where
+    show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
+              
+  -- instance Eq VarId where
+  --   x == y  = (label x) == (label y)
 
-  -- a row in the A matrix
+  -- a row in the A matrix, the string gives the name of the coefficient
   type Row = [(VarId, String)]
 
   -- XXX: a Problem should have a sense....
@@ -28,5 +39,5 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
   -- gets the variable in the objective
   objVar :: Problem -> VarId
   objVar x = case (obj x) of
-    Nothing -> VarId "0"  -- not really right...
+    Nothing -> VarId "0" 1 1  -- not really right...
     Just y -> y

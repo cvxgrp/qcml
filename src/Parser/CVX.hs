@@ -92,8 +92,7 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
     s <- identifier lexer;
     t <- getState; 
     case (M.lookup s t) of
-      Just (E.Variable name vex sign) 
-        -> return (E.Leaf $ E.Variable name vex sign)
+      Just x -> return (E.Leaf x)
       _ -> fail $ "expected variable but got " ++ s 
   }
   
@@ -102,8 +101,7 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
     s <- identifier lexer;
     t <- getState; 
     case (M.lookup s t) of
-      Just (E.Parameter name vex sign rewrite) 
-        -> return (E.Leaf $ E.Parameter name vex sign rewrite)
+      Just x -> return (E.Leaf x)
       _ -> fail $ "expected parameter but got " ++ s 
   }
   
@@ -120,11 +118,7 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
   createVariable :: CVXParser E.CVXSymbol
   createVariable = do { 
     s <- identifier lexer; 
-    sign <- optionMaybe modifier;
-    return (case (sign) of
-      Just E.Positive -> (E.positiveVariable s)
-      Just E.Negative -> (E.negativeVariable s)
-      _ -> E.variable s)
+    return (E.variable s)
   } <?> "variable"
   
   createParameter :: CVXParser E.CVXSymbol

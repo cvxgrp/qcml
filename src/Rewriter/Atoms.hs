@@ -53,8 +53,8 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone]
     ),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
         in Problem (Just out) [
           [(out, "0.5"), (z0, "-1")],
           [(out, "-0.5"), (z1, "-1")]
@@ -70,9 +70,9 @@ module Rewriter.Atoms (ecosSquare,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
-            one = VarId $ (label out) ++ "z2"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
+            one = VarId (label out ++ "z2") 1 1
         in Problem (Just out) [
           [(inputs!!0,"0.5"), (out, "0.5"), (z0, "-1")],
           [(inputs!!0,"0.5"), (out, "-0.5"), (z1, "-1")],
@@ -94,8 +94,8 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone,Decreasing]
       ),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
+        let z0 = VarId (label out ++ "z0") 1 1 
+            z1 = VarId (label out ++ "z1") 1 1
         in Problem (Just out) [
           [(inputs!!1,"0.5"), (out, "0.5"), (z0, "-1")],
           [(inputs!!1,"0.5"), (out, "-0.5"), (z1, "-1")]
@@ -161,7 +161,7 @@ module Rewriter.Atoms (ecosSquare,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
+        let z0 = VarId (label out ++ "z0") 1 1
         in Problem (Just out) [[(out,"1"), (inputs!!0,"-1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
       )
     }
@@ -175,7 +175,7 @@ module Rewriter.Atoms (ecosSquare,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
+        let z0 = VarId (label out ++ "z0") 1 1
         in Problem (Just out) [[(out,"1"), (inputs!!0,"1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
       )
     }
@@ -206,9 +206,8 @@ module Rewriter.Atoms (ecosSquare,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
-            negOut = VarId $ (label out) ++ "z2"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
         in Problem (Just out) [
           [(inputs!!0,"0.5"), (z0, "-1")],
           [(inputs!!0,"-0.5"), (z1, "-1")]
@@ -225,8 +224,8 @@ module Rewriter.Atoms (ecosSquare,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
             -- negOut = -out; gives the right solution to maximization problem
             -- negOut = VarId $ (label out) ++ "z2"  
         in Problem (Just out) [
@@ -253,8 +252,8 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
         in Problem (Just out) [
           [(out,"1"), (inputs!!0,"-1"), (z0, "-1")],
           [(out,"1"), (inputs!!1,"-1"), (z1, "-1")]
@@ -276,8 +275,8 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId $ (label out) ++ "z0"
-            z1 = VarId $ (label out) ++ "z1"
+        let z0 = VarId (label out ++ "z0") 1 1
+            z1 = VarId (label out ++ "z1") 1 1
             -- negOut = -out; gives the right solution to maximization problem
             negOut = VarId $ (label out) ++ "z2"
         in Problem (Just out) [

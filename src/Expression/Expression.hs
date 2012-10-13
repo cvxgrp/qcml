@@ -3,8 +3,6 @@ module Expression.Expression (positiveSign,
   unknownSign,
   positiveParameter,
   negativeParameter,
-  positiveVariable,
-  negativeVariable,
   parameter,
   variable,
   isValidExpr,
@@ -33,24 +31,18 @@ module Expression.Expression (positiveSign,
     Problem (Just out) [[(out,"1")]] [s] [])
     -- minimize out s.t. out == s
   
-  -- constructors
+  -- constructors (need to take size as arguments)
   positiveParameter :: String -> CVXSymbol
-  positiveParameter s = Parameter s Affine positiveSign (paramProb s)
+  positiveParameter s = Parameter s (1,1) Affine positiveSign (paramProb s)
   
   negativeParameter :: String -> CVXSymbol
-  negativeParameter s = Parameter s Affine negativeSign (paramProb s)
+  negativeParameter s = Parameter s (1,1) Affine negativeSign (paramProb s)
   
   parameter :: String -> CVXSymbol
-  parameter s = Parameter s Affine unknownSign (paramProb s)
-  
-  positiveVariable :: String -> CVXSymbol
-  positiveVariable s = Variable s Affine positiveSign
-  
-  negativeVariable :: String -> CVXSymbol
-  negativeVariable s = Variable s Affine negativeSign
+  parameter s = Parameter s (1,1) Affine unknownSign (paramProb s)
   
   variable :: String -> CVXSymbol
-  variable s = Variable s Affine unknownSign
+  variable s = Variable s (1,1) Affine unknownSign
   
   
   -- check tree validity, easy function to make sure that ParamFunction have 
@@ -63,7 +55,7 @@ module Expression.Expression (positiveSign,
     otherwise -> True && isValidExpr arg1 && isValidExpr arg2
   
   isParam :: CVXExpression -> Bool
-  isParam (Leaf (Parameter _ _ _ _)) = True
+  isParam (Leaf (Parameter _ _ _ _ _)) = True
   isParam _ = False
   
 

@@ -80,12 +80,14 @@ module Expression.DCP (Monotonicity(..),
   data CVXSymbol
     = Parameter { 
       name::String,
+      size::(Int, Int),
       symbolVexity::Vexity, 
       symbolSign::SignFunc,
       symbolRewrite::ProblemFunc
     }
     | Variable { 
       name::String,
+      size::(Int, Int),
       symbolVexity::Vexity, 
       symbolSign::SignFunc
     }
@@ -116,13 +118,14 @@ module Expression.DCP (Monotonicity(..),
   
   -- symbols are "MFunc"-able (you can ask for monotonicity function)
   instance MFunc CVXSymbol where
-    mfunc (Parameter _ _ _ _) = (\_ -> [])
-    mfunc (Variable _ _ _) = (\_ -> [])
+    mfunc (Parameter _ _ _ _ _) = (\_ -> [])
+    mfunc (Variable _ _ _ _) = (\_ -> [])
     mfunc x = monotonicity x
   
   -- symbols are "PFunc"-able (you can ask for a problem rewriter)
+  -- TODO: default size is 1x1, but will take size argument later
   instance Prob CVXSymbol where
-    prob (Variable s _ _) = (\_ _ -> Problem (Just (VarId s)) [] [] [])
+    prob (Variable s _ _ _) = (\_ _ -> Problem (Just (VarId s 1 1)) [] [] [])
     prob x = symbolRewrite x
   
   -- symbols are Nodes (a node is just Vexable, SFunc, and MFunc)
