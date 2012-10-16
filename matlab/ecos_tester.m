@@ -24,7 +24,7 @@ function ecos_tester()
     rmpath(pwd)
 end
 
-function run_test(directory, type)
+function run_test(directory)
     disp([directory ' problem'])
     
     cd(directory)

@@ -29,22 +29,23 @@ module Rewriter.Atoms (ecosSquare,
     ("min", ecosMin)]
   
   
-  -- this might be one way to provide monotonicity
-  squareMonotonicity :: [Sign]->[Monotonicity]
-  squareMonotonicity [x] = [(monoQuadOverLin [x,Positive])!!0]
-  
-  monoQuadOverLin :: [Sign] -> [Monotonicity]
-  monoQuadOverLin [Positive, _] = [Increasing, Decreasing]
-  monoQuadOverLin [Negative, _] = [Decreasing, Decreasing]
-  monoQuadOverLin _ = [Nonmonotone, Decreasing]
+  -- -- this might be one way to provide monotonicity
+  -- squareMonotonicity :: [Sign]->[Monotonicity]
+  -- squareMonotonicity [x] = [(monoQuadOverLin [x,Positive])!!0]
+  -- 
+  -- monoQuadOverLin :: [Sign] -> [Monotonicity]
+  -- monoQuadOverLin [Positive, _] = [Increasing, Decreasing]
+  -- monoQuadOverLin [Negative, _] = [Decreasing, Decreasing]
+  -- monoQuadOverLin _ = [Nonmonotone, Decreasing]
   
   -- this is how you define atoms (they're defined independently at the moment)
   
   -- square(x) = x^2
   ecosSquare :: CVXSymbol
-  ecosSquare = Function {
+  ecosSquare = Atom {
     name="square",
     nargs=1,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case(x) of
@@ -63,9 +64,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- inv_pos(x) = 1/x for x >= 0
   ecosInvPos :: CVXSymbol
-  ecosInvPos = Function {
+  ecosInvPos = Atom {
     name="inv_pos",
     nargs=1,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
@@ -83,9 +85,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- quad_over_lin(x) = x^2/y
   ecosQuadOverLin :: CVXSymbol
-  ecosQuadOverLin = Function {
+  ecosQuadOverLin = Atom {
     name="quad_over_lin",
     nargs=2,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case (x) of
@@ -104,9 +107,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- plus(x,y) = x + y
   ecosPlus :: CVXSymbol
-  ecosPlus = Function {
+  ecosPlus = Atom {
     name="plus",
     nargs=2,
+    nparams=0,
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive,Positive] -> Positive
@@ -121,9 +125,10 @@ module Rewriter.Atoms (ecosSquare,
     
   -- minus(x,y) = x - y
   ecosMinus :: CVXSymbol
-  ecosMinus = Function {
+  ecosMinus = Atom {
     name="minus",
     nargs=2,
+    nparams=0,
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive,Negative] -> Positive
@@ -138,9 +143,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- negate(x) = -x
   ecosNegate :: CVXSymbol
-  ecosNegate = Function {
+  ecosNegate = Atom {
     name="negate",
     nargs=1,
+    nparams=0,
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive] -> Negative
@@ -154,9 +160,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- pos(x) = max(x,0)
   ecosPos :: CVXSymbol
-  ecosPos = Function {
+  ecosPos = Atom {
     name="pos",
     nargs=1,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
@@ -168,9 +175,10 @@ module Rewriter.Atoms (ecosSquare,
     
   -- neg(x) = max(-x,0)
   ecosNeg :: CVXSymbol
-  ecosNeg = Function {
+  ecosNeg = Atom {
     name="neg",
     nargs=1,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
@@ -182,9 +190,10 @@ module Rewriter.Atoms (ecosSquare,
     
   -- abs(x) = |x|
   ecosAbs :: CVXSymbol
-  ecosAbs = Function {
+  ecosAbs = Atom {
     name="abs",
     nargs=1,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case(x) of
@@ -199,9 +208,10 @@ module Rewriter.Atoms (ecosSquare,
   -- norm2, norm1, norm_inf <-- not implemented since no vectors yet
   -- sqrt(x) = geo_mean(x,1)
   ecosSqrt :: CVXSymbol
-  ecosSqrt = Function {
+  ecosSqrt = Atom {
     name="sqrt",
     nargs=1,
+    nparams=0,
     symbolVexity=Concave,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
@@ -217,9 +227,10 @@ module Rewriter.Atoms (ecosSquare,
     
   -- geo_mean(x,y) = sqrt(x*y)
   ecosGeoMean :: CVXSymbol
-  ecosGeoMean = Function {
+  ecosGeoMean = Atom {
     name="geo_mean",
     nargs=2,
+    nparams=0,
     symbolVexity=Concave,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing, Increasing]),
@@ -240,9 +251,10 @@ module Rewriter.Atoms (ecosSquare,
   
   -- max(x,y)
   ecosMax:: CVXSymbol
-  ecosMax = Function {
+  ecosMax = Atom {
     name="max",
     nargs=2,
+    nparams=0,
     symbolVexity=Convex,
     symbolSign = (\x -> case(x) of
       [Positive,_] -> Positive
@@ -263,9 +275,10 @@ module Rewriter.Atoms (ecosSquare,
     
   -- min(x,y)
   ecosMin :: CVXSymbol
-  ecosMin = Function {
+  ecosMin = Atom {
     name="min",
     nargs=2,
+    nparams=0,
     symbolVexity=Concave,
     symbolSign = (\x -> case(x) of
       [Negative,_] -> Negative
@@ -288,15 +301,13 @@ module Rewriter.Atoms (ecosSquare,
     }
     
   -- this is how you define *parameterized* atoms
-  -- hmm, no different... only restriction happens when we *construct* the tree...
-  -- alternative is to have ParamFunction take a Parameter as a type constructor argument
-  -- not sure if that will make a difference during code generation
-    
+
   -- mul(x; a) = a*x
   ecosMul :: CVXSymbol
-  ecosMul = ParamFunction {
+  ecosMul = Atom {
     name="multiply",
-    nargs=2,
+    nargs=1,
+    nparams=1,
     symbolVexity=Affine,
     symbolSign=(\x -> case (x) of
       [Positive, Positive] -> Positive
@@ -306,11 +317,11 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> Unknown
     ),
     monotonicity=(\x -> case (x) of
-      [Positive, _] -> [Nonmonotone, Increasing]
-      [Negative, _] -> [Nonmonotone, Decreasing]
+      [_, Positive] -> [Increasing, Nonmonotone]
+      [_, Negative] -> [Decreasing, Nonmonotone]
       otherwise -> [Nonmonotone, Nonmonotone]
     ),
     symbolRewrite=(\out inputs ->
-        Problem (Just out) [[(inputs!!1,label $ inputs!!0), (out, "-1")]] ["0"] []
+        Problem (Just out) [[(inputs!!0,label $ inputs!!1), (out, "-1")]] ["0"] []
       )
   }

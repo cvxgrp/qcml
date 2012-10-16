@@ -41,6 +41,16 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
       fail ("Expression " ++ show e ++ " does not adhere to restricted multiply.")
   }
   
+  -- unpack list arguments in to actual arguments
+  packBinary :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression -> E.CVXExpression
+  packBinary f a b = f [a,b]
+  
+  packUnary :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression
+  packUnary f a = f [a]
+  
+  packMul :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression -> E.CVXExpression
+  packMul f a b = f [b,a]
+  
   -- constructors to help build the expression table
   binary name fun assoc 
     = Infix (do{ reservedOp lexer name; return fun }) assoc
@@ -48,10 +58,10 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
     = Prefix (do{ reservedOp lexer name; return fun })
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ [binary "*" (E.BinaryNode ecosMul) AssocRight],
-            [prefix "-" (E.UnaryNode ecosNegate)],
-            [binary "+" (E.BinaryNode ecosPlus) AssocLeft, 
-             binary "-" (E.BinaryNode ecosMinus) AssocLeft] ] 
+  table = [ [binary "*" (packMul $ E.Node ecosMul) AssocRight],
+            [prefix "-" (packUnary $ E.Node ecosNegate)],
+            [binary "+" (packBinary $ E.Node ecosPlus) AssocLeft, 
+             binary "-" (packBinary $ E.Node ecosMinus) AssocLeft] ] 
   
   -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
   -- variables
@@ -73,16 +83,19 @@ module Parser.CVX (cvxProb, CVXParser, lexer,
         n = case (symbol) of 
           Just x -> E.nargs x
           _ -> 0
+        p = case (symbol) of
+          Just x -> E.nparams x
+          _ -> 0
     in do {
       reserved lexer atomName;
-      p <- parens lexer args;
+      args <- parens lexer args;
       case (symbol) of
         Just x ->      
-          if (length p /= n) 
+          if (length args /= n) 
             then fail "number of arguments do not agree"
             else case (n) of 
-              1 -> return (E.UnaryNode x (p!!0))
-              2 -> return (E.BinaryNode x (p!!0) (p!!1))
+              1 -> return (E.Node x args)
+              2 -> return (E.Node x args)
               _ -> fail "no support for n-ary arguments"
         _ -> fail "no such atom"
     }

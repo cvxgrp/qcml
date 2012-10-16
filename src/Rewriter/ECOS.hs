@@ -21,26 +21,28 @@ module Rewriter.ECOS (rewrite) where
   -- parser ensures that obj of prob1 and obj of prob2 is not Nothing
   rewriteAndCount :: CVXExpression -> Int -> (Int,Problem)
   rewriteAndCount (Leaf x) count = 
-    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on size of leaf!
-    in (1, prob x newVar [])
-  
-  rewriteAndCount (BinaryNode x left right) count =
+    let newVar = VarId ("t" ++ (show count)) -- TODO: depends on size of leaf!
+        (m,n) = size x
+    in (1, prob x (newVar m n) [])
+  rewriteAndCount (Node x arguments) count =
     let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on output of function
-        (leftCount, prob1) = rewriteAndCount left (count+1)
-        (rightCount, prob2) = rewriteAndCount right (count+1+leftCount)
-        total = leftCount + rightCount
-    in case(x) of
-      ParamFunction _ _ _ _ _ _ -> 
-        (total+1, (prob x newVar [VarId (value left) 1 1, objVar prob2]) <+ prob2)
-      otherwise -> 
-        (total+1, (prob x newVar [objVar prob1, objVar prob2]) <+ prob1 <+ prob2)
-        
-  rewriteAndCount (UnaryNode x rest) count =
-    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on output of function
-        (total, prob1) = rewriteAndCount rest (count+1)
-    in (total+1, (prob x newVar [objVar prob1]) <+ prob1)
-    
+        (args, params) = splitAt (nargs x) arguments
+        rewriters = take (nargs x) (map rewriteAndCount args)
+        results = reduceRewriters rewriters (count+1)
+        problems = map snd results
+        total = foldl (+) 1 (map fst results)
+        newProb = prob x newVar ((map objVar problems)++(map value params))
+    in (total+1, foldl (<+) newProb problems)
   rewriteAndCount _ _ = (0,EmptyProblem)
+  
+  -- takes a list of rewriters and rewrites the arguments
+  reduceRewriters :: [Int -> (Int,Problem)] -> Int -> [(Int,Problem)]
+  reduceRewriters [f] n = [f n]
+  reduceRewriters (f:fs) n = 
+    let (count, problem) = (f n)
+    in (count,problem):(reduceRewriters fs (count+n+1))
+  reduceRewriters _ _ = [(0,EmptyProblem)]
+  
   
   -- problem "merge" operator, retains the objective of LHS
   (<+) :: Problem -> Problem -> Problem
@@ -96,6 +98,6 @@ module Rewriter.ECOS (rewrite) where
     in Problem Nothing aMatrix bVector cones
     
   -- returns the name of the parameter (if the expression is a paramter)
-  value :: CVXExpression -> String
-  value (Leaf (Parameter s _ _ _ _)) = s
-  value _ = "NaN" -- otherwise...?
+  value :: CVXExpression -> VarId
+  value (Leaf (Parameter s (m,n) _ _ _)) = VarId s m n
+  value _ = VarId "NaN" 0 0 -- otherwise...?

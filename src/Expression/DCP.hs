@@ -17,6 +17,7 @@ module Expression.DCP (Monotonicity(..),
   -- code can be made even shorter if we let Expression have the Functor
   -- and fmap property...
   import Expression.SOCP
+  import Data.List (intercalate)
   
   -- data types for signed monotonicity DCP rules
   data Monotonicity = Increasing | Decreasing | Nonmonotone 
@@ -49,8 +50,7 @@ module Expression.DCP (Monotonicity(..),
   -- expression data type
   data Expression a = Empty 
     | Leaf a 
-    | BinaryNode a (Expression a) (Expression a)
-    | UnaryNode a (Expression a)
+    | Node a [Expression a]
   
   -- typedefs to reduce "typing" (characters) of code
   type CVXExpression = Expression CVXSymbol
@@ -74,8 +74,6 @@ module Expression.DCP (Monotonicity(..),
     
   -- parameter can be promoted to expression
   -- expression cannot be demoted to parameter
-  -- XXX: this data structure needs to reflect the paper better
-  -- need to have Constant, and remove ParamFunction
   -- functions need to have restrictions
   data CVXSymbol
     = Parameter { 
@@ -91,17 +89,10 @@ module Expression.DCP (Monotonicity(..),
       symbolVexity::Vexity, 
       symbolSign::SignFunc
     }
-    | Function { 
+    | Atom { 
       name::String,
       nargs::Int,
-      symbolVexity::Vexity, 
-      symbolSign::SignFunc, 
-      monotonicity::MonoFunc,
-      symbolRewrite::ProblemFunc
-    }
-    | ParamFunction {
-      name::String, 
-      nargs::Int,
+      nparams::Int,
       symbolVexity::Vexity, 
       symbolSign::SignFunc, 
       monotonicity::MonoFunc,
@@ -134,19 +125,13 @@ module Expression.DCP (Monotonicity(..),
   -- expressions are vexable (can ask for its vexity)
   instance (Node a) => Vexable (Expression a) where
     vexity (Leaf x) = vexity x
-    vexity (BinaryNode x left right) = 
-        infer x [left,right]
-    vexity (UnaryNode x rest) =
-        infer x [rest]
+    vexity (Node x args) = infer x args
     vexity _ = Nonconvex
 
   -- expressions are signable (can ask for its sign)
   instance (Node a) => Signable (Expression a) where
     sign (Leaf x) = sfunc x []
-    sign (BinaryNode x left right) =
-      sfunc x [sign left, sign right]
-    sign (UnaryNode x rest) = 
-      sfunc x [sign rest]
+    sign (Node x args) = sfunc x (map sign args)
     sign _ = Unknown
   
   -- expressions are made up of nodes and are of class Expr
@@ -188,10 +173,9 @@ module Expression.DCP (Monotonicity(..),
   -- expressions can be "shown"
   instance (Show a) => Show (Expression a) where
     show (Leaf x) = show x
-    show (BinaryNode x y z) 
-      = (show x) ++ "(" ++ show y ++ ", " ++ show z ++")"
-    show (UnaryNode x y) 
-      = (show x) ++ "(" ++ show y ++ ")"
+    show (Node x args) =
+      let argString = intercalate ", " (map show args)
+      in (show x) ++ "("++ argString ++ ")"
     show _ = "Empty Expression"
 
   -- constraints can be "shown"

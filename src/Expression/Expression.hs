@@ -6,6 +6,7 @@ module Expression.Expression (positiveSign,
   parameter,
   variable,
   isValidExpr,
+  paramProb,
   module Expression.DCP,
   module Expression.SOCP) where
     
@@ -19,6 +20,7 @@ module Expression.Expression (positiveSign,
   negativeSign = (\_ -> Negative)
   unknownSign = (\_ -> Unknown)
   
+  -- XXX: this is the constant atom....
   -- parameter rewriter 
   -- parameter a becomes
   --
@@ -49,14 +51,13 @@ module Expression.Expression (positiveSign,
   -- *parameters* on one side
   isValidExpr :: CVXExpression -> Bool
   isValidExpr (Leaf _) = True
-  isValidExpr (UnaryNode f arg) = True && isValidExpr arg
-  isValidExpr (BinaryNode f arg1 arg2) = case (f) of
-    ParamFunction _ _ _ _ _ _ -> True && isParam arg1 && isValidExpr arg2
-    otherwise -> True && isValidExpr arg1 && isValidExpr arg2
+  isValidExpr (Node f args) = 
+    let (arguments, parameters) = splitAt (nargs f) args -- assumes parameters follow arguments
+        areExprs = map isValidExpr arguments
+        areParams = map isParam parameters
+    in True && and areExprs && and areParams
   
   isParam :: CVXExpression -> Bool
   isParam (Leaf (Parameter _ _ _ _ _)) = True
   isParam _ = False
-  
-
   
