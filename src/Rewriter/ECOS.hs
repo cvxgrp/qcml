@@ -32,7 +32,7 @@ module Rewriter.ECOS (rewrite) where
         rewriters = take (nargs x) (map rewriteAndCount args)
         results = reduceRewriters rewriters count
         problems = map snd results
-        total = foldl (+) 1 (map fst results)
+        total = foldl (+) 0 (map fst results)
         newProb = prob x (newVar 1 1) ((map objVar problems)++(map value params))
     in (total+1, foldl (<+) newProb problems)
   rewriteAndCount _ _ = (0,EmptyProblem)
@@ -42,7 +42,7 @@ module Rewriter.ECOS (rewrite) where
   reduceRewriters [f] n = [f (n+1)]
   reduceRewriters (f:fs) n = 
     let (count, problem) = f (n+1) 
-    in (count, problem):(reduceRewriters fs (count+n+1))
+    in (count, problem):(reduceRewriters fs (count+n))
   reduceRewriters _ _ = [(0,EmptyProblem)]
   
   
