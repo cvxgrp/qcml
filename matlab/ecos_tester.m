@@ -39,6 +39,7 @@ function run_test(directory)
     fprintf('  ecos rewrite time %f\n', toc);
 
     try
+%         result
         eval(result);
     catch e
         result

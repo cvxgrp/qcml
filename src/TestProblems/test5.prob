@@ -1,0 +1,8 @@
+parameter a
+parameter b
+parameter lambda positive
+variable x
+variable y
+
+minimize (a + b)
+  

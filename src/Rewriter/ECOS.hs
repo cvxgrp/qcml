@@ -12,7 +12,7 @@ module Rewriter.ECOS (rewrite) where
     Nonconvex -> EmptyProblem
     otherwise -> 
       let (varcount, objProb) = rewriteAndCount (objective x) 0
-          constraintSet = rewriteConstraintSet (constraints x) varcount
+          constraintSet = rewriteConstraintSet (constraints x) (varcount)
       in objProb <+ constraintSet
    
   -- rewrites the expression and returns a tuple that contains the count of 
@@ -23,24 +23,26 @@ module Rewriter.ECOS (rewrite) where
   rewriteAndCount (Leaf x) count = 
     let newVar = VarId ("t" ++ (show count)) -- TODO: depends on size of leaf!
         (m,n) = size x
-    in (1, prob x (newVar m n) [])
+    in case x of
+      Variable _ _ _ _ -> (0, prob x (newVar m n) [])
+      otherwise -> (1, prob x (newVar m n) [])
   rewriteAndCount (Node x arguments) count =
-    let newVar = VarId ("t" ++ (show count)) 1 1  -- TODO: depends on output of function
+    let newVar = VarId ("t" ++ (show count)) -- TODO: depends on output of function
         (args, params) = splitAt (nargs x) arguments
         rewriters = take (nargs x) (map rewriteAndCount args)
-        results = reduceRewriters rewriters (count+1)
+        results = reduceRewriters rewriters count
         problems = map snd results
         total = foldl (+) 1 (map fst results)
-        newProb = prob x newVar ((map objVar problems)++(map value params))
+        newProb = prob x (newVar 1 1) ((map objVar problems)++(map value params))
     in (total+1, foldl (<+) newProb problems)
   rewriteAndCount _ _ = (0,EmptyProblem)
   
   -- takes a list of rewriters and rewrites the arguments
   reduceRewriters :: [Int -> (Int,Problem)] -> Int -> [(Int,Problem)]
-  reduceRewriters [f] n = [f n]
+  reduceRewriters [f] n = [f (n+1)]
   reduceRewriters (f:fs) n = 
-    let (count, problem) = (f n)
-    in (count,problem):(reduceRewriters fs (count+n+1))
+    let (count, problem) = f (n+1) 
+    in (count, problem):(reduceRewriters fs (count+n+1))
   reduceRewriters _ _ = [(0,EmptyProblem)]
   
   
