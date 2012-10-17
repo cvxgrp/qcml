@@ -5,7 +5,11 @@ parameter A(m,n)
 parameter b(m)
 parameter lambda positive
 variable x(n)
+variable z(m)
 variable y
 
 minimize sum(square(A*x - b))
+subject to
+  abs(y) <= sum(b)
+  abs(z) <= b
   

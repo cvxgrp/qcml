@@ -96,7 +96,7 @@ module Rewriter.Atoms (ecosSquare,
           [(x, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
           [(x, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))],
           [(one, Ones 1 1)]
-        ] [Ones m 0, Ones m 0, Ones 1 1] [SOCelem [z0,z1,one], SOC [x]]
+        ] [Ones m 0, Ones m 0, Ones 1 1] [SOCelem [z0,z1,one], SOCelem [x]]
   )}
   
   
@@ -127,7 +127,7 @@ module Rewriter.Atoms (ecosSquare,
         in Problem (Just out) [
           [(y, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
           [(y, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOC [z0,z1,x], SOC [y]]
+        ] [Ones m 0, Ones m 0] [SOC [z0,z1,x], SOCelem [y]]
     )}
   
   -- plus(x,y) = x + y
@@ -219,7 +219,7 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
         in Problem (Just out) [
           [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))]
-        ] [Ones m 0] [SOC [out], SOC [z0]]
+        ] [Ones m 0] [SOCelem [out], SOCelem [z0]]
       )
     }
     
@@ -240,7 +240,7 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
         in Problem (Just out) [
           [(out, Eye m 1), (inputs!!0, Eye m 1), (z0, Eye m (-1))]
-        ] [Ones m 0] [SOC [out], SOC [z0]]
+        ] [Ones m 0] [SOCelem [out], SOCelem [z0]]
       )
     }
     
@@ -342,7 +342,7 @@ module Rewriter.Atoms (ecosSquare,
         in Problem (Just out) [
           [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))],
           [(out, Eye m 1), (inputs!!1, Eye m (-1)), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOC [z0], SOC [z1]]
+        ] [Ones m 0, Ones m 0] [SOCelem [z0], SOCelem [z1]]
     )
     }
     
@@ -372,7 +372,7 @@ module Rewriter.Atoms (ecosSquare,
         in Problem (Just out) [
           [(out, Eye m (-1)), (inputs!!0, Eye m 1), (z0, Eye m (-1))],
           [(out, Eye m (-1)), (inputs!!1, Eye m 1), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOC [z0], SOC [z1]]
+        ] [Ones m 0, Ones m 0] [SOCelem [z0], SOCelem [z1]]
     )
     }
   

@@ -93,7 +93,7 @@ module Rewriter.ECOS (rewrite) where
         aMatrix = [[(x,Eye m 1), (t, Eye m 1), (y, Eye m (-1))]]
           ++(matrixA p1) ++ (matrixA p2)
         bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
-        cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
+        cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones
 
     
@@ -108,7 +108,7 @@ module Rewriter.ECOS (rewrite) where
         aMatrix = [[(x,Eye m 1), (t,Eye m (-1)), (y, Eye m (-1))]]
           ++(matrixA p1) ++ (matrixA p2)
         bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
-        cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
+        cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones
     
   -- returns the name of the parameter (if the expression is a paramter)

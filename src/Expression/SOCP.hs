@@ -39,6 +39,7 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
   -- SOC [x,y,z] means norm([y,x]) <= z
   -- SOCelem [x,y,z] means norms([x y]')' <= z
   -- note that SOC [x] and SOCelem [x] both mean x >= 0
+  -- XXX. they should mean the same, but code generation treats them differently :()
   data SOC = SOC { variables :: [VarId] } 
     | SOCelem { variables :: [VarId] }
     deriving (Show)

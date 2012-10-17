@@ -2,7 +2,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   import CodeGenerator.Common
   
   codegenECOS :: Problem -> Int -> String
-  codegenECOS p c = codegen "paris" p c
+  codegenECOS p c = codegen "ecos" p c
   
   codegenConelp :: Problem -> Int -> String
   codegenConelp p c = codegen "conelp" p c
@@ -39,43 +39,74 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   -- gets the dimensions for cone constraints
   getConeConstraintsForECOS :: Problem -> VarTable -> (Int, String, String)
   getConeConstraintsForECOS p table = 
-   let coneVariables = map coneVar (conesK p)
-       coneSizes = map coneLength coneVariables
+   let coneInfo = map coneVar (conesK p)
+       coneVariables = map fst coneInfo
+       coneSizes = map snd coneInfo
        -- generate permutation vector (put smallest cones up front)
-       permute = (\x -> map snd $ sort $ zip x [1..(length x)]) coneSizes
+       coneGroupSizes = zip (map head coneSizes) [1..(length coneSizes)]
+       pvec = map (snd) (sort coneGroupSizes)
+       -- get the width of the cones (number of cones to generate per var)
+       ncones = map coneWidth coneSizes
        -- permuted cone variables
-       permuteVars = concat (permuteVariables permute coneVariables)
-       matrixG = createMatrixG permuteVars 1 table
-       m = foldl (+) 0 coneSizes
-       higherDimCones = sort $ filter (>1) coneSizes
+       permuted = permuteCones pvec ncones coneVariables
+       startIdx = getStartIdx 0 permuted
+       flattenPermuted = flattenp permuted
+       matrixG = createMatrixG flattenPermuted startIdx table
+       m = foldl (+) 0 (concat coneSizes)
+       higherDimCones = sort $ filter (>1) (concat coneSizes)
        l = m - (foldl (+) 0 higherDimCones)
    in (m, matrixG, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
 
-  -- permute the variables
-  permuteVariables :: [Int]->[[VarId]]->[[VarId]]
-  permuteVariables [] _ = []
-  permuteVariables _ [] = []
-  permuteVariables (p:ps) xs =
-   let val = xs!!(p-1)
-   in val:permuteVariables ps xs
+  -- permute the cones
+  permuteCones :: [Int]->[Int]->[[VarId]]->[([VarId],Int)]
+  permuteCones [] _ _ = []
+  permuteCones _ [] _ = []
+  permuteCones _ _ [] = []
+  permuteCones (p:ps) ns xs  =
+   let val = (xs!!(p-1), ns!!(p-1))
+   in val:permuteCones ps ns xs
 
-  createMatrixG :: [VarId] -> Int -> VarTable -> String
-  createMatrixG [] _ _ = ""
-  createMatrixG (x:xs) count table = 
-   let newNames = (flip lookup table) (label x) -- lookup index
-       ind = case (newNames) of
-         Nothing -> ""
-         Just x -> show x
-   in "G_("++ show count ++", " ++ ind ++ ") = -1;\n" 
-     ++ createMatrixG xs (count+1) table
+  createMatrixG :: [(VarId,Int)] -> [Int] -> VarTable -> String
+  createMatrixG [] _ _  = ""
+  createMatrixG _ [] _  = ""
+  createMatrixG (x:xs) (n:ns) table = 
+   let newNames = (flip lookup table) (label$fst x) -- lookup index
+       (start, l) = case (newNames) of
+         Nothing -> (0,0)
+         Just x -> x
+       rowExtent = show n ++":"++ show (snd x) ++":"++ show (n + l*(snd x) - 1)
+       colExtent = show start ++ ":" ++ show (start + l - 1)
+   in "G_("++ rowExtent ++", " ++ colExtent  ++ ") = -speye("++ (show l) ++", "++ (show l) ++");\n" 
+     ++ createMatrixG xs ns table
 
   -- gets the variables in the cone
-  coneVar :: SOC -> [VarId]
-  coneVar (SOC vars) = vars
-  coneVar (SOCelem vars) = vars
+  coneVar :: SOC -> ([VarId],[Int])
+  coneVar (SOC vars) = (vars, [coneLength vars])
+  coneVar (SOCelem vars) = let n = rows (vars!!0)
+    in (vars,(take n (repeat $ length vars)))
 
   -- gets the size of the cone by looking at the variables' sizes in the cone
   coneLength :: [VarId] -> Int
   coneLength x = let varSizes = map (\x -> (rows x)*(cols x)) x
     in foldl (+) 0 varSizes
+  
+  -- gets the cone width
+  coneWidth :: [Int] -> Int
+  coneWidth [x] = 1
+  coneWidth x = head x
+  
+  -- flatten a list of tuples
+  flattenp :: [([VarId],Int)] -> [(VarId, Int)]
+  flattenp [x] = zip (fst x) (repeat (snd x))
+  flattenp (x:xs) = zip (fst x) (repeat (snd x)) ++ flattenp xs
+  
+  -- gets the start index from the list of variables, their lengths, and the group sizes
+  getStartIdx :: Int->[([VarId],Int)]->[Int]
+  getStartIdx n [(vars,g)] = map (+n) [1..length vars]
+  getStartIdx n ((vars,g):xs) =
+     let m = rows (vars!!0) -- assumes variables have same sizes
+         fac = case(g) of
+           1 -> length vars
+           otherwise -> 1
+     in (map (+n) [1..length vars]) ++ getStartIdx (fac*m*g+n) xs
 
