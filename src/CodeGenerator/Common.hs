@@ -7,6 +7,7 @@ module CodeGenerator.Common (
   getBForCodegen,
   VarTable,
   getCoeffInfo,
+  getCoeffSize,
   module Expression.SOCP,
   module Data.List) where
   import Expression.SOCP
@@ -39,8 +40,10 @@ module CodeGenerator.Common (
   
   -- get A
   getAForCodegen :: Problem -> VarTable -> String
-  getAForCodegen p table = let b = vectorB p
-    in intercalate "\n" (map (createRow table) (zip (matrixA p) [1..length b]))
+  getAForCodegen p table = 
+    let bsizes = map (fst.getCoeffSize) (vectorB p)
+        startIdx = take (length bsizes) (scanl (+) 1 bsizes)
+    in intercalate "\n" (map (createRow table) (zip (matrixA p) startIdx))
   
   createRow :: VarTable -> (Row,Int) -> String
   createRow table (row,ind) = 
@@ -51,12 +54,15 @@ module CodeGenerator.Common (
   getCoeffInfo :: Coeff -> (Int,Int,String)
   getCoeffInfo (Matrix (m,n) s) = (m,n,s)
   getCoeffInfo (Vector n s) = (n,1,s)
+  getCoeffInfo (OnesT n s) = case (s) of
+    0 -> (1,n,"0")
+    otherwise -> (1,n, show s++"*ones(1, "++show n ++")")
   getCoeffInfo (Ones n s) = case (s) of
-    "0" -> (n,1,"0")
-    otherwise -> (n,1, s++"*ones("++show n ++", 1)")
+    0 -> (n,1,"0")
+    otherwise -> (n,1, show s++"*ones("++show n ++", 1)")
   getCoeffInfo (Eye n s) = case (s) of
-    "0" -> (n,n, "0")
-    otherwise -> (n,n,s++"*speye("++show n++", "++show n++")")
+    0 -> (n,n, "0")
+    otherwise -> (n,n,show s++"*speye("++show n++", "++show n++")")
   
   -- just get coeff size
   getCoeffSize :: Coeff -> (Int, Int)

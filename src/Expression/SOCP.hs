@@ -13,10 +13,11 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
   -- Eye is a diagonal matrix, Ones is an array
   -- the double stores the *value* of the coefficient
   -- XXX. at the moment, don't need more than *one* value for entire coefficient
-  data Coeff = Eye Int String 
-      | Ones Int String 
-      | Matrix (Int, Int) String
-      | Vector Int String
+  data Coeff = Eye Int Double   -- eye matrix
+      | Ones Int Double         -- ones vector
+      | OnesT Int Double        -- ones' row vector
+      | Matrix (Int, Int) String  -- generic matrix
+      | Vector Int String         -- generic vector
   
   -- for showing VarId
   instance Show VarId where
@@ -34,8 +35,12 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
     conesK :: [SOC]
     } | EmptyProblem
     
-  -- maybe differentiate between SOC and elementwise SOC
+  -- differentiate between SOC and elementwise SOC
+  -- SOC [x,y,z] means norm([y,x]) <= z
+  -- SOCelem [x,y,z] means norms([x y]')' <= z
+  -- note that SOC [x] and SOCelem [x] both mean x >= 0
   data SOC = SOC { variables :: [VarId] } 
+    | SOCelem { variables :: [VarId] }
     deriving (Show)
   
   -- gets the label on the objective

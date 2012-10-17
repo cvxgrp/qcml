@@ -75,10 +75,10 @@ module Rewriter.ECOS (rewrite) where
     let x = objVar p1
         y = objVar p2
         m = rows x -- assumes x,y have same length (they should, to get this far)
-        aMatrix = [[(x,Eye m "1"), (y, Eye m "-1")]]
+        aMatrix = [[(x,Eye m 1), (y, Eye m (-1))]]
           ++ (matrixA p1) 
           ++ (matrixA p2)
-        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2)
     in Problem Nothing aMatrix bVector cones
     
@@ -90,9 +90,9 @@ module Rewriter.ECOS (rewrite) where
         m = rows x
         n = cols x  -- should equal size $ objVar y
         t = VarId ((label x)++"LT"++(label y)) m n
-        aMatrix = [[(x,Eye m "1"), (t, Eye m "1"), (y, Eye m "-1")]]
+        aMatrix = [[(x,Eye m 1), (t, Eye m 1), (y, Eye m (-1))]]
           ++(matrixA p1) ++ (matrixA p2)
-        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
     in Problem Nothing aMatrix bVector cones
 
@@ -105,9 +105,9 @@ module Rewriter.ECOS (rewrite) where
         m = rows x
         n = cols x  -- should equal size $ objVar y
         t = VarId ((label x)++"GT"++(label y)) m n
-        aMatrix = [[(x,Eye m "1"), (t,Eye m "-1"), (y, Eye m "-1")]]
+        aMatrix = [[(x,Eye m 1), (t,Eye m (-1)), (y, Eye m (-1))]]
           ++(matrixA p1) ++ (matrixA p2)
-        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
     in Problem Nothing aMatrix bVector cones
     

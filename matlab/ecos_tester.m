@@ -33,9 +33,10 @@ function run_test(directory)
     eval(directory)
     fprintf('  cvx solve time %f\n', toc);
     v1 = cvx_optval;
+    x_cvx = x;
     
     tic;
-    [status, result] = system(['../../src/ProbToCVX --ecos ' directory '.prob']);
+    [status, result] = system(['../../src/ProbToCVX --cvxsocp ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     try
@@ -53,22 +54,25 @@ function run_test(directory)
     v2 = ecos_optval;   % need this with CVX, don't need it without
 
     x_ecos = zeros(length(x),1);
-    for i = 1:length(x),
-        x_ecos(i) = eval(['x' num2str(i)]);
+    try
+        for i = 1:length(x),
+            x_ecos(i) = eval(['x' num2str(i)]);
+        end
+    catch e
+        x_ecos = x;
     end
     
-    
-    fprintf('  ||x error|| = %f\n', norm(x - x_ecos));
+    fprintf('  ||x error|| = %f\n', norm(x_cvx - x_ecos));
     fprintf('  objval error = %f\n', v1 - v2);
     
-    if(norm(x - x_ecos) <= 1e-5 && abs(v1 - v2) <= 1e-5)
+    if(norm(x_cvx - x_ecos) <= 1e-5 && abs(v1 - v2) <= 1e-5)
         fprintf('PASS\n');
     else
         fprintf('FAIL\n');
 
         result
         info_% only when running with paris
-        [x x_ecos]
+        [x_cvx x_ecos]
         %cvx_status
         [v1 v2]
         pause

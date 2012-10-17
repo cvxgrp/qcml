@@ -7,8 +7,9 @@ module CodeGenerator.CVXSOCP (codegen) where
                     varLens = getVariableSizes p
                     startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
                     varTable = zip vars (zip startIdx varLens)
-                    n = show $ length vars
-                    m = show $ length (vectorB p)
+                    n = show $ (foldl (+) 0 varLens)
+                    bsizes = map (fst.getCoeffSize) (vectorB p)
+                    m = show $ foldl (+) 0 bsizes
                     csign = show c
     in unlines $ ["c_ = sparse(" ++ n ++ ",1);",
       "c_(" ++ n ++ ") = " ++ csign ++ ";",
@@ -35,6 +36,11 @@ module CodeGenerator.CVXSOCP (codegen) where
    in case (length vars) of
      1 -> (extractString $ head newNames) ++ " >= 0"
      otherwise -> "norm([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "]) <= " ++ (extractString $ head newNames)
+  convertConeForCodegen table (SOCelem vars) = 
+    let newNames = map (flip lookup table) (map label vars)
+    in case (length vars) of
+      1 -> (extractString $ head newNames) ++ " >= 0"
+      otherwise -> "norms([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "]')' <= " ++ (extractString $ head newNames)
 
   extractString :: Maybe (Int,Int) -> String
   extractString Nothing = ""

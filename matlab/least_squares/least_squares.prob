@@ -1,15 +1,7 @@
-parameter a11
-parameter a12
-parameter a21
-parameter a22
-parameter a31
-parameter a32
+parameter A(3,2)
 
-parameter b1
-parameter b2
-parameter b3
+parameter b(3)
 
-variable x1
-variable x2
+variable x(2)
 
-minimize square(a11*x1 + a12*x2 - b1) + square(a21*x1 + a22*x2 - b2) + square(a31*x1 + a32*x2 - b3)
+minimize sum(square(A*x - b))

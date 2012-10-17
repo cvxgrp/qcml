@@ -69,9 +69,9 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m "0.5"), (z0, Eye m "-1")],
-          [(out, Eye m "-0.5"), (z1, Eye m "-1")]
-        ] [Ones m "-0.5", Ones m "-0.5"] [SOC [z0,z1,inputs!!0]]
+          [(out, Eye m (0.5)), (z0, Eye m (-1))],
+          [(out, Eye m (-0.5)), (z1, Eye m (-1))]
+        ] [Ones m (-0.5), Ones m (-0.5)] [SOCelem [z0,z1,inputs!!0]]
   )}
   
   -- inv_pos(x) = 1/x for x >= 0
@@ -91,11 +91,12 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
             one = VarId (label out ++ "z2") 1 1
+            x = inputs!!0
         in Problem (Just out) [
-          [(inputs!!0, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
-          [(inputs!!0, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")],
-          [(one, Ones 1 "1")]
-        ] [Ones m "0", Ones m "0", Ones 1 "1"] [SOC [z0,z1,one], SOC [inputs!!0]]
+          [(x, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
+          [(x, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))],
+          [(one, Ones 1 1)]
+        ] [Ones m 0, Ones m 0, Ones 1 1] [SOCelem [z0,z1,one], SOC [x]]
   )}
   
   
@@ -121,10 +122,12 @@ module Rewriter.Atoms (ecosSquare,
             n = cols out
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
+            x = inputs!!0
+            y = inputs!!1
         in Problem (Just out) [
-          [(inputs!!1, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
-          [(inputs!!1, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")]
-        ] [Ones m "0", Ones m "0"] [SOC [z0,z1,inputs!!0], SOC [inputs!!1]]
+          [(y, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
+          [(y, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))]
+        ] [Ones m 0, Ones m 0] [SOC [z0,z1,x], SOC [y]]
     )}
   
   -- plus(x,y) = x + y
@@ -146,7 +149,9 @@ module Rewriter.Atoms (ecosSquare,
     monotonicity=(\x -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
         let m = rows out
-        in Problem (Just out) [[(inputs!!0, Eye m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]] [Ones m "0"] []
+        in Problem (Just out) [
+          [(inputs!!0, Eye m 1), (inputs!!1, Eye m 1), (out, Eye m (-1))]
+        ] [Ones m 0] []
       )
     }
     
@@ -169,7 +174,9 @@ module Rewriter.Atoms (ecosSquare,
     monotonicity=(\_ -> [Increasing, Decreasing]),
     symbolRewrite=(\out inputs ->
         let m = rows out
-        in Problem (Just out) [[(inputs!!0, Eye m "1"), (inputs!!1, Eye m "-1"), (out, Eye m "-1")]] [Ones m "0"] []
+        in Problem (Just out) [
+          [(inputs!!0, Eye m 1), (inputs!!1, Eye m (-1)), (out, Eye m (-1))]
+        ] [Ones m 0] []
       )
     }
   
@@ -190,7 +197,9 @@ module Rewriter.Atoms (ecosSquare,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
         let m = rows out
-        in Problem (Just out) [[(inputs!!0, Eye m "-1"), (out, Eye m "-1")]] [Ones m "0"] []
+        in Problem (Just out) [
+          [(inputs!!0, Eye m (-1)), (out, Eye m (-1))]
+        ] [Ones m 0] []
   )}
   
   -- pos(x) = max(x,0)
@@ -208,7 +217,9 @@ module Rewriter.Atoms (ecosSquare,
         let m = rows out
             n = cols out
             z0 = VarId (label out ++ "z0") m n
-        in Problem (Just out) [[(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")]] [Ones m "0"] [SOC [out], SOC [z0]]
+        in Problem (Just out) [
+          [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))]
+        ] [Ones m 0] [SOC [out], SOC [z0]]
       )
     }
     
@@ -227,7 +238,9 @@ module Rewriter.Atoms (ecosSquare,
         let m = rows out
             n = cols out
             z0 = VarId (label out ++ "z0") m n
-        in Problem (Just out) [[(out, Eye m "1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")]] [Ones m "0"] [SOC [out], SOC [z0]]
+        in Problem (Just out) [
+          [(out, Eye m 1), (inputs!!0, Eye m 1), (z0, Eye m (-1))]
+        ] [Ones m 0] [SOC [out], SOC [z0]]
       )
     }
     
@@ -246,7 +259,7 @@ module Rewriter.Atoms (ecosSquare,
       [Negative] -> [Decreasing]
       otherwise -> [Nonmonotone]),
     symbolRewrite=(\out inputs ->
-      Problem (Just out) [] [] [SOC [out, inputs!!0]]
+      Problem (Just out) [] [] [SOCelem [out, inputs!!0]]
       )
     }
     
@@ -268,9 +281,9 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(inputs!!0, Eye m "0.5"), (z0, Eye m "-1")],
-          [(inputs!!0, Eye m "-0.5"), (z1, Eye m "-1")]
-        ] [Ones m "-0.5", Ones m "-0.5"] [SOC [z0,z1,out]]
+          [(inputs!!0, Eye m (0.5)), (z0, Eye m (-1))],
+          [(inputs!!0, Eye m (-0.5)), (z1, Eye m (-1))]
+        ] [Ones m (-0.5), Ones m (-0.5)] [SOCelem [z0,z1,out]]
     )
     }
   
@@ -291,10 +304,12 @@ module Rewriter.Atoms (ecosSquare,
             z1 = VarId (label out ++ "z1") 1 1
             -- negOut = -out; gives the right solution to maximization problem
             -- negOut = VarId $ (label out) ++ "z2"  
+            x = inputs!!0
+            y = inputs!!1
         in Problem (Just out) [
-          [(inputs!!0, Ones 1 "0.5"), (inputs!!1, Ones 1 "0.5"), (z0, Ones 1 "-1")],
-          [(inputs!!0, Ones 1 "-0.5"), (inputs!!1, Ones 1 "0.5"), (z1, Ones 1 "-1")]
-        ] [Ones 1 "0", Ones 1 "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
+          [(x, Ones 1 (0.5)), (y, Ones 1 (0.5)), (z0, Ones 1 (-1))],
+          [(x, Ones 1 (-0.5)), (y, Ones 1 (0.5)), (z1, Ones 1 (-1))]
+        ] [Ones 1 0, Ones 1 0] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
@@ -325,9 +340,9 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")],
-          [(out, Eye m "1"), (inputs!!1, Eye m "-1"), (z1, Eye m "-1")]
-        ] [Ones m "0", Ones m "0"] [SOC [z0], SOC [z1]]
+          [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))],
+          [(out, Eye m 1), (inputs!!1, Eye m (-1)), (z1, Eye m (-1))]
+        ] [Ones m 0, Ones m 0] [SOC [z0], SOC [z1]]
     )
     }
     
@@ -355,9 +370,9 @@ module Rewriter.Atoms (ecosSquare,
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m "-1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")],
-          [(out, Eye m "-1"), (inputs!!1, Eye m "1"), (z1, Eye m "-1")]
-        ] [Ones m "0", Ones m "0"] [SOC [z0], SOC [z1]]
+          [(out, Eye m (-1)), (inputs!!0, Eye m 1), (z0, Eye m (-1))],
+          [(out, Eye m (-1)), (inputs!!1, Eye m 1), (z1, Eye m (-1))]
+        ] [Ones m 0, Ones m 0] [SOC [z0], SOC [z1]]
     )
     }
   
@@ -379,7 +394,9 @@ module Rewriter.Atoms (ecosSquare,
     symbolRewrite=(\out inputs ->
         let n = rows (inputs!!0)
             m = rows out
-        in Problem (Just out) [[(inputs!!0, Ones n "1"), (out, Ones m "-1")]] [Ones m "0"] []
+        in Problem (Just out) [
+          [(inputs!!0, OnesT n 1), (out, Ones m (-1))]
+        ] [Ones m 0] []
       )
     }
     
@@ -416,6 +433,8 @@ module Rewriter.Atoms (ecosSquare,
         let m = rows (inputs!!1)
             n = cols (inputs!!1)
             s = label (inputs!!1)
-        in Problem (Just out) [[(inputs!!0, Matrix (m,n) s), (out, Eye m "-1")]] [Ones m "0"] []
+        in Problem (Just out) [
+          [(inputs!!0, Matrix (m,n) s), (out, Eye m (-1))]
+        ] [Ones m 0] []
       )
   }

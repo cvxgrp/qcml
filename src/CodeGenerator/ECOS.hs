@@ -13,8 +13,9 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
         varLens = getVariableSizes p
         startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
         varTable = zip vars (zip startIdx varLens)
-        n = show $ length vars
-        m = show $ length (vectorB p)
+        n = show $ (foldl (+) 0 varLens)
+        bsizes = map (fst.getCoeffSize) (vectorB p)
+        m = show $ foldl (+) 0 bsizes
         (k, g, cones) = getConeConstraintsForECOS p varTable
         nk = show (length vars - k)
         kshow = show k
@@ -71,6 +72,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   -- gets the variables in the cone
   coneVar :: SOC -> [VarId]
   coneVar (SOC vars) = vars
+  coneVar (SOCelem vars) = vars
 
   -- gets the size of the cone by looking at the variables' sizes in the cone
   coneLength :: [VarId] -> Int
