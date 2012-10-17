@@ -10,8 +10,9 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   codegen :: String -> Problem -> Int -> String
   codegen solver p c = 
     let vars = getVariableNames p
-        indices = [1..length vars]  -- indices change for C code 
-        varTable = zip vars indices
+        varLens = getVariableSizes p
+        startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
+        varTable = zip vars (zip startIdx varLens)
         n = show $ length vars
         m = show $ length (vectorB p)
         (k, g, cones) = getConeConstraintsForECOS p varTable
@@ -35,7 +36,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
     ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
   
   -- gets the dimensions for cone constraints
-  getConeConstraintsForECOS :: Problem -> [(String,Int)]->(Int, String, String)
+  getConeConstraintsForECOS :: Problem -> VarTable -> (Int, String, String)
   getConeConstraintsForECOS p table = 
    let coneVariables = map coneVar (conesK p)
        coneSizes = map coneLength coneVariables
@@ -57,7 +58,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
    let val = xs!!(p-1)
    in val:permuteVariables ps xs
 
-  createMatrixG :: [VarId] -> Int -> [(String,Int)] -> String
+  createMatrixG :: [VarId] -> Int -> VarTable -> String
   createMatrixG [] _ _ = ""
   createMatrixG (x:xs) count table = 
    let newNames = (flip lookup table) (label x) -- lookup index

@@ -1,4 +1,4 @@
-module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLabel) where
+module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), objVar, objLabel) where
   import Data.List
 
   -- for indexing in to the matrix
@@ -8,25 +8,33 @@ module Expression.SOCP (VarId(..), Row(..), Problem(..), SOC(..), objVar, objLab
                 cols :: Int 
               }
   
+  -- for creating coefficients
+  -- note that Eye (1) and Ones (1) do the same thing
+  -- Eye is a diagonal matrix, Ones is an array
+  -- the double stores the *value* of the coefficient
+  -- XXX. at the moment, don't need more than *one* value for entire coefficient
+  data Coeff = Eye Int String 
+      | Ones Int String 
+      | Matrix (Int, Int) String
+      | Vector Int String
+  
   -- for showing VarId
   instance Show VarId where
     show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
-              
-  -- instance Eq VarId where
-  --   x == y  = (label x) == (label y)
 
   -- a row in the A matrix, the string gives the name of the coefficient
-  type Row = [(VarId, String)]
+  type Row = [(VarId, Coeff)]
 
   -- XXX: a Problem should have a sense....
   -- SOCP problem data type
   data Problem = Problem {
     obj :: Maybe VarId,     -- objective is always just a single variable
     matrixA :: [Row],
-    vectorB :: [String], 
+    vectorB :: [Coeff], 
     conesK :: [SOC]
     } | EmptyProblem
     
+  -- maybe differentiate between SOC and elementwise SOC
   data SOC = SOC { variables :: [VarId] } 
     deriving (Show)
   

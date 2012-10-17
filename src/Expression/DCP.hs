@@ -6,6 +6,7 @@ module Expression.DCP (Monotonicity(..),
   CVXExpression,
   Vexable(..),
   Signable(..),
+  Sizeable(..),
   Prob(..),
   SignFunc,
   MonoFunc,
@@ -33,6 +34,13 @@ module Expression.DCP (Monotonicity(..),
   class Signable a where
     sign :: a -> Sign
   
+  class Sizeable a where
+    size :: a -> (Int, Int)
+    
+  -- properties to attach specifically to nodes
+  class SzFunc a where
+    szfunc :: a -> SizeFunc
+    
   class SFunc a where
     sfunc :: a -> SignFunc
   
@@ -43,9 +51,9 @@ module Expression.DCP (Monotonicity(..),
     prob :: a -> ProblemFunc
 
   -- collect the properties of a node together
-  class (Vexable a, SFunc a, MFunc a, Prob a) => Node a where
+  class (Vexable a, SzFunc a, SFunc a, MFunc a, Prob a) => Node a where
   -- collect the properties of an expression together
-  class (Vexable a, Signable a) => Expr a where
+  class (Vexable a, Sizeable a, Signable a) => Expr a where
     
   -- expression data type
   data Expression a = Empty 
@@ -57,6 +65,7 @@ module Expression.DCP (Monotonicity(..),
   type SignFunc = [Sign]->Sign
   type MonoFunc = [Sign]->[Monotonicity]
   type ProblemFunc = VarId -> [VarId] -> Problem
+  type SizeFunc = [(Int,Int)] -> (Int,Int)
   
   -- constraint data type
   data CVXConstraint = Eq {lhs::CVXExpression, rhs::CVXExpression}
@@ -78,14 +87,14 @@ module Expression.DCP (Monotonicity(..),
   data CVXSymbol
     = Parameter { 
       name::String,
-      size::(Int, Int),
+      symbolSize::SizeFunc,
       symbolVexity::Vexity, 
       symbolSign::SignFunc,
       symbolRewrite::ProblemFunc
     }
     | Variable { 
       name::String,
-      size::(Int, Int),
+      symbolSize::SizeFunc,
       symbolVexity::Vexity, 
       symbolSign::SignFunc
     }
@@ -93,6 +102,8 @@ module Expression.DCP (Monotonicity(..),
       name::String,
       nargs::Int,
       nparams::Int,
+      areValidArgs::[(Int,Int)] -> Bool,
+      symbolSize::SizeFunc,
       symbolVexity::Vexity, 
       symbolSign::SignFunc, 
       monotonicity::MonoFunc,
@@ -102,6 +113,10 @@ module Expression.DCP (Monotonicity(..),
   -- symbols are vexable (can ask for its vexity)
   instance Vexable CVXSymbol where
     vexity x = symbolVexity x
+    
+  -- symbols are SzFunc-able (can ask for a size function)
+  instance SzFunc CVXSymbol where
+    szfunc x = symbolSize x
   
   -- symbols are "SFunc"-able (you can ask for a sign function)
   instance SFunc CVXSymbol where
@@ -116,7 +131,8 @@ module Expression.DCP (Monotonicity(..),
   -- symbols are "PFunc"-able (you can ask for a problem rewriter)
   -- TODO: default size is 1x1, but will take size argument later
   instance Prob CVXSymbol where
-    prob (Variable s _ _ _) = (\_ _ -> Problem (Just (VarId s 1 1)) [] [] [])
+    prob (Variable s f _ _) = let (m,n) = f []
+      in (\_ _ -> Problem (Just (VarId s m n)) [] [] [])
     prob x = symbolRewrite x
   
   -- symbols are Nodes (a node is just Vexable, SFunc, and MFunc)
@@ -129,10 +145,18 @@ module Expression.DCP (Monotonicity(..),
     vexity _ = Nonconvex
 
   -- expressions are signable (can ask for its sign)
+  -- does a recursive descent every time we ask for an expression's sign
   instance (Node a) => Signable (Expression a) where
     sign (Leaf x) = sfunc x []
     sign (Node x args) = sfunc x (map sign args)
     sign _ = Unknown
+  
+  -- expressions are sizeable (can ask for its size)
+  -- does a recursive descent every time we ask for an expression's size
+  instance (Node a) => Sizeable (Expression a) where
+    size (Leaf x) = szfunc x []
+    size (Node x args) = szfunc x (map size args)
+    size _ = (0,0)
   
   -- expressions are made up of nodes and are of class Expr
   -- the Expr class just says it's signable and vexable

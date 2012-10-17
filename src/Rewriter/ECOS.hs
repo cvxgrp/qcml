@@ -21,19 +21,20 @@ module Rewriter.ECOS (rewrite) where
   -- parser ensures that obj of prob1 and obj of prob2 is not Nothing
   rewriteAndCount :: CVXExpression -> Int -> (Int,Problem)
   rewriteAndCount (Leaf x) count = 
-    let newVar = VarId ("t" ++ (show count)) -- TODO: depends on size of leaf!
-        (m,n) = size x
+    let (m,n) = symbolSize x []
+        newVar = VarId ("t" ++ (show count)) m n -- TODO: depends on size of leaf!
     in case x of
-      Variable _ _ _ _ -> (0, prob x (newVar m n) [])
-      otherwise -> (1, prob x (newVar m n) [])
+      Variable _ _ _ _ -> (0, prob x newVar [])
+      otherwise -> (1, prob x newVar [])
   rewriteAndCount (Node x arguments) count =
-    let newVar = VarId ("t" ++ (show count)) -- TODO: depends on output of function
+    let (m,n) = symbolSize x (map size arguments)
+        newVar = VarId ("t" ++ (show count)) m n-- TODO: depends on output of function
         (args, params) = splitAt (nargs x) arguments
         rewriters = take (nargs x) (map rewriteAndCount args)
         results = reduceRewriters rewriters count
         problems = map snd results
         total = foldl (+) 0 (map fst results)
-        newProb = prob x (newVar 1 1) ((map objVar problems)++(map value params))
+        newProb = prob x newVar ((map objVar problems)++(map value params))
     in (total+1, foldl (<+) newProb problems)
   rewriteAndCount _ _ = (0,EmptyProblem)
   
@@ -70,36 +71,48 @@ module Rewriter.ECOS (rewrite) where
 
   -- equating two problems / expressions
   (<==>) :: Problem -> Problem -> Problem
-  x <==> y = 
-    let aMatrix = [[(objVar x,"1"), (objVar y, "-1")]]
-          ++ (matrixA x) 
-          ++ (matrixA y)
-        bVector = "0":(vectorB x) ++ (vectorB y)
-        cones = (conesK x) ++ (conesK y)
+  p1 <==> p2 = 
+    let x = objVar p1
+        y = objVar p2
+        m = rows x -- assumes x,y have same length (they should, to get this far)
+        aMatrix = [[(x,Eye m "1"), (y, Eye m "-1")]]
+          ++ (matrixA p1) 
+          ++ (matrixA p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        cones = (conesK p1) ++ (conesK p2)
     in Problem Nothing aMatrix bVector cones
     
   -- comparing two problems / expressions via <=
   (<<=>) :: Problem -> Problem -> Problem
-  x <<=> y = 
-    let t = VarId ((objLabel x)++"LT"++(objLabel y)) 1 1
-        aMatrix = [[(objVar x,"1"), (t,"1"), (objVar y, "-1")]]
-          ++(matrixA x) ++ (matrixA y)
-        bVector = "0":(vectorB x) ++ (vectorB y)
-        cones = (conesK x) ++ (conesK y) ++ [SOC [t]]
+  p1 <<=> p2 = 
+    let x = objVar p1
+        y = objVar p2
+        m = rows x
+        n = cols x  -- should equal size $ objVar y
+        t = VarId ((label x)++"LT"++(label y)) m n
+        aMatrix = [[(x,Eye m "1"), (t, Eye m "1"), (y, Eye m "-1")]]
+          ++(matrixA p1) ++ (matrixA p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
     in Problem Nothing aMatrix bVector cones
 
     
   -- comparing two problems / expressions via >=
   (<>=>) :: Problem -> Problem -> Problem
-  x <>=> y =  
-    let t = VarId ((objLabel x)++"GT"++(objLabel y)) 1 1
-        aMatrix = [[(objVar x,"1"), (t,"-1"), (objVar y, "-1")]]
-          ++(matrixA x) ++ (matrixA y)
-        bVector = "0":(vectorB x) ++ (vectorB y)
-        cones = (conesK x) ++ (conesK y) ++ [SOC [t]]
+  p1 <>=> p2 =  
+    let x = objVar p1
+        y = objVar p2
+        m = rows x
+        n = cols x  -- should equal size $ objVar y
+        t = VarId ((label x)++"GT"++(label y)) m n
+        aMatrix = [[(x,Eye m "1"), (t,Eye m "-1"), (y, Eye m "-1")]]
+          ++(matrixA p1) ++ (matrixA p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
+        cones = (conesK p1) ++ (conesK p2) ++ [SOC [t]]
     in Problem Nothing aMatrix bVector cones
     
   -- returns the name of the parameter (if the expression is a paramter)
   value :: CVXExpression -> VarId
-  value (Leaf (Parameter s (m,n) _ _ _)) = VarId s m n
+  value (Leaf (Parameter s f _ _ _)) = let (m,n) = f [] in VarId s m n
   value _ = VarId "NaN" 0 0 -- otherwise...?
+  

@@ -1,8 +1,11 @@
-parameter a
-parameter b
+dimension n = 5
+dimension m = 10
+
+parameter A(m,n)
+parameter b(m)
 parameter lambda positive
-variable x
+variable x(n)
 variable y
 
-minimize (a + b)
+minimize sum(square(A*x - b))
   

@@ -6,7 +6,6 @@ module Expression.Expression (positiveSign,
   parameter,
   variable,
   isValidExpr,
-  paramProb,
   module Expression.DCP,
   module Expression.SOCP) where
     
@@ -20,6 +19,7 @@ module Expression.Expression (positiveSign,
   negativeSign = (\_ -> Negative)
   unknownSign = (\_ -> Unknown)
   
+  sizeFunc x = (\_ -> x)
   -- XXX: this is the constant atom....
   -- parameter rewriter 
   -- parameter a becomes
@@ -29,22 +29,28 @@ module Expression.Expression (positiveSign,
   --    t == a
   --
   paramProb s = (\out _ ->
+    let a = Eye (rows out) "1.0"
+        b = Vector (rows out) s
     -- create a new variable named "t0z0" (or in that form)
-    Problem (Just out) [[(out,"1")]] [s] [])
+    in Problem (Just out) [[(out, a)]] [b] [])
     -- minimize out s.t. out == s
   
   -- constructors (need to take size as arguments)
-  positiveParameter :: String -> CVXSymbol
-  positiveParameter s = Parameter s (1,1) Affine positiveSign (paramProb s)
+  positiveParameter :: String -> (Int, Int) -> CVXSymbol
+  positiveParameter s sz 
+    = Parameter s (sizeFunc sz) Affine positiveSign (paramProb s)
   
-  negativeParameter :: String -> CVXSymbol
-  negativeParameter s = Parameter s (1,1) Affine negativeSign (paramProb s)
+  negativeParameter :: String -> (Int, Int) -> CVXSymbol
+  negativeParameter s sz 
+    = Parameter s (sizeFunc sz) Affine negativeSign (paramProb s)
   
-  parameter :: String -> CVXSymbol
-  parameter s = Parameter s (1,1) Affine unknownSign (paramProb s)
+  parameter :: String -> (Int,Int) -> CVXSymbol
+  parameter s sz 
+    = Parameter s (sizeFunc sz) Affine unknownSign (paramProb s)
   
-  variable :: String -> CVXSymbol
-  variable s = Variable s (1,1) Affine unknownSign
+  variable :: String -> (Int, Int) -> CVXSymbol
+  variable s sz 
+    = Variable s (sizeFunc sz) Affine unknownSign
   
   
   -- check tree validity, easy function to make sure that ParamFunction have 
@@ -55,7 +61,7 @@ module Expression.Expression (positiveSign,
     let (arguments, parameters) = splitAt (nargs f) args -- assumes parameters follow arguments
         areExprs = map isValidExpr arguments
         areParams = map isParam parameters
-    in True && and areExprs && and areParams
+    in True && and areExprs && and areParams && areValidArgs f (map size args)
   
   isParam :: CVXExpression -> Bool
   isParam (Leaf (Parameter _ _ _ _ _)) = True

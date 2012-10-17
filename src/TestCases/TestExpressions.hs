@@ -6,9 +6,9 @@ module TestCases.TestExpressions (
   import Expression.Expression
   import Rewriter.Atoms
   
-  expr1 = Leaf $ variable "x"
-  expr2 = Leaf $ positiveParameter "1"
-  expr3 = Leaf $ positiveParameter "8"
+  expr1 = Leaf $ variable "x" (1,1)
+  expr2 = Leaf $ positiveParameter "1" (1,1)
+  expr3 = Leaf $ positiveParameter "8" (1,1)
   expr4 = Node ecosPlus [expr1, expr2] -- x + 1
   expr5 = Node ecosSquare [expr1] -- x^2
   expr6 = Node ecosPlus [expr5, expr2] -- x^2 + 1

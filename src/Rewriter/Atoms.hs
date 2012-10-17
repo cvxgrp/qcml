@@ -13,8 +13,15 @@ module Rewriter.Atoms (ecosSquare,
   
   import qualified Data.Map as M
   import Expression.Expression
-  -- TODO: in parser, need to check arguments and check parameteric functions
   
+  -- identity size function (for functions with single arguments)
+  idSize x = x!!0
+  
+  isVector x = let (m,n) = x
+    in n == 1
+  isScalar x = let (m,n) = x
+    in (m==1 && n == 1)
+    
   -- list of valid atoms
   ecosAtoms = M.fromList [
     ("square", ecosSquare), 
@@ -26,7 +33,8 @@ module Rewriter.Atoms (ecosSquare,
     ("geo_mean", ecosGeoMean),
     ("abs", ecosAbs),
     ("max", ecosMax),
-    ("min", ecosMin)]
+    ("min", ecosMin),
+    ("sum", ecosSum)]
   
   
   -- -- this might be one way to provide monotonicity
@@ -46,6 +54,8 @@ module Rewriter.Atoms (ecosSquare,
     name="square",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case(x) of
@@ -54,12 +64,14 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone]
     ),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-            z1 = VarId (label out ++ "z1") 1 1
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, "0.5"), (z0, "-1")],
-          [(out, "-0.5"), (z1, "-1")]
-        ] ["-0.5", "-0.5"] [SOC [z0,z1,inputs!!0]]
+          [(out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(out, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "-0.5", Ones m "-0.5"] [SOC [z0,z1,inputs!!0]]
   )}
   
   -- inv_pos(x) = 1/x for x >= 0
@@ -68,27 +80,35 @@ module Rewriter.Atoms (ecosSquare,
     name="inv_pos",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),  -- XXX. can check if arg is positive
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-            z1 = VarId (label out ++ "z1") 1 1
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
             one = VarId (label out ++ "z2") 1 1
         in Problem (Just out) [
-          [(inputs!!0,"0.5"), (out, "0.5"), (z0, "-1")],
-          [(inputs!!0,"0.5"), (out, "-0.5"), (z1, "-1")],
-          [(one, "1")]
-        ] ["0", "0", "1"] [SOC [z0,z1,one], SOC [inputs!!0]]
+          [(inputs!!0, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(inputs!!0, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")],
+          [(one, Ones 1 "1")]
+        ] [Ones m "0", Ones m "0", Ones 1 "1"] [SOC [z0,z1,one], SOC [inputs!!0]]
   )}
   
   
-  -- quad_over_lin(x) = x^2/y
+  -- quad_over_lin(x,y) = x^Tx/y
   ecosQuadOverLin :: CVXSymbol
   ecosQuadOverLin = Atom {
     name="quad_over_lin",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (n==1) && (p==1) && (q==1)),
+    symbolSize=(\_ -> (1,1)),
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case (x) of
@@ -97,12 +117,14 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone,Decreasing]
       ),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1 
-            z1 = VarId (label out ++ "z1") 1 1
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(inputs!!1,"0.5"), (out, "0.5"), (z0, "-1")],
-          [(inputs!!1,"0.5"), (out, "-0.5"), (z1, "-1")]
-        ] ["0", "0"] [SOC [z0,z1,inputs!!0], SOC [inputs!!1]]
+          [(inputs!!1, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(inputs!!1, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOC [z0,z1,inputs!!0], SOC [inputs!!1]]
     )}
   
   -- plus(x,y) = x + y
@@ -111,6 +133,10 @@ module Rewriter.Atoms (ecosSquare,
     name="plus",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (m==p) && (n==q)),
+    symbolSize=idSize,  -- assumes parser created x+y where x,y have same size
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive,Positive] -> Positive
@@ -119,7 +145,8 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\x -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        Problem (Just out) [[(inputs!!0,"1"), (inputs!!1,"1"), (out, "-1")]] ["0"] []
+        let m = rows out
+        in Problem (Just out) [[(inputs!!0, Eye m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]] [Ones m "0"] []
       )
     }
     
@@ -129,6 +156,10 @@ module Rewriter.Atoms (ecosSquare,
     name="minus",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (m==p) && (n==q)),
+    symbolSize=idSize, -- assumes parser created x-y where x,y have same size
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive,Negative] -> Positive
@@ -137,7 +168,8 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Decreasing]),
     symbolRewrite=(\out inputs ->
-        Problem (Just out) [[(inputs!!0,"1"), (inputs!!1,"-1"), (out, "-1")]] ["0"] []
+        let m = rows out
+        in Problem (Just out) [[(inputs!!0, Eye m "1"), (inputs!!1, Eye m "-1"), (out, Eye m "-1")]] [Ones m "0"] []
       )
     }
   
@@ -147,6 +179,8 @@ module Rewriter.Atoms (ecosSquare,
     name="negate",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Affine,
     symbolSign=(\x -> case(x) of
       [Positive] -> Negative
@@ -155,7 +189,8 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        Problem (Just out) [[(inputs!!0,"-1"), (out, "-1")]] ["0"] []
+        let m = rows out
+        in Problem (Just out) [[(inputs!!0, Eye m "-1"), (out, Eye m "-1")]] [Ones m "0"] []
   )}
   
   -- pos(x) = max(x,0)
@@ -164,12 +199,16 @@ module Rewriter.Atoms (ecosSquare,
     name="pos",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-        in Problem (Just out) [[(out,"1"), (inputs!!0,"-1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+        in Problem (Just out) [[(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")]] [Ones m "0"] [SOC [out], SOC [z0]]
       )
     }
     
@@ -179,12 +218,16 @@ module Rewriter.Atoms (ecosSquare,
     name="neg",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Decreasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-        in Problem (Just out) [[(out,"1"), (inputs!!0,"1"), (z0, "-1")]] ["0"] [SOC [out], SOC [z0]]
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+        in Problem (Just out) [[(out, Eye m "1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")]] [Ones m "0"] [SOC [out], SOC [z0]]
       )
     }
     
@@ -194,6 +237,8 @@ module Rewriter.Atoms (ecosSquare,
     name="abs",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case(x) of
@@ -212,25 +257,32 @@ module Rewriter.Atoms (ecosSquare,
     name="sqrt",
     nargs=1,
     nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=idSize,
     symbolVexity=Concave,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-            z1 = VarId (label out ++ "z1") 1 1
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(inputs!!0,"0.5"), (z0, "-1")],
-          [(inputs!!0,"-0.5"), (z1, "-1")]
-        ] ["-0.5", "-0.5"] [SOC [z0,z1,out]]
+          [(inputs!!0, Eye m "0.5"), (z0, Eye m "-1")],
+          [(inputs!!0, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "-0.5", Ones m "-0.5"] [SOC [z0,z1,out]]
     )
     }
-    
+  
   -- geo_mean(x,y) = sqrt(x*y)
+  -- XXX: for now, geo_mean only takes scalar arguments
   ecosGeoMean :: CVXSymbol
   ecosGeoMean = Atom {
     name="geo_mean",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> (isScalar $ x!!0) && (isScalar $ x!!1)),
+    symbolSize=(\_ -> (1,1)),
     symbolVexity=Concave,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing, Increasing]),
@@ -240,9 +292,9 @@ module Rewriter.Atoms (ecosSquare,
             -- negOut = -out; gives the right solution to maximization problem
             -- negOut = VarId $ (label out) ++ "z2"  
         in Problem (Just out) [
-          [(inputs!!0,"0.5"), (inputs!!1, "0.5"), (z0, "-1")],
-          [(inputs!!0,"-0.5"), (inputs!!1, "0.5"), (z1, "-1")]
-        ] ["0", "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
+          [(inputs!!0, Ones 1 "0.5"), (inputs!!1, Ones 1 "0.5"), (z0, Ones 1 "-1")],
+          [(inputs!!0, Ones 1 "-0.5"), (inputs!!1, Ones 1 "0.5"), (z1, Ones 1 "-1")]
+        ] [Ones 1 "0", Ones 1 "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
@@ -255,6 +307,10 @@ module Rewriter.Atoms (ecosSquare,
     name="max",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (m==p) && (n==q)),
+    symbolSize=idSize,
     symbolVexity=Convex,
     symbolSign = (\x -> case(x) of
       [Positive,_] -> Positive
@@ -264,12 +320,14 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-            z1 = VarId (label out ++ "z1") 1 1
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out,"1"), (inputs!!0,"-1"), (z0, "-1")],
-          [(out,"1"), (inputs!!1,"-1"), (z1, "-1")]
-        ] ["0", "0"] [SOC [z0], SOC [z1]]
+          [(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")],
+          [(out, Eye m "1"), (inputs!!1, Eye m "-1"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOC [z0], SOC [z1]]
     )
     }
     
@@ -279,6 +337,10 @@ module Rewriter.Atoms (ecosSquare,
     name="min",
     nargs=2,
     nparams=0,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (m==p) && (n==q)),
+    symbolSize=idSize,
     symbolVexity=Concave,
     symbolSign = (\x -> case(x) of
       [Negative,_] -> Negative
@@ -288,16 +350,37 @@ module Rewriter.Atoms (ecosSquare,
     ),
     monotonicity=(\_ -> [Increasing, Increasing]),
     symbolRewrite=(\out inputs ->
-        let z0 = VarId (label out ++ "z0") 1 1
-            z1 = VarId (label out ++ "z1") 1 1
-            -- negOut = -out; gives the right solution to maximization problem
-            negOut = VarId $ (label out) ++ "z2"
+        let m = rows out
+            n = cols out
+            z0 = VarId (label out ++ "z0") m n
+            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out,"-1"), (inputs!!0,"1"), (z0, "-1")],
-          [(out,"-1"), (inputs!!1,"1"), (z1, "-1")]
-          --[(out, "1"), (out,"1")]
-        ] ["0", "0"] [SOC [z0], SOC [z1]]
+          [(out, Eye m "-1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")],
+          [(out, Eye m "-1"), (inputs!!1, Eye m "1"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOC [z0], SOC [z1]]
     )
+    }
+  
+  -- sum(x) = x_1 + x_2 + ... + x_n
+  ecosSum :: CVXSymbol
+  ecosSum = Atom {
+    name="sum",
+    nargs=1,
+    nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=(\_ -> (1,1)),
+    symbolVexity=Affine,
+    symbolSign = (\x -> case(x) of
+      [Negative] -> Negative
+      [Positive] -> Positive
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing]),
+    symbolRewrite=(\out inputs ->
+        let n = rows (inputs!!0)
+            m = rows out
+        in Problem (Just out) [[(inputs!!0, Ones n "1"), (out, Ones m "-1")]] [Ones m "0"] []
+      )
     }
     
   -- this is how you define *parameterized* atoms
@@ -308,6 +391,14 @@ module Rewriter.Atoms (ecosSquare,
     name="multiply",
     nargs=1,
     nparams=1,
+    areValidArgs=(\x -> let (m,n) = x!!0
+                            (p,q) = x!!1
+                        in (m==q) && (n==1)),
+    -- passes in [(n,1), (m,n)], returns (m,1)
+    symbolSize=(\x -> let (m,n) = x!!0
+                          (p,q) = x!!1
+                      in (p,n)
+    ),
     symbolVexity=Affine,
     symbolSign=(\x -> case (x) of
       [Positive, Positive] -> Positive
@@ -322,6 +413,9 @@ module Rewriter.Atoms (ecosSquare,
       otherwise -> [Nonmonotone, Nonmonotone]
     ),
     symbolRewrite=(\out inputs ->
-        Problem (Just out) [[(inputs!!0,label $ inputs!!1), (out, "-1")]] ["0"] []
+        let m = rows (inputs!!1)
+            n = cols (inputs!!1)
+            s = label (inputs!!1)
+        in Problem (Just out) [[(inputs!!0, Matrix (m,n) s), (out, Eye m "-1")]] [Ones m "0"] []
       )
   }

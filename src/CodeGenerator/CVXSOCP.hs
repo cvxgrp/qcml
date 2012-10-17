@@ -4,8 +4,9 @@ module CodeGenerator.CVXSOCP (codegen) where
   {-- what follows is for codegen --}
   codegen :: Problem -> Int -> String
   codegen p c = let vars = getVariableNames p
-                    indices = [1..length vars]  -- indices change for C code
-                    varTable = zip vars indices
+                    varLens = getVariableSizes p
+                    startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
+                    varTable = zip vars (zip startIdx varLens)
                     n = show $ length vars
                     m = show $ length (vectorB p)
                     csign = show c
@@ -24,17 +25,17 @@ module CodeGenerator.CVXSOCP (codegen) where
     ++ ["ecos_optval = "++csign++"*cvx_optval;"]
 
   -- gets the cone constraints
-  getConeConstraintsForCodegen :: Problem -> [(String,Int)]->[String]
+  getConeConstraintsForCodegen :: Problem -> VarTable ->[String]
   getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (conesK p)
   
   -- converts cone constraints to CVX string
-  convertConeForCodegen :: [(String,Int)] -> SOC -> String
+  convertConeForCodegen :: VarTable -> SOC -> String
   convertConeForCodegen table (SOC vars) = 
    let newNames = map (flip lookup table) (map label vars)
    in case (length vars) of
      1 -> (extractString $ head newNames) ++ " >= 0"
      otherwise -> "norm([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "]) <= " ++ (extractString $ head newNames)
 
-  extractString :: Maybe Int -> String
+  extractString :: Maybe (Int,Int) -> String
   extractString Nothing = ""
-  extractString (Just x) = "x_codegen(" ++ show x ++ ")"
+  extractString (Just (x,l)) = "x_codegen(" ++ show x ++ ":" ++ show (x+l-1) ++ ")"

@@ -50,7 +50,7 @@ module Main where
           CVXSOCP -> codegen
           Conelp -> codegenConelp
           ECOS -> codegenECOS
-    in case (runParser cvxProb M.empty "" input) of
+    in case (runParser cvxProb symbolTable "" input) of
         Left err -> do{ putStr "parse error at "
                       ; print err
                       }
