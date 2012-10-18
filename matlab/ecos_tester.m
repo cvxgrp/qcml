@@ -38,7 +38,7 @@ function run_test(directory)
     x_cvx = x;
     
     tic;
-    [status, result] = system(['../../src/ProbToCVX --conelp ' directory '.prob']);
+    [status, result] = system(['../../src/ProbToCVX --ecos ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
