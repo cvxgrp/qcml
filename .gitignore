@@ -11,6 +11,7 @@
 *.m~
 *.prob~
 *.toc
+*.out
 src/main
 src/test
 src/probtocvx
