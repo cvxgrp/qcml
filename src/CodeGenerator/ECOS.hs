@@ -34,7 +34,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
     ] ++ socpToProb varTable
     ++ ["ecos_optval = "++csign++"*info_.pcost;"]
     -- dump data to a header file to call ecos c code...
-    ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
+    -- ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
   
   -- gets the dimensions for cone constraints
   getConeConstraintsForECOS :: Problem -> VarTable -> (Int, String, String)
@@ -106,7 +106,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   getStartIdx n ((vars,g):xs) =
      let m = rows (vars!!0) -- assumes variables have same sizes
          fac = case(g) of
-           1 -> length vars
-           otherwise -> 1
-     in (map (+n) [1..length vars]) ++ getStartIdx (fac*m*g+n) xs
+           1 -> coneLength vars
+           otherwise -> m*g
+     in (map (+n) [1..length vars]) ++ getStartIdx (fac+n) xs
 

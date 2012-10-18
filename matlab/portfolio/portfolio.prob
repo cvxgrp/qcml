@@ -1,0 +1,15 @@
+dimension n = 100
+dimension m = 5
+
+variable x(n)
+
+parameter mut(1,n)
+parameter B
+parameter gamma positive
+parameter Ft(m,n)
+parameter D(n,n)
+
+maximize mut*x - gamma*(square(norm(Ft*x)) + square(norm(D*x)))
+subject to
+    sum(x) == B
+    x >= 0

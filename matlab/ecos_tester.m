@@ -1,6 +1,7 @@
 function ecos_tester()
     addpath(pwd)
     randn('state', 0);
+    rand('state', 0);
     cvx_precision best
     cvx_quiet true
     cvx_solver sdpt3
@@ -15,7 +16,8 @@ function ecos_tester()
         run_test('min_max'); fprintf('\n');
         run_test('robust_ls'); fprintf('\n');
         run_test('ecos_mpc'); fprintf('\n');
-        run_test('lasso'); %fprintf('\n');
+        run_test('lasso'); fprintf('\n');
+        run_test('portfolio'); %fprintf('\n');
 
     catch e
         cd ..   % return to top level directory
@@ -39,11 +41,12 @@ function run_test(directory)
     [status, result] = system(['../../src/ProbToCVX --conelp ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
+    clear x
     try
         eval(result);
     catch e
         result
-        info_% only when running with paris
+        %info_% only when running with paris
         throw(e)
     end
 %     C = [eye(size(A_,2)) A_'; A_ -eye(size(A_,1))];
@@ -52,9 +55,9 @@ function run_test(directory)
 
     v2 = ecos_optval;   % need this with CVX, don't need it without
     
-    x_ecos = zeros(length(x),1);
+    x_ecos = zeros(length(x_cvx),1);
     try
-        for i = 1:length(x),
+        for i = 1:length(x_cvx),
             x_ecos(i) = eval(['x' num2str(i)]);
         end
     catch e
@@ -70,7 +73,7 @@ function run_test(directory)
         fprintf('FAIL\n');
 
         result
-        info_% only when running with paris
+        %info_% only when running with paris
         [x_cvx x_ecos]
         %cvx_status
         [v1 v2]

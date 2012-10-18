@@ -231,6 +231,17 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
       return ">="
     } <?> "boolean operator"
     
+  promote :: E.CVXExpression -> Int -> E.CVXExpression
+  promote (E.Leaf p) n = case (p) of
+    E.Parameter s _ _ sign _ -> 
+      let constructor = case (sign []) of 
+            E.Positive -> E.positiveParameter
+            E.Negative -> E.negativeParameter
+            otherwise -> E.parameter
+          in E.Leaf $ constructor s (n,1)
+    E.Variable s _ _ _ -> E.Leaf $ E.variable s (n,1)
+  promote x n = E.Node (ecosConcat n) (take n $ repeat x)
+    
   constraint :: CVXParser E.CVXConstraint
   constraint = do {
     lhs <- cvxExpr;
@@ -243,10 +254,10 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
         lhsScalar = (m1 == 1 && n1 == 1)
         rhsScalar = (m2 == 1 && n2 == 1)
         lhsPromoted = case(not haveEqualSizes && lhsScalar) of
-          True -> E.Node (ecosConcat m2) (take m2 $ repeat lhs)
+          True -> promote lhs m2
           otherwise -> lhs
         rhsPromoted = case(not haveEqualSizes && rhsScalar) of
-          True -> E.Node (ecosConcat m1) (take m1 $ repeat rhs)
+          True -> promote rhs m1
           otherwise -> rhs
         result = case (p) of
           "==" -> (E.Eq lhsPromoted rhsPromoted)
