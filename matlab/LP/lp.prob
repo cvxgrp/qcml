@@ -1,14 +1,10 @@
-variable x1
-variable x2
+variable x(2)
 
-parameter a1
-parameter a2
-parameter c1
-parameter c2
+parameter A(1,2)
+parameter ct(1,2)
 parameter b
 
-minimize c1*x1 + c2*x2
+minimize ct*x
 subject to
-a1*x1 + a2*x2 == b
-x1 >= 0
-x2 >= 0
+A*x == b
+x >= 0

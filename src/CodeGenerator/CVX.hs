@@ -33,21 +33,31 @@ module CodeGenerator.CVX (cvxgen) where
     in produceEqConstr coeffStrings (map convertRow (matrixA p))
 
   -- adds coefficient for multiply on each row
-  convertRow :: Row -> [String]
-  convertRow row = map 
-    (\(variable, multiplier) -> let (m,n,s) = getCoeffInfo multiplier
-      in s ++ "*" ++ (label variable)) row
+  convertRow :: Row -> ([String],Bool)
+  convertRow row = let rowHeights = map (getCoeffRows.snd) (tail row)
+                       rowTotal = (getCoeffRows.snd) (head row)
+                       isConcat = not $ all (==rowTotal) rowHeights
+    in (map (\(variable, multiplier) -> let (m,n,s) = getCoeffInfo multiplier
+      in s ++ "*" ++ (label variable)) row, isConcat)
 
   -- produces an equality constraint
-  produceEqConstr :: [String]->[[String]]->[String]
+  produceEqConstr :: [String]->[([String],Bool)]->[String]
   produceEqConstr b ax = 
     let zipFunc x y = x ++ " == " ++ y
     in zipWith zipFunc (flattenEqConstr ax) b
 
   -- flattens the lhs of each row by adding "+"
-  flattenEqConstr :: [[String]] -> [String]
-  flattenEqConstr [[]] = [""] 
-  flattenEqConstr ax = map (intercalate " + ") ax
+  flattenEqConstr :: [([String],Bool)] -> [String]
+  flattenEqConstr [([],_)] = [""] 
+  flattenEqConstr ax = let axs = map fst ax
+                           concats = map snd ax
+                      in zipWith emitConstraint concats axs
+
+  -- emits a row of the equality constraints
+  emitConstraint :: Bool -> [String] -> String
+  emitConstraint False x = intercalate " + " x
+  emitConstraint True x 
+    = (head x) ++ " + " ++ "["++(intercalate "; " (tail x)) ++"]"
 
   -- gets the cone constraints
   getConeConstraints :: Problem -> [String]

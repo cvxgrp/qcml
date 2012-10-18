@@ -1,21 +1,21 @@
-module Rewriter.Atoms (ecosSquare,
+module Rewriter.Atoms (
+  ecosSquare,
+  ecosSqrt,
   ecosInvPos,
-  ecosQuadOverLin, 
-  ecosPlus, 
+  
+  ecosPlus,
   ecosMinus,
   ecosNegate,
-  ecosPos,
-  ecosNeg,
-  ecosAbs,
-  ecosSqrt,
-  ecosGeoMean,
-  ecosMul, ecosAtoms) where
+  ecosMul,
+  ecosConcat,
+  ecosAtoms) where
   
   import qualified Data.Map as M
   import Expression.Expression
   
   -- identity size function (for functions with single arguments)
   idSize x = x!!0
+  scalarSize x = (1,1)
   
   isVector x = let (m,n) = x
     in n == 1
@@ -34,7 +34,8 @@ module Rewriter.Atoms (ecosSquare,
     ("abs", ecosAbs),
     ("max", ecosMax),
     ("min", ecosMin),
-    ("sum", ecosSum)]
+    ("sum", ecosSum),
+    ("norm", ecosNorm)]
   
   
   -- -- this might be one way to provide monotonicity
@@ -90,7 +91,7 @@ module Rewriter.Atoms (ecosSquare,
             n = cols out
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
-            one = VarId (label out ++ "z2") 1 1
+            one = VarId (label out ++ "z2") m n -- has to be vector for the SOC code to work (XXX/TODO: allow SOCelem with scalars)
             x = inputs!!0
         in Problem (Just out) [
           [(x, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
@@ -109,7 +110,7 @@ module Rewriter.Atoms (ecosSquare,
     areValidArgs=(\x -> let (m,n) = x!!0
                             (p,q) = x!!1
                         in (n==1) && (p==1) && (q==1)),
-    symbolSize=(\_ -> (1,1)),
+    symbolSize=scalarSize,
     symbolVexity=Convex,
     symbolSign=positiveSign,
     monotonicity=(\x -> case (x) of
@@ -264,6 +265,22 @@ module Rewriter.Atoms (ecosSquare,
     }
     
   -- norm2, norm1, norm_inf <-- not implemented since no vectors yet
+  ecosNorm :: CVXSymbol
+  ecosNorm = Atom {
+    name="norm",
+    nargs=1,
+    nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=scalarSize,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Nonmonotone]),
+    symbolRewrite=(\out inputs ->
+      Problem (Just out) [] [] [SOC [out,inputs!!0]]
+    )
+    }
+    
+    
   -- sqrt(x) = geo_mean(x,1)
   ecosSqrt :: CVXSymbol
   ecosSqrt = Atom {
@@ -295,7 +312,7 @@ module Rewriter.Atoms (ecosSquare,
     nargs=2,
     nparams=0,
     areValidArgs=(\x -> (isScalar $ x!!0) && (isScalar $ x!!1)),
-    symbolSize=(\_ -> (1,1)),
+    symbolSize=scalarSize,
     symbolVexity=Concave,
     symbolSign=positiveSign,
     monotonicity=(\_ -> [Increasing, Increasing]),
@@ -383,7 +400,7 @@ module Rewriter.Atoms (ecosSquare,
     nargs=1,
     nparams=0,
     areValidArgs=(\x -> isVector $ x!!0),
-    symbolSize=(\_ -> (1,1)),
+    symbolSize=scalarSize,
     symbolVexity=Affine,
     symbolSign = (\x -> case(x) of
       [Negative] -> Negative
@@ -435,6 +452,45 @@ module Rewriter.Atoms (ecosSquare,
             s = label (inputs!!1)
         in Problem (Just out) [
           [(inputs!!0, Matrix (m,n) s), (out, Eye m (-1))]
+        ] [Ones m 0] []
+      )
+  }
+  
+  -- special atoms for handling concatenation and (TODO: slicing)
+  -- (vertical concatenation) [x; y; z; ...]
+  ecosConcat :: Int->CVXSymbol
+  ecosConcat nToConcat = Atom {
+    name="concat",
+    nargs=nToConcat,
+    nparams=0,
+    areValidArgs=(\x -> case (x) of
+      [] -> True
+      [x] -> True
+      x -> let (m,n) = x!!0
+        in (all (==n) (map snd x))
+    ),
+    -- passes in [(n,1), (m,n)], returns (m,1)
+    symbolSize=(\x -> case(x) of
+      [] -> (0,0)
+      [x] -> x
+      x ->
+        let (m,n) = x!!0
+            mtot = foldl (+) 0 (map fst x)
+        in (mtot, n)
+    ),
+    symbolVexity=Affine,
+    symbolSign=(\x -> if(all (==Positive) x) then Positive
+      else if (all (==Negative) x) then Negative
+      else Unknown
+    ),
+    monotonicity=(\x -> take nToConcat (repeat Increasing)),
+    symbolRewrite=(\out inputs ->
+        let m = rows out
+            n = cols out
+            mInputs = map rows inputs
+            coeffs = zip inputs (map (flip Eye (1)) mInputs)
+        in Problem (Just out) [
+          (out, Eye m (-1)):coeffs  -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
         ] [Ones m 0] []
       )
   }

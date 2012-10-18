@@ -40,7 +40,6 @@ function run_test(directory)
     fprintf('  ecos rewrite time %f\n', toc);
 
     try
-        % result
         eval(result);
     catch e
         result
@@ -52,7 +51,7 @@ function run_test(directory)
 %     spy(L)
 
     v2 = ecos_optval;   % need this with CVX, don't need it without
-
+    
     x_ecos = zeros(length(x),1);
     try
         for i = 1:length(x),

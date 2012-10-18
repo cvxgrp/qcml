@@ -8,6 +8,7 @@ module CodeGenerator.Common (
   VarTable,
   getCoeffInfo,
   getCoeffSize,
+  getCoeffRows,
   module Expression.SOCP,
   module Data.List) where
   import Expression.SOCP
@@ -48,7 +49,14 @@ module CodeGenerator.Common (
   createRow :: VarTable -> (Row,Int) -> String
   createRow table (row,ind) = 
     let newNames = map (flip lookup table) (map (label.fst) row)
-    in intercalate " " (map (assignToA ind) (zip row newNames))
+        -- with our setup, the only time rowHeights aren't equal to the last one is when we are concatenating
+        rowHeights = map (getCoeffRows.snd) (tail row)
+        rowTotal = (getCoeffRows.snd) (head row)
+        offsets = case(all (==rowTotal) rowHeights) of
+          True -> 0:0:(map (rowTotal-) rowHeights)
+          False -> 0:rowHeights
+        shifts = init $ scanl (+) 0 offsets
+    in intercalate " " (zipWith (assignToA ind) shifts (zip row newNames))
     
   -- get coeff size and value
   getCoeffInfo :: Coeff -> (Int,Int,String)
@@ -68,12 +76,17 @@ module CodeGenerator.Common (
   getCoeffSize :: Coeff -> (Int, Int)
   getCoeffSize x = let (m,n,s) = getCoeffInfo x
     in (m,n)
+    
+  -- just get coeff rows
+  getCoeffRows :: Coeff -> Int
+  getCoeffRows x = let (m,n,s) = getCoeffInfo x
+    in m
   
-  assignToA :: Int -> ((VarId, Coeff), Maybe (Int,Int)) -> String
-  assignToA _ (_, Nothing) = ""
-  assignToA x (row, Just (y,l)) = 
+  assignToA :: Int -> Int -> ((VarId, Coeff), Maybe (Int,Int)) -> String
+  assignToA _ _ (_, Nothing) = ""
+  assignToA x offset (row, Just (y,l)) = 
     let (m,n,val) = getCoeffInfo (snd row)-- n should equal l at this point!!
-        rowExtent = show x ++ ":" ++ show (x+m-1)
+        rowExtent = show (x+offset) ++ ":" ++ show (x+offset+m-1)
         colExtent = show y ++ ":" ++ show (y+n-1)
     in case(val) of
       "0" -> ""

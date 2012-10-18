@@ -18,6 +18,7 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
       | OnesT Int Double        -- ones' row vector
       | Matrix (Int, Int) String  -- generic matrix
       | Vector Int String         -- generic vector
+
   
   -- for showing VarId
   instance Show VarId where

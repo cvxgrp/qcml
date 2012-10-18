@@ -80,10 +80,26 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
   -- variables
   term = (parens lexer cvxExpr)
       <|> choice (map function (M.keys ecosAtoms))
-      <|> try parameter 
+      <|> try parameter
       <|> variable
       <|> constant
+      <|> concatenation
       <?> "simple expressions"
+  
+  vertConcatArgs :: CVXParser [E.CVXExpression]
+  vertConcatArgs = do {
+    sepBy cvxExpr (semi lexer)
+  }
+  
+  concatenation :: CVXParser E.CVXExpression
+  concatenation = do { 
+    args <- brackets lexer vertConcatArgs;
+    let f = ecosConcat (length args)
+    in case (args) of
+      [] -> fail "Attempted to concatenate empty expressions"
+      [x] -> return x
+      x -> return (E.Node f x)
+  }
   
   args :: CVXParser [E.CVXExpression]
   args = do {
@@ -223,11 +239,20 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
     
     let (m1,n1) = E.size lhs
         (m2,n2) = E.size rhs
+        haveEqualSizes = (m1 == m2 && n1 == n2)
+        lhsScalar = (m1 == 1 && n1 == 1)
+        rhsScalar = (m2 == 1 && n2 == 1)
+        lhsPromoted = case(not haveEqualSizes && lhsScalar) of
+          True -> E.Node (ecosConcat m2) (take m2 $ repeat lhs)
+          otherwise -> lhs
+        rhsPromoted = case(not haveEqualSizes && rhsScalar) of
+          True -> E.Node (ecosConcat m1) (take m1 $ repeat rhs)
+          otherwise -> rhs
         result = case (p) of
-          "==" -> (E.Eq lhs rhs)
-          "<=" -> (E.Leq lhs rhs)
-          ">=" -> (E.Geq lhs rhs)
-    in if (m1 == m2 && n1 == n2) then
+          "==" -> (E.Eq lhsPromoted rhsPromoted)
+          "<=" -> (E.Leq lhsPromoted rhsPromoted)
+          ">=" -> (E.Geq lhsPromoted rhsPromoted)
+    in if (haveEqualSizes || lhsScalar || rhsScalar) then
       case (E.vexity result) of
         E.Convex -> return result
         _ -> fail "Not a signed DCP compliant constraint."

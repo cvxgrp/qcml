@@ -4,4 +4,4 @@ parameter b(3)
 
 variable x(2)
 
-minimize sum(square(A*x - b))
+minimize square(norm(A*x - b))
