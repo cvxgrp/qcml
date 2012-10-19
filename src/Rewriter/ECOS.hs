@@ -74,10 +74,17 @@ module Rewriter.ECOS (rewrite) where
   p1 <==> p2 = 
     let x = objVar p1
         y = objVar p2
-        m = rows x -- assumes x,y have same length (they should, to get this far)
-        aMatrix = [[(x,Eye m 1), (y, Eye m (-1))]]
-          ++ (matrixA p1) 
-          ++ (matrixA p2)
+        m1 = rows x -- assumes x,y have same length (they should, to get this far)
+        n1 = cols x
+        m2 = rows y
+        n2 = cols y
+        m = max m1 m2
+        newMatrix = case (m1,m2) of
+          (a,b) | a == b -> [[(x,Eye m 1), (y, Eye m (-1))]]
+          (1,b) -> [[(x, Ones m 1), (y, Eye m (-1))]]
+          (b,1) -> [[(x, Eye m 1), (y, Ones m (-1))]]
+          -- nonexhaustive search!!! XXX: we should never get here, but still....
+        aMatrix = newMatrix ++ (matrixA p1) ++ (matrixA p2)
         bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2)
     in Problem Nothing aMatrix bVector cones
@@ -87,11 +94,19 @@ module Rewriter.ECOS (rewrite) where
   p1 <<=> p2 = 
     let x = objVar p1
         y = objVar p2
-        m = rows x
-        n = cols x  -- should equal size $ objVar y
+        m1 = rows x
+        n1 = cols x  -- should equal n2 == 1
+        m2 = rows y
+        n2 = cols y -- should equal n1 == 1
+        m = max m1 m2
+        n = max n1 n2
         t = VarId ((label x)++"LT"++(label y)) m n
-        aMatrix = [[(x,Eye m 1), (t, Eye m 1), (y, Eye m (-1))]]
-          ++(matrixA p1) ++ (matrixA p2)
+        newMatrix = case (m1,m2) of
+          (a,b) | a == b -> [[(x,Eye m 1), (t, Eye m 1), (y, Eye m (-1))]]
+          (1,b) -> [[(x, Ones m 1), (t, Eye m 1), (y, Eye m (-1))]]
+          (b,1) -> [[(x, Eye m 1), (t, Eye m 1), (y, Ones m (-1))]]
+          -- nonexhaustive search!!!
+        aMatrix = newMatrix ++(matrixA p1) ++ (matrixA p2)
         bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones
@@ -102,11 +117,19 @@ module Rewriter.ECOS (rewrite) where
   p1 <>=> p2 =  
     let x = objVar p1
         y = objVar p2
-        m = rows x
-        n = cols x  -- should equal size $ objVar y
+        m1 = rows x
+        n1 = cols x  -- should equal size $ objVar y
+        m2 = rows y
+        n2 = cols y
+        m = max m1 m2
+        n = max n1 n2
         t = VarId ((label x)++"GT"++(label y)) m n
-        aMatrix = [[(x,Eye m 1), (t,Eye m (-1)), (y, Eye m (-1))]]
-          ++(matrixA p1) ++ (matrixA p2)
+        newMatrix = case (m1,m2) of
+          (a,b) | a == b -> [[(x,Eye m 1), (t, Eye m (-1)), (y, Eye m (-1))]]
+          (1,b) -> [[(x, Ones m 1), (t, Eye m (-1)), (y, Eye m (-1))]]
+          (b,1) -> [[(x, Eye m 1), (t, Eye m (-1)), (y, Ones m (-1))]]
+          -- nonexhaustive search!!! XXX: we should never get here, but still....
+        aMatrix = newMatrix ++(matrixA p1) ++ (matrixA p2)
         bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones

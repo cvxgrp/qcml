@@ -230,7 +230,8 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
       reserved lexer ">=";
       return ">="
     } <?> "boolean operator"
-    
+  
+  -- may not need
   promote :: E.CVXExpression -> Int -> E.CVXExpression
   promote (E.Leaf p) n = case (p) of
     E.Parameter s _ _ sign _ -> 
@@ -260,9 +261,9 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
           True -> promote rhs m1
           otherwise -> rhs
         result = case (p) of
-          "==" -> (E.Eq lhsPromoted rhsPromoted)
-          "<=" -> (E.Leq lhsPromoted rhsPromoted)
-          ">=" -> (E.Geq lhsPromoted rhsPromoted)
+          "==" -> (E.Eq lhs rhs)
+          "<=" -> (E.Leq lhs rhs)
+          ">=" -> (E.Geq lhs rhs)
     in if (haveEqualSizes || lhsScalar || rhsScalar) then
       case (E.vexity result) of
         E.Convex -> return result

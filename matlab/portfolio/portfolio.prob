@@ -1,5 +1,5 @@
-dimension n = 100
-dimension m = 5
+dimension n = 1000
+dimension m = 30
 
 variable x(n)
 

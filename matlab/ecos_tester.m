@@ -6,7 +6,6 @@ function ecos_tester()
     cvx_quiet true
     cvx_solver sdpt3
 
-    % 1 - minimization problem, -1 - maximization problem
     try 
         run_test('least_squares'); fprintf('\n');
         run_test('geometric_mean'); fprintf('\n');
