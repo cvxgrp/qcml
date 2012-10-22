@@ -16,7 +16,8 @@ function ecos_tester()
         run_test('robust_ls'); fprintf('\n');
         run_test('ecos_mpc'); fprintf('\n');
         run_test('lasso'); fprintf('\n');
-        run_test('portfolio'); %fprintf('\n');
+        run_test('portfolio'); fprintf('\n');
+        run_test('svm'); %fprintf('\n');
 
     catch e
         cd ..   % return to top level directory
@@ -60,8 +61,14 @@ function run_test(directory)
             x_ecos(i) = eval(['x' num2str(i)]);
         end
     catch e
-        x_ecos = x;
+        if(exist('a','var') && exist('b','var'))
+            % for svm
+            x_ecos = [a; b];
+        else
+            x_ecos = x;
+        end
     end
+          
     
     fprintf('  ||x error|| = %f\n', norm(x_cvx - x_ecos));
     fprintf('  objval error = %f\n', v1 - v2);

@@ -36,6 +36,9 @@ module Rewriter.Atoms (
     ("min", ecosMin),
     ("sum", ecosSum),
     ("norm", ecosNorm)]
+    
+  -- TODO: special cases scalar + vector, scalar - vector, scalar*vector?
+  -- TODO: update max and min to only take vector arguments
   
   
   -- -- this might be one way to provide monotonicity
