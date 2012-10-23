@@ -12,6 +12,8 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
   import Text.ParserCombinators.Parsec
   import Text.ParserCombinators.Parsec.Expr
   
+  -- TODO: inequalities should be atoms too
+  
   -- to be removed later
   import Rewriter.ECOS
   
@@ -54,15 +56,35 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
       fail ("Expression " ++ show e ++ " is not a valid expression. (Dimension mismatch, tried to multiply two expressions, etc.)")
   }
   
-  -- unpack list arguments in to actual arguments
-  packBinary :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression -> E.CVXExpression
-  packBinary f a b = f [a,b]
+  unaryNegate :: E.CVXExpression -> E.CVXExpression
+  unaryNegate a = E.Node ecosNegate [a]
   
-  packUnary :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression
-  packUnary f a = f [a]
-  
-  packMul :: ([E.CVXExpression]->E.CVXExpression) -> E.CVXExpression -> E.CVXExpression -> E.CVXExpression
-  packMul f a b = f [b,a]
+  multiply :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
+  multiply a b
+    | lhsScalar = E.Node ecosScalarTimesVector [b,a]
+    | otherwise = E.Node ecosMul [b,a]
+    where lhsScalar = (m == 1 && n == 1)
+          (m,n) = E.size a
+                  
+  add :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
+  add a b
+    | lhsScalar = E.Node ecosScalarPlusVector [a,b]
+    | rhsScalar = E.Node ecosScalarPlusVector [b,a]
+    | otherwise = E.Node ecosPlus [a,b]
+    where (m1,n1) = E.size a
+          (m2,n2) = E.size b
+          lhsScalar = (m1 == 1 && n1 == 1)
+          rhsScalar = (m2 == 1 && n2 == 1)
+          
+  minus :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
+  minus a b 
+    | lhsScalar = E.Node ecosScalarMinusVector [a,b]
+    | rhsScalar = E.Node ecosVectorMinusScalar [a,b]
+    | otherwise = E.Node ecosMinus [a,b]
+    where (m1,n1) = E.size a
+          (m2,n2) = E.size b
+          lhsScalar = (m1 == 1 && n1 == 1)
+          rhsScalar = (m2 == 1 && n2 == 1)
   
   -- constructors to help build the expression table
   binary name fun assoc 
@@ -71,10 +93,10 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
     = Prefix (do{ reservedOp lexer name; return fun })
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ [binary "*" (packMul $ E.Node ecosMul) AssocRight],
-            [prefix "-" (packUnary $ E.Node ecosNegate)],
-            [binary "+" (packBinary $ E.Node ecosPlus) AssocLeft, 
-             binary "-" (packBinary $ E.Node ecosMinus) AssocLeft] ] 
+  table = [ [binary "*" multiply AssocRight],
+            [prefix "-" unaryNegate],
+            [binary "+" add AssocLeft, 
+             binary "-" minus AssocLeft] ] 
   
   -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
   -- variables
@@ -230,18 +252,7 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
       reserved lexer ">=";
       return ">="
     } <?> "boolean operator"
-  
-  -- may not need
-  promote :: E.CVXExpression -> Int -> E.CVXExpression
-  promote (E.Leaf p) n = case (p) of
-    E.Parameter s _ _ sign _ -> 
-      let constructor = case (sign []) of 
-            E.Positive -> E.positiveParameter
-            E.Negative -> E.negativeParameter
-            otherwise -> E.parameter
-          in E.Leaf $ constructor s (n,1)
-    E.Variable s _ _ _ -> E.Leaf $ E.variable s (n,1)
-  promote x n = E.Node (ecosConcat n) (take n $ repeat x)
+
     
   constraint :: CVXParser E.CVXConstraint
   constraint = do {
@@ -254,12 +265,6 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
         haveEqualSizes = (m1 == m2 && n1 == n2)
         lhsScalar = (m1 == 1 && n1 == 1)
         rhsScalar = (m2 == 1 && n2 == 1)
-        lhsPromoted = case(not haveEqualSizes && lhsScalar) of
-          True -> promote lhs m2
-          otherwise -> lhs
-        rhsPromoted = case(not haveEqualSizes && rhsScalar) of
-          True -> promote rhs m1
-          otherwise -> rhs
         result = case (p) of
           "==" -> (E.Eq lhs rhs)
           "<=" -> (E.Leq lhs rhs)

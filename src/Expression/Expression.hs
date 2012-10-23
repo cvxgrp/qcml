@@ -29,7 +29,7 @@ module Expression.Expression (positiveSign,
   --    t == a
   --
   paramProb s = (\out _ ->
-    let a = Eye (rows out) 1.0
+    let a = Eye (rows out) "1.0"
         b = Vector (rows out) s
     -- create a new variable named "t0z0" (or in that form)
     in Problem (Just out) [[(out, a)]] [b] [])

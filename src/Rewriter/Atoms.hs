@@ -3,6 +3,10 @@ module Rewriter.Atoms (
   ecosSqrt,
   ecosInvPos,
   
+  ecosScalarPlusVector,
+  ecosScalarTimesVector,
+  ecosScalarMinusVector,
+  ecosVectorMinusScalar,
   ecosPlus,
   ecosMinus,
   ecosNegate,
@@ -73,9 +77,9 @@ module Rewriter.Atoms (
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m (0.5)), (z0, Eye m (-1))],
-          [(out, Eye m (-0.5)), (z1, Eye m (-1))]
-        ] [Ones m (-0.5), Ones m (-0.5)] [SOCelem [z0,z1,inputs!!0]]
+          [(out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(out, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "-0.5", Ones m "-0.5"] [SOCelem [z0,z1,inputs!!0]]
   )}
   
   -- inv_pos(x) = 1/x for x >= 0
@@ -97,10 +101,12 @@ module Rewriter.Atoms (
             one = VarId (label out ++ "z2") m n -- has to be vector for the SOC code to work (XXX/TODO: allow SOCelem with scalars)
             x = inputs!!0
         in Problem (Just out) [
-          [(x, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
-          [(x, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))],
-          [(one, Ones 1 1)]
-        ] [Ones m 0, Ones m 0, Ones 1 1] [SOCelem [z0,z1,one], SOCelem [x]]
+          [(x, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(x, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")],
+          [(one, Ones 1 "1")]
+        ] 
+        [Ones m "0", Ones m "0", Ones 1 "1"] 
+        [SOCelem [z0,z1,one], SOCelem [x]]
   )}
   
   
@@ -129,10 +135,34 @@ module Rewriter.Atoms (
             x = inputs!!0
             y = inputs!!1
         in Problem (Just out) [
-          [(y, Eye m (0.5)), (out, Eye m (0.5)), (z0, Eye m (-1))],
-          [(y, Eye m (0.5)), (out, Eye m (-0.5)), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOC [z0,z1,x], SOCelem [y]]
+          [(y, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
+          [(y, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOC [z0,z1,x], SOCelem [y]]
     )}
+    
+  -- scalarPlusVector(x,y) = x*ones + y
+  ecosScalarPlusVector :: CVXSymbol
+  ecosScalarPlusVector = Atom {
+    name="splus",
+    nargs=2,
+    nparams=0,
+    areValidArgs=(\x -> isScalar (x!!0) && isVector (x!!1)),
+    symbolSize=(\x->x!!1),
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive,Positive] -> Positive
+      [Negative,Negative] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\x -> [Increasing, Increasing]),
+    symbolRewrite=(\out inputs ->
+        let m = rows out
+        in Problem (Just out) [
+          [(inputs!!0, Ones m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
+      )
+  }
+  
   
   -- plus(x,y) = x + y
   ecosPlus :: CVXSymbol
@@ -154,11 +184,61 @@ module Rewriter.Atoms (
     symbolRewrite=(\out inputs ->
         let m = rows out
         in Problem (Just out) [
-          [(inputs!!0, Eye m 1), (inputs!!1, Eye m 1), (out, Eye m (-1))]
-        ] [Ones m 0] []
+          [(inputs!!0, Eye m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
       )
     }
-    
+  
+  -- scalarMinusVector(x,y) = x*ones - y
+  ecosScalarMinusVector :: CVXSymbol
+  ecosScalarMinusVector = Atom {
+    name="sminus",
+    nargs=2,
+    nparams=0,
+    areValidArgs=(\x -> isScalar (x!!0) && isVector (x!!1)),
+    symbolSize=(\x->x!!1),
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive,Negative] -> Positive
+      [Negative,Positive] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing, Decreasing]),
+    symbolRewrite=(\out inputs ->
+        let m = rows out
+            x = inputs!!0
+            y = inputs!!1
+        in Problem (Just out) [
+          [ (x, Ones m "1"), (y, Eye m "-1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
+      )
+  }
+
+  -- vectorMinusScalar(x,y) = x - y*ones
+  ecosVectorMinusScalar :: CVXSymbol
+  ecosVectorMinusScalar = Atom {
+    name="vminus",
+    nargs=2,
+    nparams=0,
+    areValidArgs=(\x -> isScalar (x!!1) && isVector (x!!0)),
+    symbolSize=(\x->x!!0),
+    symbolVexity=Affine,
+    symbolSign=(\x -> case(x) of
+      [Positive,Negative] -> Positive
+      [Negative,Positive] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\_ -> [Increasing, Decreasing]),
+    symbolRewrite=(\out inputs ->
+        let m = rows out
+            x = inputs!!0
+            y = inputs!!1
+        in Problem (Just out) [
+          [(x, Eye m "1"), (y, Ones m "-1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
+      )
+  }
+  
   -- minus(x,y) = x - y
   ecosMinus :: CVXSymbol
   ecosMinus = Atom {
@@ -179,8 +259,8 @@ module Rewriter.Atoms (
     symbolRewrite=(\out inputs ->
         let m = rows out
         in Problem (Just out) [
-          [(inputs!!0, Eye m 1), (inputs!!1, Eye m (-1)), (out, Eye m (-1))]
-        ] [Ones m 0] []
+          [(inputs!!0, Eye m "1"), (inputs!!1, Eye m "-1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
       )
     }
   
@@ -202,8 +282,8 @@ module Rewriter.Atoms (
     symbolRewrite=(\out inputs ->
         let m = rows out
         in Problem (Just out) [
-          [(inputs!!0, Eye m (-1)), (out, Eye m (-1))]
-        ] [Ones m 0] []
+          [(inputs!!0, Eye m "-1"), (out, Eye m "-1")]
+        ] [Ones m "0"] []
   )}
   
   -- pos(x) = max(x,0)
@@ -222,8 +302,8 @@ module Rewriter.Atoms (
             n = cols out
             z0 = VarId (label out ++ "z0") m n
         in Problem (Just out) [
-          [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))]
-        ] [Ones m 0] [SOCelem [out], SOCelem [z0]]
+          [(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")]
+        ] [Ones m "0"] [SOCelem [out], SOCelem [z0]]
       )
     }
     
@@ -243,8 +323,8 @@ module Rewriter.Atoms (
             n = cols out
             z0 = VarId (label out ++ "z0") m n
         in Problem (Just out) [
-          [(out, Eye m 1), (inputs!!0, Eye m 1), (z0, Eye m (-1))]
-        ] [Ones m 0] [SOCelem [out], SOCelem [z0]]
+          [(out, Eye m "1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")]
+        ] [Ones m "0"] [SOCelem [out], SOCelem [z0]]
       )
     }
     
@@ -301,9 +381,9 @@ module Rewriter.Atoms (
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(inputs!!0, Eye m (0.5)), (z0, Eye m (-1))],
-          [(inputs!!0, Eye m (-0.5)), (z1, Eye m (-1))]
-        ] [Ones m (-0.5), Ones m (-0.5)] [SOCelem [z0,z1,out]]
+          [(inputs!!0, Eye m "0.5"), (z0, Eye m "-1")],
+          [(inputs!!0, Eye m "-0.5"), (z1, Eye m "-1")]
+        ] [Ones m "-0.5", Ones m "-0.5"] [SOCelem [z0,z1,out]]
     )
     }
   
@@ -327,9 +407,9 @@ module Rewriter.Atoms (
             x = inputs!!0
             y = inputs!!1
         in Problem (Just out) [
-          [(x, Ones 1 (0.5)), (y, Ones 1 (0.5)), (z0, Ones 1 (-1))],
-          [(x, Ones 1 (-0.5)), (y, Ones 1 (0.5)), (z1, Ones 1 (-1))]
-        ] [Ones 1 0, Ones 1 0] [SOC [z0,z1,out], SOC [inputs!!1]]
+          [(x, Ones 1 "0.5"), (y, Ones 1 "0.5"), (z0, Ones 1 "-1")],
+          [(x, Ones 1 "-0.5"), (y, Ones 1 "0.5"), (z1, Ones 1 "-1")]
+        ] [Ones 1 "0", Ones 1 "0"] [SOC [z0,z1,out], SOC [inputs!!1]]
     )
     }
     
@@ -360,9 +440,9 @@ module Rewriter.Atoms (
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m 1), (inputs!!0, Eye m (-1)), (z0, Eye m (-1))],
-          [(out, Eye m 1), (inputs!!1, Eye m (-1)), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOCelem [z0], SOCelem [z1]]
+          [(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")],
+          [(out, Eye m "1"), (inputs!!1, Eye m "-1"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOCelem [z0], SOCelem [z1]]
     )
     }
     
@@ -390,9 +470,9 @@ module Rewriter.Atoms (
             z0 = VarId (label out ++ "z0") m n
             z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m (-1)), (inputs!!0, Eye m 1), (z0, Eye m (-1))],
-          [(out, Eye m (-1)), (inputs!!1, Eye m 1), (z1, Eye m (-1))]
-        ] [Ones m 0, Ones m 0] [SOCelem [z0], SOCelem [z1]]
+          [(out, Eye m "-1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")],
+          [(out, Eye m "-1"), (inputs!!1, Eye m "1"), (z1, Eye m "-1")]
+        ] [Ones m "0", Ones m "0"] [SOCelem [z0], SOCelem [z1]]
     )
     }
   
@@ -415,8 +495,8 @@ module Rewriter.Atoms (
         let n = rows (inputs!!0)
             m = rows out
         in Problem (Just out) [
-          [(inputs!!0, OnesT n 1), (out, Ones m (-1))]
-        ] [Ones m 0] []
+          [(inputs!!0, OnesT n "1"), (out, Ones m "-1")]
+        ] [Ones m "0"] []
       )
     }
     
@@ -454,8 +534,40 @@ module Rewriter.Atoms (
             n = cols (inputs!!1)
             s = label (inputs!!1)
         in Problem (Just out) [
-          [(inputs!!0, Matrix (m,n) s), (out, Eye m (-1))]
-        ] [Ones m 0] []
+          [(inputs!!0, Matrix (m,n) s), (out, Eye m "-1")]
+        ] [Ones m "0"] []
+      )
+  }
+  
+  -- scalarTimesVector(x;a) = diag(a)*x
+  ecosScalarTimesVector :: CVXSymbol
+  ecosScalarTimesVector = Atom {
+    name="stimes",
+    nargs=1,
+    nparams=1,
+    areValidArgs=(\x -> isScalar (x!!1) && isVector (x!!0)),
+    -- passes in [(n,1), (m,n)], returns (m,1)
+    symbolSize=idSize,
+    symbolVexity=Affine,
+    symbolSign=(\x -> case (x) of
+      [Positive, Positive] -> Positive
+      [Negative, Negative] -> Positive
+      [Positive, Negative] -> Negative
+      [Negative, Positive] -> Negative
+      otherwise -> Unknown
+    ),
+    monotonicity=(\x -> case (x) of
+      [_, Positive] -> [Increasing, Nonmonotone]
+      [_, Negative] -> [Decreasing, Nonmonotone]
+      otherwise -> [Nonmonotone, Nonmonotone]
+    ),
+    symbolRewrite=(\out inputs ->
+        let m = rows out
+            n = cols out
+            s = label (inputs!!1)
+        in Problem (Just out) [
+          [(inputs!!0, Eye m s), (out, Eye m "-1")]
+        ] [Ones m "0"] []
       )
   }
   
@@ -491,9 +603,9 @@ module Rewriter.Atoms (
         let m = rows out
             n = cols out
             mInputs = map rows inputs
-            coeffs = zip inputs (map (flip Eye (1)) mInputs)
+            coeffs = zip inputs (map (flip Eye "1") mInputs)
         in Problem (Just out) [
-          (out, Eye m (-1)):coeffs  -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
-        ] [Ones m 0] []
+          (out, Eye m "-1"):coeffs  -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
+        ] [Ones m "0"] []
       )
   }

@@ -4,7 +4,7 @@ function ecos_tester()
     rand('state', 0);
     cvx_precision best
     cvx_quiet true
-    cvx_solver sdpt3
+    cvx_solver sedumi
 
     try 
         run_test('least_squares'); fprintf('\n');

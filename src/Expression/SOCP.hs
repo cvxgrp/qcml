@@ -13,9 +13,9 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
   -- Eye is a diagonal matrix, Ones is an array
   -- the double stores the *value* of the coefficient
   -- XXX. at the moment, don't need more than *one* value for entire coefficient
-  data Coeff = Eye Int Double   -- eye matrix
-      | Ones Int Double         -- ones vector
-      | OnesT Int Double        -- ones' row vector
+  data Coeff = Eye Int String   -- eye matrix
+      | Ones Int String         -- ones vector
+      | OnesT Int String        -- ones' row vector
       | Matrix (Int, Int) String  -- generic matrix
       | Vector Int String         -- generic vector
 

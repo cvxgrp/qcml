@@ -80,12 +80,12 @@ module Rewriter.ECOS (rewrite) where
         n2 = cols y
         m = max m1 m2
         newMatrix = case (m1,m2) of
-          (a,b) | a == b -> [[(x,Eye m 1), (y, Eye m (-1))]]
-          (1,b) -> [[(x, Ones m 1), (y, Eye m (-1))]]
-          (b,1) -> [[(x, Eye m 1), (y, Ones m (-1))]]
+          (a,b) | a == b -> [[(x,Eye m "1"), (y, Eye m "-1")]]
+          (1,b) -> [[(x, Ones m "1"), (y, Eye m "-1")]]
+          (b,1) -> [[(x, Eye m "1"), (y, Ones m "-1")]]
           -- nonexhaustive search!!! XXX: we should never get here, but still....
         aMatrix = newMatrix ++ (matrixA p1) ++ (matrixA p2)
-        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2)
     in Problem Nothing aMatrix bVector cones
     
@@ -102,12 +102,13 @@ module Rewriter.ECOS (rewrite) where
         n = max n1 n2
         t = VarId ((label x)++"LT"++(label y)) m n
         newMatrix = case (m1,m2) of
-          (a,b) | a == b -> [[(x,Eye m 1), (t, Eye m 1), (y, Eye m (-1))]]
-          (1,b) -> [[(x, Ones m 1), (t, Eye m 1), (y, Eye m (-1))]]
-          (b,1) -> [[(x, Eye m 1), (t, Eye m 1), (y, Ones m (-1))]]
+          (a,b) | a == b 
+                -> [[(x,Eye m "1"), (t, Eye m "1"), (y, Eye m "-1")]]
+          (1,b) -> [[(x, Ones m "1"), (t, Eye m "1"), (y, Eye m "-1")]]
+          (b,1) -> [[(x, Eye m "1"), (t, Eye m "1"), (y, Ones m "-1")]]
           -- nonexhaustive search!!!
         aMatrix = newMatrix ++(matrixA p1) ++ (matrixA p2)
-        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones
 
@@ -125,12 +126,13 @@ module Rewriter.ECOS (rewrite) where
         n = max n1 n2
         t = VarId ((label x)++"GT"++(label y)) m n
         newMatrix = case (m1,m2) of
-          (a,b) | a == b -> [[(x,Eye m 1), (t, Eye m (-1)), (y, Eye m (-1))]]
-          (1,b) -> [[(x, Ones m 1), (t, Eye m (-1)), (y, Eye m (-1))]]
-          (b,1) -> [[(x, Eye m 1), (t, Eye m (-1)), (y, Ones m (-1))]]
+          (a,b) | a == b 
+                -> [[(x,Eye m "1"), (t, Eye m "-1"), (y, Eye m "-1")]]
+          (1,b) -> [[(x, Ones m "1"), (t, Eye m "-1"), (y, Eye m "-1")]]
+          (b,1) -> [[(x, Eye m "1"), (t, Eye m "-1"), (y, Ones m "-1")]]
           -- nonexhaustive search!!! XXX: we should never get here, but still....
         aMatrix = newMatrix ++(matrixA p1) ++ (matrixA p2)
-        bVector = (Ones m 0):(vectorB p1) ++ (vectorB p2)
+        bVector = (Ones m "0"):(vectorB p1) ++ (vectorB p2)
         cones = (conesK p1) ++ (conesK p2) ++ [SOCelem [t]]
     in Problem Nothing aMatrix bVector cones
     

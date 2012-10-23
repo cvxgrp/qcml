@@ -5,9 +5,8 @@ parameter gamma positive
 
 parameter X(m,n)
 parameter Y(m,n)
-parameter o(m)
 
 variable a(2)
 variable b
 
-minimize (norm(a) + gamma*sum(pos(o - X*a + o*b) + pos(o + Y*a - o*b)))
+minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
