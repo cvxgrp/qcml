@@ -9,4 +9,3 @@ variable x(20)
 minimize square(norm(A*x - b))
 subject to
     C*x == d
-    norm_inf(x) <= e
