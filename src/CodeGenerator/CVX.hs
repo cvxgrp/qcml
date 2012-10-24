@@ -70,4 +70,4 @@ module CodeGenerator.CVX (cvxgen) where
     otherwise -> "norm([" ++ (intercalate ", " (map label (tail vars))) ++ "]) <= " ++ (label $ head vars)
   convertCone (SOCelem vars) = case (length vars) of
     1 -> (label $ head vars) ++ " >= 0"
-    otherwise -> "norms([" ++ (intercalate ", " (map label (tail vars))) ++ "]')' <= " ++ (label $ head vars)
+    otherwise -> "norms([" ++ (intercalate ", " (map label (tail vars))) ++ "], [], 2) <= " ++ (label $ head vars)

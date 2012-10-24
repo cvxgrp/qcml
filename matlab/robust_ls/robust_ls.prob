@@ -23,4 +23,4 @@ parameter e
 minimize square(a11*x1 + a12*x2 - b1) + square(a21*x1 + a22*x2 - b2) + square(a31*x1 + a32*x2 - b3) + square(a41*x1 + a42*x2 - b4)
 subject to
     c11*x1 + c12*x2 == d
-    max(abs(x1),abs(x2)) <= e
+    max([abs(x1);abs(x2)]) <= e

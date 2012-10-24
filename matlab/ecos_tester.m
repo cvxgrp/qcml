@@ -17,7 +17,9 @@ function ecos_tester()
         run_test('ecos_mpc'); fprintf('\n');
         run_test('lasso'); fprintf('\n');
         run_test('portfolio'); fprintf('\n');
-        run_test('svm'); %fprintf('\n');
+        run_test('svm'); fprintf('\n');
+        run_test('chebyshev'); fprintf('\n');
+
 
     catch e
         cd ..   % return to top level directory
@@ -37,8 +39,10 @@ function run_test(directory)
     v1 = cvx_optval;
     x_cvx = x;
     
+
+    
     tic;
-    [status, result] = system(['../../src/ProbToCVX --ecos ' directory '.prob']);
+    [status, result] = system(['../../src/ProbToCVX --conelp ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
@@ -68,8 +72,6 @@ function run_test(directory)
             x_ecos = x;
         end
     end
-          
-    
     fprintf('  ||x error|| = %f\n', norm(x_cvx - x_ecos));
     fprintf('  objval error = %f\n', v1 - v2);
     

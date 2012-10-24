@@ -14,7 +14,7 @@ parameter b
 parameter x_0
 parameter one_over_q
 
-minimize (q*square(x1)  + r*square(x5) + q*max(x2,1) - r*min(x6,0) + quad_over_lin(x3, one_over_q) - r*sqrt(x7) + p*inv_pos(x4))
+minimize (q*square(x1)  + r*square(x5) + q*max([x2;1]) - r*min([x6;0]) + quad_over_lin(x3, one_over_q) - r*sqrt(x7) + p*inv_pos(x4))
 subject to
 x2 == a*x1 + b*x5
 x3 == a*x2 + b*x6

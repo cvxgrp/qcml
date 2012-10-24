@@ -40,7 +40,7 @@ module CodeGenerator.CVXSOCP (codegen) where
     let newNames = map (flip lookup table) (map label vars)
     in case (length vars) of
       1 -> (extractString $ head newNames) ++ " >= 0"
-      otherwise -> "norms([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "]')' <= " ++ (extractString $ head newNames)
+      otherwise -> "norms([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "],[],2) <= " ++ (extractString $ head newNames)
 
   extractString :: Maybe (Int,Int) -> String
   extractString Nothing = ""

@@ -39,11 +39,14 @@ module Rewriter.Atoms (
     ("max", ecosMax),
     ("min", ecosMin),
     ("sum", ecosSum),
-    ("norm", ecosNorm)]
+    ("norm", ecosNorm),
+    ("norm2", ecosNorm),
+    ("norm1", ecosNorm1),
+    ("norm_inf", ecosNormInf)]
     
-  -- TODO: special cases scalar + vector, scalar - vector, scalar*vector?
-  -- TODO: update max and min to only take vector arguments
-  
+  -- (10/23): special cases scalar + vector, scalar - vector, scalar*vector?
+  -- (10/23): update max and min to only take vector arguments
+  -- TODO: add normInf and norm1
   
   -- -- this might be one way to provide monotonicity
   -- squareMonotonicity :: [Sign]->[Monotonicity]
@@ -162,7 +165,6 @@ module Rewriter.Atoms (
         ] [Ones m "0"] []
       )
   }
-  
   
   -- plus(x,y) = x + y
   ecosPlus :: CVXSymbol
@@ -347,7 +349,7 @@ module Rewriter.Atoms (
       )
     }
     
-  -- norm2, norm1, norm_inf <-- not implemented since no vectors yet
+  -- norm(x) = ||x||_2
   ecosNorm :: CVXSymbol
   ecosNorm = Atom {
     name="norm",
@@ -362,7 +364,52 @@ module Rewriter.Atoms (
       Problem (Just out) [] [] [SOC [out,inputs!!0]]
     )
     }
-    
+  
+  -- normInf(x) = ||x||_\infty
+  -- minimize t
+  -- s.t. s_i + r_i == t
+  --     s = abs(x)
+  ecosNormInf :: CVXSymbol
+  ecosNormInf = Atom {
+    name="norm_inf",
+    nargs=1,
+    nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=scalarSize,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Nonmonotone]),
+    symbolRewrite=(\out inputs ->
+      let m = rows (inputs!!0)
+          n = cols (inputs!!0)
+          z0 = VarId (label out ++ "z0") m n
+          z1 = VarId (label out ++ "z1") m n
+      in Problem (Just out) [
+            [(out, Ones m "1"), (z1, Eye m "-1"), (z0, Eye m "-1")]
+        ] [Ones m "0"] [SOCelem [z0, inputs!!0], SOCelem [z1]]
+    )
+    }
+
+  -- norm1(x) = ||x||_1
+  ecosNorm1 :: CVXSymbol
+  ecosNorm1 = Atom {
+    name="norm1",
+    nargs=1,
+    nparams=0,
+    areValidArgs=(\x -> isVector $ x!!0),
+    symbolSize=scalarSize,
+    symbolVexity=Convex,
+    symbolSign=positiveSign,
+    monotonicity=(\_ -> [Nonmonotone]),
+    symbolRewrite=(\out inputs ->
+      let m = rows (inputs!!0)
+          n = cols (inputs!!0)
+          z0 = VarId (label out ++ "z0") m n
+      in Problem (Just out) [
+            [(z0, OnesT m "1"), (out, Ones 1 "-1")]
+      ] [Ones 1 "0"] [SOCelem [z0, inputs!!0]]
+    )
+    }
     
   -- sqrt(x) = geo_mean(x,1)
   ecosSqrt :: CVXSymbol
@@ -416,63 +463,45 @@ module Rewriter.Atoms (
   -- pow_rat(x,p,q) <-- not implemented for the moment
   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
   
-  -- max(x,y)
+  -- max(x) = max(x_1, x_2, \ldots, x_n)
   ecosMax:: CVXSymbol
   ecosMax = Atom {
     name="max",
-    nargs=2,
+    nargs=1,
     nparams=0,
-    areValidArgs=(\x -> let (m,n) = x!!0
-                            (p,q) = x!!1
-                        in (m==p) && (n==q)),
-    symbolSize=idSize,
+    areValidArgs=(\x -> isVector (x!!0)),
+    symbolSize=scalarSize,
     symbolVexity=Convex,
-    symbolSign = (\x -> case(x) of
-      [Positive,_] -> Positive
-      [_,Positive] -> Positive
-      [Negative,Negative] -> Negative
-      otherwise -> Unknown
-    ),
-    monotonicity=(\_ -> [Increasing, Increasing]),
+    symbolSign = (\x -> x!!0),
+    monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let m = rows out
-            n = cols out
+        let m = rows (inputs!!0)
+            n = cols (inputs!!0)
             z0 = VarId (label out ++ "z0") m n
-            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")],
-          [(out, Eye m "1"), (inputs!!1, Eye m "-1"), (z1, Eye m "-1")]
-        ] [Ones m "0", Ones m "0"] [SOCelem [z0], SOCelem [z1]]
+          [(out, Ones m "1"), (inputs!!0, Eye m "-1"), (z0, Eye m "-1")]
+        ] [Ones m "0"] [SOCelem [z0]]
     )
     }
     
-  -- min(x,y)
+  -- min(x) = min (x_1, x_2, \ldots, x_n)
   ecosMin :: CVXSymbol
   ecosMin = Atom {
     name="min",
-    nargs=2,
+    nargs=1,
     nparams=0,
-    areValidArgs=(\x -> let (m,n) = x!!0
-                            (p,q) = x!!1
-                        in (m==p) && (n==q)),
-    symbolSize=idSize,
+    areValidArgs=(\x -> isVector (x!!0)),
+    symbolSize=scalarSize,
     symbolVexity=Concave,
-    symbolSign = (\x -> case(x) of
-      [Negative,_] -> Negative
-      [_,Negative] -> Negative
-      [Positive,Positive] -> Positive
-      otherwise -> Unknown
-    ),
-    monotonicity=(\_ -> [Increasing, Increasing]),
+    symbolSign = (\x -> x!!0),
+    monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
-        let m = rows out
-            n = cols out
+        let m = rows (inputs!!0)
+            n = cols (inputs!!0)
             z0 = VarId (label out ++ "z0") m n
-            z1 = VarId (label out ++ "z1") m n
         in Problem (Just out) [
-          [(out, Eye m "-1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")],
-          [(out, Eye m "-1"), (inputs!!1, Eye m "1"), (z1, Eye m "-1")]
-        ] [Ones m "0", Ones m "0"] [SOCelem [z0], SOCelem [z1]]
+          [(out, Ones m "-1"), (inputs!!0, Eye m "1"), (z0, Eye m "-1")]
+        ] [Ones m "0"] [SOCelem [z0]]
     )
     }
   
@@ -485,11 +514,7 @@ module Rewriter.Atoms (
     areValidArgs=(\x -> isVector $ x!!0),
     symbolSize=scalarSize,
     symbolVexity=Affine,
-    symbolSign = (\x -> case(x) of
-      [Negative] -> Negative
-      [Positive] -> Positive
-      otherwise -> Unknown
-    ),
+    symbolSign = (\x -> x!!0),
     monotonicity=(\_ -> [Increasing]),
     symbolRewrite=(\out inputs ->
         let n = rows (inputs!!0)

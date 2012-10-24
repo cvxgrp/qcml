@@ -1,7 +1,12 @@
-parameter A(3,2)
+parameter A(100,20)
+parameter b(100)
+parameter C(5,20)
+parameter d(5)
+parameter e
 
-parameter b(3)
-
-variable x(2)
+variable x(20)
 
 minimize square(norm(A*x - b))
+subject to
+    C*x == d
+    norm_inf(x) <= e
