@@ -2,7 +2,7 @@ function ecos_tester()
     addpath(pwd)
     randn('state', 0);
     rand('state', 0);
-    cvx_precision best
+    cvx_precision default
     cvx_quiet true
     cvx_solver sedumi
 
@@ -40,7 +40,6 @@ function run_test(directory)
     x_cvx = x;
     
 
-    
     tic;
     [status, result] = system(['../../src/ProbToCVX --ecos ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
@@ -50,7 +49,7 @@ function run_test(directory)
         eval(result);
     catch e
         result
-        %info_% only when running with paris
+        info_% only when running with paris
         throw(e)
     end
 %     C = [eye(size(A_,2)) A_'; A_ -eye(size(A_,1))];
@@ -81,10 +80,11 @@ function run_test(directory)
         fprintf('FAIL\n');
 
         result
-        %info_% only when running with paris
+        info_% only when running with paris
         [x_cvx x_ecos]
         %cvx_status
         [v1 v2]
+
         pause
     end
     cd ..
