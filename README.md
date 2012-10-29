@@ -52,7 +52,12 @@ Dependencies
 This project requires:
 
 * Haskell -- The front end is written in [Haskell](http://www.haskell.org) and
-  requires a Haskell installation to compile.
+  requires a Haskell installation to compile. We've tested it with the GHC 
+  compiler. You're on your own with a different Haskell implementation.
+  * Parsec -- This is a Haskell library that powers the parser. It should come 
+    installed with Haskell/GHC.
+  * HUnit -- This is a unit testing library that we (minimally) use. It should 
+    also come installed with Haskell/GHC.
 * `ECOS` -- The generated code calls the `ECOS` solver. Although the
   code generator can be used to produce calls to `CVX`, this is less
   interesting.
