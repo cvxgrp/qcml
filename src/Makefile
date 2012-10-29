@@ -1,10 +1,10 @@
 SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Rewriter/*.hs) 
 MAINSRC = Main.hs $(SRC)
 TESTSRC = Test.hs $(SRC) $(wildcard TestCases/*.hs) $(wildcard OldParser/*.hs)
-PROBSRC = ProbToCVX.hs $(SRC) $(wildcard CodeGenerator/*.hs)
+PROBSRC = EFE.hs $(SRC) $(wildcard CodeGenerator/*.hs)
 
 .PHONY: all
-all: main test probtocvx
+all: main test efe
 
 main: $(MAINSRC)
 	ghc --make $<
@@ -12,7 +12,7 @@ main: $(MAINSRC)
 test: $(TESTSRC)
 	ghc --make $<
 
-probtocvx: $(PROBSRC)
+efe: $(PROBSRC)
 	ghc --make $<
 
 clean:

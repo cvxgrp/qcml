@@ -1,8 +1,9 @@
-ECOS front end
-==============
+ECOS front end (EFE)
+====================
 
-This project contains a front end for the *embedded conic solver* (`ECOS`) for 
-*second-order cone problems* (SOCP). In `ECOS`, a second-order cone problem is
+This project contains a front end for the *embedded conic solver* (`ECOS`) to
+solve *second-order cone problems* (SOCP). In `ECOS`, a second-order cone
+problem is
 
     minimize c'*x
     subject to
@@ -35,8 +36,8 @@ supplied as argument to "compile" the code in to four different targets:
 * `conelp` -- This performs the needed matrix stuffing and outputs the data
   `A`, `b`, `G`, and `h` and calls the `conelp` solver in Matlab.
 
-* `paris`/`ECOS` -- This uses the same matrix stuffing and produces a call to
-  the `paris` or `ECOS` solver in Matlab.
+* `ECOS` -- This uses the same matrix stuffing and produces a call to
+  the `ECOS` solver in Matlab.
 
 Directory structure
 -------------------
@@ -52,13 +53,18 @@ This project requires:
 
 * Haskell -- The front end is written in [Haskell](http://www.haskell.org) and
   requires a Haskell installation to compile.
-* `paris`/`ECOS` -- The generated code calls the `ECOS` solver. Although the
+* `ECOS` -- The generated code calls the `ECOS` solver. Although the
   code generator can be used to produce calls to `CVX`, this is less
   interesting.
+* Matlab -- Matlab is used for testing the generated problems.
+
+Currently, Matlab is a required dependency since the code generator does not
+actually emit source code; instead, the code generator will produce lines of
+Matlab code and calls the `ECOS` solver. This is for testing purposes mostly
+while we iron out the implementation.
 
 Optional dependencies are:
 
-* Matlab -- Matlab is used for testing the generated problems.
 * `CVX` -- Calls to `CVX` are made to verify results. More information on
   `CVX` can be found [here](http://cvxr.com).
 
@@ -70,23 +76,30 @@ following lines of code
     cd src
     make
 
-This will produce three binaries: `main`, `test`, and `probtocvx`. At the
-moment, only `probtocvx` does anything. The other two binaries are in various
-states of neglect. The `probtocvx` binary takes a text file as input and
-outputs the CVX representation of the problem (if the problem is signed DCP
+This will produce three binaries: `main`, `test`, and `efe`. At the
+moment, only `efe` does anything. The other two binaries are in various
+states of neglect. The `efe` binary takes a text file as input and
+outputs the CVX representation of the problem (if the problem is DCP
 compliant).
 
 
-ProbToCVX
----------
-The `probtocvx` binary takes as input a path to a text file that specifies an
-optimization problem using the front end language. Currently, it does not have
-the option to change target output. This is hard-coded in to the
-`src/Expression/SOCP.hs` file. (It's on my todo list to fix this.)
+EFE
+---
+The `efe` binary takes as input a path to a text file that specifies an
+optimization problem using the front end language. The target output can be
+toggled with a command line option
 
-It writes the generated code to `stdout`.
+* `cvx` -- cvx output
+* `cvxsocp` -- cvx socp output
+* `conelp` -- conelp matlab output
+* `ecos` -- ecos / paris matlab output.
+
+Running `efe` without any arguments will produce a list of options. It writes
+the generated code to `stdout`.
 
 ECOS tester
 -----------
 Under the `matlab` folder, a test driver called `ecos_tester` runs a suite of
 problem tests. It compares the results to expected `CVX` results.
+
+Some tests may fail because `ECOS` is not a high precision solver.
