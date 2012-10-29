@@ -156,6 +156,11 @@ individual properties. Instead, if a positive and negative (or convex and
 concave) expression are concatenated, the result is a vector of unknown sign
 (or curvature).
 
+### Vector transpose ###
+At the moment, we don't support vector transposes. For linear objectives such
+as `c'*x`, the parameter has to be transposed externally and stated as
+`parameter ct(1,n)` instead of `parameter c(n)`.
+
 Sample problem
 --------------
 As an example, consider the following problem:
@@ -223,3 +228,7 @@ Assuming the example text is saved to a file called `example.prob`, running `./e
     t8 = x_codegen(52:52);
     t0 = x_codegen(53:53);
     ecos_optval = 1*info_.pcost;
+    
+This file can be run inside Matlab and assumes that the parameters named `A`,
+`b`, and `lambda` exist in the namespace. It doesn't check if `lambda` is
+actually positive.
