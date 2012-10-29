@@ -16,4 +16,4 @@ efe: $(PROBSRC)
 	ghc --make $<
 
 clean:
-	rm -rf *.hi *.o Expression/*.hi Expression/*o Parser/*.hi Parser/*.o TestCases/*.o TestCases/*.hi main test probtocvx
+	rm -rf *.hi *.o Expression/*.hi Expression/*o Parser/*.hi Parser/*.o TestCases/*.o TestCases/*.hi main test efe
