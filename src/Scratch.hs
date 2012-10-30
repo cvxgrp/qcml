@@ -1,5 +1,11 @@
 module Scratch where
-  import Control.Applicative
+  -- import Control.Applicative
+  
+  -- goal is to balance code clarity / organization with size
+  -- i could write shorter code using template haskell and maybe even monads,
+  -- but we're not doing it that way to keep things simple
+  
+  -- data types
   data Curvature
     = Convex
     | Concave
@@ -18,120 +24,197 @@ module Scratch where
     | Negative
     | Unknown
     deriving (Show, Eq)
-  
-  data Parameter = Parameter Sign
-  
-  data Problem 
-    = Expr   -- defined as mini SOC problems
-    | Variable
-    deriving (Show) 
-  
-  -- a "thing" can be tagged as an expression with curvature and sign or 
-  -- as an atom with curvature, monotonicity, and sign
-  data Tag a 
-    = Tag Curvature Monotonicity Sign a
-    deriving (Show)
     
-  data MonoTag a
-    = MonoTag Monotonicity a
+  data Expr 
+    = Expr {
+      vexity' :: Curvature,
+      sign' :: Sign,
+      rows' :: Int,
+      cols' :: Int }
+    | None
+   deriving (Show)
   
-  instance Functor Tag where
-    fmap f (Tag _ _ _ x) = Tag Nonconvex Nonmonotone Unknown (f x)
+  data Parameter = Parameter {
+    psign' :: Sign,
+    prows' :: Int,
+    pcols' :: Int
+  } deriving (Show)
   
-  instance Applicative Tag where
-    pure x = Tag Nonconvex Nonmonotone Unknown x
+  class Symbol a where
+    vexity :: a -> Curvature
+    sign :: a -> Sign
+    rows :: a -> Int
+    cols :: a -> Int
     
-    (Tag Convex Increasing _ f) <*> (Tag Convex _ _ e) 
-      = Tag Convex Nonmonotone Unknown (f e)
-    (Tag Convex Decreasing _ f) <*> (Tag Concave _ _ e)
-      = Tag Concave Nonmonotone Unknown (f e)
-    (Tag Concave Decreasing _ f) <*> (Tag Convex _ _ e)
-      = Tag Convex Nonmonotone Unknown (f e)
-    (Tag Concave Increasing _ f) <*> (Tag Concave _ _ e)
-      = Tag Concave Nonmonotone Unknown (f e)
-      
-    (Tag Affine _ _ f) <*> (Tag Affine _ _ e)
-      = Tag Affine Nonmonotone Unknown (f e)
-    (Tag c _ _ f) <*> (Tag Affine _ _ e)
-      = Tag c Nonmonotone Unknown (f e)
-      
-    (Tag _ _ _ f) <*> (Tag _ _ _ e) = Tag Nonconvex Nonmonotone Unknown (f e)
+  instance Symbol Expr where
+    vexity None = Nonconvex
+    vexity x = vexity' x
+    sign None = Unknown
+    sign x = sign' x
+    rows None = 0
+    rows x = rows' x
+    cols None = 0
+    cols x = cols' x
   
-  -- class Vexable a where
-  --   vexity :: a -> Curvature
+  instance Symbol Parameter where
+    vexity _ = Affine
+    sign = psign'
+    rows = prows'
+    cols = pcols'
+  
+  
+  -- DCP rules
+  applyDCP :: Curvature -> Monotonicity -> Curvature -> Curvature
+  applyDCP Convex Increasing Convex = Convex
+  applyDCP Convex Decreasing Concave = Convex
+  applyDCP Concave Decreasing Convex = Concave
+  applyDCP Concave Increasing Concave = Concave
+  applyDCP c _ Affine = c
+  applyDCP Affine Increasing c = c
+  applyDCP Affine Decreasing c = flipVexity c
+  applyDCP _ _ _ = Nonconvex
+  
+  flipVexity :: Curvature -> Curvature
+  flipVexity Concave = Convex
+  flipVexity Convex = Concave
+  flipVexity Affine = Affine
+  flipVexity Nonconvex = Nonconvex
+  
+  
+  -- manually applies DCP rules for each atom
+  -- atom definitions...
+
+  -- atom properties are implicit in function definitions
+  -- this is to avoid using some sort of templating mechanism
+  -- to make the code work
+  
+  square :: Expr -> Expr
+  square x = Expr curvature Positive (rows x) (cols x)
+    where
+      curvature = applyDCP Convex monotonicity (vexity x)
+      monotonicity = case (sign x) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+
+  quad_over_lin :: Expr -> Expr -> Expr
+  quad_over_lin x y
+    | isVector x && isScalar y = Expr c2 Positive 1 1
+    | otherwise = None
+    where
+      c2 = applyDCP c1 Decreasing (vexity y)
+      c1 = applyDCP Convex monotonicity (vexity x)
+      monotonicity = case (sign x) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+        
+  constant :: Parameter -> Expr
+  constant a = Expr (vexity a) (sign a) (rows a) (cols a)
+      
+  smult :: Parameter -> Expr -> Expr
+  smult a x
+    | isScalar a && isVector x = Expr curvature s (rows x) (cols x)
+    | otherwise = None
+    where
+      curvature = applyDCP Affine monotonicity (vexity x)
+      monotonicity = case (sign a) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+      s = (sign a) <*> (sign x)
+  
+  mmult :: Parameter -> Expr -> Expr
+  mmult a x
+    | isMatrix a && isVector x && compatible 
+      = Expr curvature s (rows a) (cols x)
+    | otherwise = None
+    where
+      curvature = applyDCP Affine monotonicity (vexity x)
+      monotonicity = case (sign a) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+      s = (sign a) <*> (sign x)
+      compatible = cols a == rows x
+  
+  
+  -- helper functions for guards
+  isVector :: (Symbol a) => a -> Bool
+  isVector x = (rows x) >= 1 && (cols x) == 1
+  
+  isScalar :: (Symbol a) => a -> Bool
+  isScalar x = (rows x) == 1 && (cols x) == 1
+  
+  isMatrix :: (Symbol a) => a -> Bool
+  isMatrix x = (rows x) >= 1 && (cols x) >= 1
+  
+  -- sign operations
+  (<*>) :: Sign -> Sign -> Sign
+  Positive <*> Positive = Positive
+  Negative <*> Negative = Positive
+  Positive <*> Negative = Negative
+  Negative <*> Positive = Negative
+  _ <*> _ = Unknown
+  
+  (<+>) :: Sign -> Sign -> Sign
+  Positive <+> Positive = Positive
+  Negative <+> Negative = Negative
+  _ <+> _ = Unknown
+
+  -- isConvex :: Curvature -> Bool
+  -- isConvex Convex = True
+  -- isConvex Affine = True
+  -- isConvex _ = False
+  -- 
+  -- isConcave :: Curvature -> Bool
+  -- isConcave Concave = True
+  -- isConcave Affine = True
+  -- isConcave _ = False
+  
+  -- data Parameter = Parameter Sign
+  -- 
+  -- data Problem 
+  --   = Expr   -- defined as mini SOC problems
+  --   | Variable
+  --   deriving (Show) 
+  -- 
+  -- data Tag a
+  --   = Tag Curvature [Monotonicity] Sign Size a
+  --   deriving (Show)
+  -- 
+  -- -- data Atom a 
+  -- --   = Atom Curvature [Monotonicity] Sign a
+  -- --   deriving (Show)
   --   
-  -- instance Vexable (Problem->Problem) where
-  --   vexity square = Convex
-  
-  -- instance Functor Tagged where
-  --   fmap f (Expr _ _ p) = Expr Nonconvex Unkonwn (f p)
-  --   fmap f (Atom _ _ _ p) = Atom Nonconvex Nonmonotone Unknown (f p)
+  -- class Apply f where
+  --   (<.>) :: f (a -> b) -> f a -> f b
   -- 
   -- -- DCP rules
-  -- instance Applicative Tagged where
-  --   pure x = Expr Nonconvex Unknown x
-  --   (Atom Convex Increasing s _ f) (<*>) (Expr Convex _ p) 
-  --     = Expr Convex Unknown (f p)
-  --   (Atom Convex Decreasing s _ f) (<*>) (Expr Concave _ p) 
-  --     = Expr Concave Unknown (f p)
-    
-  -- A*x - b
-  -- mult :: parameter -> expr -> expr
-  
-  -- (mult A) <*> x
-  -- :t (mult A) => expr->expr
-  
-  -- pure x =
-  -- Convex Increasing Positive x
-  
-  -- let's put this in a typeclass?
-  class DCP a where
-    
-  
-  -- these things don't even *check* DCP
-  -- atoms just describe how to "compose" problems
-  -- everything is represented as a problem
-  
-  smult :: Parameter -> Tag Problem -> Tag Problem
-  smult a x = x
-  
-  -- i want some meta information / context on quad_over_lin
-  quad_over_lin :: Tag Problem -> Tag Problem -> Tag Problem
-  quad_over_lin x y = x
-  
-  square :: Tag Problem -> Tag Problem
-  square x = x
-  
-  -- checks DCP rule
-  -- apply :: Atom a -> Expr -> Expr
-  --   apply (Atom curvature _ s _) (Expr Affine _) = Expr curvature s
-  --   apply (Atom Convex Increasing s _) (Expr Convex _) = Expr Convex s
-  --   apply (Atom Convex Decreasing s _) (Expr Concave _) = Expr Concave s
-  --   apply (Atom Concave Decreasing s _) (Expr Convex _) = Expr Convex s
-  --   apply (Atom Concave Increasing s _) (Expr Concave _) = Expr Concave s
-  --   apply _ _ = Expr Nonconvex Unknown
-  --
-  -- Sign->Sign->
-  -- (Monotonicity,Expr) -> (Monotonicity, Expr) -> Expr
+  -- instance Apply Tag where
+  --   (Tag Convex (Increasing:xs) s sz f) <.> Tag Convex [] _ _ x 
+  --     = Tag Convex xs s sz (f x)
+  --   (Tag Convex (Decreasing:xs) s sz f) <.> Tag Concave [] _ _ x 
+  --     = Tag Convex xs s sz (f x)
+  --   (Tag Concave (Decreasing:xs) s sz f) <.> Tag Convex [] _ _ x 
+  --     = Tag Concave xs s sz (f x)
+  --   (Tag Concave (Increasing:xs) s sz f) <.> Tag Concave [] _ _ x 
+  --     = Tag Concave xs s sz (f x)
   --   
+  --   (Tag Affine (_:xs) s sz f) <.> Tag Affine [] _ _ x 
+  --     = Tag Affine xs s sz (f x)
+  --   (Tag c (_:xs) s sz f) <.> Tag Affine [] _ _ x 
+  --     = Tag c xs s sz (f x)
+  --   (Tag _ (_:xs) s sz f) <.> Tag _ _ _ _ x 
+  --     = Tag Nonconvex xs s sz (f x)
   --   
-  --   alist = 
-  --     [
-  --       ("square", Atom Convex Nonmonotone Positive square),
-  --       ("quad_over_lin", Atom Convex Nonmonotone Positive quad_over_lin)
-  --     ]
-  --     
-  --   -- square is an ATOM!!
-  --   square :: Expr -> Expr
-  --   square x = x
-  --   
-  --   quad_over_lin :: Expr -> Expr -> Expr
-  --   quad_over_lin x y = y
-  
-  -- g :: Expr -> Int
-  -- g x = val x
-  
-  -- f :: (Int,Int) -> Int
-  -- f a = case (a) of
-  --   (x,y) | x == y -> x 
-  --   otherwise -> 1
+  --  
+  -- square :: Sign -> Tag (Problem -> Problem)
+  -- square Positive = Tag Convex [Increasing] Positive (Size(1,1)) (\x -> x)
+  -- square Negative = Tag Convex [Decreasing] Positive (Size(1,1)) (\x -> x)
+  -- square _ = Tag Convex [Nonmonotone] Positive (Size(1,1)) (\x -> x)
+  -- 
+  -- quad_over_lin :: Sign -> Sign -> Tag (Problem -> Problem -> Problem)
+  -- quad_over_lin Positive _ = Tag Convex [Increasing,Decreasing] Positive (Size(1,1)) (\x y -> x)
+  -- quad_over_lin Negative _ = Tag Convex [Decreasing,Decreasing] Positive  (Size(1,1))(\x y -> x)
+  -- quad_over_lin _ _ = Tag Convex [Nonmonotone, Decreasing] Positive (Size(1,1)) (\x y -> x)
