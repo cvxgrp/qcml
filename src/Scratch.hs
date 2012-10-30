@@ -1,5 +1,5 @@
-module Scratch( f) where
-    
+module Scratch where
+  import Control.Applicative
   data Curvature
     = Convex
     | Concave
@@ -19,17 +19,49 @@ module Scratch( f) where
     | Unknown
     deriving (Show, Eq)
   
-  -- defined as problems
-  data Problem = Problem deriving (Show) 
+  data Parameter = Parameter Sign
+  
+  data Problem 
+    = Expr   -- defined as mini SOC problems
+    | Variable
+    deriving (Show) 
   
   -- a "thing" can be tagged as an expression with curvature and sign or 
   -- as an atom with curvature, monotonicity, and sign
-  data Tagged a 
-    = Expr Curvature Sign a
-    | Atom Curvature Monotonicity Sign a
+  data Tag a 
+    = Tag Curvature Monotonicity Sign a
     deriving (Show)
     
+  data MonoTag a
+    = MonoTag Monotonicity a
   
+  instance Functor Tag where
+    fmap f (Tag _ _ _ x) = Tag Nonconvex Nonmonotone Unknown (f x)
+  
+  instance Applicative Tag where
+    pure x = Tag Nonconvex Nonmonotone Unknown x
+    
+    (Tag Convex Increasing _ f) <*> (Tag Convex _ _ e) 
+      = Tag Convex Nonmonotone Unknown (f e)
+    (Tag Convex Decreasing _ f) <*> (Tag Concave _ _ e)
+      = Tag Concave Nonmonotone Unknown (f e)
+    (Tag Concave Decreasing _ f) <*> (Tag Convex _ _ e)
+      = Tag Convex Nonmonotone Unknown (f e)
+    (Tag Concave Increasing _ f) <*> (Tag Concave _ _ e)
+      = Tag Concave Nonmonotone Unknown (f e)
+      
+    (Tag Affine _ _ f) <*> (Tag Affine _ _ e)
+      = Tag Affine Nonmonotone Unknown (f e)
+    (Tag c _ _ f) <*> (Tag Affine _ _ e)
+      = Tag c Nonmonotone Unknown (f e)
+      
+    (Tag _ _ _ f) <*> (Tag _ _ _ e) = Tag Nonconvex Nonmonotone Unknown (f e)
+  
+  -- class Vexable a where
+  --   vexity :: a -> Curvature
+  --   
+  -- instance Vexable (Problem->Problem) where
+  --   vexity square = Convex
   
   -- instance Functor Tagged where
   --   fmap f (Expr _ _ p) = Expr Nonconvex Unkonwn (f p)
@@ -52,17 +84,22 @@ module Scratch( f) where
   -- pure x =
   -- Convex Increasing Positive x
   
-  -- let's put this in a typeclass
+  -- let's put this in a typeclass?
   class DCP a where
     
   
   -- these things don't even *check* DCP
   -- atoms just describe how to "compose" problems
   -- everything is represented as a problem
-  quad_over_lin :: Tagged Problem -> Tagged Problem -> Tagged Problem
+  
+  smult :: Parameter -> Tag Problem -> Tag Problem
+  smult a x = x
+  
+  -- i want some meta information / context on quad_over_lin
+  quad_over_lin :: Tag Problem -> Tag Problem -> Tag Problem
   quad_over_lin x y = x
   
-  square :: Tagged Problem -> Tagged Problem
+  square :: Tag Problem -> Tag Problem
   square x = x
   
   -- checks DCP rule
@@ -73,6 +110,9 @@ module Scratch( f) where
   --   apply (Atom Concave Decreasing s _) (Expr Convex _) = Expr Convex s
   --   apply (Atom Concave Increasing s _) (Expr Concave _) = Expr Concave s
   --   apply _ _ = Expr Nonconvex Unknown
+  --
+  -- Sign->Sign->
+  -- (Monotonicity,Expr) -> (Monotonicity, Expr) -> Expr
   --   
   --   
   --   alist = 
@@ -91,7 +131,7 @@ module Scratch( f) where
   -- g :: Expr -> Int
   -- g x = val x
   
-  f :: (Int,Int) -> Int
-  f a = case (a) of
-    (x,y) | x == y -> x 
-    otherwise -> 1
+  -- f :: (Int,Int) -> Int
+  -- f a = case (a) of
+  --   (x,y) | x == y -> x 
+  --   otherwise -> 1
