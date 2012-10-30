@@ -25,12 +25,32 @@ module Scratch( f) where
   -- a "thing" can be tagged as an expression with curvature and sign or 
   -- as an atom with curvature, monotonicity, and sign
   data Tagged a 
-    = Expr Sign Curvature a
-    | Atom Sign Curvature Monotonicity a
+    = Expr Curvature Sign a
+    | Atom Curvature Monotonicity Sign a
     deriving (Show)
     
-  g :: Tagged Problem
-  g = Atom Positive Convex Increasing Problem
+  
+  
+  -- instance Functor Tagged where
+  --   fmap f (Expr _ _ p) = Expr Nonconvex Unkonwn (f p)
+  --   fmap f (Atom _ _ _ p) = Atom Nonconvex Nonmonotone Unknown (f p)
+  -- 
+  -- -- DCP rules
+  -- instance Applicative Tagged where
+  --   pure x = Expr Nonconvex Unknown x
+  --   (Atom Convex Increasing s _ f) (<*>) (Expr Convex _ p) 
+  --     = Expr Convex Unknown (f p)
+  --   (Atom Convex Decreasing s _ f) (<*>) (Expr Concave _ p) 
+  --     = Expr Concave Unknown (f p)
+    
+  -- A*x - b
+  -- mult :: parameter -> expr -> expr
+  
+  -- (mult A) <*> x
+  -- :t (mult A) => expr->expr
+  
+  -- pure x =
+  -- Convex Increasing Positive x
   
   -- let's put this in a typeclass
   class DCP a where
@@ -38,8 +58,12 @@ module Scratch( f) where
   
   -- these things don't even *check* DCP
   -- atoms just describe how to "compose" problems
-  quad_over_lin :: Problem -> Problem -> Problem
+  -- everything is represented as a problem
+  quad_over_lin :: Tagged Problem -> Tagged Problem -> Tagged Problem
   quad_over_lin x y = x
+  
+  square :: Tagged Problem -> Tagged Problem
+  square x = x
   
   -- checks DCP rule
   -- apply :: Atom a -> Expr -> Expr
