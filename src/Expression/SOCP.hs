@@ -1,8 +1,10 @@
-module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), objVar, objLabel) where
-  import Data.List
+module Expression.SOCP (Sense(..), Var(..), Coeff(..), SOCP(..) ) where
 
-  -- variable name
-  newtype Var = Var { name :: String }
+  -- problem sense
+  data Sense = Maximize | Minimize | Find deriving (Show)
+
+  -- variables
+  data Var = Var String (Int, Int) deriving (Show)
   
   -- for creating coefficients
   -- note that Eye (1) and Ones (1) do the same thing
@@ -16,39 +18,40 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
       | Vector Int String         -- generic vector
 
   
-  -- for showing VarId
-  instance Show VarId where
-    show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
+  ---- for showing VarId
+  --instance Show VarId where
+  --  show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
 
-  -- a row in the A matrix, the string gives the name of the coefficient
-  type Row = [(VarId, Coeff)]
+  -- a row in the A matrix
+  type Row = [(Coeff, Var)]
 
-  -- XXX: a Problem should have a sense....
-  -- SOCP problem data type
-  data Problem = Problem {
-    obj :: Maybe VarId,     -- objective is always just a single variable
+  data SOCP = SOCP {
+    numUniqueVars :: Int,
+    sense :: Sense,
+    obj :: Var, -- objective is always just a single variable
     matrixA :: [Row],
-    vectorB :: [Coeff], 
+    vectorB :: [Coeff],
     conesK :: [SOC]
-    } | EmptyProblem
-    
+  }
+
+
   -- differentiate between SOC and elementwise SOC
   -- SOC [x,y,z] means norm([y,x]) <= z
   -- SOCelem [x,y,z] means norms([x y]')' <= z
   -- note that SOC [x] and SOCelem [x] both mean x >= 0
   -- XXX. they should mean the same, but code generation treats them differently :()
-  data SOC = SOC { variables :: [VarId] } 
-    | SOCelem { variables :: [VarId] }
+  data SOC = SOC { variables :: [Var] } 
+    | SOCelem { variables :: [Var] }
     deriving (Show)
   
-  -- gets the label on the objective
-  objLabel :: Problem -> String
-  objLabel x = case (obj x) of
-    Nothing -> "0"
-    Just y -> label y
+  ---- gets the label on the objective
+  --objLabel :: Problem -> String
+  --objLabel x = case (obj x) of
+  --  Nothing -> "0"
+  --  Just y -> label y
   
-  -- gets the variable in the objective
-  objVar :: Problem -> VarId
-  objVar x = case (obj x) of
-    Nothing -> VarId "0" 1 1  -- not really right...
-    Just y -> y
+  ---- gets the variable in the objective
+  --objVar :: Problem -> VarId
+  --objVar x = case (obj x) of
+  --  Nothing -> VarId "0" 1 1  -- not really right...
+  --  Just y -> y

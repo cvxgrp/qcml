@@ -1,13 +1,10 @@
 SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Rewriter/*.hs) 
-MAINSRC = Main.hs $(SRC)
 TESTSRC = Test.hs $(SRC) $(wildcard TestCases/*.hs) $(wildcard OldParser/*.hs)
 PROBSRC = EFE.hs $(SRC) $(wildcard CodeGenerator/*.hs)
 
 .PHONY: all
-all: main test efe
+all: test efe
 
-main: $(MAINSRC)
-	ghc --make $<
 
 test: $(TESTSRC)
 	ghc --make $<

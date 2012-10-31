@@ -7,6 +7,8 @@ module Expression.Expression (
   Symbol(..),
   applyDCP
 ) where
+
+  import Expression.SOCP
   
   -- data types
   data Curvature
@@ -35,6 +37,9 @@ module Expression.Expression (
    deriving (Show)
 
   data Parameter = Parameter String Sign (Int, Int) deriving (Show)
+
+  -- variable representation
+  data Rep a = Rep a
   
   -- type classes to enable vexity inference
   class Symbol a where
@@ -71,6 +76,10 @@ module Expression.Expression (
     sign (Parameter _ s _) = s
     rows (Parameter _ _ (m,_)) = m
     cols (Parameter _ _ (_,n)) = n
+
+  -- type class to enable code generation
+  class Rewriteable a where
+
 
   -- DCP rules
   applyDCP :: Curvature -> Monotonicity -> Curvature -> Curvature

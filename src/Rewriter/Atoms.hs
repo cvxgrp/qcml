@@ -2,63 +2,13 @@ module Rewriter.Atoms(
   square,
   quad_over_lin,
   mmult,
-  smult
+  smult,
+  plus,
+  constant
 ) where
   
   import Expression.Expression
-
   
-  square :: Expr -> Expr
-  square x = Expr "t" curvature Positive (rows x, cols x)
-    where
-      curvature = applyDCP Convex monotonicity (vexity x)
-      monotonicity = case (sign x) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-
-  quad_over_lin :: Expr -> Expr -> Expr
-  quad_over_lin x y
-    | isVector x && isScalar y = Expr "t" c2 Positive (1, 1)
-    | otherwise = None $ (name y) ++ " is not scalar"
-    where
-      c2 = applyDCP c1 Decreasing (vexity y)
-      c1 = applyDCP Convex monotonicity (vexity x)
-      monotonicity = case (sign x) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-
-  constant :: Parameter -> Expr
-  constant a = Expr "t" (vexity a) (sign a) (rows a, cols a)
-
-  smult :: Parameter -> Expr -> Expr
-  smult a x
-    | isScalar a && isVector x = Expr "t" curvature s (rows x, cols x)
-    | otherwise = None $ (name a) ++ " is not scalar"
-    where
-      curvature = applyDCP Affine monotonicity (vexity x)
-      monotonicity = case (sign a) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-      s = (sign a) <*> (sign x)
-
-  mmult :: Parameter -> Expr -> Expr
-  mmult a x
-    | isMatrix a && isVector x && compatible 
-      = Expr "t" curvature s (rows a, cols x)
-    | otherwise = None $ "size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match"
-    where
-      curvature = applyDCP Affine monotonicity (vexity x)
-      monotonicity = case (sign a) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-      s = (sign a) <*> (sign x)
-      compatible = cols a == rows x
-
-
   -- helper functions for guards
   isVector :: (Symbol a) => a -> Bool
   isVector x = (rows x) >= 1 && (cols x) == 1
@@ -81,7 +31,84 @@ module Rewriter.Atoms(
   Positive <+> Positive = Positive
   Negative <+> Negative = Negative
   _ <+> _ = Unknown
+
+
+  -- define the result of applying atoms 
+  --    the result is a function that takes an Int and produces an Expr
+  -- this alias exists for convenience. it is intended to help us 
+  -- give unique names to our variables
+  -- e.g.,
+  --  square x 4
+  --  will create a new variable named "t4" and add the constraint "t4 >= x^2"
+  type Result = Int -> Expr
+
+  -- arg is just an alias for Expr (to improve code readability)
+  type Arg = Expr
+
+
+  -- begin list of atoms
   
+  square :: Arg -> Result
+  square x = (\i -> Expr ("t"++(show i)) curvature Positive (rows x, cols x))
+    where
+      curvature = applyDCP Convex monotonicity (vexity x)
+      monotonicity = case (sign x) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+
+  quad_over_lin :: Arg -> Arg -> Result
+  quad_over_lin x y
+    | isVector x && isScalar y = (\i -> Expr ("t"++(show i)) c2 Positive (1, 1))
+    | otherwise = (\_ -> None $ "quad_over_lin: " ++ (name y) ++ " is not scalar")
+    where
+      c2 = applyDCP c1 Decreasing (vexity y)
+      c1 = applyDCP Convex monotonicity (vexity x)
+      monotonicity = case (sign x) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+
+  constant :: Parameter -> Result
+  constant a = (\i -> Expr ("t"++(show i)) (vexity a) (sign a) (rows a, cols a))
+
+  smult :: Parameter -> Arg -> Result
+  smult a x
+    | isScalar a && isVector x = (\i -> Expr ("t"++(show i)) curvature s (rows x, cols x))
+    | otherwise = (\_ -> None $ "smult: " ++ (name a) ++ " is not scalar")
+    where
+      curvature = applyDCP Affine monotonicity (vexity x)
+      monotonicity = case (sign a) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+      s = (sign a) <*> (sign x)
+
+  mmult :: Parameter -> Arg -> Result
+  mmult a x
+    | isMatrix a && isVector x && compatible 
+      = (\i -> Expr ("t"++(show i)) curvature s (rows a, cols x))
+    | otherwise = (\_ -> None $ "mmult: size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match")
+    where
+      curvature = applyDCP Affine monotonicity (vexity x)
+      monotonicity = case (sign a) of
+        Positive -> Increasing
+        Negative -> Decreasing
+        otherwise -> Nonmonotone
+      s = (sign a) <*> (sign x)
+      compatible = cols a == rows x
+
+
+  plus :: Arg -> Arg -> Result
+  plus x y
+    | isVector x && isVector y && compatible 
+      = (\i -> Expr ("t"++(show i)) c2 s (rows x, cols x))
+    | otherwise = (\_ -> None $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match")
+    where
+      c2 = applyDCP c1 Increasing (vexity y)
+      c1 = applyDCP Convex Increasing (vexity x)
+      s = (sign x) <+> (sign y)
+      compatible = cols x == cols y  
   
   
   -- import qualified Data.Map as M
