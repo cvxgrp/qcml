@@ -2,12 +2,17 @@ module Expression.Expression (
   Curvature(..), 
   Monotonicity(..), 
   Sign(..), 
-  Expr(..), 
-  Parameter(..), 
+  Expr, 
+  Parameter, 
   Symbol(..),
-  applyDCP
+  applyDCP,
+  expression,
+  variable,
+  parameter,
+  none
 ) where
 
+  
   import Expression.SOCP
   
   -- data types
@@ -97,3 +102,16 @@ module Expression.Expression (
   flipVexity Convex = Concave
   flipVexity Affine = Affine
   flipVexity Nonconvex = Nonconvex
+  
+  -- constructors for expr, variables, parameter, and none
+  expression :: String -> Curvature -> Sign -> (Int, Int) -> Expr
+  expression name c s (m,n) = Expr name c s (m,n)
+  
+  variable :: String -> (Int, Int) -> Expr
+  variable name (m,n) = Variable name (m,n)
+  
+  none :: String -> Expr
+  none s = None s
+  
+  parameter :: String -> Sign -> (Int, Int) -> Parameter
+  parameter name s (m,n) = Parameter name s (m,n)

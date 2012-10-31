@@ -49,7 +49,7 @@ module Rewriter.Atoms(
   -- begin list of atoms
   
   square :: Arg -> Result
-  square x = (\i -> Expr ("t"++(show i)) curvature Positive (rows x, cols x))
+  square x = (\i -> expression ("t"++(show i)) curvature Positive (rows x, cols x))
     where
       curvature = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
@@ -59,8 +59,8 @@ module Rewriter.Atoms(
 
   quad_over_lin :: Arg -> Arg -> Result
   quad_over_lin x y
-    | isVector x && isScalar y = (\i -> Expr ("t"++(show i)) c2 Positive (1, 1))
-    | otherwise = (\_ -> None $ "quad_over_lin: " ++ (name y) ++ " is not scalar")
+    | isVector x && isScalar y = (\i -> expression ("t"++(show i)) c2 Positive (1, 1))
+    | otherwise = (\_ -> none $ "quad_over_lin: " ++ (name y) ++ " is not scalar")
     where
       c2 = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Convex monotonicity (vexity x)
@@ -70,12 +70,12 @@ module Rewriter.Atoms(
         otherwise -> Nonmonotone
 
   constant :: Parameter -> Result
-  constant a = (\i -> Expr ("t"++(show i)) (vexity a) (sign a) (rows a, cols a))
+  constant a = (\i -> expression ("t"++(show i)) (vexity a) (sign a) (rows a, cols a))
 
   smult :: Parameter -> Arg -> Result
   smult a x
-    | isScalar a && isVector x = (\i -> Expr ("t"++(show i)) curvature s (rows x, cols x))
-    | otherwise = (\_ -> None $ "smult: " ++ (name a) ++ " is not scalar")
+    | isScalar a && isVector x = (\i -> expression ("t"++(show i)) curvature s (rows x, cols x))
+    | otherwise = (\_ -> none $ "smult: " ++ (name a) ++ " is not scalar")
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (sign a) of
@@ -87,8 +87,8 @@ module Rewriter.Atoms(
   mmult :: Parameter -> Arg -> Result
   mmult a x
     | isMatrix a && isVector x && compatible 
-      = (\i -> Expr ("t"++(show i)) curvature s (rows a, cols x))
-    | otherwise = (\_ -> None $ "mmult: size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match")
+      = (\i -> expression ("t"++(show i)) curvature s (rows a, cols x))
+    | otherwise = (\_ -> none $ "mmult: size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match")
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (sign a) of
@@ -102,8 +102,8 @@ module Rewriter.Atoms(
   plus :: Arg -> Arg -> Result
   plus x y
     | isVector x && isVector y && compatible 
-      = (\i -> Expr ("t"++(show i)) c2 s (rows x, cols x))
-    | otherwise = (\_ -> None $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match")
+      = (\i -> expression ("t"++(show i)) c2 s (rows x, cols x))
+    | otherwise = (\_ -> none $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match")
     where
       c2 = applyDCP c1 Increasing (vexity y)
       c1 = applyDCP Convex Increasing (vexity x)
