@@ -1,12 +1,8 @@
 module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), objVar, objLabel) where
   import Data.List
 
-  -- for indexing in to the matrix
-  data VarId = VarId { 
-                label :: String, 
-                rows :: Int, 
-                cols :: Int 
-              }
+  -- variable name
+  newtype Var = Var { name :: String }
   
   -- for creating coefficients
   -- note that Eye (1) and Ones (1) do the same thing
