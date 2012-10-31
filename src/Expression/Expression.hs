@@ -31,7 +31,7 @@ module Expression.Expression (
   data Expr
     = Expr String Curvature Sign (Int, Int)
     | Variable String (Int, Int)
-    | None
+    | None String
    deriving (Show)
 
   data Parameter = Parameter String Sign (Int, Int) deriving (Show)
@@ -45,23 +45,23 @@ module Expression.Expression (
     cols :: a -> Int
 
   instance Symbol Expr where
-    name None = ""
+    name (None s) = s
     name (Expr s _ _ _) = s
     name (Variable s _) = s
     
-    vexity None = Nonconvex
+    vexity (None _) = Nonconvex
     vexity (Variable _ _) = Affine
     vexity (Expr _ c _ _) = c
     
-    sign None = Unknown
+    sign (None _) = Unknown
     sign (Variable _ _) = Unknown
     sign (Expr _ _ s _) = s
     
-    rows None = 0
+    rows (None _) = 0
     rows (Expr _ _ _ (m,_)) = m
     rows (Variable _ (m,_)) = m
     
-    cols None = 0
+    cols (None _) = 0
     cols (Expr _ _ _ (_,n)) = n
     cols (Variable _ (_,n)) = n
 

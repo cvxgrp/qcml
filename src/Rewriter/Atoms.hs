@@ -20,7 +20,7 @@ module Rewriter.Atoms(
   quad_over_lin :: Expr -> Expr -> Expr
   quad_over_lin x y
     | isVector x && isScalar y = Expr "t" c2 Positive (1, 1)
-    | otherwise = None
+    | otherwise = None $ (name y) ++ " is not scalar"
     where
       c2 = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Convex monotonicity (vexity x)
@@ -35,7 +35,7 @@ module Rewriter.Atoms(
   smult :: Parameter -> Expr -> Expr
   smult a x
     | isScalar a && isVector x = Expr "t" curvature s (rows x, cols x)
-    | otherwise = None
+    | otherwise = None $ (name a) ++ " is not scalar"
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (sign a) of
@@ -48,7 +48,7 @@ module Rewriter.Atoms(
   mmult a x
     | isMatrix a && isVector x && compatible 
       = Expr "t" curvature s (rows a, cols x)
-    | otherwise = None
+    | otherwise = None $ "size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match"
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (sign a) of
