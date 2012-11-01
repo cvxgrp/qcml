@@ -1,4 +1,4 @@
-SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Rewriter/*.hs) 
+SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Atoms/*.hs) 
 TESTSRC = Test.hs $(SRC) $(wildcard TestCases/*.hs) $(wildcard OldParser/*.hs)
 PROBSRC = EFE.hs $(SRC) $(wildcard CodeGenerator/*.hs)
 

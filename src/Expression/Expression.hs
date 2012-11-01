@@ -5,6 +5,7 @@ module Expression.Expression (
   Expr, 
   Parameter, 
   Symbol(..),
+  Rewriteable(..),
   applyDCP,
   expression,
   variable,
@@ -12,7 +13,6 @@ module Expression.Expression (
   none
 ) where
 
-  
   import Expression.SOCP
   
   -- data types
@@ -36,15 +36,16 @@ module Expression.Expression (
     deriving (Show, Eq)
 
   data Expr
-    = Expr String Curvature Sign (Int, Int)
-    | Variable String (Int, Int)
+    = Expr Var Curvature Sign Cones
+    | Variable Var Cones
     | None String
-   deriving (Show)
+
+  instance Show Expr where
+    show (Expr v c s _) = vname v ++ " = " ++ show s ++ " " ++ show c ++ " Expr"
+    show (Variable v _) = "Variable " ++ vname v ++ (show $ vshape v)
+    show (None s) = s
 
   data Parameter = Parameter String Sign (Int, Int) deriving (Show)
-
-  -- variable representation
-  data Rep a = Rep a
   
   -- type classes to enable vexity inference
   class Symbol a where
@@ -56,8 +57,8 @@ module Expression.Expression (
 
   instance Symbol Expr where
     name (None s) = s
-    name (Expr s _ _ _) = s
-    name (Variable s _) = s
+    name (Expr v _ _ _) = vname v
+    name (Variable v _) = vname v
     
     vexity (None _) = Nonconvex
     vexity (Variable _ _) = Affine
@@ -68,12 +69,12 @@ module Expression.Expression (
     sign (Expr _ _ s _) = s
     
     rows (None _) = 0
-    rows (Expr _ _ _ (m,_)) = m
-    rows (Variable _ (m,_)) = m
+    rows (Expr v _ _ _) = vrows v
+    rows (Variable v _) = vrows v
     
     cols (None _) = 0
-    cols (Expr _ _ _ (_,n)) = n
-    cols (Variable _ (_,n)) = n
+    cols (Expr v _ _ _) = vcols v
+    cols (Variable v _) = vcols v
 
   instance Symbol Parameter where
     name (Parameter s _ _) = s
@@ -84,7 +85,25 @@ module Expression.Expression (
 
   -- type class to enable code generation
   class Rewriteable a where
+    socp :: a -> SOCP
+    var :: a -> Var
+    cones :: a -> Cones
 
+  instance Rewriteable Expr where
+    socp (Expr v c _ p)
+      | c == Convex = SOCP Minimize v p
+      | c == Concave = SOCP Maximize v p
+      | otherwise = SOCP Find v p
+    socp (Variable v p) = SOCP Find v p
+    socp (None _) = SOCP Find (Var "0" (1,1)) (Cones [] [] [])
+
+    var (Expr v _ _ _) = v
+    var (Variable v _) = v
+    var (None _) = Var "0" (1,1)
+
+    cones (Expr _ _ _ k) = k
+    cones (Variable _ k) = k
+    cones (None _) = Cones [] [] []
 
   -- DCP rules
   applyDCP :: Curvature -> Monotonicity -> Curvature -> Curvature
@@ -104,14 +123,24 @@ module Expression.Expression (
   flipVexity Nonconvex = Nonconvex
   
   -- constructors for expr, variables, parameter, and none
-  expression :: String -> Curvature -> Sign -> (Int, Int) -> Expr
-  expression name c s (m,n) = Expr name c s (m,n)
+  -- TODO: SOCP problem keeps track of top-level variable and also has arbitrary sense
+  -- TODO: need to have user-specified problem adjust the socp sense
+  expression :: Var -> Curvature -> Sign -> Cones -> Expr
+  expression v c s k = Expr v c s k
   
   variable :: String -> (Int, Int) -> Expr
-  variable name (m,n) = Variable name (m,n)
+  variable name (m,n) = Variable newVar (Cones [] [] [])
+    where newVar = Var name (m,n)
   
   none :: String -> Expr
   none s = None s
   
   parameter :: String -> Sign -> (Int, Int) -> Parameter
   parameter name s (m,n) = Parameter name s (m,n)
+
+  --varName = vname.obj
+  --varShape = vshape.obj
+  --varCols = vcols.obj
+  --varRows = vrows.obj
+
+

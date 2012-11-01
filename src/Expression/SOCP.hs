@@ -1,10 +1,20 @@
-module Expression.SOCP (Sense(..), Var(..), Coeff(..), SOCP(..) ) where
+module Expression.SOCP (
+  Sense(..), Var(..), vrows, vcols,
+  Row, Coeff(..), 
+  Cones(..), SOC(..), SOCP(..)) where
 
   -- problem sense
-  data Sense = Maximize | Minimize | Find deriving (Show)
+  data Sense = Maximize | Minimize | Find deriving (Eq, Show)
 
   -- variables
-  data Var = Var String (Int, Int) deriving (Show)
+  -- TODO: to handle constant folding, introduce a "Const" object in addition to Var
+  data Var = Var {
+    vname:: String,  
+    vshape:: (Int, Int)
+  } deriving (Show)
+
+  vrows x = (fst.vshape) x
+  vcols x = (snd.vshape) x
   
   -- for creating coefficients
   -- note that Eye (1) and Ones (1) do the same thing
@@ -16,23 +26,22 @@ module Expression.SOCP (Sense(..), Var(..), Coeff(..), SOCP(..) ) where
       | OnesT Int String        -- ones' row vector
       | Matrix (Int, Int) String  -- generic matrix
       | Vector Int String         -- generic vector
-
+      deriving (Show)
   
-  ---- for showing VarId
-  --instance Show VarId where
-  --  show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
-
   -- a row in the A matrix
   type Row = [(Coeff, Var)]
 
-  data SOCP = SOCP {
-    numUniqueVars :: Int,
-    sense :: Sense,
-    obj :: Var, -- objective is always just a single variable
+  data Cones = Cones {
     matrixA :: [Row],
     vectorB :: [Coeff],
     conesK :: [SOC]
-  }
+  } deriving (Show)
+
+  data SOCP = SOCP {
+    sense :: Sense,
+    obj :: Var, -- objective is always just a single variable
+    constraints :: Cones
+  } deriving (Show)
 
 
   -- differentiate between SOC and elementwise SOC
@@ -44,14 +53,5 @@ module Expression.SOCP (Sense(..), Var(..), Coeff(..), SOCP(..) ) where
     | SOCelem { variables :: [Var] }
     deriving (Show)
   
-  ---- gets the label on the objective
-  --objLabel :: Problem -> String
-  --objLabel x = case (obj x) of
-  --  Nothing -> "0"
-  --  Just y -> label y
+  -- helper functions to get information about SOCPs
   
-  ---- gets the variable in the objective
-  --objVar :: Problem -> VarId
-  --objVar x = case (obj x) of
-  --  Nothing -> VarId "0" 1 1  -- not really right...
-  --  Just y -> y

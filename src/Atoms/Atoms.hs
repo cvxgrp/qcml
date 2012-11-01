@@ -1,13 +1,14 @@
-module Rewriter.Atoms(
-  square,
-  quad_over_lin,
-  mmult,
-  smult,
-  plus,
-  constant
+module Atoms.Atoms(
+  ecosSquare,
+  ecosQuadOverLin,
+  ecosMult,
+  ecosPlus,
+  ecosConstant
 ) where
   
+  -- TODO: constant folding
   import Expression.Expression
+  import Expression.SOCP
   
   -- helper functions for guards
   isVector :: (Symbol a) => a -> Bool
@@ -33,62 +34,69 @@ module Rewriter.Atoms(
   _ <+> _ = Unknown
 
 
-  -- define the result of applying atoms 
-  --    the result is a function that takes an Int and produces an Expr
-  -- this alias exists for convenience. it is intended to help us 
-  -- give unique names to our variables
-  -- e.g.,
-  --  square x 4
-  --  will create a new variable named "t4" and add the constraint "t4 >= x^2"
-  type Result = Int -> Expr
-
-  -- arg is just an alias for Expr (to improve code readability)
-  type Arg = Expr
-
-
   -- begin list of atoms
+  -- in addition to arguments, atoms take a "number" to uniquely identify their variables
   
-  square :: Arg -> Result
-  square x = (\i -> expression ("t"++(show i)) curvature Positive (rows x, cols x))
+  -- square x = x^2
+  ecosSquare :: Expr -> Int -> Expr
+  ecosSquare x i = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
         Positive -> Increasing
         Negative -> Decreasing
         otherwise -> Nonmonotone
+      prog = Cones matA vecB kones
+      (m,n) = (rows x, cols x)
+      newVar = Var ("t"++(show i)) (m, n)
+      z0 = Var (vname newVar ++ "z0") (m, n)
+      z1 = Var (vname newVar ++ "z1") (m, n)
+      matA = [ [(Eye m "0.5", newVar), (Eye m "-1", z0)],
+               [(Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
+              ++ matrixA (cones x)
+      vecB = [Ones m "-0.5", Ones m "-0.5"]
+              ++ vectorB (cones x)
+      kones = [SOCelem [z0, z1, var x]]
+              ++ conesK (cones x)
 
-  quad_over_lin :: Arg -> Arg -> Result
-  quad_over_lin x y
-    | isVector x && isScalar y = (\i -> expression ("t"++(show i)) c2 Positive (1, 1))
-    | otherwise = (\_ -> none $ "quad_over_lin: " ++ (name y) ++ " is not scalar")
+  ecosQuadOverLin :: Expr -> Expr -> Int -> Expr
+  ecosQuadOverLin x y i
+    | isVector x && isScalar y = expression newVar curvature Positive prog
+    | otherwise = none $ "quad_over_lin: " ++ (name y) ++ " is not scalar"
     where
-      c2 = applyDCP c1 Decreasing (vexity y)
+      curvature = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
         Positive -> Increasing
         Negative -> Decreasing
         otherwise -> Nonmonotone
+      prog = Cones matA vecB kones
+      newVar = Var ("t"++(show i)) (1, 1)
+      z0 = Var (vname newVar ++ "z0") (1, 1)
+      z1 = Var (vname newVar ++ "z1") (1, 1)
+      matA = [ [(Ones 1 "0.5", var y), (Ones 1 "0.5", newVar), (Ones 1 "-1", z0)],
+               [(Ones 1 "0.5", var y), (Ones 1 "-0.5", newVar), (Ones 1 "-1", z1)] ]
+              ++ matrixA (cones x)
+              ++ matrixA (cones y)
+      vecB = [Ones 1 "0", Ones 1 "0"]
+              ++ vectorB (cones x)
+              ++ vectorB (cones y)
+      kones = [SOC [z0,z1,var x], SOCelem [var y]]
+              ++ conesK (cones x)
+              ++ conesK (cones y)
 
-  constant :: Parameter -> Result
-  constant a = (\i -> expression ("t"++(show i)) (vexity a) (sign a) (rows a, cols a))
+  ecosConstant :: Parameter -> Int -> Expr
+  ecosConstant a i = expression newVar (vexity a) (sign a) (Cones matA vecB [])
+    where (m, n) = (rows a, cols a)
+          newVar = Var ("t"++(show i)) (m, n)
+          matA = [[(Eye m "1", newVar)]]
+          vecB = [Vector m (name a)]
 
-  smult :: Parameter -> Arg -> Result
-  smult a x
-    | isScalar a && isVector x = (\i -> expression ("t"++(show i)) curvature s (rows x, cols x))
-    | otherwise = (\_ -> none $ "smult: " ++ (name a) ++ " is not scalar")
-    where
-      curvature = applyDCP Affine monotonicity (vexity x)
-      monotonicity = case (sign a) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-      s = (sign a) <*> (sign x)
-
-  mmult :: Parameter -> Arg -> Result
-  mmult a x
-    | isMatrix a && isVector x && compatible 
-      = (\i -> expression ("t"++(show i)) curvature s (rows a, cols x))
-    | otherwise = (\_ -> none $ "mmult: size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match")
+  ecosMult :: Parameter -> Expr -> Int -> Expr
+  ecosMult a x i
+    | isMatrix a && isVector x && compatible = expression newVar curvature s prog
+    | isScalar a && isVector x = expression newVar curvature s prog
+    | otherwise = none $ "mult: size of " ++ (name a) ++ " and " ++ (name x) ++ " don't match"
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (sign a) of
@@ -97,19 +105,44 @@ module Rewriter.Atoms(
         otherwise -> Nonmonotone
       s = (sign a) <*> (sign x)
       compatible = cols a == rows x
+      prog = Cones (matA ++ matrixA (cones x)) vecB kones
+      (m,n)
+        | isScalar a = (rows x, cols x)
+        | otherwise = (rows a, cols x)
+      newVar = Var ("t"++(show i)) (m, n)
+      matA
+        | isScalar a = [ [(Eye m (name a), var x), (Eye m "-1", newVar)] ]
+        | otherwise = [ [(Matrix (rows a, cols a) (name a), var x), (Eye m "-1", newVar)] ]
+      vecB = [Ones m "0"]
+              ++ vectorB (cones x)
+      kones = conesK (cones x)
 
 
-  plus :: Arg -> Arg -> Result
-  plus x y
-    | isVector x && isVector y && compatible 
-      = (\i -> expression ("t"++(show i)) c2 s (rows x, cols x))
-    | otherwise = (\_ -> none $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match")
+  ecosPlus :: Expr -> Expr -> Int -> Expr
+  ecosPlus x y i
+    | isVector x && isVector y && compatible = expression newVar curvature s prog
+    | isScalar x && isVector y = expression newVar curvature s prog
+    | isVector x && isScalar y = expression newVar curvature s prog
+    | otherwise = none $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match"
     where
-      c2 = applyDCP c1 Increasing (vexity y)
-      c1 = applyDCP Convex Increasing (vexity x)
+      curvature = applyDCP c1 Increasing (vexity y)
+      c1 = applyDCP Affine Increasing (vexity x)
       s = (sign x) <+> (sign y)
       compatible = cols x == cols y  
-  
+      prog = Cones (matA ++ matrixA (cones x) ++ matrixA (cones y)) vecB kones
+      (m,n) 
+        | isScalar x = (rows y, cols y)
+        | otherwise = (rows x, cols x)
+      newVar = Var ("t"++(show i)) (m, n)
+      matA 
+        | isScalar x = [[(Ones m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)]]
+        | isScalar y = [[(Ones m "1", var y), (Eye m "1", var x), (Eye m "-1", newVar)]]
+        | otherwise = [ [(Eye m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)] ]
+      vecB = [Ones m "0"]
+              ++ vectorB (cones x)
+              ++ vectorB (cones y)
+      kones = conesK (cones x) ++ conesK (cones y)
+
   
   -- import qualified Data.Map as M
   --   import Expression.Expression
@@ -156,31 +189,7 @@ module Rewriter.Atoms(
   --   
   --   -- this is how you define atoms (they're defined independently at the moment)
   --   
-  --   -- square(x) = x^2
-  --   ecosSquare :: CVXSymbol
-  --   ecosSquare = Atom {
-  --     name="square",
-  --     nargs=1,
-  --     nparams=0,
-  --     areValidArgs=(\x -> isVector $ x!!0),
-  --     symbolSize=idSize,
-  --     symbolVexity=Convex,
-  --     symbolSign=positiveSign,
-  --     monotonicity=(\x -> case(x) of
-  --       [Positive] -> [Increasing]
-  --       [Negative] -> [Decreasing]
-  --       otherwise -> [Nonmonotone]
-  --     ),
-  --     symbolRewrite=(\out inputs ->
-  --         let m = rows out
-  --             n = cols out
-  --             z0 = VarId (label out ++ "z0") m n
-  --             z1 = VarId (label out ++ "z1") m n
-  --         in Problem (Just out) [
-  --           [(out, Eye m "0.5"), (z0, Eye m "-1")],
-  --           [(out, Eye m "-0.5"), (z1, Eye m "-1")]
-  --         ] [Ones m "-0.5", Ones m "-0.5"] [SOCelem [z0,z1,inputs!!0]]
-  --   )}
+
   --   
   --   -- inv_pos(x) = 1/x for x >= 0
   --   ecosInvPos :: CVXSymbol
@@ -210,83 +219,9 @@ module Rewriter.Atoms(
   --   )}
   --   
   --   
-  --   -- quad_over_lin(x,y) = x^Tx/y
-  --   ecosQuadOverLin :: CVXSymbol
-  --   ecosQuadOverLin = Atom {
-  --     name="quad_over_lin",
-  --     nargs=2,
-  --     nparams=0,
-  --     areValidArgs=(\x -> let (m,n) = x!!0
-  --                             (p,q) = x!!1
-  --                         in (n==1) && (p==1) && (q==1)),
-  --     symbolSize=scalarSize,
-  --     symbolVexity=Convex,
-  --     symbolSign=positiveSign,
-  --     monotonicity=(\x -> case (x) of
-  --       [Positive, _] -> [Increasing, Decreasing]
-  --       [Negative, _] -> [Decreasing, Decreasing]
-  --       otherwise -> [Nonmonotone,Decreasing]
-  --       ),
-  --     symbolRewrite=(\out inputs ->
-  --         let m = rows out
-  --             n = cols out
-  --             z0 = VarId (label out ++ "z0") m n
-  --             z1 = VarId (label out ++ "z1") m n
-  --             x = inputs!!0
-  --             y = inputs!!1
-  --         in Problem (Just out) [
-  --           [(y, Eye m "0.5"), (out, Eye m "0.5"), (z0, Eye m "-1")],
-  --           [(y, Eye m "0.5"), (out, Eye m "-0.5"), (z1, Eye m "-1")]
-  --         ] [Ones m "0", Ones m "0"] [SOC [z0,z1,x], SOCelem [y]]
-  --     )}
+
   --     
-  --   -- scalarPlusVector(x,y) = x*ones + y
-  --   ecosScalarPlusVector :: CVXSymbol
-  --   ecosScalarPlusVector = Atom {
-  --     name="splus",
-  --     nargs=2,
-  --     nparams=0,
-  --     areValidArgs=(\x -> isScalar (x!!0) && isVector (x!!1)),
-  --     symbolSize=(\x->x!!1),
-  --     symbolVexity=Affine,
-  --     symbolSign=(\x -> case(x) of
-  --       [Positive,Positive] -> Positive
-  --       [Negative,Negative] -> Negative
-  --       otherwise -> Unknown
-  --     ),
-  --     monotonicity=(\x -> [Increasing, Increasing]),
-  --     symbolRewrite=(\out inputs ->
-  --         let m = rows out
-  --         in Problem (Just out) [
-  --           [(inputs!!0, Ones m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]
-  --         ] [Ones m "0"] []
-  --       )
-  --   }
-  --   
-  --   -- plus(x,y) = x + y
-  --   ecosPlus :: CVXSymbol
-  --   ecosPlus = Atom {
-  --     name="plus",
-  --     nargs=2,
-  --     nparams=0,
-  --     areValidArgs=(\x -> let (m,n) = x!!0
-  --                             (p,q) = x!!1
-  --                         in (m==p) && (n==q)),
-  --     symbolSize=idSize,  -- assumes parser created x+y where x,y have same size
-  --     symbolVexity=Affine,
-  --     symbolSign=(\x -> case(x) of
-  --       [Positive,Positive] -> Positive
-  --       [Negative,Negative] -> Negative
-  --       otherwise -> Unknown
-  --     ),
-  --     monotonicity=(\x -> [Increasing, Increasing]),
-  --     symbolRewrite=(\out inputs ->
-  --         let m = rows out
-  --         in Problem (Just out) [
-  --           [(inputs!!0, Eye m "1"), (inputs!!1, Eye m "1"), (out, Eye m "-1")]
-  --         ] [Ones m "0"] []
-  --       )
-  --     }
+
   --   
   --   -- scalarMinusVector(x,y) = x*ones - y
   --   ecosScalarMinusVector :: CVXSymbol
