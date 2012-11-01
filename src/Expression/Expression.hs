@@ -137,10 +137,3 @@ module Expression.Expression (
   
   parameter :: String -> Sign -> (Int, Int) -> Parameter
   parameter name s (m,n) = Parameter name s (m,n)
-
-  --varName = vname.obj
-  --varShape = vshape.obj
-  --varCols = vcols.obj
-  --varRows = vrows.obj
-
-

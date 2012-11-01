@@ -1,6 +1,6 @@
 module Expression.SOCP (
   Sense(..), Var(..), vrows, vcols,
-  Row, Coeff(..), 
+  Row, Coeff(..), (<++>),
   Cones(..), SOC(..), SOCP(..)) where
 
   -- problem sense
@@ -37,6 +37,9 @@ module Expression.SOCP (
     conesK :: [SOC]
   } deriving (Show)
 
+  (<++>) :: Cones -> Cones -> Cones
+  x <++> y = Cones (matrixA x ++ matrixA y) (vectorB x ++ vectorB y) (conesK x ++ conesK y)
+
   data SOCP = SOCP {
     sense :: Sense,
     obj :: Var, -- objective is always just a single variable
@@ -48,10 +51,7 @@ module Expression.SOCP (
   -- SOC [x,y,z] means norm([y,x]) <= z
   -- SOCelem [x,y,z] means norms([x y]')' <= z
   -- note that SOC [x] and SOCelem [x] both mean x >= 0
-  -- XXX. they should mean the same, but code generation treats them differently :()
   data SOC = SOC { variables :: [Var] } 
     | SOCelem { variables :: [Var] }
     deriving (Show)
-  
-  -- helper functions to get information about SOCPs
-  
+    
