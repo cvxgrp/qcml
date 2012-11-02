@@ -3,7 +3,7 @@ module Expression.Expression (
   Monotonicity(..), 
   Sign(..), 
   Expr, 
-  Parameter, 
+  Parameter(..), 
   Symbol(..),
   Rewriteable(..),
   applyDCP,
@@ -135,5 +135,4 @@ module Expression.Expression (
   none :: String -> Expr
   none s = None s
   
-  parameter :: String -> Sign -> (Int, Int) -> Parameter
-  parameter name s (m,n) = Parameter name s (m,n)
+  parameter = Parameter

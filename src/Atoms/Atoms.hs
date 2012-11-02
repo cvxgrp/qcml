@@ -14,7 +14,12 @@ module Atoms.Atoms(
   ecos_norm_inf,
   ecos_norm1,
   ecos_sqrt,
-  ecos_geo_mean
+  ecos_geo_mean,
+  ecos_concat,
+  ecos_transpose,
+  ecos_eq,
+  ecos_geq,
+  ecos_leq
 ) where
   
   -- TODO: constant folding
@@ -34,6 +39,20 @@ module Atoms.Atoms(
 
   isMatrix :: (Symbol a) => a -> Bool
   isMatrix x = (rows x) >= 1 && (cols x) >= 1
+
+  isConvex :: Expr -> Bool
+  isConvex x
+    | vexity x == Convex = True
+    | vexity x == Affine = True
+    | otherwise = False
+
+  isConcave :: Expr -> Bool
+  isConcave x
+    | vexity x == Concave = True
+    | vexity x == Affine = True
+    | otherwise = False
+
+  isAffine x = isConcave x && isConvex x
 
   -- sign operations
 
@@ -344,42 +363,97 @@ module Atoms.Atoms(
   --   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
   --   
 
-  --   
-  --   -- special atoms for handling concatenation and (TODO: slicing)
-  --   -- (vertical concatenation) [x; y; z; ...]
-  --   ecosConcat :: Int->CVXSymbol
-  --   ecosConcat nToConcat = Atom {
-  --     name="concat",
-  --     nargs=nToConcat,
-  --     nparams=0,
-  --     areValidArgs=(\x -> case (x) of
-  --       [] -> True
-  --       [x] -> True
-  --       x -> let (m,n) = x!!0
-  --         in (all (==n) (map snd x))
-  --     ),
-  --     -- passes in [(n,1), (m,n)], returns (m,1)
-  --     symbolSize=(\x -> case(x) of
-  --       [] -> (0,0)
-  --       [x] -> x
-  --       x ->
-  --         let (m,n) = x!!0
-  --             mtot = foldl (+) 0 (map fst x)
-  --         in (mtot, n)
-  --     ),
-  --     symbolVexity=Affine,
-  --     symbolSign=(\x -> if(all (==Positive) x) then Positive
-  --       else if (all (==Negative) x) then Negative
-  --       else Unknown
-  --     ),
-  --     monotonicity=(\x -> take nToConcat (repeat Increasing)),
-  --     symbolRewrite=(\out inputs ->
-  --         let m = rows out
-  --             n = cols out
-  --             mInputs = map rows inputs
-  --             coeffs = zip inputs (map (flip Eye "1") mInputs)
-  --         in Problem (Just out) [
-  --           (out, Eye m "-1"):coeffs  -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
-  --         ] [Ones m "0"] []
-  --       )
-  --   }
+  -- t = [x;y;z; ...]
+  ecos_concat :: [Expr] -> String -> Expr
+  ecos_concat x s = expression newVar curvature sgn prog
+    where
+      -- starts with Affine vexity
+      -- each argument is Increasing
+      -- fold across entire array using previously determined partial vexity
+      -- result is "global" vexity (of entire vector)
+      curvature = foldr (\y vex -> applyDCP vex Increasing (vexity y)) Affine x
+      sgn
+        | all (==Positive) (map sign x) = Positive
+        | all (==Negative) (map sign x) = Negative
+        | otherwise = Unknown
+      prog = foldr (<++>) (Cones matA vecB [])  (map cones x)
+      sizes = map rows x
+      m = foldr (+) 0 sizes -- cumulative sum of all rows
+      newVar = Var ("t"++s) (m,1)
+      coeffs = zip (map (flip Eye "1") sizes) (map var x)
+      matA = [(Eye m "-1", newVar):coeffs] -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
+      vecB = [Ones m "0"]
+
+  -- transpose a = a' (new parameter named " a' ")
+  -- this works perfectly in Matlab, but care must be taken at
+  -- codegen to parse a "tick" as a transposed parameter
+  ecos_transpose :: Parameter -> Parameter
+  ecos_transpose (Parameter name sgn (m,n)) = Parameter (name++"'") sgn (n,m)
+
+  -- inequalities (returns "Maybe Cones", since Cones are convex)
+  -- if it's an invalid inequality, will produce Nothing
+  -- a >= b
+  ecos_geq :: Expr -> Expr -> String -> Maybe Cones
+  ecos_geq a b s
+    | isConvexSet && (m1 == m2) = Just prog
+    | isConvexSet && (m1 == 1) = Just prog
+    | isConvexSet && (m2 == 1) = Just prog
+    | otherwise = Nothing 
+    where prog = (Cones matA vecB [SOCelem [slack]]) <++> (cones a) <++> (cones b)
+          (m1, n1) = (rows a, cols a)
+          (m2, n2) = (rows b, cols b)
+          (m, n) = (max m1 m2, max n1 n2)
+          slack = Var ("t"++s) (m,n)
+          coeff1
+            | m1 == 1 = Ones m "1"
+            | otherwise = Eye m "1"
+          coeff2
+            | m2 == 1 = Ones m "-1"
+            | otherwise = Eye m "-1"
+          matA = [[(coeff1, var a), (Eye m "-1", slack), (coeff2, var b)]]
+          vecB = [Ones m "0"]
+          isConvexSet = (isConcave a) && (isConvex b)
+
+  -- a <= b
+  ecos_leq :: Expr -> Expr -> String -> Maybe Cones
+  ecos_leq a b s
+    | isConvexSet && (m1 == m2) = Just prog
+    | isConvexSet && (m1 == 1) = Just prog
+    | isConvexSet && (m2 == 1) = Just prog
+    | otherwise = Nothing 
+    where prog = (Cones matA vecB [SOCelem [slack]]) <++> (cones a) <++> (cones b)
+          (m1, n1) = (rows a, cols a)
+          (m2, n2) = (rows b, cols b)
+          (m, n) = (max m1 m2, max n1 n2)
+          slack = Var ("t"++s) (m,n)
+          coeff1
+            | m1 == 1 = Ones m "1"
+            | otherwise = Eye m "1"
+          coeff2
+            | m2 == 1 = Ones m "-1"
+            | otherwise = Eye m "-1"
+          matA = [[(coeff1, var a), (Eye m "1", slack), (coeff2, var b)]]
+          vecB = [Ones m "0"]
+          isConvexSet = (isConvex a) && (isConcave b)
+
+  -- a == b
+  ecos_eq :: Expr -> Expr -> Maybe Cones
+  ecos_eq a b
+    | isConvexSet && (m1 == m2) = Just prog
+    | isConvexSet && (m1 == 1) = Just prog
+    | isConvexSet && (m2 == 1) = Just prog
+    | otherwise = Nothing 
+    where prog = (Cones matA vecB []) <++> (cones a) <++> (cones b)
+          (m1, n1) = (rows a, cols a)
+          (m2, n2) = (rows b, cols b)
+          (m, n) = (max m1 m2, max n1 n2)
+          coeff1
+            | m1 == 1 = Ones m "1"
+            | otherwise = Eye m "1"
+          coeff2
+            | m2 == 1 = Ones m "-1"
+            | otherwise = Eye m "-1"
+          matA = [[(coeff1, var a), (coeff2, var b)]]
+          vecB = [Ones m "0"]
+          isConvexSet = (isAffine a) && (isAffine b)
+
