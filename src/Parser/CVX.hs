@@ -1,96 +1,107 @@
-module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
+module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   module Text.ParserCombinators.Parsec,
-  module Text.ParserCombinators.Parsec.Token) where
+  module P) where
   import qualified Expression.Expression as E
   import qualified Data.Map as M
-  import Rewriter.Atoms
+  import Atoms.Atoms
   
   import Data.Maybe
   
-  import Text.ParserCombinators.Parsec.Token
+  import qualified Text.ParserCombinators.Parsec.Token as P
   import Text.ParserCombinators.Parsec.Language
   import Text.ParserCombinators.Parsec
   import Text.ParserCombinators.Parsec.Expr
   
-  -- TODO: inequalities should be atoms too
-  
-  -- to be removed later
-  import Rewriter.ECOS
-  
+  builtinFunctions =
+    [("square", atom_square),
+     ("quad_over_lin", atom_quad_over_lin),
+     ("inv_pos", atom_inv_pos),
+     ("max", atom_max),
+     ("min", atom_min),
+     ("sum", atom_sum),
+     ("abs", atom_abs),
+     ("norm2", atom_norm),
+     ("norm_inf", atom_norm_inf),
+     ("norm1", atom_norm1),
+     ("norm", atom_norm),
+     ("sqrt", atom_sqrt),
+     ("geo_mean", atom_geo_mean)]
+
+  symbolTable = CVXState M.empty M.empty 0
+
   data CVXState = CVXState {
-      symbols :: M.Map String E.CVXSymbol,
-      dimensions :: M.Map String Int
+      symbols :: M.Map String E.Expr,
+      dimensions :: M.Map String Int,
+      varcount :: Int
     }
-    
-  symbolInsert :: E.CVXSymbol -> CVXState -> CVXState
-  symbolInsert x state 
-    = CVXState (M.insert (E.name x) x (symbols state)) (dimensions state)
-  
-  dimensionInsert :: (String, Int) -> CVXState -> CVXState
-  dimensionInsert (s,i) state 
-    = CVXState (symbols state) (M.insert s i (dimensions state))
+
+  incrCount :: CVXState -> CVXState
+  incrCount state
+    = CVXState (symbols state) (dimensions state) (1 + varcount state)
+
+  insertSymbol :: E.Expr -> CVXState -> CVXState
+  insertSymbol x state 
+    = CVXState newSymbols (dimensions state) (varcount state)
+      where newSymbols = M.insert (E.name x) x (symbols state)
+
+  insertDim :: (String, Int) -> CVXState -> CVXState
+  insertDim (s,i) state 
+    = CVXState (symbols state) newDimensions (varcount state)
+      where newDimensions = M.insert s i (dimensions state)
     
   -- type CVXState = M.Map String E.CVXSymbol
   type CVXParser a = GenParser Char CVXState a
-  symbolTable = CVXState M.empty M.empty
 
-  lexer :: TokenParser CVXState
-  lexer = makeTokenParser (haskellDef {
-      reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "dimension", "nonnegative", "nonpositive"],
-      reservedOpNames = ["*", "+", "-", "=", "==", "<=", ">="] ++ (M.keys ecosAtoms)
+  lexer :: P.TokenParser CVXState
+  lexer = P.makeTokenParser (emptyDef {
+      commentLine = "#",
+      reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "dimension", "nonnegative", "nonpositive", "positive", "negative"]
+         ++ (map fst builtinFunctions),
+      reservedOpNames = ["*", "+", "-", "=", "==", "<=", ">="]
     })
-    
-  expr :: CVXParser E.CVXExpression
-  expr = buildExpressionParser table term
-          <?> "expression"
   
-  -- this function exists since I need to verify that the expression satisfies
-  -- the restricted multiply because of arithmetic precedence rules
-  cvxExpr :: CVXParser E.CVXExpression
-  cvxExpr = do {
-    e <- expr;
-    if(E.isValidExpr e)
-    then
-      return e
-    else
-      fail ("Expression " ++ show e ++ " is not a valid expression. (Dimension mismatch, tried to multiply two expressions, etc.)")
-  }
+  identifier = P.identifier lexer
+  whiteSpace = P.whiteSpace lexer
+  reserved = P.reserved lexer
+  reservedOp = P.reservedOp lexer 
+  parens = P.parens lexer
+  comma = P.comma lexer
+  natural = P.natural lexer
+  naturalOrFloat = P.naturalOrFloat lexer
+
+  expr :: CVXParser E.Expr
+  expr = do {
+    e <- buildExpressionParser table term;
+    case e of
+      E.None s -> fail s
+      otherwise -> return e
+    } <?> "expression"
   
-  unaryNegate :: E.CVXExpression -> E.CVXExpression
-  unaryNegate a = E.Node ecosNegate [a]
+  unaryNegate :: Int -> E.Expr -> E.Expr
+  unaryNegate t a = ecos_negate a (show t)
   
-  multiply :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
-  multiply a b
-    | lhsScalar = E.Node ecosScalarTimesVector [b,a]
-    | otherwise = E.Node ecosMul [b,a]
-    where lhsScalar = (m == 1 && n == 1)
-          (m,n) = E.size a
+  multiply :: Int -> E.Expr -> E.Expr -> E.Expr
+  multiply t a b = ecos_mult a b (show t)
                   
-  add :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
-  add a b
-    | lhsScalar = E.Node ecosScalarPlusVector [a,b]
-    | rhsScalar = E.Node ecosScalarPlusVector [b,a]
-    | otherwise = E.Node ecosPlus [a,b]
-    where (m1,n1) = E.size a
-          (m2,n2) = E.size b
-          lhsScalar = (m1 == 1 && n1 == 1)
-          rhsScalar = (m2 == 1 && n2 == 1)
+  add :: Int -> E.Expr -> E.Expr -> E.Expr
+  add t a b = ecos_plus a b (show t)
           
-  minus :: E.CVXExpression -> E.CVXExpression -> E.CVXExpression
-  minus a b 
-    | lhsScalar = E.Node ecosScalarMinusVector [a,b]
-    | rhsScalar = E.Node ecosVectorMinusScalar [a,b]
-    | otherwise = E.Node ecosMinus [a,b]
-    where (m1,n1) = E.size a
-          (m2,n2) = E.size b
-          lhsScalar = (m1 == 1 && n1 == 1)
-          rhsScalar = (m2 == 1 && n2 == 1)
+  minus :: Int -> E.Expr -> E.Expr -> E.Expr
+  minus t a b = ecos_minus a b (show t)
   
   -- constructors to help build the expression table
   binary name fun assoc 
-    = Infix (do{ reservedOp lexer name; return fun }) assoc
+    = Infix (do{ 
+      reservedOp name; 
+      t <- getState; 
+      updateState incrCount; 
+      return $ fun (varcount t)}) assoc
   prefix name fun
-    = Prefix (do{ reservedOp lexer name; return fun })
+    = Prefix (do{ 
+      reservedOp name; 
+      t <- getState; 
+      updateState incrCount; 
+      return $ fun (varcount t) })
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
   table = [ [binary "*" multiply AssocRight],
@@ -100,130 +111,207 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
   
   -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
   -- variables
-  term = (parens lexer cvxExpr)
-      <|> choice (map function (M.keys ecosAtoms))
+  term = parens expr
+      <|> choice (map snd builtinFunctions)
       <|> try parameter
       <|> variable
       <|> constant
-      <|> concatenation
+      -- <|> concatenation
       <?> "simple expressions"
   
-  vertConcatArgs :: CVXParser [E.CVXExpression]
-  vertConcatArgs = do {
-    sepBy cvxExpr (semi lexer)
-  }
+  --vertConcatArgs :: CVXParser [E.CVXExpression]
+  --vertConcatArgs = do {
+  --  sepBy cvxExpr (semi lexer)
+  --}
   
-  concatenation :: CVXParser E.CVXExpression
-  concatenation = do { 
-    args <- brackets lexer vertConcatArgs;
-    let f = ecosConcat (length args)
-    in case (args) of
-      [] -> fail "Attempted to concatenate empty expressions"
-      [x] -> return x
-      x -> return (E.Node f x)
-  }
+  --concatenation :: CVXParser E.CVXExpression
+  --concatenation = do { 
+  --  args <- brackets lexer vertConcatArgs;
+  --  let f = ecosConcat (length args)
+  --  in case (args) of
+  --    [] -> fail "Attempted to concatenate empty expressions"
+  --    [x] -> return x
+  --    x -> return (E.Node f x)
+  --}
   
-  args :: CVXParser [E.CVXExpression]
-  args = do {
-    sepBy cvxExpr (comma lexer)
-  }
+
         
-  function :: String -> CVXParser E.CVXExpression
-  function atomName = 
-    let symbol = M.lookup atomName ecosAtoms
-        n = case (symbol) of 
-          Just x -> E.nargs x
-          _ -> 0
-        p = case (symbol) of
-          Just x -> E.nparams x
-          _ -> 0
-    in do {
-      reserved lexer atomName;
-      args <- parens lexer args;
-      case (symbol) of
-        Just x ->      
-          if (length args /= n) 
-            then fail "number of arguments do not agree"
-            else case (n) of 
-              1 -> return (E.Node x args)
-              2 -> return (E.Node x args)
-              _ -> fail "no support for n-ary arguments"
-        _ -> fail "no such atom"
-    }
+  --function :: String -> CVXParser E.CVXExpression
+  --function atomName = 
+  --  let symbol = M.lookup atomName ecosAtoms
+  --      n = case (symbol) of 
+  --        Just x -> E.nargs x
+  --        _ -> 0
+  --      p = case (symbol) of
+  --        Just x -> E.nparams x
+  --        _ -> 0
+  --  in do {
+  --    reserved lexer atomName;
+  --    args <- parens lexer args;
+  --    case (symbol) of
+  --      Just x ->      
+  --        if (length args /= n) 
+  --          then fail "number of arguments do not agree"
+  --          else case (n) of 
+  --            1 -> return (E.Node x args)
+  --            2 -> return (E.Node x args)
+  --            _ -> fail "no support for n-ary arguments"
+  --      _ -> fail "no such atom"
+  --  }
   
-  variable :: CVXParser E.CVXExpression
+  variable :: CVXParser E.Expr
   variable = do { 
-    s <- identifier lexer;
+    s <- identifier;
     t <- getState; 
     case (M.lookup s (symbols t)) of
-      Just x -> return (E.Leaf x)
-      _ -> fail $ "expected variable but got " ++ s 
-  }
-  
-  parameter :: CVXParser E.CVXExpression
-  parameter = do { 
-    s <- identifier lexer;
-    t <- getState; 
-    case (M.lookup s (symbols t)) of
-      Just x -> return (E.Leaf x)
-      _ -> fail $ "expected parameter but got " ++ s 
-  }
-  
-  constant :: CVXParser E.CVXExpression
-  constant = do {
-    s <- naturalOrFloat lexer;
-    if(either (>=0) (>=0.0) s)
-    then
-      return (E.Leaf $ (E.positiveParameter (either show show s) (1,1)))
-    else
-      return (E.Leaf $ (E.negativeParameter (either show show s) (1,1)))
-  }
-             
-  createVariable :: CVXParser E.CVXSymbol
-  createVariable = do { 
-    s <- identifier lexer; 
-    size <- optionMaybe shape;
-    let (m,n) = (fromMaybe (1,1) size)
-    in if (n == 1) then
-      return (E.variable s (m,n))
-    else
-      fail $ "only vector variables are allowed. you attempted to create a matrix variable."
+      Just x -> return x
+      _ -> fail $ "expected a variable but got " ++ s 
   } <?> "variable"
   
-  createParameter :: CVXParser E.CVXSymbol
-  createParameter = do {
-    s <- identifier lexer;
-    sign <- optionMaybe modifier;
-    size <- optionMaybe shape;
-    let dim = fromMaybe (1,1) size
-    in case (sign) of
-      Just E.Positive -> return (E.positiveParameter s dim)
-      Just E.Negative -> return (E.negativeParameter s dim)
-      _ -> return (E.parameter s dim)
+  parameter :: CVXParser E.Expr
+  parameter = do { 
+    s <- identifier;
+    t <- getState; 
+    case (M.lookup s (symbols t)) of
+      Just x -> return x
+      _ -> fail $ "expected a parameter but got " ++ s 
   } <?> "parameter"
   
+  constant :: CVXParser E.Expr
+  constant = do {
+    s <- naturalOrFloat;
+    if(either (>=0) (>=0.0) s)
+    then
+      return (E.parameter (either show show s) E.Positive (1,1))
+    else
+      return (E.parameter (either show show s) E.Negative (1,1))
+  } <?> "constant"
+             
+
+
+  
+
+  
+  --boolOp :: CVXParser String
+  --boolOp = do {
+  --  reserved lexer "==";
+  --  return "=="
+  --  } <|> do {
+  --    reserved lexer "<=";
+  --    return "<="
+  --  } <|> do {
+  --    reserved lexer ">=";
+  --    return ">="
+  --  } <?> "boolean operator"
+
+    
+  --constraint :: CVXParser E.CVXConstraint
+  --constraint = do {
+  --  lhs <- cvxExpr;
+  --  p <- boolOp;
+  --  rhs <- cvxExpr;
+    
+  --  let (m1,n1) = E.size lhs
+  --      (m2,n2) = E.size rhs
+  --      haveEqualSizes = (m1 == m2 && n1 == n2)
+  --      lhsScalar = (m1 == 1 && n1 == 1)
+  --      rhsScalar = (m2 == 1 && n2 == 1)
+  --      result = case (p) of
+  --        "==" -> (E.Eq lhs rhs)
+  --        "<=" -> (E.Leq lhs rhs)
+  --        ">=" -> (E.Geq lhs rhs)
+  --  in if (haveEqualSizes || lhsScalar || rhsScalar) then
+  --    case (E.vexity result) of
+  --      E.Convex -> return result
+  --      _ -> fail "Not a signed DCP compliant constraint."
+  --  else
+  --    fail "Dimension mismatch when forming constraints."
+  --} <?> "constraint"
+  
+  --constraints :: CVXParser [E.CVXConstraint]
+  --constraints = do { 
+  --  reserved lexer "subject to";
+  --  result <- many constraint;
+  --  return result 
+  --} <?> "constraints"
+  
+  objective :: E.Sense -> CVXParser E.Expr
+  objective v = do {
+    obj <- expr;
+    case(E.vexity obj, v) of
+      (E.Affine, _) -> return obj
+      (_,E.Find) -> return obj -- or 0?
+      (E.Convex, E.Minimize) -> return obj
+      (E.Concave, E.Maximize) -> return obj
+      _ -> fail $ show obj-- (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
+  } <?> "objective"
+
+  ---- 
+  ---- eol :: CVXParser String
+  ---- eol = try (string "; ") 
+  ----   <|> try (string "\r\n") 
+  ----   <|> try (string "\n\r") 
+  ----   <|> string ";" 
+  ----   <|> string "\n"
+  ----   <|> string "\r"
+  ----   <?> "end of line"
+  
+  sense :: CVXParser E.Sense
+  sense = 
+    do {
+      reserved "minimize";
+      return E.Minimize
+    } <|>
+    do {
+      reserved "maximize";
+      return E.Maximize
+    } <|>
+    do {
+      reserved "find";
+      return E.Find
+    }
+    <?> "problem sense (maximize or minimize or find)"
+  
+  problem :: CVXParser E.SOCP
+  problem = 
+    do {
+      probSense <- sense;
+      obj <- objective probSense;
+      -- cones <- optionMaybe constraints;
+      
+      if(isScalar obj)
+      then
+          return $ E.socp obj
+        -- case (cones) of
+        --  Just x -> return (Just (E.SOCP probSense obj cones))
+        --  _ -> return (Just (E.SOCP probSense obj cones))
+      else
+        fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
+    } <?> "problem"
+  
+  --cvxEmptyProb = E.CVXProblem E.Minimize (E.Leaf $ E.parameter "0" (1,1)) []
   dimension :: CVXParser Int
   dimension = 
     do {
-      s <- identifier lexer;
+      s <- identifier;
       t <- getState;
       case (M.lookup s (dimensions t)) of
         Just x -> return x
-        _ -> fail $ "expected dimension but got " ++ s
+        _ -> fail $ "expected a dimension but got identifier " ++ s ++ "instead"
     } <|>
     do {
-      dim <- natural lexer;
+      dim <- natural;
       if(dim == 0)
       then
         fail $ "expecting nonzero dimension"
       else
         return (fromInteger dim);
     } <?> "dimension"
-  
+
   shape :: CVXParser (Int, Int)
   shape = 
     do {
-      dims <- parens lexer (sepBy dimension (comma lexer));
+      dims <- parens (sepBy dimension comma);
       case(length dims) of
         1 -> return (dims!!0, 1)
         2 -> return (dims!!0, dims!!1)
@@ -233,146 +321,198 @@ module Parser.CVX (cvxProb, CVXParser, lexer, symbolTable,
   modifier :: CVXParser E.Sign
   modifier = 
     do {
-      reserved lexer "positive";
+      reserved "positive";
       return E.Positive
     } <|>
     do {
-      reserved lexer "negative";
+      reserved "negative";
       return E.Negative
-    } <?> "modifier"
-  
-  boolOp :: CVXParser String
-  boolOp = do {
-    reserved lexer "==";
-    return "=="
-    } <|> do {
-      reserved lexer "<=";
-      return "<="
-    } <|> do {
-      reserved lexer ">=";
-      return ">="
-    } <?> "boolean operator"
+    } <|>
+    do {
+      reserved "nonnegative";
+      return E.Positive
+    } <|>
+    do {
+      reserved "nonpositive";
+      return E.Negative
+    } <?> "sign modifier"
 
-    
-  constraint :: CVXParser E.CVXConstraint
-  constraint = do {
-    lhs <- cvxExpr;
-    p <- boolOp;
-    rhs <- cvxExpr;
-    
-    let (m1,n1) = E.size lhs
-        (m2,n2) = E.size rhs
-        haveEqualSizes = (m1 == m2 && n1 == n2)
-        lhsScalar = (m1 == 1 && n1 == 1)
-        rhsScalar = (m2 == 1 && n2 == 1)
-        result = case (p) of
-          "==" -> (E.Eq lhs rhs)
-          "<=" -> (E.Leq lhs rhs)
-          ">=" -> (E.Geq lhs rhs)
-    in if (haveEqualSizes || lhsScalar || rhsScalar) then
-      case (E.vexity result) of
-        E.Convex -> return result
-        _ -> fail "Not a signed DCP compliant constraint."
+  defVariable :: CVXParser ()
+  defVariable = do {
+    reserved "variable";
+    s <- identifier; 
+    size <- optionMaybe shape;
+    let (m,n) = (fromMaybe (1,1) size)
+    in if (n == 1) then
+      updateState (insertSymbol (E.variable s (m,n)))
     else
-      fail "Dimension mismatch when forming constraints."
-  } <?> "constraint"
+      fail $ "only vector variables are allowed. you attempted to create a matrix variable."
+  } <?> "variable"
   
-  constraints :: CVXParser [E.CVXConstraint]
-  constraints = do { 
-    reserved lexer "subject to";
-    result <- many constraint;
-    return result 
-  } <?> "constraints"
+  defParameter :: CVXParser ()
+  defParameter = do {
+    reserved "parameter";
+    s <- identifier;
+    sign <- optionMaybe modifier;
+    size <- optionMaybe shape;
+    let dim = fromMaybe (1,1) size
+        p = case (sign) of
+          Just E.Positive -> E.parameter s E.Positive dim
+          Just E.Negative -> E.parameter s E.Negative dim
+          _ -> E.parameter s E.Unknown dim
+    in updateState (insertSymbol p)
+  } <?> "parameter"
+
+  defDimension :: CVXParser ()
+  defDimension = do {
+    reserved "dimension";
+    s <- identifier;
+    reserved "=";
+    dim <- natural;
+    if(dim == 0)
+    then
+      fail $ "expecting nonzero dimension";
+    else
+      updateState (insertDim (s,fromInteger dim));
+  } <?> "dimension"
   
-  objective :: E.CVXSense -> CVXParser E.CVXExpression
-  objective v = do {
-    obj<-cvxExpr;
-    case(E.vexity obj) of
-      vex | vex == (E.vexity v) || vex == E.Affine -> return obj
-      _ -> fail ("Objective fails to satisfy DCP rule. Not " ++ show v ++ ".")
-  } <?> "objective"
-  -- 
-  -- eol :: CVXParser String
-  -- eol = try (string "; ") 
-  --   <|> try (string "\r\n") 
-  --   <|> try (string "\n\r") 
-  --   <|> string ";" 
-  --   <|> string "\n"
-  --   <|> string "\r"
-  --   <?> "end of line"
+
+  definitions :: CVXParser ()
+  definitions =  defVariable <|> defParameter <|> defDimension
+    <?> "definitions"
+
   
-  sense :: CVXParser E.CVXSense
-  sense = do {
-    reserved lexer "minimize";
-    return E.Minimize
-    } <|>
-    do {
-      reserved lexer "maximize";
-      return E.Maximize
-    } <?> "problem sense (maximize or minimize)"
-  
-  cvxLine :: CVXParser (Maybe E.CVXProblem)
-  cvxLine = 
-    do {
-      probSense<-sense;
-      obj<-objective probSense;
-      -- verify that the expression is a valid parse tree
-      c <- optionMaybe constraints;
-      t <- getState;
-      
-      let (m,n) = E.size obj
-      in if(m == 1 && m == 1)
-      then
-        case (c) of
-          Just x -> return (Just (E.CVXProblem probSense obj x))
-          _ -> return (Just (E.CVXProblem probSense obj []))
-      else
-        fail $ "expected scalar objective; got objective with " ++ show m ++ " rows and " ++ show n ++ " columns."
-    } <|>
-    do {
-      reserved lexer "parameter";
-      p <- createParameter;
-      updateState (symbolInsert p);
-      -- t <- getState;
-      --eol;
-      return Nothing
-    } <|>
-    do {
-      reserved lexer "variable";
-      v <- createVariable;
-      updateState (symbolInsert v);
-      -- t <- getState;
-      --eol;
-      return Nothing
-    } <|> 
-    do {
-      reserved lexer "dimension";
-      s <- identifier lexer;
-      reserved lexer "=";
-      dim <- natural lexer;
-      if(dim == 0)
-      then
-        fail $ "expecting nonzero dimension";
-      else
-        updateState (dimensionInsert (s,fromInteger dim));
-        return Nothing
-    } <?> "line"
-    -- <|>
-    -- do {
-    --   obj<-cvxExpr;
-    --   --eol;
-    --   return (show $ rewrite (E.CVXProblem obj []))
-    -- }
-  
-  cvxEmptyProb = E.CVXProblem E.Minimize (E.Leaf $ E.parameter "0" (1,1)) []
-  
-  cvxProb :: CVXParser E.CVXProblem
-  cvxProb = do {
-    whiteSpace lexer;
-    result <- many cvxLine;
+  cvxProg :: CVXParser E.SOCP
+  cvxProg = do {
+    whiteSpace;
+    many definitions;
+    p <- problem;
     eof;
-    -- only returns the *first* problem
-    return (((fromMaybe cvxEmptyProb).head) $ dropWhile isNothing result)
+    return p
   } <?> "problem"
+
+
+{-- atom parsers --}
+  args :: String -> Int -> CVXParser [E.Expr]
+  args s n = do {
+    arguments <- sepBy expr comma;
+    if (length arguments /= n)
+    then fail $ s ++ ": number of arguments do not agree"
+    else return arguments
+  }
+
+  atom_square :: CVXParser E.Expr
+  atom_square = do {
+    reserved "square";
+    args <- parens $ args "square" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_square (args!!0) (show $ varcount t)
+  }
+
+  atom_quad_over_lin :: CVXParser E.Expr
+  atom_quad_over_lin = do {
+    reserved "quad_over_lin";
+    args <- parens $ args "quad_over_lin" 2;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_quad_over_lin (args!!0) (args!!1) (show $ varcount t)
+  }
+
+  atom_inv_pos :: CVXParser E.Expr 
+  atom_inv_pos = do {
+    reserved "inv_pos";
+    args <- parens $ args "inv_pos" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_inv_pos (args!!0) (show $ varcount t)
+  }
+
+  atom_max :: CVXParser E.Expr 
+  atom_max = do {
+    reserved "max";
+    args <- parens $ args "max" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_max (args!!0) (show $ varcount t)
+  }
+
+  atom_min :: CVXParser E.Expr 
+  atom_min = do {
+    reserved "min";
+    args <- parens $ args "min" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_min (args!!0) (show $ varcount t)
+  }
+
+  atom_sum :: CVXParser E.Expr 
+  atom_sum = do {
+    reserved "sum";
+    args <- parens $ args "sum" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_sum (args!!0) (show $ varcount t)
+  }
+
+  atom_norm :: CVXParser E.Expr 
+  atom_norm = do {
+    reserved "norm";
+    args <- parens $ args "norm" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_norm (args!!0) (show $ varcount t)
+  } <|> do {
+    reserved "norm2";
+    args <- parens $ args "norm2" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_norm (args!!0) (show $ varcount t)
+  }
+
+  atom_abs :: CVXParser E.Expr 
+  atom_abs = do {
+    reserved "abs";
+    args <- parens $ args "abs" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_abs (args!!0) (show $ varcount t)
+  } 
+
+  atom_norm_inf :: CVXParser E.Expr 
+  atom_norm_inf = do {
+    reserved "norm_inf";
+    args <- parens $ args "norm_inf" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_norm_inf (args!!0) (show $ varcount t)
+  }
+
+  atom_norm1 :: CVXParser E.Expr 
+  atom_norm1 = do {
+    reserved "norm1";
+    args <- parens $ args "norm1" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_norm1 (args!!0) (show $ varcount t)
+  }
+
+  atom_sqrt :: CVXParser E.Expr 
+  atom_sqrt = do {
+    reserved "sqrt";
+    args <- parens $ args "sqrt" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_sqrt (args!!0) (show $ varcount t)
+  }
+
+  atom_geo_mean :: CVXParser E.Expr
+  atom_geo_mean = do {
+    reserved "geo_mean";
+    args <- parens $ args "geo_mean" 2;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_geo_mean (args!!0) (args!!1) (show $ varcount t)
+  }
 
 

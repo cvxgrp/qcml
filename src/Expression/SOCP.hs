@@ -1,7 +1,7 @@
 module Expression.SOCP (
   Sense(..), Var(..), vrows, vcols,
   Row, Coeff(..), (<++>),
-  Cones(..), SOC(..), SOCP(..)) where
+  ConicSet(..), SOC(..), SOCP(..)) where
 
   -- problem sense
   data Sense = Maximize | Minimize | Find deriving (Eq, Show)
@@ -31,19 +31,19 @@ module Expression.SOCP (
   -- a row in the A matrix
   type Row = [(Coeff, Var)]
 
-  data Cones = Cones {
+  data ConicSet = ConicSet {
     matrixA :: [Row],
     vectorB :: [Coeff],
     conesK :: [SOC]
   } deriving (Show)
 
-  (<++>) :: Cones -> Cones -> Cones
-  x <++> y = Cones (matrixA x ++ matrixA y) (vectorB x ++ vectorB y) (conesK x ++ conesK y)
+  (<++>) :: ConicSet -> ConicSet -> ConicSet
+  x <++> y = ConicSet (matrixA x ++ matrixA y) (vectorB x ++ vectorB y) (conesK x ++ conesK y)
 
   data SOCP = SOCP {
     sense :: Sense,
     obj :: Var, -- objective is always just a single variable
-    constraints :: Cones
+    constraints :: ConicSet
   } deriving (Show)
 
 
