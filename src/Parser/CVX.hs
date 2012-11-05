@@ -65,7 +65,9 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   reserved = P.reserved lexer
   reservedOp = P.reservedOp lexer 
   parens = P.parens lexer
+  brackets = P.brackets lexer
   comma = P.comma lexer
+  semi = P.semi lexer
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
@@ -116,23 +118,24 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       <|> try parameter
       <|> variable
       <|> constant
-      -- <|> concatenation
+      <|> concatenation
       <?> "simple expressions"
   
-  --vertConcatArgs :: CVXParser [E.CVXExpression]
-  --vertConcatArgs = do {
-  --  sepBy cvxExpr (semi lexer)
-  --}
+  vertConcatArgs :: CVXParser [E.Expr]
+  vertConcatArgs = do {
+    sepBy expr semi
+  }
   
-  --concatenation :: CVXParser E.CVXExpression
-  --concatenation = do { 
-  --  args <- brackets lexer vertConcatArgs;
-  --  let f = ecosConcat (length args)
-  --  in case (args) of
-  --    [] -> fail "Attempted to concatenate empty expressions"
-  --    [x] -> return x
-  --    x -> return (E.Node f x)
-  --}
+  concatenation :: CVXParser E.Expr
+  concatenation = do { 
+    args <- brackets vertConcatArgs;
+    t <- getState; 
+    updateState incrCount; 
+    case (args) of
+      [] -> fail "Attempted to concatenate empty expressions"
+      [x] -> return x
+      x -> return (ecos_concat x (show $ varcount t))
+  }
   
 
         
