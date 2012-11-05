@@ -59,7 +59,7 @@ module Expression.Expression (
     name (None s) = s
     name (Expr v _ _ _) = vname v
     name (Variable v _) = vname v
-    name (Parameter s _ _) = s
+    name (Parameter s _ _) = s    --usually when n
     
     vexity (None _) = Nonconvex
     vexity (Variable _ _) = Affine
@@ -93,17 +93,25 @@ module Expression.Expression (
       | c == Concave = SOCP Maximize v p
       | otherwise = SOCP Find v p
     socp (Variable v p) = SOCP Find v p
-    socp (Parameter v _ sz) = SOCP Find (Var v sz) (ConicSet [] [] [])
+    -- parameter cast occurs here
+    socp (Parameter v _ (m,n)) = SOCP Find newVar (ConicSet matA vecB [])
+      where newVar = Var ("p"++v) (m,n)
+            matA = [[(Eye m "1", newVar)]]
+            vecB = [Vector m v]
     socp (None _) = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
 
     var (Expr v _ _ _) = v
     var (Variable v _) = v
-    var (Parameter v _ sz) = Var v sz
+    -- creates new var for parameter
+    var (Parameter v _ sz) = Var ("p"++v) sz
     var (None _) = Var "0" (1,1)
 
     cones (Expr _ _ _ k) = k
     cones (Variable _ k) = k
-    cones _ = ConicSet [] [] []
+    cones (Parameter v _ (m,n))= ConicSet matA vecB []
+      where matA = [[(Eye m "1", Var ("p"++v) (m,n))]]
+            vecB = [Vector m v]
+    cones (None _) = ConicSet [] [] []
 
   -- DCP rules
   applyDCP :: Curvature -> Monotonicity -> Curvature -> Curvature

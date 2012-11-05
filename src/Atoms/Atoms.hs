@@ -2,13 +2,14 @@ module Atoms.Atoms(
   ecos_square,
   ecos_quad_over_lin,
   ecos_inv_pos,
-  ecos_constant,
   ecos_mult,
   ecos_plus,
   ecos_minus,
   ecos_negate,
   ecos_max,
   ecos_min,
+  ecos_pos,
+  ecos_neg,
   ecos_sum,
   ecos_norm,
   ecos_abs,
@@ -146,16 +147,6 @@ module Atoms.Atoms(
                [(Eye m "1", one)] ]
       vecB = [Ones m "0", Ones m "0", Ones m "1"]
       kones = [SOCelem [z0, z1, one], SOCelem [var x]]
-
-  -- constant a = a
-  ecos_constant :: Expr -> String -> Expr
-  ecos_constant (None s) _ = None s
-  ecos_constant (Parameter pname sgn (m,n)) s 
-    = expression newVar Affine sgn (ConicSet matA vecB [])
-    where newVar = Var ("t"++s) (m, n)
-          matA = [[(Eye m "1", newVar)]]
-          vecB = [Vector m pname ]
-  ecos_constant x s = x   -- otherwise, it does nothing
 
   -- mult a x = ax
   ecos_mult :: Expr -> Expr -> String -> Expr

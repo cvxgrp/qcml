@@ -18,6 +18,8 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
      ("inv_pos", atom_inv_pos),
      ("max", atom_max),
      ("min", atom_min),
+     ("pos", atom_pos),
+     ("neg", atom_neg),
      ("sum", atom_sum),
      ("abs", atom_abs),
      ("norm2", atom_norm),
@@ -137,31 +139,6 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       x -> return (ecos_concat x (show $ varcount t))
   }
   
-
-        
-  --function :: String -> CVXParser E.CVXExpression
-  --function atomName = 
-  --  let symbol = M.lookup atomName ecosAtoms
-  --      n = case (symbol) of 
-  --        Just x -> E.nargs x
-  --        _ -> 0
-  --      p = case (symbol) of
-  --        Just x -> E.nparams x
-  --        _ -> 0
-  --  in do {
-  --    reserved lexer atomName;
-  --    args <- parens lexer args;
-  --    case (symbol) of
-  --      Just x ->      
-  --        if (length args /= n) 
-  --          then fail "number of arguments do not agree"
-  --          else case (n) of 
-  --            1 -> return (E.Node x args)
-  --            2 -> return (E.Node x args)
-  --            _ -> fail "no support for n-ary arguments"
-  --      _ -> fail "no such atom"
-  --  }
-  
   variable :: CVXParser E.Expr
   variable = do { 
     s <- identifier;
@@ -190,53 +167,41 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       return (E.parameter (either show show s) E.Negative (1,1))
   } <?> "constant"
              
-
-
-  
-
-  
-  --boolOp :: CVXParser String
-  --boolOp = do {
-  --  reserved lexer "==";
-  --  return "=="
-  --  } <|> do {
-  --    reserved lexer "<=";
-  --    return "<="
-  --  } <|> do {
-  --    reserved lexer ">=";
-  --    return ">="
-  --  } <?> "boolean operator"
-
+  boolOp :: CVXParser String
+  boolOp = do {
+    reserved "==";
+    return "=="
+  } <|> do {
+    reserved "<=";
+    return "<="
+  } <|> do {
+    reserved ">=";
+    return ">="
+  } <?> "boolean operator"
     
-  --constraint :: CVXParser E.CVXConstraint
-  --constraint = do {
-  --  lhs <- cvxExpr;
-  --  p <- boolOp;
-  --  rhs <- cvxExpr;
+  constraint :: CVXParser E.ConicSet
+  constraint = do {
+    lhs <- expr;
+    p <- boolOp;
+    rhs <- expr;
     
-  --  let (m1,n1) = E.size lhs
-  --      (m2,n2) = E.size rhs
-  --      haveEqualSizes = (m1 == m2 && n1 == n2)
-  --      lhsScalar = (m1 == 1 && n1 == 1)
-  --      rhsScalar = (m2 == 1 && n2 == 1)
-  --      result = case (p) of
-  --        "==" -> (E.Eq lhs rhs)
-  --        "<=" -> (E.Leq lhs rhs)
-  --        ">=" -> (E.Geq lhs rhs)
-  --  in if (haveEqualSizes || lhsScalar || rhsScalar) then
-  --    case (E.vexity result) of
-  --      E.Convex -> return result
-  --      _ -> fail "Not a signed DCP compliant constraint."
-  --  else
-  --    fail "Dimension mismatch when forming constraints."
-  --} <?> "constraint"
+    t <- getState; 
+    updateState incrCount; 
+    let result = case (p) of
+          "==" -> (ecos_eq lhs rhs)
+          "<=" -> (ecos_leq lhs rhs (show $ varcount t))
+          ">=" -> (ecos_geq lhs rhs (show $ varcount t))
+    in case (result) of
+      Just x -> return x
+      _ -> fail "Not a signed DCP compliant restraint or dimension mismatch."
+  } <?> "constraint"
   
-  --constraints :: CVXParser [E.CVXConstraint]
-  --constraints = do { 
-  --  reserved lexer "subject to";
-  --  result <- many constraint;
-  --  return result 
-  --} <?> "constraints"
+  constraints :: CVXParser [E.ConicSet]
+  constraints = do { 
+    reserved "subject to";
+    result <- many constraint;
+    return result 
+  } <?> "constraints"
   
   objective :: E.Sense -> CVXParser E.Expr
   objective v = do {
@@ -248,16 +213,6 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       (E.Concave, E.Maximize) -> return obj
       _ -> fail $ show obj-- (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
   } <?> "objective"
-
-  ---- 
-  ---- eol :: CVXParser String
-  ---- eol = try (string "; ") 
-  ----   <|> try (string "\r\n") 
-  ----   <|> try (string "\n\r") 
-  ----   <|> string ";" 
-  ----   <|> string "\n"
-  ----   <|> string "\r"
-  ----   <?> "end of line"
   
   sense :: CVXParser E.Sense
   sense = 
@@ -280,19 +235,18 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     do {
       probSense <- sense;
       obj <- objective probSense;
-      -- cones <- optionMaybe constraints;
+      cones <- optionMaybe constraints;
       
       if(isScalar obj)
       then
-          return $ E.socp obj
-        -- case (cones) of
-        --  Just x -> return (Just (E.SOCP probSense obj cones))
-        --  _ -> return (Just (E.SOCP probSense obj cones))
+        let prob = E.socp obj
+        in case (cones) of
+          Just x -> return (E.SOCP probSense (E.obj prob) (foldr (E.<++>) (E.constraints prob) x))
+          _ -> return prob
       else
         fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
     } <?> "problem"
   
-  --cvxEmptyProb = E.CVXProblem E.Minimize (E.Leaf $ E.parameter "0" (1,1)) []
   dimension :: CVXParser Int
   dimension = 
     do {
@@ -447,6 +401,24 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     t <- getState; 
     updateState incrCount; 
     return $ ecos_min (args!!0) (show $ varcount t)
+  }
+  
+  atom_pos :: CVXParser E.Expr 
+  atom_pos = do {
+    reserved "pos";
+    args <- parens $ args "pos" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_pos (args!!0) (show $ varcount t)
+  }
+
+  atom_neg :: CVXParser E.Expr 
+  atom_neg = do {
+    reserved "neg";
+    args <- parens $ args "neg" 1;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_neg (args!!0) (show $ varcount t)
   }
 
   atom_sum :: CVXParser E.Expr 

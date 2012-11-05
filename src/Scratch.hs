@@ -12,4 +12,4 @@ module Scratch where
   d = parameter "s" Positive (1,1)
 
   -- could really monad it up to make it look imperative *and* almost embedded
-  v = ecos_sum (ecos_square (ecos_minus (ecos_mult a x "1") (ecos_constant b "2") "3") "4") "5"
+  v = ecos_sum (ecos_square (ecos_minus (ecos_mult a x "1") b "3") "4") "5"
