@@ -57,9 +57,11 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   lexer :: P.TokenParser CVXState
   lexer = P.makeTokenParser (emptyDef {
       commentLine = "#",
+      identStart = letter <|> char '_',
+      identLetter = alphaNum <|> char '_',
       reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "dimension", "nonnegative", "nonpositive", "positive", "negative"]
          ++ (map fst builtinFunctions),
-      reservedOpNames = ["*", "+", "-", "=", "==", "<=", ">="]
+      reservedOpNames = ["*", "+", "-", "'", "=", "==", "<=", ">="]
     })
   
   identifier = P.identifier lexer
@@ -106,18 +108,25 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       t <- getState; 
       updateState incrCount; 
       return $ fun (varcount t) })
+  -- parsec doesn't play nice with "mu'*x", since it can't parse
+  -- a transpose followed immediately by a multiply
+  -- instead, i have it gobble a *single* character (since i know transpose
+  -- is a single character operator), and then eat any whitespace following
+  postfix name fun
+    = Postfix (do { char name; whiteSpace; return fun })  
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ [binary "*" multiply AssocRight],
+  table = [ [postfix '\'' ecos_transpose],
+            [binary "*" multiply AssocRight],
             [prefix "-" unaryNegate],
             [binary "+" add AssocLeft, 
-             binary "-" minus AssocLeft] ] 
+             binary "-" minus AssocLeft]] 
   
   -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
   -- variables
   term = parens expr
       <|> choice (map snd builtinFunctions)
-      <|> try parameter
+      <|> parameter
       <|> variable
       <|> constant
       <|> concatenation
@@ -151,7 +160,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   parameter :: CVXParser E.Expr
   parameter = do { 
     s <- identifier;
-    t <- getState; 
+    t <- getState;
     case (M.lookup s (symbols t)) of
       Just x -> return x
       _ -> fail $ "expected a parameter but got " ++ s 
