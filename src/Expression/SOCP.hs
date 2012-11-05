@@ -1,12 +1,20 @@
-module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), objVar, objLabel) where
-  import Data.List
+module Expression.SOCP (
+  Sense(..), Var(..), vrows, vcols,
+  Row, Coeff(..), (<++>),
+  ConicSet(..), SOC(..), SOCP(..)) where
 
-  -- for indexing in to the matrix
-  data VarId = VarId { 
-                label :: String, 
-                rows :: Int, 
-                cols :: Int 
-              }
+  -- problem sense
+  data Sense = Maximize | Minimize | Find deriving (Eq, Show)
+
+  -- variables
+  -- TODO: to handle constant folding, introduce a "Const" object in addition to Var
+  data Var = Var {
+    vname:: String,  
+    vshape:: (Int, Int)
+  } deriving (Show)
+
+  vrows x = (fst.vshape) x
+  vcols x = (snd.vshape) x
   
   -- for creating coefficients
   -- note that Eye (1) and Ones (1) do the same thing
@@ -18,41 +26,32 @@ module Expression.SOCP (VarId(..), Coeff(..), Row(..), Problem(..), SOC(..), obj
       | OnesT Int String        -- ones' row vector
       | Matrix (Int, Int) String  -- generic matrix
       | Vector Int String         -- generic vector
-
+      deriving (Show)
   
-  -- for showing VarId
-  instance Show VarId where
-    show x = label x ++ "("++(show $ rows x)++", "++(show $ cols x)++")"
+  -- a row in the A matrix
+  type Row = [(Coeff, Var)]
 
-  -- a row in the A matrix, the string gives the name of the coefficient
-  type Row = [(VarId, Coeff)]
-
-  -- XXX: a Problem should have a sense....
-  -- SOCP problem data type
-  data Problem = Problem {
-    obj :: Maybe VarId,     -- objective is always just a single variable
+  data ConicSet = ConicSet {
     matrixA :: [Row],
-    vectorB :: [Coeff], 
+    vectorB :: [Coeff],
     conesK :: [SOC]
-    } | EmptyProblem
-    
+  } deriving (Show)
+
+  (<++>) :: ConicSet -> ConicSet -> ConicSet
+  x <++> y = ConicSet (matrixA x ++ matrixA y) (vectorB x ++ vectorB y) (conesK x ++ conesK y)
+
+  data SOCP = SOCP {
+    sense :: Sense,
+    obj :: Var, -- objective is always just a single variable
+    constraints :: ConicSet
+  } deriving (Show)
+
+
   -- differentiate between SOC and elementwise SOC
   -- SOC [x,y,z] means norm([y,x]) <= z
   -- SOCelem [x,y,z] means norms([x y]')' <= z
   -- note that SOC [x] and SOCelem [x] both mean x >= 0
-  -- XXX. they should mean the same, but code generation treats them differently :()
-  data SOC = SOC { variables :: [VarId] } 
-    | SOCelem { variables :: [VarId] }
+  data SOC = SOC { variables :: [Var] } 
+    | SOCelem { variables :: [Var] }
     deriving (Show)
-  
-  -- gets the label on the objective
-  objLabel :: Problem -> String
-  objLabel x = case (obj x) of
-    Nothing -> "0"
-    Just y -> label y
-  
-  -- gets the variable in the objective
-  objVar :: Problem -> VarId
-  objVar x = case (obj x) of
-    Nothing -> VarId "0" 1 1  -- not really right...
-    Just y -> y
+    

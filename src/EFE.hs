@@ -4,10 +4,10 @@ module Main where
   import System.IO
   import System.Environment
   import Parser.CVX
-  import Rewriter.ECOS
   
   -- need this for problem sense (should try to remove it somehow)
   import Expression.Expression  
+
   -- need this for code generators
   import CodeGenerator.CVX
   import CodeGenerator.CVXSOCP
@@ -50,13 +50,14 @@ module Main where
           CVXSOCP -> codegen
           Conelp -> codegenConelp
           ECOS -> codegenECOS
-    in case (runParser cvxProb symbolTable "" input) of
+    in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at "
                       ; print err
                       }
-        Right x  -> case (sense x) of
-          Minimize -> putStrLn (printFunc (rewrite x) 1)
-          Maximize -> putStrLn (printFunc (rewrite x) (-1))
+        Right x  -> putStrLn $ printFunc x
+        --case (sense x) of
+        --  Minimize -> putStrLn (printFunc (rewrite x) 1)
+        --  Maximize -> putStrLn (printFunc (rewrite x) (-1))
   
   main :: IO ()
   main = do

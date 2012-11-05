@@ -2,23 +2,23 @@ module CodeGenerator.CVX (cvxgen) where
   import CodeGenerator.Common
     
 {-- what follows is for displaying cvx code --}
-  cvxgen :: Problem -> Int -> String
-  cvxgen EmptyProblem _ = "0";
-  cvxgen x c = let problemSense = case(c >= 0) of
-                    True -> "minimize "
-                    False -> "maximize "
+  cvxgen :: SOCP -> String
+  cvxgen x = let problemSense
+                  | sense x == Minimize = "minimize "
+                  | sense x == Maximize = "maximize "
+                  | sense x == Find = "find "
     in unlines $ ["cvx_begin",
       "variables " ++ (unwords $ getVariables x),
-      problemSense ++ objLabel x] ++
+      problemSense ++ (vname.obj) x] ++
       getRowConstraints x ++
       getConeConstraints x ++
       [ "cvx_end",
         "ecos_optval = cvx_optval;"]
         
   -- gets the variables (and their sizes) from the problem
-  getVariables :: Problem -> [String]
+  getVariables :: SOCP -> [String]
   getVariables p = 
-    let extractInfo var = label var ++ "(" ++ (show $ rows var) ++ ")" 
+    let extractInfo var = vname var ++ "(" ++ (show $ vrows var) ++ ")" 
     in map extractInfo (getVariableInfo p)
     
   -- gets string representation of coeff
@@ -27,18 +27,18 @@ module CodeGenerator.CVX (cvxgen) where
     in s
   
   -- converts the row constraints in to a string for CVX
-  getRowConstraints :: Problem -> [String]
+  getRowConstraints :: SOCP -> [String]
   getRowConstraints p =
-    let coeffStrings = map getCoeffString (vectorB p)
-    in produceEqConstr coeffStrings (map convertRow (matrixA p))
+    let coeffStrings = map getCoeffString (affine_b p)
+    in produceEqConstr coeffStrings (map convertRow (affine_A p))
 
   -- adds coefficient for multiply on each row
   convertRow :: Row -> ([String],Bool)
-  convertRow row = let rowHeights = map (getCoeffRows.snd) (tail row)
-                       rowTotal = (getCoeffRows.snd) (head row)
+  convertRow row = let rowHeights = map (getCoeffRows.fst) (tail row)
+                       rowTotal = (getCoeffRows.fst) (head row)
                        isConcat = not $ all (==rowTotal) rowHeights
-    in (map (\(variable, multiplier) -> let (m,n,s) = getCoeffInfo multiplier
-      in s ++ "*" ++ (label variable)) row, isConcat)
+    in (map (\(multiplier, variable) -> let (m,n,s) = getCoeffInfo multiplier
+      in s ++ "*" ++ (vname variable)) row, isConcat)
 
   -- produces an equality constraint
   produceEqConstr :: [String]->[([String],Bool)]->[String]
@@ -60,14 +60,14 @@ module CodeGenerator.CVX (cvxgen) where
     = (head x) ++ " + " ++ "["++(intercalate "; " (tail x)) ++"]"
 
   -- gets the cone constraints
-  getConeConstraints :: Problem -> [String]
-  getConeConstraints p = map convertCone (conesK p)
+  getConeConstraints :: SOCP -> [String]
+  getConeConstraints p = map convertCone (cones p)
 
   -- converts cone constraints to CVX string
   convertCone :: SOC -> String
   convertCone (SOC vars) = case (length vars) of
-    1 -> (label $ head vars) ++ " >= 0"
-    otherwise -> "norm([" ++ (intercalate ", " (map label (tail vars))) ++ "]) <= " ++ (label $ head vars)
+    1 -> (vname $ head vars) ++ " >= 0"
+    otherwise -> "norm([" ++ (intercalate ", " (map vname (tail vars))) ++ "]) <= " ++ (vname $ head vars)
   convertCone (SOCelem vars) = case (length vars) of
-    1 -> (label $ head vars) ++ " >= 0"
-    otherwise -> "norms([" ++ (intercalate ", " (map label (tail vars))) ++ "], [], 2) <= " ++ (label $ head vars)
+    1 -> (vname $ head vars) ++ " >= 0"
+    otherwise -> "norms([" ++ (intercalate ", " (map vname (tail vars))) ++ "], [], 2) <= " ++ (vname $ head vars)
