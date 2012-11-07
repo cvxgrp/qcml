@@ -33,10 +33,12 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
       g ++
       "h_ = zeros("++ kshow ++ ", 1);",
       cones,
-      "[x_codegen, ind, c_, A_, b_, G_, h_, g_, F_] = ecos_presolve(c_,A_,b_,G_,h_);",
-      "[xtmp, y_, info_] = "++solver++"(full(c_), G_, h_, dims, A_, full(b_));",
+      "[x_codegen, ind, c1, A1, b1, G1, h1, g_, F_] = ecos_presolve(c_,A_,b_,G_,h_);",
+      "[xtmp, y_, info_] = "++solver++"(full(c1), G1, h1, dims, A1, full(b1));",
       "x_codegen(ind) = xtmp;",
-      "x_codegen = x_codegen + g_ - F_*xtmp;"
+      "x_codegen = x_codegen + g_ - F_*x_codegen;",
+      "ind = (x_codegen == 0); tmp = g_ - F_*x_codegen;",
+      "x_codegen(ind) = tmp(ind);"
     ] ++ socpToProb varTable
     ++ ["ecos_optval = "++csign++"*info_.pcost;"]
     -- dump data to a header file to call ecos c code...

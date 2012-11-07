@@ -47,7 +47,10 @@ function run_test(directory)
     clear x
     try
         eval(result);
-        nnz(A_)
+        
+        figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
+        figure(2); subplot(1,2,1); spy(G_); subplot(1,2,2); spy(G1)
+        pause
 %         [xtmp, ind, c_, A_, b_, G_, h_] = ecos_presolve(c_, A_, b_, G_, h_);
 %         [sol, info_2] = ecos(full(c_), G_, full(h_), dims, A_, full(b_));
 %      
