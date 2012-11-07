@@ -22,6 +22,7 @@ module Atoms.Atoms(
   ecos_eq,
   ecos_geq,
   ecos_leq,
+  ecos_pow_rat,
   isScalar,
   isVector,
   isMatrix,
@@ -32,8 +33,6 @@ module Atoms.Atoms(
   
   -- TODO: constant folding
   -- TODO: creating new variables is a bit of a pain, maybe make a factory?
-  -- TODO: inequalities
-  -- TODO: concatenation
   -- TODO: slicing
   import Expression.Expression
 
@@ -378,6 +377,19 @@ module Atoms.Atoms(
         [(Ones 1 "-0.5", var x), (Ones 1 "0.5", var y), (Ones 1 "-1", z1)]]
       vecB = [Ones 1 "0", Ones 1 "0"]
       kones = [SOC [z0, z1, newVar], SOC [var y]]
+
+
+  -- XXX/TODO: differenitate between quad_over_lin(x,y) = x^2/y and x^Tx / y
+  ecos_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
+  ecos_pow_rat x 4 1 s = ecos_square (ecos_square x s) (s++"s0")
+  ecos_pow_rat x 4 2 s = ecos_square x s
+  ecos_pow_rat x 2 1 s = ecos_square x s
+  ecos_pow_rat x 1 2 s = ecos_sqrt x s
+  ecos_pow_rat x 2 4 s = ecos_sqrt x s
+  ecos_pow_rat x 1 4 s = ecos_sqrt (ecos_sqrt x s) (s++"s0")
+  ecos_pow_rat x p q _ 
+    | p == q = x
+    | otherwise = None $ "pow_rat: not implemented for p = " ++ show p ++ " and q = " ++ show q
      
   --   -- pow_rat(x,p,q) <-- not implemented for the moment
   --   -- sum_largest(x,k) <-- also not implemented (uses LP dual)

@@ -2,4 +2,4 @@ variable x
 parameter a
 parameter b
 
-minimize (a*b)*x
+minimize pow_rat(x,3,4)

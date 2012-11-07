@@ -27,7 +27,8 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
      ("norm1", atom_norm1),
      ("norm", atom_norm),
      ("sqrt", atom_sqrt),
-     ("geo_mean", atom_geo_mean)]
+     ("geo_mean", atom_geo_mean),
+     ("pow_rat", atom_pow_rat)]
 
   symbolTable = CVXState M.empty M.empty 0
 
@@ -220,7 +221,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       (_,E.Find) -> return obj -- or 0?
       (E.Convex, E.Minimize) -> return obj
       (E.Concave, E.Maximize) -> return obj
-      _ -> fail $ show obj-- (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
+      _ -> fail $ (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
   } <?> "objective"
   
   sense :: CVXParser E.Sense
@@ -251,7 +252,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         let prob = E.socp obj
         in case (cones) of
           Just x -> return (E.SOCP probSense (E.obj prob) (foldr (E.<++>) (E.constraints prob) x))
-          _ -> return prob
+          _ -> return (E.SOCP probSense (E.obj prob) (E.constraints prob))
       else
         fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
     } <?> "problem"
@@ -498,5 +499,25 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     updateState incrCount; 
     return $ ecos_geo_mean (args!!0) (args!!1) (show $ varcount t)
   }
+
+  atom_pow_rat :: CVXParser E.Expr
+  atom_pow_rat = do {
+    reserved "pow_rat";
+    (arg, pqs) <- parens pow_rat_args;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_pow_rat arg (pqs!!0) (pqs!!1) (show $ varcount t)
+  }
+
+  -- XXX/TODO: could make arguments optional if needed
+  pow_rat_args :: CVXParser (E.Expr, [Integer])
+  pow_rat_args = do {
+    e <- expr;
+    comma;
+    p <- natural;
+    comma;
+    q <- natural;
+    return (e, [p,q])
+  } <?> "pow_rat arguments"
 
 
