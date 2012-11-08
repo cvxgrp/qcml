@@ -103,8 +103,8 @@ module Atoms.Atoms(
       newVar = Var ("t"++s) (m, n)
       z0 = Var (vname newVar ++ "z0") (m, n)
       z1 = Var (vname newVar ++ "z1") (m, n)
-      matA = [ [(Eye m "0.5", newVar), (Eye m "-1", z0)],
-               [(Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
+      matA = [ Row [(Eye m "0.5", newVar), (Eye m "-1", z0)],
+               Row [(Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
       vecB = [Ones m "-0.5", Ones m "-0.5"]
       kones = [SOCelem [z0, z1, var x]]
 
@@ -128,8 +128,8 @@ module Atoms.Atoms(
       newVar = Var ("t"++s) (m, n)
       z0 = Var (vname newVar ++ "z0") (m, n)
       z1 = Var (vname newVar ++ "z1") (m, n)
-      matA = [ [(Eye m "0.5", var y), (Eye m "0.5", newVar), (Eye m "-1", z0)],
-               [(Eye m "0.5", var y), (Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
+      matA = [ Row [(Eye m "0.5", var y), (Eye m "0.5", newVar), (Eye m "-1", z0)],
+               Row [(Eye m "0.5", var y), (Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
       vecB = [Ones m "0", Ones m "0"]
       kones
         | isScalar y = [SOC [z0,z1,var x], SOCelem [var y]]
@@ -147,9 +147,9 @@ module Atoms.Atoms(
       z0 = Var (vname newVar ++ "z0") (m, n)
       z1 = Var (vname newVar ++ "z1") (m, n)
       one = Var (vname newVar ++ "z2") (m, n) -- has to be vector for the SOC code to work (XXX/TODO: allow SOCelem with scalars)
-      matA = [ [(Eye m "0.5", var x), (Eye m "0.5", newVar), (Eye m "-1", z0)],
-               [(Eye m "0.5", var x), (Eye m "-0.5", newVar), (Eye m "-1", z1)],
-               [(Eye m "1", one)] ]
+      matA = [ Row [(Eye m "0.5", var x), (Eye m "0.5", newVar), (Eye m "-1", z0)],
+               Row [(Eye m "0.5", var x), (Eye m "-0.5", newVar), (Eye m "-1", z1)],
+               Row [(Eye m "1", one)] ]
       vecB = [Ones m "0", Ones m "0", Ones m "1"]
       kones = [SOCelem [z0, z1, one], SOCelem [var x]]
 
@@ -175,8 +175,8 @@ module Atoms.Atoms(
         | otherwise = (pm, cols x)
       newVar = Var ("t"++s) (m, n)
       matA
-        | pm == 1 && pn == 1 = [ [(Eye m pname, var x), (Eye m "-1", newVar)] ]
-        | otherwise = [ [(Matrix (pm, pn) pname, var x), (Eye m "-1", newVar)] ]
+        | pm == 1 && pn == 1 = [ Row [(Eye m pname, var x), (Eye m "-1", newVar)] ]
+        | otherwise = [ Row [(Matrix (pm, pn) pname, var x), (Eye m "-1", newVar)] ]
       vecB = [Ones m "0"]
   ecos_mult _ _ _ = None "mult: lhs ought to be parameter"
 
@@ -198,9 +198,9 @@ module Atoms.Atoms(
         | otherwise = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
       matA 
-        | isScalar x = [[(Ones m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)]]
-        | isScalar y = [[(Ones m "1", var y), (Eye m "1", var x), (Eye m "-1", newVar)]]
-        | otherwise = [ [(Eye m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)] ]
+        | isScalar x = [Row [(Ones m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)]]
+        | isScalar y = [Row [(Ones m "1", var y), (Eye m "1", var x), (Eye m "-1", newVar)]]
+        | otherwise = [Row [(Eye m "1", var x), (Eye m "1", var y), (Eye m "-1", newVar)] ]
       vecB = [Ones m "0"]
 
   -- minus x y = x - y
@@ -221,9 +221,9 @@ module Atoms.Atoms(
         | otherwise = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
       matA 
-        | isScalar x = [[(Ones m "1", var x), (Eye m "-1", var y), (Eye m "-1", newVar)]]
-        | isScalar y = [[(Ones m "-1", var y), (Eye m "1", var x), (Eye m "-1", newVar)]]
-        | otherwise = [ [(Eye m "1", var x), (Eye m "-1", var y), (Eye m "-1", newVar)] ]
+        | isScalar x = [Row [(Ones m "1", var x), (Eye m "-1", var y), (Eye m "-1", newVar)]]
+        | isScalar y = [Row [(Ones m "-1", var y), (Eye m "1", var x), (Eye m "-1", newVar)]]
+        | otherwise = [Row [(Eye m "1", var x), (Eye m "-1", var y), (Eye m "-1", newVar)] ]
       vecB = [Ones m "0"]
 
   -- neg x = -x
@@ -236,7 +236,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB []) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
-      matA = [ [(Eye m "-1", var x), (Eye m "-1", newVar)] ]
+      matA = [Row [(Eye m "-1", var x), (Eye m "-1", newVar)] ]
       vecB = [Ones m "0"]
 
   -- pos(x) = max(x,0)
@@ -249,7 +249,7 @@ module Atoms.Atoms(
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
       z0 = Var (vname newVar ++ "z0") (m, n)
-      matA = [ [(Eye m "-1", var x), (Eye m "1", newVar), (Eye m "-1", z0)] ]
+      matA = [Row [(Eye m "-1", var x), (Eye m "1", newVar), (Eye m "-1", z0)] ]
       vecB = [Ones m "0"]
       kones = [SOCelem [newVar], SOCelem [z0]]
 
@@ -263,7 +263,7 @@ module Atoms.Atoms(
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
       z0 = Var (vname newVar ++ "z0") (m, n)
-      matA = [ [(Eye m "1", var x), (Eye m "1", newVar), (Eye m "-1", z0)] ]
+      matA = [Row [(Eye m "1", var x), (Eye m "1", newVar), (Eye m "-1", z0)] ]
       vecB = [Ones m "0"]
       kones = [SOCelem [newVar], SOCelem [z0]]
   
@@ -277,7 +277,7 @@ module Atoms.Atoms(
       (m, n) = (rows x, cols x)
       newVar = Var ("t"++s) (1, 1)
       z0 = Var (vname newVar ++ "z0") (m, n)
-      matA = [[(Ones m "1", newVar), (Eye m "-1", var x), (Eye m "-1", z0)]]
+      matA = [Row [(Ones m "1", newVar), (Eye m "-1", var x), (Eye m "-1", z0)]]
       vecB = [Ones m "0"]
       kones = [SOCelem [z0]]
 
@@ -292,7 +292,7 @@ module Atoms.Atoms(
       (m, n) = (rows x, cols x)
       newVar = Var ("t"++s) (1, 1)
       z0 = Var (vname newVar ++ "z0") (m, n)
-      matA = [[(Ones m "-1", newVar), (Eye m "1", var x), (Eye m "-1", z0)]]
+      matA = [Row [(Ones m "-1", newVar), (Eye m "1", var x), (Eye m "-1", z0)]]
       vecB = [Ones m "0"]
       kones = [SOCelem [z0]]
  
@@ -305,7 +305,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB []) <++> (cones x)
       m = rows x
       newVar = Var ("t"++s) (1, 1)
-      matA = [[(Ones 1 "-1", newVar), (OnesT m "1", var x)]]
+      matA = [Row [(Ones 1 "-1", newVar), (OnesT m "1", var x)]]
       vecB = [Ones 1 "0"]
 
   -- abs(x) = |x|
@@ -355,8 +355,8 @@ module Atoms.Atoms(
       newVar = Var ("t"++s) (m,n)
       z0 = Var (vname newVar ++ "z0") (m,n)
       z1 = Var (vname newVar ++ "z1") (m,n)
-      matA = [[(Eye m "0.5", var x), (Eye m "-1", z0)],
-              [(Eye m "-0.5", var x), (Eye m "-1", z1)]]
+      matA = [Row [(Eye m "0.5", var x), (Eye m "-1", z0)],
+              Row [(Eye m "-0.5", var x), (Eye m "-1", z1)]]
       vecB = [Ones m "-0.5", Ones m "-0.5"]
       kones = [SOCelem [z0,z1,newVar]]
       
@@ -379,12 +379,12 @@ module Atoms.Atoms(
       z0 = Var (vname newVar ++ "z0") (m,n)
       z1 = Var (vname newVar ++ "z1") (m,n)
       matA
-        | isScalar x = [[(Ones m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
-                       [(Ones m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
-        | isScalar y = [[(Eye m "0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z0)],
-                       [(Eye m "-0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z1)]]
-        | otherwise = [[(Eye m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
-                       [(Eye m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
+        | isScalar x = [Row [(Ones m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
+                        Row [(Ones m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
+        | isScalar y = [Row [(Eye m "0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z0)],
+                        Row [(Eye m "-0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z1)]]
+        | otherwise = [Row [(Eye m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
+                       Row [(Eye m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
       vecB = [Ones m "0", Ones m "0"]
       kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
 
@@ -443,7 +443,7 @@ module Atoms.Atoms(
       m = foldr (+) 0 sizes -- cumulative sum of all rows
       newVar = Var ("t"++s) (m,1)
       coeffs = zip (map (flip Eye "1") sizes) (map var x)
-      matA = [(Eye m "-1", newVar):coeffs] -- the *first* of this list *must* be the variable to write *out*, the result of concatenation (otherwise the code will break)
+      matA = [Row ((Eye m "-1", newVar):coeffs) ] -- the *first* of this list *must* be the variable to write *out*, the result of concatenation (otherwise the code will break)
       vecB = [Ones m "0"]
 
   -- transpose a = a' (new parameter named " a' ")
@@ -474,7 +474,7 @@ module Atoms.Atoms(
           coeff2
             | m2 == 1 = Ones m "-1"
             | otherwise = Eye m "-1"
-          matA = [[(coeff1, var a), (Eye m "-1", slack), (coeff2, var b)]]
+          matA = [Row [(coeff1, var a), (Eye m "-1", slack), (coeff2, var b)]]
           vecB = [Ones m "0"]
           isConvexSet = (isConcave a) && (isConvex b)
 
@@ -496,7 +496,7 @@ module Atoms.Atoms(
           coeff2
             | m2 == 1 = Ones m "-1"
             | otherwise = Eye m "-1"
-          matA = [[(coeff1, var a), (Eye m "1", slack), (coeff2, var b)]]
+          matA = [Row [(coeff1, var a), (Eye m "1", slack), (coeff2, var b)]]
           vecB = [Ones m "0"]
           isConvexSet = (isConvex a) && (isConcave b)
 
@@ -517,7 +517,7 @@ module Atoms.Atoms(
           coeff2
             | m2 == 1 = Ones m "-1"
             | otherwise = Eye m "-1"
-          matA = [[(coeff1, var a), (coeff2, var b)]]
+          matA = [Row [(coeff1, var a), (coeff2, var b)]]
           vecB = [Ones m "0"]
           isConvexSet = (isAffine a) && (isAffine b)
 

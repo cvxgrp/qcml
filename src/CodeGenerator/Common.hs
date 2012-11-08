@@ -15,6 +15,8 @@ module CodeGenerator.Common (
   import Expression.SOCP
   import Data.List
 
+  -- XXX/TODO: code generator is long overdue for a rewrite
+
   -- helper functions
   cones = conesK.constraints
   affine_A = matrixA.constraints
@@ -35,8 +37,8 @@ module CodeGenerator.Common (
   getVariableInfo :: SOCP -> [Var]
   getVariableInfo p = 
     let objectiveVar = obj p
-        aVars = (map (snd) (concat (affine_A p)))
-        coneVars = (concat $ map variables (cones p))
+        aVars =  concat $ map variables (affine_A p)  -- gets the list of all variables in the affine constraints
+        coneVars = concat $ map variables (cones p) -- get the list of all variables in the cones
         allVariables = [objectiveVar] ++ coneVars ++ aVars
         uniqueVarNames = nubBy (\x y-> vname x == vname y) allVariables
     in (tail uniqueVarNames) ++ [head uniqueVarNames]
@@ -46,23 +48,28 @@ module CodeGenerator.Common (
   socpToProb table = map (\(s,(i,l)) -> s ++ " = x_codegen(" ++ show i ++ ":" ++ show (i+l-1) ++ ");") table
   
   -- get A
-  getAForCodegen :: SOCP -> VarTable -> String
-  getAForCodegen p table = 
-    let bsizes = map (fst.getCoeffSize) (affine_b p)
-        startIdx = take (length bsizes) (scanl (+) 1 bsizes)
+  getAForCodegen = getAForCodegenWithIndx 1
+  getAForCodegenC = getAForCodegenWithIndx 0
+
+  getAForCodegenWithIndx :: Int -> SOCP -> VarTable -> String
+  getAForCodegenWithIndx i p table = 
+    let bsizes = map getCoeffRows (affine_b p)  -- height of each row
+        startIdx = take (length bsizes) (scanl (+) i bsizes)  -- gives start index for each row
     in intercalate "\n" (map (createRow table) (zip (affine_A p) startIdx))
   
+  -- XXX/TODO: the fact that i don't understand this function means it really needs to be rewritten...
   createRow :: VarTable -> (Row,Int) -> String
   createRow table (row,ind) = 
-    let newNames = map (flip lookup table) (map (vname.snd) row)
-        -- with our setup, the only time rowHeights aren't equal to the last one is when we are concatenating
-        rowHeights = map (getCoeffRows.fst) (tail row)
-        rowTotal = (getCoeffRows.fst) (head row)
-        offsets = case(all (==rowTotal) rowHeights) of
-          True -> 0:0:(map (rowTotal-) rowHeights)
-          False -> 0:rowHeights
+    let indices = map (flip lookup table) (varnames row)
+        coefficients = coeffs row
+        -- with our setup, the only time rowHeights aren't equal to the first one is when we are concatenating
+        rowHeights = map getCoeffRows (tail coefficients)
+        rowTotal = getCoeffRows (head coefficients)
+        offsets
+          | all (==rowTotal) rowHeights = 0:(map (rowTotal-) rowHeights)
+          | otherwise = 0:rowHeights
         shifts = init $ scanl (+) 0 offsets
-    in intercalate " " (zipWith (assignToA ind) shifts (zip row newNames))
+    in intercalate " " (zipWith (assignToA ind) shifts (zip (elems row) indices))
     
   -- get coeff size and value
   getCoeffInfo :: Coeff -> (Int,Int,String)
@@ -88,10 +95,11 @@ module CodeGenerator.Common (
   getCoeffRows x = let (m,n,s) = getCoeffInfo x
     in m
   
+  -- XXX: this is such a bizarre function type signature...
   assignToA :: Int -> Int -> ((Coeff, Var), Maybe (Int,Int)) -> String
   assignToA _ _ (_, Nothing) = ""
   assignToA x offset (row, Just (y,l)) = 
-    let (m,n,val) = getCoeffInfo (fst row)-- n should equal l at this point!!
+    let (m,n,val) = getCoeffInfo (fst row) -- n should equal l at this point!!
         rowExtent = show (x+offset) ++ ":" ++ show (x+offset+m-1)
         colExtent = show y ++ ":" ++ show (y+n-1)
     in case(val) of
@@ -99,11 +107,14 @@ module CodeGenerator.Common (
       otherwise -> "A_(" ++ rowExtent ++ ", " ++ colExtent ++ ") = " ++ val ++ ";"
   
   -- get b
-  getBForCodegen :: SOCP -> String
-  getBForCodegen p = 
+  getBForCodegen = getBForCodegenWithIndx 1
+  getBForCodegenC = getBForCodegenWithIndx 0
+
+  getBForCodegenWithIndx :: Int -> SOCP -> String
+  getBForCodegenWithIndx i p = 
     let b = affine_b p
-        sizes = map (fst.getCoeffSize) b
-        startIdx = take (length b) (scanl (+) 1 sizes) -- start index changes for C code
+        sizes = map getCoeffRows b
+        startIdx = init $ scanl (+) i sizes -- start index changes for C code
     in concat $ map assignToB (zip b startIdx)
   
   assignToB :: (Coeff,Int) -> String

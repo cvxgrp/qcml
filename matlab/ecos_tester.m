@@ -2,12 +2,12 @@ function ecos_tester()
     addpath(pwd)
     randn('state', 0);
     rand('state', 0);
-    cvx_precision default
+    cvx_precision best
     cvx_quiet false
     cvx_solver sedumi
 
     try 
-%         run_test('least_squares'); fprintf('\n');
+        run_test('least_squares'); fprintf('\n');
 %         run_test('geometric_mean'); fprintf('\n');
 %         run_test('lp'); fprintf('\n');
 %         run_test('quadratic_over_linear'); fprintf('\n');
@@ -16,7 +16,7 @@ function ecos_tester()
 %         run_test('robust_ls'); fprintf('\n');
 %         run_test('ecos_mpc'); fprintf('\n');
 %         run_test('lasso'); fprintf('\n');
-        run_test('portfolio'); fprintf('\n');
+%         run_test('portfolio'); fprintf('\n');
 %         run_test('svm'); fprintf('\n');
 %         run_test('chebyshev'); fprintf('\n');
 
@@ -41,16 +41,16 @@ function run_test(directory)
     
 
     tic;
-    [status, result] = system(['../../src/efe --ecos ' directory '.prob']);
+    [status, result] = system(['../../src/efe --cvx ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
     try
         eval(result);
         
-        figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
-        figure(2); subplot(1,2,1); spy(G_); subplot(1,2,2); spy(G1)
-        pause
+%         figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
+%         figure(2); subplot(1,2,1); spy(G_); subplot(1,2,2); spy(G1)
+%        pause
 %         [xtmp, ind, c_, A_, b_, G_, h_] = ecos_presolve(c_, A_, b_, G_, h_);
 %         [sol, info_2] = ecos(full(c_), G_, full(h_), dims, A_, full(b_));
 %      

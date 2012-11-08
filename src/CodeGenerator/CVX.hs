@@ -34,11 +34,12 @@ module CodeGenerator.CVX (cvxgen) where
 
   -- adds coefficient for multiply on each row
   convertRow :: Row -> ([String],Bool)
-  convertRow row = let rowHeights = map (getCoeffRows.fst) (tail row)
-                       rowTotal = (getCoeffRows.fst) (head row)
+  convertRow row = let coefficients = coeffs row
+                       rowHeights = map getCoeffRows (tail coefficients)
+                       rowTotal = getCoeffRows (head coefficients)
                        isConcat = not $ all (==rowTotal) rowHeights
     in (map (\(multiplier, variable) -> let (m,n,s) = getCoeffInfo multiplier
-      in s ++ "*" ++ (vname variable)) row, isConcat)
+      in s ++ "*" ++ (vname variable)) (elems row), isConcat)
 
   -- produces an equality constraint
   produceEqConstr :: [String]->[([String],Bool)]->[String]

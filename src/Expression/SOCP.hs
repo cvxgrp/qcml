@@ -1,7 +1,14 @@
 module Expression.SOCP (
   Sense(..), Var(..), vrows, vcols,
-  Row, Coeff(..), (<++>),
-  ConicSet(..), SOC(..), SOCP(..)) where
+  Row(..), Coeff(..), (<++>),
+  ConicSet(..), SOC(..), SOCP(..), VarList(..), coeffs) where
+
+  -- TODO: need some information about the parameters... (can be obtained by modifying Coeff data type!)
+  data SOCP = SOCP {
+    sense :: Sense,
+    obj :: Var, -- objective is always just a single variable
+    constraints :: ConicSet
+  } deriving (Show)
 
   -- problem sense
   data Sense = Maximize | Minimize | Find deriving (Eq, Show)
@@ -28,8 +35,6 @@ module Expression.SOCP (
       | Vector Int String         -- generic vector
       deriving (Show)
   
-  -- a row in the A matrix
-  type Row = [(Coeff, Var)]
 
   data ConicSet = ConicSet {
     matrixA :: [Row],
@@ -40,18 +45,32 @@ module Expression.SOCP (
   (<++>) :: ConicSet -> ConicSet -> ConicSet
   x <++> y = ConicSet (matrixA x ++ matrixA y) (vectorB x ++ vectorB y) (conesK x ++ conesK y)
 
-  data SOCP = SOCP {
-    sense :: Sense,
-    obj :: Var, -- objective is always just a single variable
-    constraints :: ConicSet
-  } deriving (Show)
-
 
   -- differentiate between SOC and elementwise SOC
   -- SOC [x,y,z] means norm([y,x]) <= z
   -- SOCelem [x,y,z] means norms([x y]')' <= z
   -- note that SOC [x] and SOCelem [x] both mean x >= 0
-  data SOC = SOC { variables :: [Var] } 
-    | SOCelem { variables :: [Var] }
+  data SOC = SOC { vars :: [Var] } 
+    | SOCelem { vars :: [Var] }
     deriving (Show)
-    
+
+  -- TODO: we can make a "concat" row type?
+  -- TODO: we can include the row height in here
+  data Row = Row { elems :: [(Coeff,Var)] } deriving (Show)
+
+
+  -- type class for accessing variables
+  class VarList a where
+    variables :: a -> [Var]
+    varnames :: a -> [String]
+
+  instance VarList SOC where
+    variables = vars
+    varnames x = map vname (vars x)
+
+  instance VarList Row where
+    variables (Row x) = map snd x
+    varnames (Row x) = map (vname.snd) x
+
+  coeffs :: Row -> [Coeff]
+  coeffs (Row x) = map fst x
