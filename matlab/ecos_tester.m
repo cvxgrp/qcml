@@ -7,18 +7,18 @@ function ecos_tester()
     cvx_solver sedumi
 
     try 
-        run_test('least_squares'); fprintf('\n');
-        run_test('geometric_mean'); fprintf('\n');
-        run_test('lp'); fprintf('\n');
-        run_test('quadratic_over_linear'); fprintf('\n');
-        run_test('inv_prob'); fprintf('\n');
-        run_test('min_max'); fprintf('\n');
-        run_test('robust_ls'); fprintf('\n');
-        run_test('ecos_mpc'); fprintf('\n');
-        run_test('lasso'); fprintf('\n');
+%         run_test('least_squares'); fprintf('\n');
+%         run_test('geometric_mean'); fprintf('\n');
+%         run_test('lp'); fprintf('\n');
+%         run_test('quadratic_over_linear'); fprintf('\n');
+%         run_test('inv_prob'); fprintf('\n');
+%         run_test('min_max'); fprintf('\n');
+%         run_test('robust_ls'); fprintf('\n');
+%         run_test('ecos_mpc'); fprintf('\n');
+%         run_test('lasso'); fprintf('\n');
         run_test('portfolio'); fprintf('\n');
-        run_test('svm'); fprintf('\n');
-        run_test('chebyshev'); fprintf('\n');
+%         run_test('svm'); fprintf('\n');
+%         run_test('chebyshev'); fprintf('\n');
 
 
     catch e
@@ -98,3 +98,57 @@ function run_test(directory)
     cd ..
 end
 
+%
+% A defined as --
+% rowidx = 
+% vals = 
+% col_startidx = [0,4,6,7,9,10]
+%
+% G(14:..., 10:...) = A
+% G_rowidx
+% G_vals
+% G_col_startidx =
+%
+
+% i can store each column independently?
+%
+% in C code, the matrix A is "static" (just malloc the memory needed for it,
+% since you'll know nnz at runtime)--static in the sense that the memory
+% allocation only occurs once.
+%
+% elements should be copied based on "nnz" per "col" of inserted elements
+%
+
+% this means params needs to store in CCS and also have m,n vals for
+% matrices...
+
+% going to look something like this... (assuming A is an n x 2 matrix)
+% G_vals = [...., params.A.col(0), other stuff, params.A.col(1), .... ]
+% so G_vals and G_rowidx = #constants + nnz(A) (which is at the end of the
+% matrix)
+%
+% can emit static stuff, like G_vals[0] = 1, G_vals[1] = 3, etc.
+%
+% when having to *copy* over a matrix
+%
+
+% memcpy code...
+% for(i = (start idx of col 0):(start idx of col 1) - 1)
+%   G_rowidx[k] = A_rowidx[i] + row offset
+%   G_vals[k] = A_vals[i]
+%   k++
+% basically, this is
+%
+% XXX/TODO: THIS IS THE PIECE OF CODE TO USE (and, yes, all caps is warranted here!) 
+% =========================================================================
+% memcpy(from &A_rowidx[i], to &G_rowidx[k], length=(start idx of col 1) - (start idx of col 0))
+% increment k by length
+% =========================================================================
+
+%
+% depending on the compiler (and the machine architecture), memcpy could be
+% faster than for loops, and for loops could be faster than memcpy.
+%
+% for simplicity, we'll stick with memcpy's (since, on average, it's
+% fastest, without needing to play with compiler flags).
+%

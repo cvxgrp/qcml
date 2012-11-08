@@ -1,4 +1,4 @@
-variable x
-parameter b positive
+parameter a(3)
+parameter b(3)
 
-minimize x-geo_mean(x,b)
+maximize sum(pow_rat(a,1,3))

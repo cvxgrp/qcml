@@ -31,9 +31,11 @@ module Atoms.Atoms(
   isAffine
 ) where
   
+  -- TODO: would like coeffs to automatically "scale" based on their input and output sizes?
+  --        e.g., "Id m 1" coeff would return ones(m,1), "Id m m" would return eye(m), "Id m n" would return... ?
   -- TODO: constant folding
-  -- TODO: creating new variables is a bit of a pain, maybe make a factory?
-  -- TODO: slicing
+  -- TODO: creating new variables is a bit of a pain, maybe make a factory? put atoms in a monad?
+  -- TODO: slicing (important for handling quad_over_lin)
   import Expression.Expression
 
   -- helper functions for guards
@@ -106,28 +108,32 @@ module Atoms.Atoms(
       vecB = [Ones m "-0.5", Ones m "-0.5"]
       kones = [SOCelem [z0, z1, var x]]
 
-  -- quad_over_lin x y = x^Tx / y
+  -- quad_over_lin x y = x^Tx / y, if y is vector, it's x.^2 ./ y
   ecos_quad_over_lin :: Expr -> Expr -> String -> Expr
   ecos_quad_over_lin (None s) _ _ = None s
   ecos_quad_over_lin _ (None s) _ = None s
   ecos_quad_over_lin x y s
-    | isVector x && isScalar y = expression newVar curvature Positive prog
-    | otherwise = none $ "quad_over_lin: " ++ (name y) ++ " is not scalar"
+    | isVector x && isVector y && compatible = expression newVar curvature Positive prog
+    | otherwise = none $ "quad_over_lin: " ++ (name y) ++ " is not scalar or compatible with " ++ (name x)
     where
       curvature = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Convex monotonicity (vexity x)
+      compatible = (rows x == rows y) || (rows y == 1)
       monotonicity = case (sign x) of
         Positive -> Increasing
         Negative -> Decreasing
         otherwise -> Nonmonotone
       prog = (ConicSet matA vecB kones) <++> (cones x) <++> (cones y)
-      newVar = Var ("t"++s) (1, 1)
-      z0 = Var (vname newVar ++ "z0") (1, 1)
-      z1 = Var (vname newVar ++ "z1") (1, 1)
-      matA = [ [(Ones 1 "0.5", var y), (Ones 1 "0.5", newVar), (Ones 1 "-1", z0)],
-               [(Ones 1 "0.5", var y), (Ones 1 "-0.5", newVar), (Ones 1 "-1", z1)] ]
-      vecB = [Ones 1 "0", Ones 1 "0"]
-      kones = [SOC [z0,z1,var x], SOCelem [var y]]
+      (m,n) = (rows y, cols y)
+      newVar = Var ("t"++s) (m, n)
+      z0 = Var (vname newVar ++ "z0") (m, n)
+      z1 = Var (vname newVar ++ "z1") (m, n)
+      matA = [ [(Eye m "0.5", var y), (Eye m "0.5", newVar), (Eye m "-1", z0)],
+               [(Eye m "0.5", var y), (Eye m "-0.5", newVar), (Eye m "-1", z1)] ]
+      vecB = [Ones m "0", Ones m "0"]
+      kones
+        | isScalar y = [SOC [z0,z1,var x], SOCelem [var y]]
+        | otherwise = [SOCelem [z0,z1, var x], SOCelem [var y]]
 
   -- inv_pos(x) = 1/x for x >= 0
   ecos_inv_pos :: Expr -> String -> Expr
@@ -180,14 +186,12 @@ module Atoms.Atoms(
   ecos_plus _ (None s) _ = None s
   ecos_plus x y s
     | isVector x && isVector y && compatible = expression newVar curvature sgn prog
-    | isScalar x && isVector y = expression newVar curvature sgn prog
-    | isVector x && isScalar y = expression newVar curvature sgn prog
     | otherwise = none $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match"
     where
       curvature = applyDCP c1 Increasing (vexity y)
       c1 = applyDCP Affine Increasing (vexity x)
       sgn = (sign x) <+> (sign y)
-      compatible = cols x == cols y  
+      compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
       prog = (ConicSet matA vecB []) <++> (cones x) <++> (cones y)
       (m,n) 
         | isScalar x = (rows y, cols y)
@@ -205,14 +209,12 @@ module Atoms.Atoms(
   ecos_minus _ (None s) _ = None s
   ecos_minus x y s
     | isVector x && isVector y && compatible = expression newVar curvature sgn prog
-    | isScalar x && isVector y = expression newVar curvature sgn prog
-    | isVector x && isScalar y = expression newVar curvature sgn prog
     | otherwise = none $ "minus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match"
     where
       curvature = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Affine Increasing (vexity x)
       sgn = (sign x) <+> neg (sign y)
-      compatible = cols x == cols y  
+      compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
       prog = (ConicSet matA vecB []) <++> (cones x) <++> (cones y)
       (m,n) 
         | isScalar x = (rows y, cols y)
@@ -337,10 +339,10 @@ module Atoms.Atoms(
       kones = [SOC [newVar, var x]]
 
   -- norm_inf(x) = ||x||_\infty
-  ecos_norm_inf x s = ecos_max (ecos_abs x (s++"z0")) s
+  ecos_norm_inf x s = ecos_max (ecos_abs x (s++"s0")) s
 
   -- norm1(x) = ||x||_1
-  ecos_norm1 x s = ecos_sum (ecos_abs x (s++"z0")) s
+  ecos_norm1 x s = ecos_sum (ecos_abs x (s++"s0")) s
 
   -- sqrt(x) = geo_mean(x,1)
   ecos_sqrt :: Expr -> String -> Expr
@@ -363,35 +365,62 @@ module Atoms.Atoms(
   ecos_geo_mean (None s) _ _ = None s
   ecos_geo_mean _ (None s) _ = None s
   ecos_geo_mean x y s
-    | isScalar x && isScalar y = expression newVar curvature Positive prog
-    | otherwise = none $ "geo_mean: " ++ (name x) ++ " and " ++ (name y) ++ " are not scalar"
+    | isVector x && isVector y && compatible = expression newVar curvature Positive prog
+    | otherwise = none $ "geo_mean: " ++ (name x) ++ " and " ++ (name y) ++ " are not of compatible dimensions"
     where
       curvature = applyDCP c1 Increasing (vexity y)
       c1 = applyDCP Concave Increasing (vexity x)
+      compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
       prog = (ConicSet matA vecB kones) <++> (cones x) <++> (cones y)
-      newVar = Var ("t"++s) (1,1)
-      z0 = Var (vname newVar ++ "z0") (1,1)
-      z1 = Var (vname newVar ++ "z1") (1,1)
-      matA  =
-        [[(Ones 1 "0.5", var x), (Ones 1 "0.5", var y), (Ones 1 "-1", z0)],
-        [(Ones 1 "-0.5", var x), (Ones 1 "0.5", var y), (Ones 1 "-1", z1)]]
-      vecB = [Ones 1 "0", Ones 1 "0"]
-      kones = [SOC [z0, z1, newVar], SOC [var y]]
+      (m,n) 
+        | isScalar x = (rows y, cols y)
+        | otherwise = (rows x, cols x)
+      newVar = Var ("t"++s) (m,n)
+      z0 = Var (vname newVar ++ "z0") (m,n)
+      z1 = Var (vname newVar ++ "z1") (m,n)
+      matA
+        | isScalar x = [[(Ones m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
+                       [(Ones m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
+        | isScalar y = [[(Eye m "0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z0)],
+                       [(Eye m "-0.5", var x), (Ones m "0.5", var y), (Eye m "-1", z1)]]
+        | otherwise = [[(Eye m "0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z0)],
+                       [(Eye m "-0.5", var x), (Eye m "0.5", var y), (Eye m "-1", z1)]]
+      vecB = [Ones m "0", Ones m "0"]
+      kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
 
-
-  -- XXX/TODO: differenitate between quad_over_lin(x,y) = x^2/y and x^Tx / y
+  -- pow_rat (x, p,q) = x^(p/q) for q <= p <= 4
   ecos_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
-  ecos_pow_rat x 4 1 s = ecos_square (ecos_square x s) (s++"s0")
+  ecos_pow_rat x 4 3 s = result -- also tacks on constraint that x >= 0
+    where curvature = applyDCP Convex Increasing (vexity x)
+          newVar = Var ("t"++s) (rows x, cols x)
+          result = case (ecos_geq (ecos_pow_rat (Variable newVar) 3 4 (s++"s0")) x (s++"s1")) of
+            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
+            Nothing -> none $ "unknown x^(4/3) error?"
   ecos_pow_rat x 4 2 s = ecos_square x s
+  ecos_pow_rat x 4 1 s = ecos_square (ecos_square x s) (s++"s0")
+  ecos_pow_rat x 3 2 s = ecos_quad_over_lin x (ecos_sqrt x s) (s++"s0")
+  ecos_pow_rat x 3 1 s = ecos_quad_over_lin (ecos_square x s) x (s++"s0")
   ecos_pow_rat x 2 1 s = ecos_square x s
   ecos_pow_rat x 1 2 s = ecos_sqrt x s
-  ecos_pow_rat x 2 4 s = ecos_sqrt x s
+  ecos_pow_rat x 1 3 s = result
+    where curvature = applyDCP Concave Increasing (vexity x)
+          newVar = Var ("t"++s) (rows x, cols x)
+          result = case (ecos_leq (ecos_pow_rat (Variable newVar) 3 1 (s++"s0")) x (s++"s1")) of
+            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
+            Nothing -> none $ "unknown x^(1/3) error?"
+  ecos_pow_rat x 2 3 s = result
+    where curvature = applyDCP Concave Increasing (vexity x)
+          newVar = Var ("t"++s) (rows x, cols x)
+          result = case (ecos_leq (ecos_pow_rat (Variable newVar) 3 2 (s++"s0")) x (s++"s1")) of
+            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
+            Nothing -> none $ "unknown x^(2/3) error?"
   ecos_pow_rat x 1 4 s = ecos_sqrt (ecos_sqrt x s) (s++"s0")
+  ecos_pow_rat x 2 4 s = ecos_sqrt x s
+  ecos_pow_rat x 3 4 s = ecos_geo_mean x (ecos_sqrt x s) (s++"s0")
   ecos_pow_rat x p q _ 
     | p == q = x
     | otherwise = None $ "pow_rat: not implemented for p = " ++ show p ++ " and q = " ++ show q
-     
-  --   -- pow_rat(x,p,q) <-- not implemented for the moment
+
   --   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
   --   
 
@@ -414,7 +443,7 @@ module Atoms.Atoms(
       m = foldr (+) 0 sizes -- cumulative sum of all rows
       newVar = Var ("t"++s) (m,1)
       coeffs = zip (map (flip Eye "1") sizes) (map var x)
-      matA = [(Eye m "-1", newVar):coeffs] -- the *first* of this list *must* be the variable to write *out* (otherwise the code will break)
+      matA = [(Eye m "-1", newVar):coeffs] -- the *first* of this list *must* be the variable to write *out*, the result of concatenation (otherwise the code will break)
       vecB = [Ones m "0"]
 
   -- transpose a = a' (new parameter named " a' ")
