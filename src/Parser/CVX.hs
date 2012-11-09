@@ -175,11 +175,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   constant :: CVXParser E.Expr
   constant = do {
     s <- naturalOrFloat;
-    if(either (>=0) (>=0.0) s)
-    then
-      return (E.parameter (either show show s) E.Positive (1,1))
-    else
-      return (E.parameter (either show show s) E.Negative (1,1))
+    return $ E.Constant (either fromIntegral id s)
   } <?> "constant"
              
   boolOp :: CVXParser String

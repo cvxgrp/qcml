@@ -17,13 +17,13 @@ module CodeGenerator.CGenerator(c_header) where
 		 "",
 		 "#ifndef __SOLVER_H__ // solver.h",
 		 "#define __SOLVER_H__",
+		 "",
 		 "#include <string.h> // for memcpy",
 		 "#include \"ecos.h\"",
 		 ""]
-		 ++ mat_code	-- only if there are matrix params!
+		 ++ mat_code -- only if there are matrix params!
 		 ++ vec_code -- only if there are vector params!
-		 ++ [show (prob_params prob),
-		 "pwork* solver_init(Params_t p);",
+		 ++ ["pwork* solver_init(" ++ (intercalate ", " arglist) ++ ");",
 		 "",
 		 "#endif    // solver.h"]
 		where 
@@ -35,6 +35,7 @@ module CodeGenerator.CGenerator(c_header) where
 			vec_code
 				| any (\(m,n,_) -> (m > 1) && (n==1)) params = [vector_param_struct]
 				| otherwise = []
+			arglist = filter (/="") (map toArgs params)
 
 	c_codegen :: SOCP -> String
 	c_codegen x = unlines $
@@ -52,7 +53,7 @@ module CodeGenerator.CGenerator(c_header) where
 	-- it's not terrible, but there's a question of whether transposed params should have their own
 	-- data type
 	prob_params :: SOCP -> [(Int,Int,String)]
-	prob_params prob = (dropWhile (==(0,0,"")) coefficients)
+	prob_params prob = (filter (/=(0,0,"")) coefficients)
 		where
 			coefficients = map coeff_param aParams ++ map coeff_param bParams
 			aParams = concat $ map coeffs (affine_A prob)
@@ -66,6 +67,13 @@ module CodeGenerator.CGenerator(c_header) where
 
 	param_name :: Coeff -> String
 	param_name = (\(_,_,s) -> s).coeff_param
+
+	-- these are pass by value (which may, or may not be a good idea)
+	toArgs :: (Int, Int, String) -> String
+	toArgs (_,_,"") = ""
+	toArgs (1,1,s) = "double " ++ s
+	toArgs (_,1,s) = "Vec_t " ++ s
+	toArgs (_,_,s) = "Mat_t " ++ s
 
 	matrix_param_struct :: String
 	matrix_param_struct = unlines
