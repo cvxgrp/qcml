@@ -36,10 +36,10 @@ module CodeGenerator.Common (
   type VarTable = [(String, (Int,Int))]
   
   getVariableNames :: SOCP -> [String]
-  getVariableNames p = map vname (getVariableInfo p)
+  getVariableNames p = map name (getVariableInfo p)
   
   getVariableSizes :: SOCP -> [Int]
-  getVariableSizes p = map vrows (getVariableInfo p)
+  getVariableSizes p = map rows (getVariableInfo p)
   
   -- gets the list of unique variable names for CVX
   -- starts with cone vars
@@ -50,7 +50,7 @@ module CodeGenerator.Common (
         aVars =  concat $ map variables (affine_A p)  -- gets the list of all variables in the affine constraints
         coneVars = concat $ map variables (cones_K p) -- get the list of all variables in the cones_K
         allVariables = [objectiveVar] ++ coneVars ++ aVars
-        uniqueVarNames = nubBy (\x y-> vname x == vname y) allVariables
+        uniqueVarNames = nubBy (\x y-> name x == name y) allVariables
     in (tail uniqueVarNames) ++ [head uniqueVarNames]
     
   -- write out results
@@ -67,7 +67,6 @@ module CodeGenerator.Common (
         startIdx = take (length bsizes) (scanl (+) i bsizes)  -- gives start index for each row
     in intercalate "\n" (map (createRow table) (zip (affine_A p) startIdx))
   
-  -- XXX/TODO: the fact that i don't understand this function means it really needs to be rewritten...
   createRow :: VarTable -> (Row,Int) -> String
   createRow table (row,ind) = 
     let indices = map (flip lookup table) (varnames row)
@@ -83,10 +82,14 @@ module CodeGenerator.Common (
     
   -- get coeff size and value
   getCoeffInfo :: Coeff -> (Int,Int,String)
-  getCoeffInfo (Matrix (m,n) s) = (m,n,s)
-  getCoeffInfo (Vector n s) = (n,1,s)
-  getCoeffInfo (Diag 1 s) = (1,1,s)
-  getCoeffInfo (Diag n s) = (n,n,"spdiags("++ s ++ ",0,"++show n++","++show n++")")
+  getCoeffInfo (Matrix p) = (rows p, cols p, s)
+    where s | transposed p = (name p) ++ "'"
+            | otherwise = name p
+  getCoeffInfo (Vector n p)
+    | transposed p = (1,n,(name p)++"'")
+    | otherwise = (n,1,name p)
+  getCoeffInfo (Diag 1 p) = (1,1, name p)
+  getCoeffInfo (Diag n p) = (n,n,"spdiags("++ name p ++ ",0,"++show n++","++show n++")")
   getCoeffInfo (OnesT n 0) = (1,n, "0")
   getCoeffInfo (OnesT 1 x) = (1,1, show x)
   getCoeffInfo (OnesT n x) = (1,n, (show x)++"*ones(1, "++show n ++")")

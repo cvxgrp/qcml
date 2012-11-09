@@ -1,9 +1,9 @@
 module Expression.Expression (
   Curvature(..), 
   Monotonicity(..), 
-  Sign(..), 
+  Sign(..),
   Expr(..), 
-  Symbol(..),
+  DCP(..),
   Rewriteable(..),
   applyDCP,
   expression,
@@ -14,7 +14,7 @@ module Expression.Expression (
 ) where
 
   import Expression.SOCP
-
+  import Data.Tuple(swap)
 
   -- data types
   data Curvature
@@ -39,58 +39,58 @@ module Expression.Expression (
   data Expr
     = Expr Var Curvature Sign ConicSet
     | Variable Var
-    | Parameter String Sign (Int, Int)
+    | Parameter Param Sign
     | Constant Double
     | None String
 
   instance Show Expr where
-    show (Expr v c s _) = vname v ++ " = " ++ show s ++ " " ++ show c ++ " Expr"
-    show (Variable v) = "Variable " ++ vname v ++ (show $ vshape v)
-    show (Parameter s sgn size) = (show sgn) ++ " Parameter " ++ s ++ (show size)
+    show (Expr v c s _) = name v ++ " = " ++ show s ++ " " ++ show c ++ " Expr"
+    show (Variable v) = "Variable " ++ name v ++ (show $ shape v)
+    show (Parameter s sgn) = (show sgn) ++ (show s)
     show (Constant x) = "Constant " ++ (show x)
     show (None s) = s
   
-  -- type classes to enable vexity inference
-  class Symbol a where
-    name :: a -> String
-    vexity :: a -> Curvature
-    sign :: a -> Sign
-    rows :: a -> Int
-    cols :: a -> Int
-
   instance Symbol Expr where
     name (None s) = s
-    name (Expr v _ _ _) = vname v
-    name (Variable v) = vname v
-    name (Parameter s _ _) = s
+    name (Expr v _ _ _) = name v
+    name (Variable v) = name v
+    name (Parameter s _) = name s
     name (Constant x) = display x
+
+    rows (None _) = 0
+    rows (Expr v _ _ _) = rows v
+    rows (Variable v) = rows v
+    rows (Parameter p _) = rows p
+    rows (Constant _) = 1
     
+    cols (None _) = 0
+    cols (Expr v _ _ _) = cols v
+    cols (Variable v) = cols v
+    cols (Parameter p _) = cols p
+    cols (Constant _) = 1
+
+    shape x = (rows x, cols x)
+
+  -- type classes to enable vexity inference
+  class DCP a where
+    vexity :: a -> Curvature
+    sign :: a -> Sign
+
+  instance DCP Expr where
     vexity (None _) = Nonconvex
     vexity (Variable _) = Affine
     vexity (Expr _ c _ _) = c
-    vexity (Parameter _ _ _) = Affine
+    vexity (Parameter _ _) = Affine
     vexity (Constant _) = Affine
   
     sign (None _) = Unknown
     sign (Variable _) = Unknown
     sign (Expr _ _ s _) = s
-    sign (Parameter _ s _) = s
+    sign (Parameter _ s) = s
     sign (Constant x)
       | x >= 0 = Positive
       | x < 0 = Negative
       | otherwise = Unknown
-    
-    rows (None _) = 0
-    rows (Expr v _ _ _) = vrows v
-    rows (Variable v) = vrows v
-    rows (Parameter _ _ (m,_)) = m
-    rows (Constant _) = 1
-    
-    cols (None _) = 0
-    cols (Expr v _ _ _) = vcols v
-    cols (Variable v) = vcols v
-    cols (Parameter _ _ (_,n)) = n
-    cols (Constant _) = 1
 
   -- type class to enable code generation
   class Rewriteable a where
@@ -104,32 +104,21 @@ module Expression.Expression (
       | c == Concave = SOCP Maximize v p
       | otherwise = SOCP Find v p
     socp (Variable v) = SOCP Find v (ConicSet [] [] [])
-    -- parameter cast occurs here
-    socp (Parameter v _ (m,n)) = SOCP Find newVar (ConicSet matA vecB [])
-      where newVar = Var ("p"++v) (m,n)
-            matA = [ Row [(Eye m 1, newVar)] ]
-            vecB = [Vector m v]
-    socp (Constant x) = SOCP Find newVar (ConicSet matA vecB [])
-      where newVar = Var ("c"++(display x)) (1,1)
-            matA = [ Row [(Ones 1 1, newVar)] ]
-            vecB = [Ones 1 x]
+    -- parameter and constant casting occurs here
+    socp (Parameter p _) = parameterSOCP p
+    socp (Constant x) = constantSOCP x
     socp (None _) = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
 
     var (Expr v _ _ _) = v
     var (Variable v) = v
-    -- creates new var for parameter
-    var (Parameter v _ sz) = Var ("p"++v) sz
-    var (Constant x) = Var ("c"++(display x)) (1,1)
+    var (Constant x) = obj (constantSOCP x)
     var (None _) = Var "0" (1,1)
+    var (Parameter p _) = obj (parameterSOCP p)
 
     cones (Expr _ _ _ k) = k
     cones (Variable _) = ConicSet [] [] []
-    cones (Parameter v _ (m,n))= ConicSet matA vecB []
-      where matA = [ Row [(Eye m 1, Var ("p"++v) (m,n))] ]
-            vecB = [Vector m v]
-    cones (Constant x) = ConicSet matA vecB []
-      where matA = [ Row [(Ones 1 1, Var ("c"++(display x)) (1,1))] ]
-            vecB = [Ones 1 x]
+    cones (Parameter p _) = constraints (parameterSOCP p)
+    cones (Constant x) = constraints (constantSOCP x)
     cones (None _) = ConicSet [] [] []
 
   -- DCP rules
@@ -166,3 +155,17 @@ module Expression.Expression (
   display = (map (\x -> if (x=='.') then 'd' else x)).show
   
   parameter = Parameter
+
+  -- helper function to construct SOCP for parameters and constants
+  parameterSOCP :: Param -> SOCP
+  parameterSOCP x = SOCP Find newVar (ConicSet matA vecB [])
+    where (m,n) = (rows x, cols x)
+          newVar = Var ("p"++name x) (m,n)
+          matA = [ Row [(Eye m 1, newVar)] ]
+          vecB = [Vector m x]
+
+  constantSOCP :: Double -> SOCP
+  constantSOCP x = SOCP Find newVar (ConicSet matA vecB [])
+    where newVar = Var ("c"++(display x)) (1,1)
+          matA = [ Row [(Ones 1 1, newVar)] ]
+          vecB = [Ones 1 x]

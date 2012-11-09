@@ -37,6 +37,7 @@ module Atoms.Atoms(
   -- TODO: creating new variables is a bit of a pain, maybe make a factory? put atoms in a monad?
   -- TODO: slicing (important for handling quad_over_lin)
   import Expression.Expression
+  import Data.Tuple(swap)
 
   -- helper functions for guards
   isVector :: Expr -> Bool
@@ -101,8 +102,8 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
-      z0 = Var (vname newVar ++ "z0") (m, n)
-      z1 = Var (vname newVar ++ "z1") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
+      z1 = Var (name newVar ++ "z1") (m, n)
       matA = [ Row [(Eye m 0.5, newVar), (Eye m (-1), z0)],
                Row [(Eye m (-0.5), newVar), (Eye m (-1), z1)] ]
       vecB = [Ones m (-0.5), Ones m (-0.5)]
@@ -126,8 +127,8 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x) <++> (cones y)
       (m,n) = (rows y, cols y)
       newVar = Var ("t"++s) (m, n)
-      z0 = Var (vname newVar ++ "z0") (m, n)
-      z1 = Var (vname newVar ++ "z1") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
+      z1 = Var (name newVar ++ "z1") (m, n)
       matA = [ Row [(Eye m 0.5, var y), (Eye m 0.5, newVar), (Eye m (-1), z0)],
                Row [(Eye m 0.5, var y), (Eye m (-0.5), newVar), (Eye m (-1), z1)] ]
       vecB = [Ones m 0, Ones m 0]
@@ -144,9 +145,9 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
-      z0 = Var (vname newVar ++ "z0") (m, n)
-      z1 = Var (vname newVar ++ "z1") (m, n)
-      one = Var (vname newVar ++ "z2") (m, n) -- has to be vector for the SOC code to work (XXX/TODO: allow SOCelem with scalars)
+      z0 = Var (name newVar ++ "z0") (m, n)
+      z1 = Var (name newVar ++ "z1") (m, n)
+      one = Var (name newVar ++ "z2") (m, n) -- has to be vector for the SOC code to work (XXX/TODO: allow SOCelem with scalars)
       matA = [ Row [(Eye m 0.5, var x), (Eye m 0.5, newVar), (Eye m (-1), z0)],
                Row [(Eye m 0.5, var x), (Eye m (-0.5), newVar), (Eye m (-1), z1)],
                Row [(Eye m 1, one)] ]
@@ -157,10 +158,10 @@ module Atoms.Atoms(
   ecos_mult :: Expr -> Expr -> String -> Expr
   ecos_mult (None s) _ _ = None s
   ecos_mult _ (None s) _ = None s
-  ecos_mult (Parameter pname psgn (pm,pn)) x s
+  ecos_mult (Parameter p psgn) x s
     | (pm == 1) && (pn == 1) && isVector x = expression newVar curvature sgn prog
     | (pm >= 1) && (pn >= 1) && isVector x && compatible = expression newVar curvature sgn prog
-    | otherwise = none $ "mult: size of " ++ pname ++ " and " ++ (name x) ++ " don't match"
+    | otherwise = none $ "mult: size of " ++ (name p) ++ " and " ++ (name x) ++ " don't match"
     where
       curvature = applyDCP Affine monotonicity (vexity x)
       monotonicity = case (psgn) of
@@ -170,13 +171,14 @@ module Atoms.Atoms(
       sgn = psgn <*> (sign x)
       compatible = pn == rows x
       prog = (ConicSet matA vecB []) <++> (cones x)
+      (pm,pn) = (rows p, cols p)
       (m,n)
         | pm == 1 && pn == 1 = (rows x, cols x)
         | otherwise = (pm, cols x)
       newVar = Var ("t"++s) (m, n)
       matA
-        | pm == 1 && pn == 1 = [ Row [(Diag m pname, var x), (Eye m (-1), newVar)] ]
-        | otherwise = [ Row [(Matrix (pm, pn) pname, var x), (Eye m (-1), newVar)] ]
+        | pm == 1 && pn == 1 = [ Row [(Diag m p, var x), (Eye m (-1), newVar)] ]
+        | otherwise = [ Row [(Matrix p, var x), (Eye m (-1), newVar)] ]
       vecB = [Ones m 0]
   ecos_mult _ _ _ = None "mult: lhs ought to be parameter"
 
@@ -248,7 +250,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
-      z0 = Var (vname newVar ++ "z0") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
       matA = [Row [(Eye m (-1), var x), (Eye m 1, newVar), (Eye m (-1), z0)] ]
       vecB = [Ones m 0]
       kones = [SOCelem [newVar], SOCelem [z0]]
@@ -262,7 +264,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m, n)
-      z0 = Var (vname newVar ++ "z0") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
       matA = [Row [(Eye m 1, var x), (Eye m 1, newVar), (Eye m (-1), z0)] ]
       vecB = [Ones m 0]
       kones = [SOCelem [newVar], SOCelem [z0]]
@@ -276,7 +278,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m, n) = (rows x, cols x)
       newVar = Var ("t"++s) (1, 1)
-      z0 = Var (vname newVar ++ "z0") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
       matA = [Row [(Ones m 1, newVar), (Eye m (-1), var x), (Eye m (-1), z0)]]
       vecB = [Ones m 0]
       kones = [SOCelem [z0]]
@@ -291,7 +293,7 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m, n) = (rows x, cols x)
       newVar = Var ("t"++s) (1, 1)
-      z0 = Var (vname newVar ++ "z0") (m, n)
+      z0 = Var (name newVar ++ "z0") (m, n)
       matA = [Row [(Ones m (-1), newVar), (Eye m 1, var x), (Eye m (-1), z0)]]
       vecB = [Ones m 0]
       kones = [SOCelem [z0]]
@@ -353,8 +355,8 @@ module Atoms.Atoms(
       prog = (ConicSet matA vecB kones) <++> (cones x)
       (m,n) = (rows x, cols x)
       newVar = Var ("t"++s) (m,n)
-      z0 = Var (vname newVar ++ "z0") (m,n)
-      z1 = Var (vname newVar ++ "z1") (m,n)
+      z0 = Var (name newVar ++ "z0") (m,n)
+      z1 = Var (name newVar ++ "z1") (m,n)
       matA = [Row [(Eye m 0.5, var x), (Eye m (-1), z0)],
               Row [(Eye m (-0.5), var x), (Eye m (-1), z1)]]
       vecB = [Ones m (-0.5), Ones m (-0.5)]
@@ -376,8 +378,8 @@ module Atoms.Atoms(
         | isScalar x = (rows y, cols y)
         | otherwise = (rows x, cols x)
       newVar = Var ("t"++s) (m,n)
-      z0 = Var (vname newVar ++ "z0") (m,n)
-      z1 = Var (vname newVar ++ "z1") (m,n)
+      z0 = Var (name newVar ++ "z0") (m,n)
+      z1 = Var (name newVar ++ "z1") (m,n)
       matA
         | isScalar x = [Row [(Ones m 0.5, var x), (Eye m 0.5, var y), (Eye m (-1), z0)],
                         Row [(Ones m (-0.5), var x), (Eye m 0.5, var y), (Eye m (-1), z1)]]
@@ -451,7 +453,7 @@ module Atoms.Atoms(
   -- codegen to parse a "tick" as a transposed parameter
   ecos_transpose :: Expr -> Expr
   ecos_transpose (None s) = None s
-  ecos_transpose (Parameter pname psgn (pm,pn)) = Parameter (pname ++ "'") psgn (pn, pm)
+  ecos_transpose (Parameter p psgn) = Parameter (Param (name p) (shape p) (not $ transposed p)) psgn
   ecos_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
 
   -- inequalities (returns "Maybe ConicSet", since ConicSet are convex)

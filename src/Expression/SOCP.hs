@@ -1,11 +1,8 @@
 module Expression.SOCP (
-  Sense(..), Var(..), vrows, vcols,
+  Sense(..), Var(Var), Param(Param,transposed), Symbol(..),
   Row(..), Coeff(..), (<++>),
   ConicSet(..), SOC(..), SOCP(..), VarList(..), coeffs) where
 
-  -- TODO: also need some information about the variables
-  --    solution? bundle SOCP with symbol table in to "codegen data" structure
-  -- TODO: need some information about the parameters... (can be obtained by modifying Coeff data type!)
   data SOCP = SOCP {
     sense :: Sense,
     obj :: Var, -- objective is always just a single variable
@@ -22,8 +19,34 @@ module Expression.SOCP (
     vshape:: (Int, Int)
   } deriving (Show)
 
-  vrows x = (fst.vshape) x
-  vcols x = (snd.vshape) x
+  data Param = Param {
+    pname :: String,
+    -- psign :: Sign, -- only include sign if we need to check it in codegen
+    pshape :: (Int, Int),
+    transposed :: Bool
+  } deriving (Show)
+
+  class Symbol a where
+    rows :: a -> Int
+    cols :: a -> Int
+    shape :: a -> (Int, Int)
+    name :: a -> String
+
+  instance Symbol Var where
+    rows = fst.vshape
+    cols = snd.vshape
+    shape = vshape
+    name = vname
+
+  instance Symbol Param where
+    rows (Param _ (_,n) True) = n
+    rows (Param _ (m,_) False) = m
+    
+    cols (Param _ (_,n) False) = n
+    cols (Param _ (m,_) True) = m
+
+    shape = pshape
+    name = pname
   
   -- for creating coefficients
   -- divided in to constants (Eye, Ones, OnesT)
@@ -36,9 +59,9 @@ module Expression.SOCP (
   data Coeff = Eye Int Double   -- eye matrix
       | Ones Int Double         -- ones vector
       | OnesT Int Double        -- ones' row vector
-      | Diag Int String           -- replicate a parameter to diag(s) matrix
-      | Matrix (Int, Int) String  -- generic matrix
-      | Vector Int String         -- generic vector
+      | Diag Int Param          -- replicate a parameter to diag(s) matrix
+      | Matrix Param            -- generic matrix
+      | Vector Int Param        -- generic vector
       deriving (Show)
   
 

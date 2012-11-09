@@ -78,7 +78,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   createMatrixG [] _ _  = ""
   createMatrixG _ [] _  = ""
   createMatrixG (x:xs) (n:ns) table = 
-   let newNames = (flip lookup table) ((vname.fst) x) -- lookup index
+   let newNames = (flip lookup table) ((name.fst) x) -- lookup index
        (start, l) = case (newNames) of
          Nothing -> (0,0)
          Just x -> x
@@ -90,12 +90,12 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   -- gets the variables in the cone
   coneVar :: SOC -> ([Var],[Int])
   coneVar (SOC vars) = (vars, [coneLength vars])
-  coneVar (SOCelem vars) = let n = vrows (vars!!0)
+  coneVar (SOCelem vars) = let n = rows (vars!!0)
     in (vars,(take n (repeat $ length vars)))
 
   -- gets the size of the cone by looking at the variables' sizes in the cone
   coneLength :: [Var] -> Int
-  coneLength x = let varSizes = map (\x -> (vrows x)*(vcols x)) x
+  coneLength x = let varSizes = map (\x -> (rows x)*(cols x)) x
     in foldl (+) 0 varSizes
   
   -- gets the cone width
@@ -113,7 +113,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   getStartIdx :: Int->[([Var],Int)]->[Int]
   getStartIdx n [(vars,g)] = map (+n) [1..length vars]
   getStartIdx n ((vars,g):xs) =
-     let m = vrows (vars!!0) -- assumes variables have same sizes
+     let m = rows (vars!!0) -- assumes variables have same sizes
          fac = case(g) of
            1 -> coneLength vars
            otherwise -> m*g

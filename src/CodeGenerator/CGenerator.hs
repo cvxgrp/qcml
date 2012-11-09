@@ -2,6 +2,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   import CodeGenerator.Common
   import Expression.SOCP
 
+  -- TODO/XXX: if we know the target architecture, we can make further optimizations such
+  -- as memory alignment. but as it stands, we're just generating flat C
+
   -- built on top of ECOS
   c_header :: String -> Codegen -> String
   c_header desc x = unlines $
@@ -23,7 +26,7 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      ""]
      ++ mat_code -- only if there are matrix params!
      ++ vec_code -- only if there are vector params!
-     ++ ["pwork* solver_init(" ++ (intercalate ", " arglist) ++ ");",
+     ++ ["Vars_t solve(" ++ (intercalate ", " arglist) ++ ");   // for a single solve",
      "",
      "#endif    // solver.h"]
     where 
@@ -61,9 +64,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
       bParams = affine_b prob
   
   coeff_param :: Coeff -> (Int, Int, String)
-  coeff_param (Diag m s) = (m,m,s)
-  coeff_param (Matrix (m,n) s) = (m,n,s)
-  coeff_param (Vector m s) = (m,1,s)
+  coeff_param (Diag m s) = (m,m,name s)
+  coeff_param (Matrix s) = (rows s,cols s, name s)
+  coeff_param (Vector m s) = (m,1,name s)
   coeff_param _ = (0,0,"")
 
   param_name :: Coeff -> String
@@ -75,6 +78,10 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   toArgs (1,1,s) = "double " ++ s
   toArgs (_,1,s) = "Vec_t " ++ s
   toArgs (_,_,s) = "Mat_t " ++ s
+
+  --varlist :: Codegen -> [Var]
+
+  --paramlist :: Codegen -> [Param]
 
   matrix_param_struct :: String
   matrix_param_struct = unlines
@@ -99,9 +106,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
       " * matrices are not needed in this data structure.",
       " */",
       "typedef struct Mat_t {",
-      "  idxint* jc;  // column pointer",
-      "  idxint* ir;  // row index",
-      "  pfloat* pr;  // values",
+      "  int* jc;     // column pointer",
+      "  int* ir;     // row index",
+      "  double* pr;  // values",
       "};"]
 
   vector_param_struct :: String
@@ -116,8 +123,21 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      " * the length of the vector is not needed in this data structure. ",
      " */",
      "typedef struct Vec_t {",
-     "  idxint *ir;  // row index",
-     "  pfloat *pr;  // values",
+     "  int nnz;     // nnz in vector",
+     "  int *ir;     // row index",
+     "  double *pr;  // values",
      "};"]
 
+  variable_struct :: [Var] -> String
+  variable_struct variables = unlines $ 
+    ["/*",
+     " * struct Vars_t",
+     " * =============",
+     " * This structure stores the solution variables for your problem.",
+     " */",
+     "typedef struct Vars_t{"]
+     ++ map (\x -> "  double " ++ name x ++ "["++ (show $ rows x) ++ "];") variables ++
+     [
+    -- "  double *dualvars;", -- TODO: dual vars
+     "};"]
 

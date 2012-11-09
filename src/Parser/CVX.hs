@@ -326,9 +326,9 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     size <- optionMaybe shape;
     let dim = fromMaybe (1,1) size
         p = case (sign) of
-          Just E.Positive -> E.parameter s E.Positive dim
-          Just E.Negative -> E.parameter s E.Negative dim
-          _ -> E.parameter s E.Unknown dim
+          Just E.Positive -> E.Parameter (E.Param s dim False) E.Positive
+          Just E.Negative -> E.Parameter (E.Param s dim False) E.Negative
+          _ -> E.Parameter (E.Param s dim False) E.Unknown
     in updateState (insertSymbol p)
   } <?> "parameter"
 

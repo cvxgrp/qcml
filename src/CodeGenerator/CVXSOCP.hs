@@ -36,12 +36,12 @@ module CodeGenerator.CVXSOCP (codegen) where
   -- converts cone constraints to CVX string
   convertConeForCodegen :: VarTable -> SOC -> String
   convertConeForCodegen table (SOC vars) = 
-   let newNames = map (flip lookup table) (map vname vars)
+   let newNames = map (flip lookup table) (map name vars)
    in case (length vars) of
      1 -> (extractString $ head newNames) ++ " >= 0"
      otherwise -> "norm([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "]) <= " ++ (extractString $ head newNames)
   convertConeForCodegen table (SOCelem vars) = 
-    let newNames = map (flip lookup table) (map vname vars)
+    let newNames = map (flip lookup table) (map name vars)
     in case (length vars) of
       1 -> (extractString $ head newNames) ++ " >= 0"
       otherwise -> "norms([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "],[],2) <= " ++ (extractString $ head newNames)
