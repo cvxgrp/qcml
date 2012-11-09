@@ -87,6 +87,11 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   unaryNegate :: Int -> E.Expr -> E.Expr
   unaryNegate t a = ecos_negate a (show t)
   
+  -- a significant difference from the paper is that parameters are also
+  -- expressions, so we can multiply two things of the same *type*
+  --
+  -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
+  -- to be a *unary* function parameterized by the first "term"
   multiply :: Int -> E.Expr -> E.Expr -> E.Expr
   multiply t a b = ecos_mult a b (show t)
                   
@@ -123,7 +128,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
             [binary "+" add AssocLeft, 
              binary "-" minus AssocLeft]] 
   
-  -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
+  -- a term is made up of "(expr)", functions thereof, parameters, or 
   -- variables
   term = parens expr
       <|> choice (map snd builtinFunctions)

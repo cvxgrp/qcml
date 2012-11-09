@@ -96,7 +96,7 @@ module Expression.Expression (
     -- parameter cast occurs here
     socp (Parameter v _ (m,n)) = SOCP Find newVar (ConicSet matA vecB [])
       where newVar = Var ("p"++v) (m,n)
-            matA = [ Row [(Eye m "1", newVar)] ]
+            matA = [ Row [(Eye m 1, newVar)] ]
             vecB = [Vector m v]
     socp (None _) = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
 
@@ -109,7 +109,7 @@ module Expression.Expression (
     cones (Expr _ _ _ k) = k
     cones (Variable _) = ConicSet [] [] []
     cones (Parameter v _ (m,n))= ConicSet matA vecB []
-      where matA = [ Row [(Eye m "1", Var ("p"++v) (m,n))] ]
+      where matA = [ Row [(Eye m 1, Var ("p"++v) (m,n))] ]
             vecB = [Vector m v]
     cones (None _) = ConicSet [] [] []
 

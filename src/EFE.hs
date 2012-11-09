@@ -12,13 +12,14 @@ module Main where
   import CodeGenerator.CVX
   import CodeGenerator.CVXSOCP
   import CodeGenerator.ECOS
+  import CodeGenerator.CGenerator
   
   import Data.Map as M
   
   ver = "0.0.1"
   
   data Flag
-    = Version | CVX | CVXSOCP | Conelp | ECOS | Filename String
+    = Version | CVX | CVXSOCP | Conelp | ECOS | C | Filename String
     deriving (Show, Eq)
   
   options :: [OptDescr Flag]
@@ -27,7 +28,8 @@ module Main where
       Option [] ["cvx"] (NoArg CVX) "cvx output",
       Option [] ["cvxsocp"] (NoArg CVXSOCP) "cvx socp output",
       Option [] ["conelp"] (NoArg Conelp) "conelp matlab output",
-      Option [] ["ecos"] (NoArg ECOS) "ecos / paris matlab output"
+      Option [] ["ecos"] (NoArg ECOS) "ecos matlab output",
+      Option ['c'] ["C"] (NoArg C) "C code output (calls ECOS)"
     ]
   
   -- inp, outp :: Maybe String -> Flag
@@ -50,6 +52,7 @@ module Main where
           CVXSOCP -> codegen
           Conelp -> codegenConelp
           ECOS -> codegenECOS
+          C -> c_header input
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at "
                       ; print err
