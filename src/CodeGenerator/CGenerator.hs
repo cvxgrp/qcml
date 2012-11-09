@@ -3,8 +3,8 @@ module CodeGenerator.CGenerator(c_header) where
 	import Expression.SOCP
 
 	-- built on top of ECOS
-	c_header :: String -> SOCP -> String
-	c_header desc prob = unlines $
+	c_header :: String -> Codegen -> String
+	c_header desc x = unlines $
 		["/* stuff about open source license",
 		 " * ....",
 		 " * The problem specification for this solver is: ",
@@ -27,6 +27,7 @@ module CodeGenerator.CGenerator(c_header) where
 		 "",
 		 "#endif    // solver.h"]
 		where 
+			prob = problem x
 			params = prob_params prob
 			param_names = map (\(_,_,s)->s) params
 			mat_code

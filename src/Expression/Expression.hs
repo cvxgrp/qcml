@@ -15,6 +15,7 @@ module Expression.Expression (
 
   import Expression.SOCP
 
+
   -- data types
   data Curvature
     = Convex

@@ -54,10 +54,11 @@ module Main where
           ECOS -> codegenECOS
           C -> c_header input
     in case (runParser cvxProg symbolTable "" input) of
-        Left err -> do{ putStr "parse error at "
-                      ; print err
-                      }
-        Right x  -> putStrLn $ printFunc x
+        Left err -> do{ putStr "parse error at ";
+                        print err }
+        Right x  -> do{ 
+          putStrLn $ printFunc x;
+        }
         --case (sense x) of
         --  Minimize -> putStrLn (printFunc (rewrite x) 1)
         --  Maximize -> putStrLn (printFunc (rewrite x) (-1))

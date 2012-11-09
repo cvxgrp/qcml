@@ -3,6 +3,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   module P) where
   import qualified Expression.Expression as E
   import qualified Data.Map as M
+  import qualified CodeGenerator.Common as C(Codegen(..))
   import Atoms.Atoms
   
   import Data.Maybe
@@ -350,13 +351,14 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     <?> "definitions"
 
   
-  cvxProg :: CVXParser E.SOCP
+  cvxProg :: CVXParser C.Codegen
   cvxProg = do {
     whiteSpace;
     many definitions;
     p <- problem;
+    t <- getState;
     eof;
-    return p
+    return $ C.Codegen p (symbols t)
   } <?> "problem"
 
 

@@ -2,8 +2,9 @@ module CodeGenerator.CVX (cvxgen) where
   import CodeGenerator.Common
     
 {-- what follows is for displaying cvx code --}
-  cvxgen :: SOCP -> String
-  cvxgen x = let problemSense
+  cvxgen :: Codegen -> String
+  cvxgen p = let x = problem p
+                 problemSense
                   | sense x == Minimize = "minimize "
                   | sense x == Maximize = "maximize "
                   | sense x == Find = "find "
@@ -62,7 +63,7 @@ module CodeGenerator.CVX (cvxgen) where
 
   -- gets the cone constraints
   getConeConstraints :: SOCP -> [String]
-  getConeConstraints p = map convertCone (cones p)
+  getConeConstraints p = map convertCone (cones_K p)
 
   -- converts cone constraints to CVX string
   convertCone :: SOC -> String

@@ -1,11 +1,11 @@
 module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   import CodeGenerator.Common
   
-  codegenECOS :: SOCP -> String
-  codegenECOS p = codegen "ecos" p
+  codegenECOS :: Codegen -> String
+  codegenECOS p = codegen "ecos" (problem p)
   
-  codegenConelp :: SOCP -> String
-  codegenConelp p = codegen "conelp" p
+  codegenConelp :: Codegen -> String
+  codegenConelp p = codegen "conelp" (problem p)
   
   codegen :: String -> SOCP -> String
   codegen solver p = 
@@ -47,7 +47,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   -- gets the dimensions for cone constraints
   getConeConstraintsForECOS :: SOCP -> VarTable -> (Int, String, String)
   getConeConstraintsForECOS p table = 
-   let coneInfo = map coneVar (cones p)
+   let coneInfo = map coneVar (cones_K p)
        coneVariables = map fst coneInfo
        coneSizes = map snd coneInfo
        -- generate permutation vector (put smallest cones up front)

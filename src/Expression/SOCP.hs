@@ -3,6 +3,8 @@ module Expression.SOCP (
   Row(..), Coeff(..), (<++>),
   ConicSet(..), SOC(..), SOCP(..), VarList(..), coeffs) where
 
+  -- TODO: also need some information about the variables
+  --    solution? bundle SOCP with symbol table in to "codegen data" structure
   -- TODO: need some information about the parameters... (can be obtained by modifying Coeff data type!)
   data SOCP = SOCP {
     sense :: Sense,

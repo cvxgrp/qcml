@@ -6,19 +6,29 @@ module CodeGenerator.Common (
   getAForCodegen,
   getBForCodegen,
   VarTable,
+  Codegen(..),
   getCoeffInfo,
   getCoeffSize,
   getCoeffRows,
-  cones, affine_A, affine_b,
+  cones_K, affine_A, affine_b,
   module Expression.SOCP,
   module Data.List) where
+
   import Expression.SOCP
+  import Expression.Expression(Expr)
   import Data.List
+  import qualified Data.Map as M
+
+
+  data Codegen = Codegen {
+    problem :: SOCP,
+    symbolTable :: M.Map String Expr
+  }
 
   -- XXX/TODO: code generator is long overdue for a rewrite
 
   -- helper functions
-  cones = conesK.constraints
+  cones_K = conesK.constraints
   affine_A = matrixA.constraints
   affine_b = vectorB.constraints
 
@@ -38,7 +48,7 @@ module CodeGenerator.Common (
   getVariableInfo p = 
     let objectiveVar = obj p
         aVars =  concat $ map variables (affine_A p)  -- gets the list of all variables in the affine constraints
-        coneVars = concat $ map variables (cones p) -- get the list of all variables in the cones
+        coneVars = concat $ map variables (cones_K p) -- get the list of all variables in the cones_K
         allVariables = [objectiveVar] ++ coneVars ++ aVars
         uniqueVarNames = nubBy (\x y-> vname x == vname y) allVariables
     in (tail uniqueVarNames) ++ [head uniqueVarNames]

@@ -2,8 +2,9 @@ module CodeGenerator.CVXSOCP (codegen) where
   import CodeGenerator.Common
   
   {-- what follows is for codegen --}
-  codegen :: SOCP -> String
-  codegen p = let vars = getVariableNames p
+  codegen :: Codegen -> String
+  codegen x = let p = problem x
+                  vars = getVariableNames p
                   varLens = getVariableSizes p
                   startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
                   varTable = zip vars (zip startIdx varLens)
@@ -30,7 +31,7 @@ module CodeGenerator.CVXSOCP (codegen) where
 
   -- gets the cone constraints
   getConeConstraintsForCodegen :: SOCP -> VarTable ->[String]
-  getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (cones p)
+  getConeConstraintsForCodegen p table = map (convertConeForCodegen table) (cones_K p)
   
   -- converts cone constraints to CVX string
   convertConeForCodegen :: VarTable -> SOC -> String
