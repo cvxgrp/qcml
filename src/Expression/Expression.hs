@@ -14,8 +14,7 @@ module Expression.Expression (
 ) where
 
   import Expression.SOCP
-  import Data.Tuple(swap)
-
+  
   -- data types
   data Curvature
     = Convex

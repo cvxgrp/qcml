@@ -52,7 +52,7 @@ module Main where
           CVXSOCP -> codegen
           Conelp -> codegenConelp
           ECOS -> codegenECOS
-          C -> c_header input
+          C -> c_codegen -- c_header input
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }

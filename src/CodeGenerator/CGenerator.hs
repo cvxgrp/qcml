@@ -1,7 +1,9 @@
 module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   import CodeGenerator.Common
-  import Expression.SOCP
+  import Expression.Expression
+  import qualified Data.Map as M
 
+  import Data.Maybe
   -- TODO/XXX: if we know the target architecture, we can make further optimizations such
   -- as memory alignment. but as it stands, we're just generating flat C
 
@@ -26,67 +28,83 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      ""]
      ++ mat_code -- only if there are matrix params!
      ++ vec_code -- only if there are vector params!
-     ++ ["Vars_t solve(" ++ (intercalate ", " arglist) ++ ");   // for a single solve",
+     ++ var_code
+     ++ ["pwork* setup(" ++ (intercalate ", " arglist) ++ "); // setting up workspace",
+     "vars_t solve(pwork* w); // solve the problem",
+     "void cleanup(pwork *w);",
      "",
      "#endif    // solver.h"]
     where 
-      prob = problem x
-      params = prob_params prob
-      param_names = map (\(_,_,s)->s) params
-      mat_code
-        | any (\(_,n,_) -> (n > 1)) params = [matrix_param_struct]
-        | otherwise = []
-      vec_code
-        | any (\(m,n,_) -> (m > 1) && (n==1)) params = [vector_param_struct]
-        | otherwise = []
+      params = paramlist x
+      (mat_code, vec_code)
+        | null params = ([], [])
+        | otherwise = ([matrix_param_struct], [vector_param_struct])
+      var_code = [variable_struct (varlist x)]
       arglist = filter (/="") (map toArgs params)
 
-  c_codegen :: SOCP -> String
+  c_codegen :: Codegen -> String
   c_codegen x = unlines $
-    ["#include \"solver.h\""]
+    ["#include \"solver.h\"",
+     "",
+     "pwork* setup("++ (intercalate ", " arglist) ++")",
+     "{",
+     "  // stuff matrices and stuff, then...",
+     "  return ECOS_setup(N,M,P,L,NCONES,Q, gpr, gjc, gir, apr, ajc, air, c,h ,b);",
+     "  // uppercase are known during codegen time, lowercase are results of stuffing",
+     "}",
+     "",
+     "vars_t solve(pwork *w)",
+     "{",
+     "  int exitflag = ECOS_solve(w);",
+     "  vars_t solution;",
+     "  solution.x = w.x + sizeof(pfloat)*OFFSET;",
+     "  return solution;",
+     "}",
+     "",
+     "void cleanup(pwork *w)",
+     "{",
+     "  ECOS_cleanup(w,0);",  -- cleans up *all* memory, orphans pointers in vars_t
+     "  // what about setting vars to null??",
+     "}"]
+    where 
+      params = paramlist x
+      arglist = filter (/="") (map toArgs params)
 
-  c_data :: SOCP -> String
+  c_data :: Codegen -> String
   c_data x = unlines $
     ["some fake parameter data for testing"]
 
   prob_desc :: String -> String
   prob_desc desc = intercalate ("\n") (map (" *     "++) (lines desc))
 
-  -- by the time we're here, we've lost the sign information (is that OK?)
-  -- also by the time we're here, transposed parameters are *named* with postfix " ' "
-  -- it's not terrible, but there's a question of whether transposed params should have their own
-  -- data type
-  prob_params :: SOCP -> [(Int,Int,String)]
-  prob_params prob = (filter (/=(0,0,"")) coefficients)
-    where
-      coefficients = map coeff_param aParams ++ map coeff_param bParams
-      aParams = concat $ map coeffs (affine_A prob)
-      bParams = affine_b prob
-  
-  coeff_param :: Coeff -> (Int, Int, String)
-  coeff_param (Diag m s) = (m,m,name s)
-  coeff_param (Matrix s) = (rows s,cols s, name s)
-  coeff_param (Vector m s) = (m,1,name s)
-  coeff_param _ = (0,0,"")
-
-  param_name :: Coeff -> String
-  param_name = (\(_,_,s) -> s).coeff_param
-
   -- these are pass by value (which may, or may not be a good idea)
-  toArgs :: (Int, Int, String) -> String
-  toArgs (_,_,"") = ""
-  toArgs (1,1,s) = "double " ++ s
-  toArgs (_,1,s) = "Vec_t " ++ s
-  toArgs (_,_,s) = "Mat_t " ++ s
+  toArgs :: Param -> String
+  toArgs p = case (shape p) of
+    (1,1) -> "double " ++ (name p)
+    (_,1) -> "vec_t " ++ (name p)
+    otherwise -> "mat_t " ++ (name p)
 
-  --varlist :: Codegen -> [Var]
+  varlist :: Codegen -> [Var]
+  varlist c = catMaybes maybe_vars
+    where maybe_vars = map (extract_var) (M.elems $ symbolTable c)
 
-  --paramlist :: Codegen -> [Param]
+  paramlist :: Codegen -> [Param]
+  paramlist c = catMaybes maybe_params
+    where maybe_params = map (extract_param) (M.elems $ symbolTable c)
+
+  extract_var :: Expr -> Maybe Var
+  extract_var (Variable v) = Just v
+  extract_var _ = Nothing
+
+  extract_param :: Expr -> Maybe Param
+  extract_param (Parameter v _) = Just v
+  extract_param _ = Nothing
+
 
   matrix_param_struct :: String
   matrix_param_struct = unlines
      ["/*",
-      " * struct Mat_t",
+      " * struct mat_t",
       " * ============",
       " * This is a sparse matrix in column compressed storage.",
       " *",
@@ -105,7 +123,7 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
       " * to this format by copying pointers. Note that the dimensions of the",
       " * matrices are not needed in this data structure.",
       " */",
-      "typedef struct Mat_t {",
+      "typedef struct mat_t {",
       "  int* jc;     // column pointer",
       "  int* ir;     // row index",
       "  double* pr;  // values",
@@ -114,7 +132,7 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   vector_param_struct :: String
   vector_param_struct = unlines
     ["/*",
-     " * struct Vec_t",
+     " * struct vec_t",
      " * ============",
      " * This is a sparse vector in column compressed storage.",
      " *",
@@ -122,21 +140,22 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      " * This storage can be thought of as the pair (ind, val). Note that",
      " * the length of the vector is not needed in this data structure. ",
      " */",
-     "typedef struct Vec_t {",
+     "typedef struct vec_t {",
      "  int nnz;     // nnz in vector",
      "  int *ir;     // row index",
      "  double *pr;  // values",
      "};"]
 
+  -- XXX: vector sizes are missing... lol
   variable_struct :: [Var] -> String
   variable_struct variables = unlines $ 
     ["/*",
-     " * struct Vars_t",
+     " * struct vars_t",
      " * =============",
      " * This structure stores the solution variables for your problem.",
      " */",
-     "typedef struct Vars_t{"]
-     ++ map (\x -> "  double " ++ name x ++ "["++ (show $ rows x) ++ "];") variables ++
+     "typedef struct vars_t {"]
+     ++ map (\x -> "  double *" ++ name x ++ ";") variables ++
      [
     -- "  double *dualvars;", -- TODO: dual vars
      "};"]

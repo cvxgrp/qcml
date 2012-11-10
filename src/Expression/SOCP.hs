@@ -39,12 +39,8 @@ module Expression.SOCP (
     name = vname
 
   instance Symbol Param where
-    rows (Param _ (_,n) True) = n
-    rows (Param _ (m,_) False) = m
-    
-    cols (Param _ (_,n) False) = n
-    cols (Param _ (m,_) True) = m
-
+    rows = fst.pshape
+    cols = snd.pshape
     shape = pshape
     name = pname
   
@@ -64,7 +60,6 @@ module Expression.SOCP (
       | Vector Int Param        -- generic vector
       deriving (Show)
   
-
   data ConicSet = ConicSet {
     matrixA :: [Row],
     vectorB :: [Coeff],
@@ -86,7 +81,6 @@ module Expression.SOCP (
   -- TODO: we can make a "concat" row type?
   -- TODO: we can include the row height in here
   data Row = Row { elems :: [(Coeff,Var)] } deriving (Show)
-
 
   -- type class for accessing variables
   class VarList a where

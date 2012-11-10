@@ -31,6 +31,10 @@ module Atoms.Atoms(
   isAffine
 ) where
   
+  -- semantics:
+  -- for scalar func of vector is applied elementwise
+  -- for vector func of arg *list* is applied *row-wise*
+
   -- TODO: would like coeffs to automatically "scale" based on their input and output sizes?
   --        e.g., "Id m 1" coeff would return ones(m,1), "Id m m" would return eye(m), "Id m n" would return... ?
   -- TODO: constant folding
@@ -84,6 +88,8 @@ module Atoms.Atoms(
   neg Positive = Negative
   neg Negative = Positive
   neg _ = Unknown
+
+  -- constructors to promote scalars?
 
 
   -- begin list of atoms
@@ -453,7 +459,7 @@ module Atoms.Atoms(
   -- codegen to parse a "tick" as a transposed parameter
   ecos_transpose :: Expr -> Expr
   ecos_transpose (None s) = None s
-  ecos_transpose (Parameter p psgn) = Parameter (Param (name p) (shape p) (not $ transposed p)) psgn
+  ecos_transpose (Parameter p psgn) = Parameter (Param (name p) (swap $ shape p) (not $ transposed p)) psgn
   ecos_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
 
   -- inequalities (returns "Maybe ConicSet", since ConicSet are convex)
