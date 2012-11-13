@@ -10,6 +10,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   -- TODO/XXX: also, variable / function naming is c-style, but everywhere else we used
   -- camel case... so, uh, be consistent...
 
+  -- TODO/XXX: need to figure out what Alex's "minimum" package for ECOS is so it can be
+  -- distributed alongside the generated code
+
   -- built on top of ECOS
   c_header :: String -> Codegen -> String
   c_header desc x = unlines $
