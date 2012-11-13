@@ -7,6 +7,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   -- TODO/XXX: if we know the target architecture, we can make further optimizations such
   -- as memory alignment. but as it stands, we're just generating flat C
 
+  -- TODO/XXX: also, variable / function naming is c-style, but everywhere else we used
+  -- camel case... so, uh, be consistent...
+
   -- built on top of ECOS
   c_header :: String -> Codegen -> String
   c_header desc x = unlines $
@@ -30,8 +33,8 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      ++ vec_code -- only if there are vector params!
      ++ var_code
      ++ ["pwork* setup(" ++ (intercalate ", " arglist) ++ "); // setting up workspace",
-     "vars_t solve(pwork* w); // solve the problem",
-     "void cleanup(pwork *w);",
+     "vars_t solve(pwork* w);                                 // solve the problem",
+     "void cleanup(pwork *w, vars_t *v);                      // clean up workspace and vars",
      "",
      "#endif    // solver.h"]
     where 
@@ -53,21 +56,15 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      "  // uppercase are known during codegen time, lowercase are results of stuffing",
      "}",
      "",
-     "vars_t solve(pwork *w)",
+     solver_func x,
+     "void cleanup(pwork *w, vars_t *v)",
      "{",
-     "  int exitflag = ECOS_solve(w);",
-     "  vars_t solution;",
-     "  solution.x = w.x + sizeof(pfloat)*OFFSET;",
-     "  return solution;",
-     "}",
-     "",
-     "void cleanup(pwork *w)",
-     "{",
-     "  ECOS_cleanup(w,0);",  -- cleans up *all* memory, orphans pointers in vars_t
-     "  // what about setting vars to null??",
-     "}"]
+     "  ECOS_cleanup(w,0);"]  -- cleans up *all* memory, orphans pointers in vars_t
+     ++ map (\x -> "  v->" ++ name x ++ " = NULL;") vars
+     ++ ["}"]
     where 
       params = paramlist x
+      vars = varlist x
       arglist = filter (/="") (map toArgs params)
 
   c_data :: Codegen -> String
@@ -100,6 +97,7 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   extract_param (Parameter v _) = Just v
   extract_param _ = Nothing
 
+  -- structs for header file
 
   matrix_param_struct :: String
   matrix_param_struct = unlines
@@ -153,6 +151,9 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      " * struct vars_t",
      " * =============",
      " * This structure stores the solution variables for your problem.",
+     " *",
+     " * It turns out that x is just a pointer to memory, so you can actually",
+     " * access locations *outside* of x's length.... which is unsafe.",
      " */",
      "typedef struct vars_t {"]
      ++ map (\x -> "  double *" ++ name x ++ ";") variables ++
@@ -160,3 +161,29 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
     -- "  double *dualvars;", -- TODO: dual vars
      "};"]
 
+  -- functions to generate functions for c source
+
+  build_var_table :: Codegen -> VarTable
+  build_var_table x = varTable
+    where p = problem x
+          vars = getVariableNames p
+          varLens = getVariableSizes p
+          startIdx = init (scanl (+) 0 varLens)  -- indices change for C code
+          varTable = zip vars (zip startIdx varLens)
+
+  solver_func :: Codegen -> String
+  solver_func x = unlines $
+     ["vars_t solve(pwork *w)",
+     "{",
+     "  int exitflag = ECOS_solve(w);  // throws away exit flag",
+     "  vars_t solution;"]
+     ++ zipWith expand_var_indices varNames varInfo
+     ++["  return solution;", "}"]
+    where vars = varlist x -- variables in the problems
+          varNames = map name vars
+          varTable = build_var_table x -- all variables introduced in problem rewriting
+          varInfo = map (flip lookup varTable) varNames
+
+  expand_var_indices :: String -> Maybe (Int, Int) -> String
+  expand_var_indices s Nothing = "  solution." ++ s ++ " = NULL;"
+  expand_var_indices s (Just (ind, _)) = "  solution." ++ s ++ " = w->x + sizeof(pfloat)*" ++ show ind ++ ";"

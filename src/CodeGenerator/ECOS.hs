@@ -11,7 +11,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   codegen solver p = 
     let vars = getVariableNames p
         varLens = getVariableSizes p
-        startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
+        startIdx = init (scanl (+) 1 varLens)  -- indices change for C code
         varTable = zip vars (zip startIdx varLens)
         n = show $ (foldl (+) 0 varLens)
         bsizes = map (fst.getCoeffSize) (affine_b p)
