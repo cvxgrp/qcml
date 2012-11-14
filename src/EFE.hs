@@ -67,8 +67,8 @@ module Main where
           CVXSOCP -> [(codegen, "/solver.m")]
           Conelp -> [(codegenConelp, "/solver.m")]
           ECOS -> [(codegenECOS, "/solver.m")]
-          C -> [(c_codegen, "/solver.c"), 
-                (c_header input,"/solver.h")]
+          C -> [(cCodegen, "/solver.c"), 
+                (cHeader input,"/solver.h")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }

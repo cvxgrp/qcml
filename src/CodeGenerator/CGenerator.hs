@@ -1,4 +1,4 @@
-module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
+module CodeGenerator.CGenerator(cHeader, cCodegen, cData) where
   import CodeGenerator.Common
   import Expression.Expression
   import qualified Data.Map as M
@@ -7,21 +7,23 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
   -- TODO/XXX: if we know the target architecture, we can make further optimizations such
   -- as memory alignment. but as it stands, we're just generating flat C
 
-  -- TODO/XXX: also, variable / function naming is c-style, but everywhere else we used
-  -- camel case... so, uh, be consistent...
-
   -- TODO/XXX: need to figure out what Alex's "minimum" package for ECOS is so it can be
   -- distributed alongside the generated code
 
+  -- TODO/XXX: annotate sparsity structure (assume it's known at "compile" time)
+
   -- built on top of ECOS
-  c_header :: String -> Codegen -> String
-  c_header desc x = unlines $
+  cHeader :: String -> Codegen -> String
+  cHeader desc x = unlines $
     ["/* stuff about open source license",
      " * ....",
      " * The problem specification for this solver is: ",
      " *", 
-     prob_desc desc,
+     probDesc desc,
      " *",
+     " * For now, parameters are *dense*, and we don't respect sparsity. The sparsity",
+     " * structure has to be specified during code generation time. We could do the more",
+     " * generic thing and allow sparse matrices, but as a first cut, we won't.",
      " * Version 0.0.1", -- version number goes here or something
      " * Eric Chu, Alex Domahidi, Neal Parikh, Stephen Boyd (c) 2012 or something...",
      " */",
@@ -32,161 +34,145 @@ module CodeGenerator.CGenerator(c_header, c_codegen, c_data) where
      "#include <string.h> // for memcpy",
      "#include \"ecos.h\"",
      ""]
-     ++ mat_code -- only if there are matrix params!
-     ++ vec_code -- only if there are vector params!
-     ++ var_code
-     ++ ["pwork* setup(" ++ (intercalate ", " arglist) ++ "); // setting up workspace",
-     "vars_t solve(pwork* w);                                 // solve the problem",
-     "void cleanup(pwork *w, vars_t *v);                      // clean up workspace and vars",
+     ++ paramCode
+     ++ varCode ++ [
+     "pwork *setup(params *p);        // setting up workspace (assumes params already declared)",
+     "int solve(pwork *w, vars *sol); // solve the problem (assumes vars already declared)",
+     "",
+     "// clean up workspace",
+     "static inline void cleanup(pwork *w)",
+     "{",
+     "  ECOS_cleanup(w,0);",
+     "}",
      "",
      "#endif    // solver.h"]
     where 
       params = paramlist x
-      (mat_code, vec_code)
-        | null params = ([], [])
-        | otherwise = ([matrix_param_struct], [vector_param_struct])
-      var_code = [variable_struct (varlist x)]
-      arglist = filter (/="") (map toArgs params)
+      paramCode = [paramStruct (paramlist x)]
+      varCode = [variableStruct (varlist x)]
+      --arglist = filter (/="") (map toArgs params)
 
-  c_codegen :: Codegen -> String
-  c_codegen x = unlines $
-    ["#include \"solver.h\"",
-     "",
-     "pwork* setup("++ (intercalate ", " arglist) ++")",
-     "{",
-     "  // stuff matrices and stuff, then...",
-     "  return ECOS_setup(N,M,P,L,NCONES,Q, gpr, gjc, gir, apr, ajc, air, c,h ,b);",
-     "  // uppercase are known during codegen time, lowercase are results of stuffing",
-     "}",
-     "",
-     solver_func x,
-     "void cleanup(pwork *w, vars_t *v)",
-     "{",
-     "  ECOS_cleanup(w,0);"]  -- cleans up *all* memory, orphans pointers in vars_t
-     ++ map (\x -> "  v->" ++ name x ++ " = NULL;") vars
-     ++ ["}"]
-    where 
-      params = paramlist x
-      vars = varlist x
-      arglist = filter (/="") (map toArgs params)
+  cCodegen :: Codegen -> String
+  cCodegen x = unlines
+    ["#include \"solver.h\"", "",
+     setupFunc x,
+     solverFunc x]  -- cleanup function is inlined
 
-  c_data :: Codegen -> String
-  c_data x = unlines $
+  cData :: Codegen -> String
+  cData x = unlines $
     ["some fake parameter data for testing"]
 
-  prob_desc :: String -> String
-  prob_desc desc = intercalate ("\n") (map (" *     "++) (lines desc))
+  probDesc :: String -> String
+  probDesc desc = intercalate ("\n") (map (" *     "++) (lines desc))
 
-  -- these are pass by value (which may, or may not be a good idea)
-  toArgs :: Param -> String
-  toArgs p = case (shape p) of
-    (1,1) -> "double " ++ (name p)
-    (_,1) -> "vec_t " ++ (name p)
-    otherwise -> "mat_t " ++ (name p)
 
   varlist :: Codegen -> [Var]
   varlist c = catMaybes maybe_vars
-    where maybe_vars = map (extract_var) (M.elems $ symbolTable c)
+    where maybe_vars = map (extractVar) (M.elems $ symbolTable c)
 
   paramlist :: Codegen -> [Param]
   paramlist c = catMaybes maybe_params
-    where maybe_params = map (extract_param) (M.elems $ symbolTable c)
+    where maybe_params = map (extractParam) (M.elems $ symbolTable c)
 
-  extract_var :: Expr -> Maybe Var
-  extract_var (Variable v) = Just v
-  extract_var _ = Nothing
+  extractVar :: Expr -> Maybe Var
+  extractVar (Variable v) = Just v
+  extractVar _ = Nothing
 
-  extract_param :: Expr -> Maybe Param
-  extract_param (Parameter v _) = Just v
-  extract_param _ = Nothing
+  extractParam :: Expr -> Maybe Param
+  extractParam (Parameter v _) = Just v
+  extractParam _ = Nothing
 
   -- structs for header file
 
-  matrix_param_struct :: String
-  matrix_param_struct = unlines
-     ["/*",
-      " * struct mat_t",
-      " * ============",
-      " * This is a sparse matrix in column compressed storage.",
-      " *",
-      " * As an example, consider the matrix:",
-      " *     | 10   0  -2   0 |",
-      " * A = |  3   0   0  -2 |",
-      " *     |  0   0   5   0 |",
-      " *",
-      " * In this example,",
-      " *     length(jc) = (# of columns) + 1 = 4 + 1, jc = {0,2,2,4,5},",
-      " *     length(ir) = nnz(A) = 5, ir = {0,1,0,2,1},",
-      " *     length(pr) = nnz(A) = 5, pr = {10,3,-2,5,-2}",
-      " * By convention, jc[end] = nnz(A).",
-      " * ",
-      " * Other sparse matrices in column compressed storage can be copied",
-      " * to this format by copying pointers. Note that the dimensions of the",
-      " * matrices are not needed in this data structure.",
-      " */",
-      "typedef struct mat_t {",
-      "  int* jc;     // column pointer",
-      "  int* ir;     // row index",
-      "  double* pr;  // values",
-      "};"]
-
-  vector_param_struct :: String
-  vector_param_struct = unlines
+  variableStruct :: [Var] -> String
+  variableStruct variables = unlines $ 
     ["/*",
-     " * struct vec_t",
-     " * ============",
-     " * This is a sparse vector in column compressed storage.",
-     " *",
-     " * Only the nonzero values are stored along with their row index.",
-     " * This storage can be thought of as the pair (ind, val). Note that",
-     " * the length of the vector is not needed in this data structure. ",
-     " */",
-     "typedef struct vec_t {",
-     "  int nnz;     // nnz in vector",
-     "  int *ir;     // row index",
-     "  double *pr;  // values",
-     "};"]
-
-  -- XXX: vector sizes are missing... lol
-  variable_struct :: [Var] -> String
-  variable_struct variables = unlines $ 
-    ["/*",
-     " * struct vars_t",
-     " * =============",
+     " * struct vars_t (or `vars`)",
+     " * =========================",
      " * This structure stores the solution variables for your problem.",
      " *",
-     " * It turns out that x is just a pointer to memory, so you can actually",
-     " * access locations *outside* of x's length.... which is unsafe.",
      " */",
      "typedef struct vars_t {"]
-     ++ map (\x -> "  double *" ++ name x ++ ";") variables ++
+     ++ map toVarString variables ++
      [
     -- "  double *dualvars;", -- TODO: dual vars
-     "};"]
+     "} vars;"]
+
+  toVarString :: Var -> String
+  toVarString (Var s (1,1)) = "  double " ++ s ++ ";"
+  toVarString (Var s (m,1)) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  toVarString _ = "  double error;" -- should never run in to this case.. but.. what if?
+ 
+  paramStruct :: [Param] -> String
+  paramStruct params = unlines $
+    ["/*",
+     " * struct params_t (or `params`)",
+     " * =============================",
+     " * This structure contains the data for all parameters in your problem.",
+     " *",
+     " */",
+     "typedef struct params_t {"]
+     ++ map toParamString params ++
+     ["} params;"]
+
+  toParamString :: Param -> String
+  toParamString (Param s (1,1) _) = "  double " ++ s ++ ";"
+  toParamString (Param s (m,1) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  -- toParamString (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  toParamString (Param s (m,n) False) = "  double " ++ s ++ "[" ++ show m ++ "]["++ show n ++ "];"
+  toParamString (Param s (m,n) True) = "  double " ++ s ++ "[" ++ show n ++ "]["++ show m ++ "];"
+
 
   -- functions to generate functions for c source
 
-  build_var_table :: Codegen -> VarTable
-  build_var_table x = varTable
+  buildVarTable :: Codegen -> VarTable
+  buildVarTable x = varTable
     where p = problem x
           vars = getVariableNames p
           varLens = getVariableSizes p
           startIdx = init (scanl (+) 0 varLens)  -- indices change for C code
           varTable = zip vars (zip startIdx varLens)
 
-  solver_func :: Codegen -> String
-  solver_func x = unlines $
-     ["vars_t solve(pwork *w)",
+  solverFunc :: Codegen -> String
+  solverFunc x = unlines $
+     ["int solve(pwork *w, vars *sol)",
      "{",
-     "  int exitflag = ECOS_solve(w);  // throws away exit flag",
-     "  vars_t solution;"]
-     ++ zipWith expand_var_indices varNames varInfo
-     ++["  return solution;", "}"]
+     "  int exitflag = ECOS_solve(w);"]
+     ++ zipWith expandVarIndices vars varInfo
+     ++["  return exitflag;", "}"]
     where vars = varlist x -- variables in the problems
           varNames = map name vars
-          varTable = build_var_table x -- all variables introduced in problem rewriting
+          varTable = buildVarTable x -- all variables introduced in problem rewriting
           varInfo = map (flip lookup varTable) varNames
 
-  expand_var_indices :: String -> Maybe (Int, Int) -> String
-  expand_var_indices s Nothing = "  solution." ++ s ++ " = NULL;"
-  expand_var_indices s (Just (ind, _)) = "  solution." ++ s ++ " = w->x + sizeof(pfloat)*" ++ show ind ++ ";"
+  expandVarIndices :: Var -> Maybe (Int, Int) -> String
+  expandVarIndices _ Nothing = ""
+  expandVarIndices v (Just (ind, _)) = "  memcpy(sol->" ++ (name v) ++ ", w->x + " ++ show ind ++ ", sizeof(double)*" ++ (show $ rows v) ++ ");"
+
+
+  setupFunc :: Codegen -> String
+  setupFunc x = unlines $ 
+    ["pwork *setup(params *p)",
+     "{",
+     "  // stuff matrices and stuff, then...",
+     "  static double c[" ++ show n ++ "];",
+     setCval x,
+     "  static double h[100];",
+     "  return ECOS_setup(N,M,P,L,NCONES,Q, gpr, gjc, gir, apr, ajc, air, c, h ,b);",
+     "  // uppercase are known during codegen time, lowercase are results of stuffing",
+     "}"]
+    where 
+      params = paramlist x
+      varLens = getVariableSizes (problem x)
+      n = cumsum varLens
+
+  setCval :: Codegen -> String
+  setCval x = case (sense p) of
+      Minimize -> "  c["++ show (n-1) ++ "] = 1;"
+      Maximize -> "  c[" ++ show (n-1) ++ "] = -1;"
+      Find -> ""
+    where p = problem x
+          varLens = getVariableSizes p
+          n = cumsum varLens
+
+  cumsum = foldl (+) 0
