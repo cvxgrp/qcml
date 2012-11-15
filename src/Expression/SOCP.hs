@@ -58,6 +58,7 @@ module Expression.SOCP (
       | Diag Int Param          -- replicate a parameter to diag(s) matrix
       | Matrix Param            -- generic matrix
       | Vector Int Param        -- generic vector
+      -- should add transpose here
       deriving (Show)
   
   data ConicSet = ConicSet {

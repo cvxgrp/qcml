@@ -36,8 +36,8 @@ module CodeGenerator.CVX (cvxgen) where
   -- adds coefficient for multiply on each row
   convertRow :: Row -> ([String],Bool)
   convertRow row = let coefficients = coeffs row
-                       rowHeights = map getCoeffRows (tail coefficients)
-                       rowTotal = getCoeffRows (head coefficients)
+                       rowHeights = map coeffRows (tail coefficients)
+                       rowTotal = coeffRows (head coefficients)
                        isConcat = not $ all (==rowTotal) rowHeights
     in (map (\(multiplier, variable) -> let (m,n,s) = getCoeffInfo multiplier
       in s ++ "*" ++ (name variable)) (elems row), isConcat)

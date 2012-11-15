@@ -1,6 +1,7 @@
 module CodeGenerator.Common (
   getVariableNames, 
-  getVariableSizes,
+  getVariableRows,
+  getBRows,
   getVariableInfo,
   socpToProb, 
   getAForCodegen,
@@ -9,8 +10,9 @@ module CodeGenerator.Common (
   Codegen(..),
   getCoeffInfo,
   getCoeffSize,
-  getCoeffRows,
+  coeffRows,
   cones_K, affine_A, affine_b,
+  cumsum,
   module Expression.SOCP,
   module Data.List) where
 
@@ -32,14 +34,20 @@ module CodeGenerator.Common (
   affine_A = matrixA.constraints
   affine_b = vectorB.constraints
 
+  cumsum :: Num a => [a] -> a
+  cumsum = foldl (+) 0
+
   -- a VarTable is an associatiation list with (name, (start, len))
   type VarTable = [(String, (Int,Int))]
   
   getVariableNames :: SOCP -> [String]
   getVariableNames p = map name (getVariableInfo p)
   
-  getVariableSizes :: SOCP -> [Int]
-  getVariableSizes p = map rows (getVariableInfo p)
+  getVariableRows :: SOCP -> [Int]
+  getVariableRows p = map rows (getVariableInfo p)
+
+  getBRows :: SOCP -> [Int]
+  getBRows p = map coeffRows (affine_b p) 
   
   -- gets the list of unique variable names for CVX
   -- starts with cone vars
@@ -63,7 +71,7 @@ module CodeGenerator.Common (
 
   getAForCodegenWithIndx :: Int -> SOCP -> VarTable -> String
   getAForCodegenWithIndx i p table = 
-    let bsizes = map getCoeffRows (affine_b p)  -- height of each row
+    let bsizes = map coeffRows (affine_b p)  -- height of each row
         startIdx = take (length bsizes) (scanl (+) i bsizes)  -- gives start index for each row
     in intercalate "\n" (map (createRow table) (zip (affine_A p) startIdx))
   
@@ -72,8 +80,8 @@ module CodeGenerator.Common (
     let indices = map (flip lookup table) (varnames row)
         coefficients = coeffs row
         -- with our setup, the only time rowHeights aren't equal to the first one is when we are concatenating
-        rowHeights = map getCoeffRows (tail coefficients)
-        rowTotal = getCoeffRows (head coefficients)
+        rowHeights = map coeffRows (tail coefficients)
+        rowTotal = coeffRows (head coefficients)
         offsets
           | all (==rowTotal) rowHeights = 0:(map (rowTotal-) rowHeights)
           | otherwise = 0:rowHeights
@@ -106,8 +114,8 @@ module CodeGenerator.Common (
     in (m,n)
     
   -- just get coeff rows
-  getCoeffRows :: Coeff -> Int
-  getCoeffRows x = let (m,n,s) = getCoeffInfo x
+  coeffRows :: Coeff -> Int
+  coeffRows x = let (m,n,s) = getCoeffInfo x
     in m
   
   -- XXX: this is such a bizarre function type signature...
@@ -128,7 +136,7 @@ module CodeGenerator.Common (
   getBForCodegenWithIndx :: Int -> SOCP -> String
   getBForCodegenWithIndx i p = 
     let b = affine_b p
-        sizes = map getCoeffRows b
+        sizes = map coeffRows b
         startIdx = init $ scanl (+) i sizes -- start index changes for C code
     in concat $ map assignToB (zip b startIdx)
   

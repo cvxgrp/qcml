@@ -8,14 +8,17 @@ module Main where
   import Control.Monad
   import Parser.CVX
   
-  -- need this for problem sense (should try to remove it somehow)
+  -- need this for rows + cols
   import Expression.Expression  
 
   -- need this for code generators
+  import CodeGenerator.Common(Codegen(problem), getVariableRows)
   import CodeGenerator.CVX
   import CodeGenerator.CVXSOCP
   import CodeGenerator.ECOS
   import CodeGenerator.CGenerator
+
+  -- want to output messages as we go parsing.... *HMMM* haskell fail. :(
   
   import qualified Data.Map as M
 
@@ -56,10 +59,34 @@ module Main where
     }
     where indices = elemIndices '.' path
           pathName | indices == [] = path
-                   | otherwise = take (last indices) path 
+                   | otherwise = take (last indices) path
+
+  -- belongs in codegen common or something....
+  formatStats :: Codegen -> String
+  formatStats x = unlines $
+    ["Problem statistic summary",
+     "=========================",
+     "  original problem",
+     "    " ++ show nump ++ " parameters (in " ++ show lenp ++ " symbols)",
+     "    " ++ show numv ++ " variables (in " ++ show lenv ++ " vectors)",
+     "",
+     "  transformed problem",
+     "    " ++ show nump ++ " parameters (in " ++ show lenp ++ " symbols)",
+     "    " ++ show numtv ++ " variables (in " ++ show lentv ++ " vectors)"]
+    where params = paramlist x
+          vars = varlist x
+          (lenp, lenv) = (length params, length vars)
+          sizes x = (rows x)*(cols x)
+          (nump, numv) = (foldl (+) 0 (map sizes params), foldl (+) 0 (map sizes vars))
+          tvsizes = getVariableRows (problem x)
+          lentv = length tvsizes
+          numtv = foldl (+) 0 tvsizes
 
 
-  
+  printProblemStatistics :: Codegen -> IO ()
+  printProblemStatistics x = putStrLn (formatStats x)
+
+
   runCVX :: Flag -> FilePath -> String -> IO ()
   runCVX flag dirpath input =
     let writers = case(flag) of
@@ -72,10 +99,16 @@ module Main where
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }
-        Right x  -> forM_ writers (\(f, path) -> do {
-          putStrLn $ "Generating code for " ++ (dirpath ++ path);
-          writeFile (dirpath ++ path) (f x)
-          })
+        Right x  -> do {
+            forM_ writers (\(f, path) -> do {
+              putStrLn $ "Generating code for " ++ (dirpath ++ path);
+              writeFile (dirpath ++ path) (f x)
+            });
+            putStrLn "";
+            printProblemStatistics x;
+          }
+          -- TODO: print statistics for problem (done by looking at symbols in x)
+          -- TODO: print statistics for *transformed* problem (done by look at "problem x")
 
   main :: IO ()
   main = do
@@ -87,6 +120,7 @@ module Main where
     else
       case (flags,nonOpts) of
         ([opt], [filename]) -> do {
+          putStrLn "";
           putStrLn "Running ECOS front end.";
           putStrLn "=======================";
           newDir <- createSolverDirectory filename;

@@ -5,11 +5,11 @@ module CodeGenerator.CVXSOCP (codegen) where
   codegen :: Codegen -> String
   codegen x = let p = problem x
                   vars = getVariableNames p
-                  varLens = getVariableSizes p
+                  varLens = getVariableRows p
                   startIdx = take (length vars) (scanl (+) 1 varLens)  -- indices change for C code
                   varTable = zip vars (zip startIdx varLens)
                   n = show $ (foldl (+) 0 varLens)
-                  bsizes = map (fst.getCoeffSize) (affine_b p)
+                  bsizes = getBRows p
                   m = show $ foldl (+) 0 bsizes
                   csign
                     | sense p == Minimize = "1"

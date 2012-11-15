@@ -10,11 +10,11 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
   codegen :: String -> SOCP -> String
   codegen solver p = 
     let vars = getVariableNames p
-        varLens = getVariableSizes p
+        varLens = getVariableRows p
         startIdx = init (scanl (+) 1 varLens)  -- indices change for C code
         varTable = zip vars (zip startIdx varLens)
         n = show $ (foldl (+) 0 varLens)
-        bsizes = map (fst.getCoeffSize) (affine_b p)
+        bsizes = getBRows p
         m = show $ foldl (+) 0 bsizes
         (k, g, cones) = getConeConstraintsForECOS p varTable
         nk = show (length vars - k)
@@ -60,9 +60,9 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
        startIdx = getStartIdx 0 permuted
        flattenPermuted = flattenp permuted
        matrixG = createMatrixG flattenPermuted startIdx table
-       m = foldl (+) 0 (concat coneSizes)
+       m = cumsum (concat coneSizes)
        higherDimCones = sort $ filter (>1) (concat coneSizes)
-       l = m - (foldl (+) 0 higherDimCones)
+       l = m - (cumsum higherDimCones)
    in (m, matrixG, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
 
   -- permute the cones

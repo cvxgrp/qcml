@@ -35,6 +35,8 @@ module Atoms.Atoms(
   -- for scalar func of vector is applied elementwise
   -- for vector func of arg *list* is applied *row-wise*
 
+  -- TODO: need to add "diag" operator
+
   -- TODO: would like coeffs to automatically "scale" based on their input and output sizes?
   --        e.g., "Id m 1" coeff would return ones(m,1), "Id m m" would return eye(m), "Id m n" would return... ?
   -- TODO: constant folding
