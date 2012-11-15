@@ -159,6 +159,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
      "  double h[" ++ show k ++ "] = {0.0};",
      setQ higherDimCones,
      setG varTable p,
+     setA varTable p,
      "  return ECOS_setup(" ++ arglist ++ ", q, Gpr, Gjc, Gir, Apr, Ajc, Air, c, h ,b);",
      "  // uppercase are known during codegen time, lowercase are results of stuffing",
      "}"]
@@ -216,7 +217,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
           q = length xs
 
   setG :: VarTable -> SOCP -> String
-  setG table p = compress n matrixG
+  setG table p = compress "G" n matrixG -- show matrixG ++ "\n" ++ show gmat
     where varLens = getVariableRows p
           n = cumsum varLens
           cones = cones_K p
@@ -224,10 +225,13 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
           -- generate permutation vector for cone groups (put smallest cones up front)
           forSortingCones = zip (map head coneGroupSizes) [1..(length coneGroupSizes)]
           pvec = map snd (sort forSortingCones)  -- permutation vector
+          -- sort the cones and get the new sizes
           sortedCones = reorderCones pvec cones
           sortedSizes = map coneGroups sortedCones
           startIdxs = scanl (+) 0 (map cumsum sortedSizes)
-          matrixG = concat (zipWith (createCone table) sortedCones startIdxs) -- G in (i,j,val) form
+          -- matrix G
+          gmat = concat (zipWith (createCone table) sortedCones startIdxs) -- G in (i,j,val) form
+          matrixG = sortBy columnsOrder gmat -- G in (i,j,val) form, but sorted according to columns
 
   -- gets the list of cone sizes
   coneSizes :: SOCP -> [Int]
@@ -249,7 +253,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
     where val = cones!!(p - 1)
 
   -- produces (i,j,val) of nonzero locations in matrix G
-  createCone :: VarTable -> SOC -> Int -> [(Int,Int,Int)]
+  -- third argument "idx" is *row* start index
+  createCone :: VarTable -> SOC -> Int -> [(Int,Int,String)]
   createCone table (SOC vars) idx = concat [expandCone i k | (i,k) <- zip idxs sizes ]
     where idxs = scanl (+) idx (map rows vars)
           sizes = map (flip lookup table) (map name vars)
@@ -268,39 +273,107 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   -- G(4,4) = -1
   -- G(5,6) = -1
   -- G(6,12) = -1
-  expandConeElem :: Int -> Int -> Int -> Int -> Maybe (Int,Int) -> [(Int,Int,Int)]
+  expandConeElem :: Int -> Int -> Int -> Int -> Maybe (Int,Int) -> [(Int,Int,String)]
   expandConeElem _ _ _ _ Nothing = []
-  expandConeElem idx n i j (Just (k,l)) = [(idx + i + j*n, k + j,-1)] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
+  expandConeElem idx n i j (Just (k,l)) = [(idx + i + j*n, k + j,"-1")] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
 
-  expandCone :: Int -> Maybe (Int, Int) -> [(Int,Int,Int)]
+  expandCone :: Int -> Maybe (Int, Int) -> [(Int,Int,String)]
   expandCone _ Nothing = []
-  expandCone idx (Just (m,n)) = [(idx +i, m+i,-1) | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
+  expandCone idx (Just (m,n)) = [(idx +i, m+i,"-1") | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
 
+
+  setA :: VarTable -> SOCP -> String
+  setA table p = show amat -- compress "A" n matrixA
+    where varLens = getVariableRows p
+          n = cumsum varLens
+          a = affine_A p
+          startIdxs = scanl (+) 0 (map height a)
+          amat = concat (zipWith (createA table) a startIdxs)
+          matrixA = sortBy columnsOrder amat
+
+  height :: Row -> Int
+  height r = maximum (map coeffRows (coeffs r))
+
+  createA :: VarTable -> Row -> Int -> [(Int,Int,String)]
+  createA table row idx = concat [ expandARow i c s | (i,c,s) <- zip3 idxs coefficients sizes ]
+    where vars = variables row
+          coefficients = coeffs row
+          sizes = map (flip lookup table) (map name vars)
+          idxs = getRowStartIdxs idx coefficients   -- only for concatenation
+
+  getRowStartIdxs :: Int -> [Coeff] -> [Int]
+  getRowStartIdxs idx c
+    | all (==maxHeight) rowHeights = repeat idx
+    | otherwise = scanl (+) 0 rowHeights   -- this currently works only because the maximum is guaranteed to be the *first* element
+    where rowHeights = map coeffRows (tail c)
+          maxHeight = coeffRows (head c)
+
+
+  -- helper functions for generating CCS
+
+  expandARow :: Int -> Coeff -> Maybe (Int, Int) -> [(Int,Int,String)]
+  expandARow _ _ Nothing = []
+  -- size of coeff should match
+  expandARow idx (Eye _ x) (Just (m,n)) = [(idx + i, m + i, show x) | i <- [0 .. (n-1)]] -- eye length should equal m
+  expandARow idx (Ones n x) (Just (m,1)) = [(idx + i, m, show x) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
+  expandARow idx (OnesT _ x) (Just (m,n)) = [(idx, m + i, show x) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Diag n p) (Just (m,_)) = [(idx + i, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Matrix p) (Just (m,n)) = [(idx +i, m + j, toParamVal i j p) | i <- [0 .. (rows p)], j <- [0 .. (cols p)]]
+  expandARow idx (Vector n p) (Just (m,1)) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
+
+  toParamVal :: Int -> Int ->  Param -> String
+  toParamVal _ _ (Param s (1,1) _) = "p->" ++ s
+  toParamVal i _ (Param s (m,1) _)
+    | i >= 0 && i < m = "p->" ++ s ++ "[" ++ show i ++ "]"
+    | otherwise = ""
+  -- toParamVal (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  toParamVal i j (Param s (m,n) False)
+    | i >= 0 && j >= 0 && i < m && j < n = "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
+    | otherwise = ""
+  toParamVal i j (Param s (m,n) True)
+    | i >= 0 && j >= 0 && i < n && j < m  = "p->" ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]"
+    | otherwise = ""
+
+
+
+
+  --data Coeff = Eye Int Double   -- eye matrix
+  --    | Ones Int Double         -- ones vector
+  --    | OnesT Int Double        -- ones' row vector
+  --    | Diag Int Param          -- replicate a parameter to diag(s) matrix
+  --    | Matrix Param            -- generic matrix
+  --    | Vector Int Param        -- generic vector
+
+  -- sorting function for CCS
+  columnsOrder :: (Int,Int,String) -> (Int,Int,String) -> Ordering
+  columnsOrder (m1,n1,_) (m2,n2,_)  | n1 > n2 = GT
+                                    | n1 == n2 && (m1 > m2) = GT
+                                    | otherwise = LT
 
   -- compress (i,j,val) form in to column compressed form and outputs the string
   -- assumes (i,j,val) are in sorted order (sorted by the columns)
-  compress :: Int -> [(Int,Int,Int)] -> String
-  compress cols xs = intercalate "\n" $
-    ["  int Gjc[" ++ show cols ++ "] = {" ++ gjc ++ "};",
-     "  int Gir[" ++ show nnz ++ "] = {" ++ gir ++ "};",
-     "  double Gpr[" ++ show nnz ++ "] = {" ++ gpr ++ "};"]
+  compress :: String -> Int -> [(Int,Int,String)] -> String
+  compress s cols xs = intercalate "\n" $
+    ["  int " ++ s ++ "jc[" ++ show cols ++ "] = {" ++ jc ++ "};",
+     "  int " ++ s ++ "ir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
+     "  double " ++ s ++ "pr[" ++ show nnz ++ "] = {" ++ pr ++ "};"]
     where counter = take cols (repeat 0)
           nnz = length xs
           nnzPerRow = foldl countNNZ counter xs
           -- XXX/TODO: could be errors here... i think sorting fixes this... but i need to be think this through
-          gjc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
-          gir = intercalate ", " (map show (map getCCSRow xs))
-          gpr = intercalate ", " (map show (map getCCSVal xs))
+          jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
+          ir = intercalate ", " (map (show.getCCSRow) xs)
+          pr = intercalate ", " (map getCCSVal xs)
 
-  countNNZ :: [Int] -> (Int,Int,Int) -> [Int]
+  countNNZ :: [Int] -> (Int,Int,String) -> [Int]
   countNNZ count (_,c,_) = front ++ [new] ++ back
     where (front, rest) = splitAt c count
           back = tail rest
           new = (head rest)+ 1
 
-  getCCSRow :: (Int,Int,Int) -> Int
+  getCCSRow :: (Int,Int,String) -> Int
   getCCSRow (i,_,_) = i
 
-  getCCSVal :: (Int,Int,Int) -> Int
+  getCCSVal :: (Int,Int,String) -> String
   getCCSVal (_,_,p) = p
 
