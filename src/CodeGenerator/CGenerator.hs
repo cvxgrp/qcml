@@ -283,7 +283,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
 
 
   setA :: VarTable -> SOCP -> String
-  setA table p = show amat -- compress "A" n matrixA
+  setA table p = compress "A" n matrixA
     where varLens = getVariableRows p
           n = cumsum varLens
           a = affine_A p
@@ -318,7 +318,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   expandARow idx (Ones n x) (Just (m,1)) = [(idx + i, m, show x) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
   expandARow idx (OnesT _ x) (Just (m,n)) = [(idx, m + i, show x) | i <- [0 .. (n-1)]] -- onesT length should equal m
   expandARow idx (Diag n p) (Just (m,_)) = [(idx + i, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Matrix p) (Just (m,n)) = [(idx +i, m + j, toParamVal i j p) | i <- [0 .. (rows p)], j <- [0 .. (cols p)]]
+  expandARow idx (Matrix p) (Just (m,n)) = [(idx +i, m + j, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
   expandARow idx (Vector n p) (Just (m,1)) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
 
   toParamVal :: Int -> Int ->  Param -> String
