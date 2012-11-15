@@ -191,17 +191,17 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
           n = cumsum varLens
 
   setBval :: SOCP -> String
-  setBval p = intercalate "\n" $ catMaybes (zipWith expandCoeff bCoeffs startIdxs)
+  setBval p = intercalate "\n" $ catMaybes (zipWith expandBCoeff bCoeffs startIdxs)
     where bCoeffs = affine_b p
           bLens = getBRows p
           startIdxs = scanl (+) 0 bLens
 
-  expandCoeff :: Coeff -> Int -> Maybe String
-  expandCoeff (Ones n 0) idx = Nothing 
-  expandCoeff (Ones 1 x) idx = Just $ "  b[" ++ show idx ++ "] = " ++ show x ++ ";"
-  expandCoeff (Ones n x) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = " ++ show x ++ ";" | i <- [0 .. (n - 1)]]
-  expandCoeff (Vector n p) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = p->" ++ (name p) ++ "[" ++ show i ++ "];" | i <- [0 .. (n - 1)]]
-  expandCoeff _ _ = Nothing
+  expandBCoeff :: Coeff -> Int -> Maybe String
+  expandBCoeff (Ones n 0) idx = Nothing 
+  expandBCoeff (Ones 1 x) idx = Just $ "  b[" ++ show idx ++ "] = " ++ show x ++ ";"
+  expandBCoeff (Ones n x) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = " ++ show x ++ ";" | i <- [0 .. (n - 1)]]
+  expandBCoeff (Vector n p) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = p->" ++ (name p) ++ "[" ++ show i ++ "];" | i <- [0 .. (n - 1)]]
+  expandBCoeff _ _ = Nothing
 
   cleanupFunc :: String
   cleanupFunc = unlines $ [
@@ -277,6 +277,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   expandCone idx (Just (m,n)) = [(idx +i, m+i,-1) | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
 
 
+  -- compress (i,j,val) form in to column compressed form and outputs the string
+  -- assumes (i,j,val) are in sorted order (sorted by the columns)
   compress :: Int -> [(Int,Int,Int)] -> String
   compress cols xs = intercalate "\n" $
     ["  int Gjc[" ++ show cols ++ "] = {" ++ gjc ++ "};",
@@ -285,6 +287,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
     where counter = take cols (repeat 0)
           nnz = length xs
           nnzPerRow = foldl countNNZ counter xs
+          -- XXX/TODO: could be errors here... i think sorting fixes this... but i need to be think this through
           gjc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           gir = intercalate ", " (map show (map getCCSRow xs))
           gpr = intercalate ", " (map show (map getCCSVal xs))
