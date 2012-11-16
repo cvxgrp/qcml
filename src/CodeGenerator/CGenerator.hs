@@ -395,9 +395,10 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      "  static idxint " ++ s ++ "ir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
      "  static double " ++ s ++ "pr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
      pvals]
-    where counter = take cols (repeat 0)
+    where --counter = take cols (repeat 0)
           nnz = length xs
-          nnzPerRow = foldl' countNNZ counter xs -- XXX/TODO: since xs are sorted, we can use a different algorithm here
+          nnzPerRow = countNNZ' cols xs --foldl' countNNZ counter xs -- XXX/TODO: since xs are sorted, we can use a different algorithm here
+          -- otherNNZ = countNNZ' cols xs
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.getCCSRow) xs)
           pr = intercalate ", " (map getCCSVal xs)
@@ -412,6 +413,11 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     where (front, rest) = splitAt c count
           back = tail rest
           new = (head rest)+ 1
+
+  countNNZ' :: Int -> [(Int,Int,String)] -> [Int]
+  countNNZ' l xs = (map length groups) ++ (take pad $ repeat 0)
+    where groups = groupBy (\(_,c1,_) (_,c2,_) -> c1 == c2) xs
+          pad = l - (length groups)
 
   getCCSRow :: (Int,Int,String) -> Int
   getCCSRow (i,_,_) = i
