@@ -7,18 +7,18 @@ function ecos_tester()
     cvx_solver sedumi
 
     try 
-        run_test('least_squares'); fprintf('\n');
-        run_test('geometric_mean'); fprintf('\n');
-        run_test('lp'); fprintf('\n');
-        run_test('quadratic_over_linear'); fprintf('\n');
-        run_test('inv_prob'); fprintf('\n');
-        run_test('min_max'); fprintf('\n');
-        run_test('robust_ls'); fprintf('\n');
-        run_test('ecos_mpc'); fprintf('\n');
-        run_test('lasso'); fprintf('\n');
+%         run_test('least_squares'); fprintf('\n');
+%         run_test('geometric_mean'); fprintf('\n');
+%         run_test('lp'); fprintf('\n');
+%         run_test('quadratic_over_linear'); fprintf('\n');
+%         run_test('inv_prob'); fprintf('\n');
+%         run_test('min_max'); fprintf('\n');
+%         run_test('robust_ls'); fprintf('\n');
+%         run_test('ecos_mpc'); fprintf('\n');
+%         run_test('lasso'); fprintf('\n');
         run_test('portfolio'); fprintf('\n');
-        run_test('svm'); fprintf('\n');
-        run_test('chebyshev'); fprintf('\n');
+%         run_test('svm'); fprintf('\n');
+%         run_test('chebyshev'); fprintf('\n');
 
 
     catch e
@@ -41,12 +41,16 @@ function run_test(directory)
     
 
     tic;
-    [status, result] = system(['../../src/efe --ecos ' directory '.prob']);
+    system(['../../src/efe --C ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
     try
-        eval(result);
+        cd(directory);
+        !make
+        !./testsolver
+        solver;
+        cd ..
         
 %         figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
 %         figure(2); subplot(1,2,1); spy(G_); subplot(1,2,2); spy(G1)
@@ -56,7 +60,7 @@ function run_test(directory)
 %      
 %         xtmp(ind) = sol;
     catch e
-        result
+        cd ..
         % info_% only when running with paris
         throw(e)
     end
@@ -87,7 +91,7 @@ function run_test(directory)
     else
         fprintf('FAIL\n');
 
-        result
+
         info_% only when running with paris
         [x_cvx full(x_ecos)]
         %cvx_status

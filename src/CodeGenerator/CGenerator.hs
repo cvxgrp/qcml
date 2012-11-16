@@ -1,7 +1,10 @@
-module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) where
+module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paramlist, varlist) where
   import CodeGenerator.Common
   import Expression.Expression
   import qualified Data.Map as M
+
+  -- need this for random numbers
+  import System.Random
 
   import Data.Maybe
   -- TODO/XXX: if we know the target architecture, we can make further optimizations such
@@ -13,8 +16,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   -- TODO/XXX: annotate sparsity structure (assume it's known at "compile" time)
 
   -- built on top of ECOS
-  cHeader :: String -> Codegen -> String
-  cHeader desc x = unlines $
+  cHeader :: String -> String -> Codegen -> String
+  cHeader ver desc x = unlines $
     ["/* stuff about open source license",
      " * ....",
      " * The problem specification for this solver is: ",
@@ -24,23 +27,22 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
      " * For now, parameters are *dense*, and we don't respect sparsity. The sparsity",
      " * structure has to be specified during code generation time. We could do the more",
      " * generic thing and allow sparse matrices, but as a first cut, we won't.",
-     " * Version 0.0.1", -- version number goes here or something
+     " * Version " ++ ver,
      " * Eric Chu, Alex Domahidi, Neal Parikh, Stephen Boyd (c) 2012 or something...",
      " */",
      "",
-     "#ifndef __SOLVER_H__ // solver.h",
+     "#ifndef __SOLVER_H__",
      "#define __SOLVER_H__",
      "",
-     "#include <string.h> // for memcpy",
      "#include \"ecos.h\"",
      ""]
      ++ paramCode
      ++ varCode ++ [
-     "pwork *setup(params *p);        // setting up workspace (assumes params already declared)",
-     "int solve(pwork *w, vars *sol); // solve the problem (assumes vars already declared)",
-     "void cleanup(pwork *w);         // clean up workspace",
+     "pwork *setup(params *p);        /* setting up workspace (assumes params already declared) */",
+     "int solve(pwork *w, vars *sol); /* solve the problem (assumes vars already declared) */",
+     "void cleanup(pwork *w);         /* clean up workspace */",
      "",
-     "#endif    // solver.h"]
+     "#endif    /* solver.h */"]
     where 
       params = paramlist x
       paramCode = [paramStruct (paramlist x)]
@@ -54,9 +56,46 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
      solverFunc x,
      cleanupFunc]  -- cleanup function is inlined
 
-  cData :: Codegen -> String
-  cData x = unlines $
-    ["some fake parameter data for testing"]
+  cTestSolver :: Int -> Codegen -> String
+  cTestSolver seed x = unlines $
+    ["#include \"solver.h\"",
+     "",
+     "int main(int argc, char **argv)",
+     "{",
+     "  params p;",
+     paraminits,
+     "  pwork *w = setup(&p);",
+     "  int flag = 0;",
+     "  if(w!=NULL) {",
+     "    vars v;",
+     "    flag = solve(w, &v);",
+     "    cleanup(w);",
+     "  }",
+     "  return flag;",
+     "}"]
+     where params = paramlist x
+           paramSizes = map ((\(x,y) -> x*y).shape) params
+           n = cumsum paramSizes
+           paramStrings = concat $ map expandParam params
+           randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
+           paraminits = intercalate "\n" [ s ++ " = " ++ (show v) ++ ";"  | (s,v) <- zip paramStrings randVals]
+
+  makefile :: String -> Codegen -> String
+  makefile ecos_path _ = unlines $
+    [ "ECOS_PATH = " ++ ecos_path,
+      "INCLUDES = -I$(ECOS_PATH)/code/include -I$(ECOS_PATH)/code/external/SuiteSparse_config",
+      "LIBS = -lm $(ECOS_PATH)/code/libecos.a $(ECOS_PATH)/code/external/amd/libamd.a $(ECOS_PATH)/code/external/ldl/libldl.a",
+      "",
+      "all: solver.o",
+      "\tgcc -Wall -O3 -o testsolver testsolver.c solver.o $(LIBS) $(INCLUDES)",
+      "",
+      "solver.o: solver.c",
+      "\tgcc -Wall -O3 -c solver.c $(INCLUDES)",
+      "",
+      "clean:",
+      "\trm testsolver *.o"]
+
+  -- helper functions
 
   probDesc :: String -> String
   probDesc desc = intercalate ("\n") (map (" *     "++) (lines desc))
@@ -118,6 +157,12 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   toParamString (Param s (m,n) False) = "  double " ++ s ++ "[" ++ show m ++ "]["++ show n ++ "];"
   toParamString (Param s (m,n) True) = "  double " ++ s ++ "[" ++ show n ++ "]["++ show m ++ "];"
 
+  expandParam :: Param -> [String]
+  expandParam (Param s (1,1) _) = ["  p." ++ s]
+  expandParam (Param s (m,1) _) = ["  p." ++ s ++ "[" ++ show i ++ "]" | i <- [0..(m-1)]]
+  -- expandParam (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  expandParam (Param s (m,n) False) = ["  p." ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]" | i <- [0..(m-1)], j <- [0..(n-1)]]
+  expandParam (Param s (m,n) True) = ["  p." ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]" | i <- [0..(m-1)], j <- [0..(n-1)]]
 
   -- functions to generate functions for c source
 
@@ -143,6 +188,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
 
   expandVarIndices :: Var -> Maybe (Int, Int) -> String
   expandVarIndices _ Nothing = ""
+  expandVarIndices v (Just (ind, 1)) = "  sol->" ++ (name v) ++ " = w->x["++ show ind ++"];"
   expandVarIndices v (Just (ind, _)) = intercalate "\n" ["  sol->" ++ (name v) ++ "["++ show i ++"] = w->x["++ show (ind + i) ++"];" | i <- [0..(rows v - 1)]]
 
     --"  memcpy(sol->" ++ (name v) ++ ", w->x + " ++ show ind ++ ", sizeof(double)*" ++ (show $ rows v) ++ ");"
@@ -152,16 +198,15 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   setupFunc x = unlines $ 
     ["pwork *setup(params *p)",
      "{",
-     "  double b[" ++ show m ++ "] = {0.0};",
+     "  static double b[" ++ show m ++ "]; /* = {0.0}; */",
      setBval p,
-     "  double c[" ++ show n ++ "] = {0.0};",
+     "  static double c[" ++ show n ++ "]; /* = {0.0}; */",
      setCval p,
-     "  double h[" ++ show k ++ "] = {0.0};",
+     "  static double h[" ++ show k ++ "]; /* = {0.0}; */",
      setQ higherDimCones,
      setG varTable p,
      setA varTable p,
      "  return ECOS_setup(" ++ arglist ++ ", q, Gpr, Gjc, Gir, Apr, Ajc, Air, c, h ,b);",
-     "  // uppercase are known during codegen time, lowercase are results of stuffing",
      "}"]
     where 
       p = problem x
@@ -201,6 +246,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
   expandBCoeff (Ones n 0) idx = Nothing 
   expandBCoeff (Ones 1 x) idx = Just $ "  b[" ++ show idx ++ "] = " ++ show x ++ ";"
   expandBCoeff (Ones n x) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = " ++ show x ++ ";" | i <- [0 .. (n - 1)]]
+  expandBCoeff (Vector 1 p) idx = Just $ "  b[" ++ show idx ++ "] = p->" ++ (name p) ++ ";"
   expandBCoeff (Vector n p) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = p->" ++ (name p) ++ "[" ++ show i ++ "];" | i <- [0 .. (n - 1)]]
   expandBCoeff _ _ = Nothing
 
@@ -212,7 +258,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
     "}"]
 
   setQ :: [Int] -> String
-  setQ xs = "  int q[" ++ show q ++ "] = {" ++ vals ++ "};"
+  setQ xs = "  static idxint q[" ++ show q ++ "] = {" ++ vals ++ "};"
     where vals = intercalate ", " (map show xs)
           q = length xs
 
@@ -288,7 +334,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
           n = cumsum varLens
           a = affine_A p
           startIdxs = scanl (+) 0 (map height a)
-          amat = concat (zipWith (createA table) a startIdxs)
+          amat = concat (zipWith (createA table) a startIdxs) -- XXX/TODO: stack overflow somewhere.....
           matrixA = sortBy columnsOrder amat
 
   height :: Row -> Int
@@ -335,15 +381,6 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
     | otherwise = ""
 
 
-
-
-  --data Coeff = Eye Int Double   -- eye matrix
-  --    | Ones Int Double         -- ones vector
-  --    | OnesT Int Double        -- ones' row vector
-  --    | Diag Int Param          -- replicate a parameter to diag(s) matrix
-  --    | Matrix Param            -- generic matrix
-  --    | Vector Int Param        -- generic vector
-
   -- sorting function for CCS
   columnsOrder :: (Int,Int,String) -> (Int,Int,String) -> Ordering
   columnsOrder (m1,n1,_) (m2,n2,_)  | n1 > n2 = GT
@@ -351,19 +388,24 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cData, paramlist, varlist) wh
                                     | otherwise = LT
 
   -- compress (i,j,val) form in to column compressed form and outputs the string
-  -- assumes (i,j,val) are in sorted order (sorted by the columns)
+  -- assumes (i,j,val) are sorted by columns
   compress :: String -> Int -> [(Int,Int,String)] -> String
   compress s cols xs = intercalate "\n" $
-    ["  int " ++ s ++ "jc[" ++ show cols ++ "] = {" ++ jc ++ "};",
-     "  int " ++ s ++ "ir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
-     "  double " ++ s ++ "pr[" ++ show nnz ++ "] = {" ++ pr ++ "};"]
+    ["  static idxint " ++ s ++ "jc[" ++ show (cols+1) ++ "] = {" ++ jc ++ "};",
+     "  static idxint " ++ s ++ "ir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
+     "  static double " ++ s ++ "pr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
+     pvals]
     where counter = take cols (repeat 0)
           nnz = length xs
-          nnzPerRow = foldl countNNZ counter xs
-          -- XXX/TODO: could be errors here... i think sorting fixes this... but i need to be think this through
+          nnzPerRow = foldl' countNNZ counter xs -- XXX/TODO: since xs are sorted, we can use a different algorithm here
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.getCCSRow) xs)
           pr = intercalate ", " (map getCCSVal xs)
+          pvals = printVals (s ++ "pr") (map getCCSVal xs)
+          jvals = printVals (s ++ "jc") (map show (scanl (+) 0 nnzPerRow))
+          ivals = printVals (s ++ "ir") (map (show.getCCSRow) xs)
+
+  printVals s vs = intercalate "\n" [  "  " ++ s ++ "[" ++ show i ++ "] = " ++ v ++ ";" | (i,v) <- zip [0..] vs ]
 
   countNNZ :: [Int] -> (Int,Int,String) -> [Int]
   countNNZ count (_,c,_) = front ++ [new] ++ back

@@ -11,6 +11,9 @@ module Main where
   -- need this for rows + cols
   import Expression.Expression  
 
+  -- need this for seeding random numbers
+  import Data.Time.Clock
+
   -- need this for code generators
   import CodeGenerator.Common(Codegen(problem), getVariableRows)
   import CodeGenerator.CVX
@@ -23,6 +26,7 @@ module Main where
   import qualified Data.Map as M
 
   ver = "0.0.1"
+  ecos_path = "/Users/echu/src/ecos"
   
   data Flag
     = Version | CVX | CVXSOCP | Conelp | ECOS | C | Filename String
@@ -87,15 +91,17 @@ module Main where
   printProblemStatistics x = putStrLn (formatStats x)
 
 
-  runCVX :: Flag -> FilePath -> String -> IO ()
-  runCVX flag dirpath input =
+  runCVX :: Int -> Flag -> FilePath -> String -> IO ()
+  runCVX seed flag dirpath input =
     let writers = case(flag) of
           CVX -> [(cvxgen, "/solver.m")]
           CVXSOCP -> [(codegen, "/solver.m")]
           Conelp -> [(codegenConelp, "/solver.m")]
           ECOS -> [(codegenECOS, "/solver.m")]
           C -> [(cCodegen, "/solver.c"), 
-                (cHeader input,"/solver.h")]
+                (cHeader ver input,"/solver.h"),
+                (makefile ecos_path, "/Makefile"),
+                (cTestSolver seed, "/testsolver.c")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }
@@ -127,8 +133,13 @@ module Main where
           withFile filename ReadMode (\handle -> do
             putStrLn $ "Reading problem " ++ filename
             contents <- hGetContents handle
+
+            -- get RNG seed
+            utc <- getCurrentTime;
+            let seed = round (1000*(toRational (utctDayTime utc)));
+
             putStrLn "Parsing..."
-            runCVX opt newDir contents
+            runCVX seed opt newDir contents
             );
         }
         _ -> error ("Invalid number of arguments\n\n" ++ usageInfo header options)

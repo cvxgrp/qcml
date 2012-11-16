@@ -35,7 +35,7 @@ module CodeGenerator.Common (
   affine_b = vectorB.constraints
 
   cumsum :: Num a => [a] -> a
-  cumsum = foldl (+) 0
+  cumsum = foldl' (+) 0
 
   -- a VarTable is an associatiation list with (name, (start, len))
   type VarTable = [(String, (Int,Int))]
