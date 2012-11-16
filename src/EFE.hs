@@ -11,8 +11,8 @@ module Main where
   -- need this for rows + cols
   import Expression.Expression  
 
-  -- need this for seeding random numbers
-  import Data.Time.Clock
+  ---- need this for seeding random numbers
+  --import Data.Time.Clock
 
   -- need this for code generators
   import CodeGenerator.Common(Codegen(problem), getVariableRows)
@@ -91,8 +91,8 @@ module Main where
   printProblemStatistics x = putStrLn (formatStats x)
 
 
-  runCVX :: Int -> Flag -> FilePath -> String -> IO ()
-  runCVX seed flag dirpath input =
+  runCVX :: Flag -> FilePath -> String -> IO ()
+  runCVX flag dirpath input =
     let writers = case(flag) of
           CVX -> [(cvxgen, "/solver.m")]
           CVXSOCP -> [(codegen, "/solver.m")]
@@ -101,7 +101,7 @@ module Main where
           C -> [(cCodegen, "/solver.c"), 
                 (cHeader ver input,"/solver.h"),
                 (makefile ecos_path, "/Makefile"),
-                (cTestSolver seed, "/testsolver.c")]
+                (cTestSolver, "/testsolver.c")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }
@@ -134,12 +134,8 @@ module Main where
             putStrLn $ "Reading problem " ++ filename
             contents <- hGetContents handle
 
-            -- get RNG seed
-            utc <- getCurrentTime;
-            let seed = round (1000*(toRational (utctDayTime utc)));
-
             putStrLn "Parsing..."
-            runCVX seed opt newDir contents
+            runCVX opt newDir contents
             );
         }
         _ -> error ("Invalid number of arguments\n\n" ++ usageInfo header options)

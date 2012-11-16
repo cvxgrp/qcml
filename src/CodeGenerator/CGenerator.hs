@@ -56,14 +56,25 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      solverFunc x,
      cleanupFunc]  -- cleanup function is inlined
 
-  cTestSolver :: Int -> Codegen -> String
-  cTestSolver seed x = unlines $
+  -- although we'd like to generate "branch-free" code, for large-ish problems, this is not going to work
+  cTestSolver :: Codegen -> String
+  cTestSolver x = unlines $
     ["#include \"solver.h\"",
+     "#include <stdlib.h> /* for random numbers */",
+     "#include <time.h> /* for seed */",
+     "",
+     "double randu()",
+     "{",
+     "  return ((double) rand())/RAND_MAX;",
+     "}",
      "",
      "int main(int argc, char **argv)",
      "{",
+     "  srand( time(NULL) );",
+     "  int i = 0;",
+     "  int j = 0;",
      "  params p;",
-     paraminits,
+     paramStrings,
      "  pwork *w = setup(&p);",
      "  int flag = 0;",
      "  if(w!=NULL) {",
@@ -76,9 +87,34 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      where params = paramlist x
            paramSizes = map ((\(x,y) -> x*y).shape) params
            n = cumsum paramSizes
-           paramStrings = concat $ map expandParam params
-           randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
-           paraminits = intercalate "\n" [ s ++ " = " ++ (show v) ++ ";"  | (s,v) <- zip paramStrings randVals]
+           paramStrings = intercalate "\n" $ map expandParam params
+           -- randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
+           -- paraminits = intercalate "\n" [ s ++ " = " ++ (show v) ++ ";"  | (s,v) <- zip paramStrings randVals]
+
+
+  --cTestSolver :: Int -> Codegen -> String
+  --cTestSolver seed x = unlines $
+  --  ["#include \"solver.h\"",
+  --   "",
+  --   "int main(int argc, char **argv)",
+  --   "{",
+  --   "  params p;",
+  --   paraminits,
+  --   "  pwork *w = setup(&p);",
+  --   "  int flag = 0;",
+  --   "  if(w!=NULL) {",
+  --   "    vars v;",
+  --   "    flag = solve(w, &v);",
+  --   "    cleanup(w);",
+  --   "  }",
+  --   "  return flag;",
+  --   "}"]
+  --   where params = paramlist x
+  --         paramSizes = map ((\(x,y) -> x*y).shape) params
+  --         n = cumsum paramSizes
+  --         paramStrings = concat $ map expandParam params
+  --         randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
+  --         paraminits = intercalate "\n" [ s ++ " = " ++ (show v) ++ ";"  | (s,v) <- zip paramStrings randVals]
 
   makefile :: String -> Codegen -> String
   makefile ecos_path _ = unlines $
@@ -157,12 +193,26 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   toParamString (Param s (m,n) False) = "  double " ++ s ++ "[" ++ show m ++ "]["++ show n ++ "];"
   toParamString (Param s (m,n) True) = "  double " ++ s ++ "[" ++ show n ++ "]["++ show m ++ "];"
 
-  expandParam :: Param -> [String]
-  expandParam (Param s (1,1) _) = ["  p." ++ s]
-  expandParam (Param s (m,1) _) = ["  p." ++ s ++ "[" ++ show i ++ "]" | i <- [0..(m-1)]]
+  expandParam :: Param -> String
+  expandParam (Param s (1,1) _) = "  p." ++ s ++ " = randu();"
+  expandParam (Param s (m,1) _) = intercalate "\n" [
+    "  for(i = 0; i < " ++ show m ++ "; ++i) {",
+    "    p." ++ s ++ "[i] = randu();",
+    "  }"] 
   -- expandParam (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
-  expandParam (Param s (m,n) False) = ["  p." ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]" | i <- [0..(m-1)], j <- [0..(n-1)]]
-  expandParam (Param s (m,n) True) = ["  p." ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]" | i <- [0..(m-1)], j <- [0..(n-1)]]
+  expandParam (Param s (m,n) False) = intercalate "\n" [
+    "  for(i = 0; i < " ++ show m ++ "; ++i) {",
+    "    for(j = 0; j < " ++ show n ++ "; ++j) {",
+    "      p." ++ s ++ "[i][j] = randu();",
+    "    }",
+    "  }"] 
+  expandParam (Param s (m,n) True) = intercalate "\n" [
+    "  for(j = 0; j < " ++ show n ++ "; ++j) {",
+    "    for(i = 0; i < " ++ show m ++ "; ++i) {",
+    "      p." ++ s ++ "[j][i] = randu();",
+    "    }",
+    "  }"] 
+
 
   -- functions to generate functions for c source
 
