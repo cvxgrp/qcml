@@ -90,7 +90,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
       "\tgcc -Wall -O3 -o testsolver testsolver.c solver.o $(LIBS) $(INCLUDES)",
       "",
       "solver.o: solver.c",
-      "\tgcc -Wall -O3 -c solver.c $(INCLUDES)",
+      "\tgcc -ansi -Wall -O3 -c solver.c $(INCLUDES)",
       "",
       "clean:",
       "\trm testsolver *.o"]
@@ -373,11 +373,14 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     | i >= 0 && i < m = "p->" ++ s ++ "[" ++ show i ++ "]"
     | otherwise = ""
   -- toParamVal (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  toParamVal i _ (Param s (1,m) True) -- this is a mess. if the param is "transposed", this just says to access (1,m) as if it were (m,1)
+    | i >= 0 && i < m = "p->" ++ s ++ "[" ++ show i ++ "]"
+    | otherwise = ""
   toParamVal i j (Param s (m,n) False)
     | i >= 0 && j >= 0 && i < m && j < n = "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
     | otherwise = ""
-  toParamVal i j (Param s (m,n) True)
-    | i >= 0 && j >= 0 && i < n && j < m  = "p->" ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]"
+  toParamVal i j (Param s (m,n) True) -- if the param is "transposed", we access (m,n) as if it were (n,m)
+    | i >= 0 && j >= 0 && i < m && j < n  = "p->" ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]"
     | otherwise = ""
 
 
@@ -395,10 +398,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      "  static idxint " ++ s ++ "ir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
      "  static double " ++ s ++ "pr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
      pvals]
-    where --counter = take cols (repeat 0)
-          nnz = length xs
-          nnzPerRow = countNNZ' cols xs --foldl' countNNZ counter xs -- XXX/TODO: since xs are sorted, we can use a different algorithm here
-          -- otherNNZ = countNNZ' cols xs
+    where nnz = length xs
+          nnzPerRow = countNNZ cols xs
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.getCCSRow) xs)
           pr = intercalate ", " (map getCCSVal xs)
@@ -408,14 +409,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
 
   printVals s vs = intercalate "\n" [  "  " ++ s ++ "[" ++ show i ++ "] = " ++ v ++ ";" | (i,v) <- zip [0..] vs ]
 
-  countNNZ :: [Int] -> (Int,Int,String) -> [Int]
-  countNNZ count (_,c,_) = front ++ [new] ++ back
-    where (front, rest) = splitAt c count
-          back = tail rest
-          new = (head rest)+ 1
-
-  countNNZ' :: Int -> [(Int,Int,String)] -> [Int]
-  countNNZ' l xs = (map length groups) ++ (take pad $ repeat 0)
+  countNNZ :: Int -> [(Int,Int,String)] -> [Int]
+  countNNZ l xs = (map length groups) ++ (take pad $ repeat 0)
     where groups = groupBy (\(_,c1,_) (_,c2,_) -> c1 == c2) xs
           pad = l - (length groups)
 
