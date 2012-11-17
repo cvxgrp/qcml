@@ -11,8 +11,8 @@ module Main where
   -- need this for rows + cols
   import Expression.Expression  
 
-  ---- need this for seeding random numbers
-  --import Data.Time.Clock
+  -- need this for seeding random numbers
+  import Data.Time.Clock
 
   -- need this for code generators
   import CodeGenerator.Common(Codegen(problem), getVariableRows)
@@ -20,6 +20,7 @@ module Main where
   import CodeGenerator.CVXSOCP
   import CodeGenerator.ECOS
   import CodeGenerator.CGenerator
+  import qualified CodeGenerator.CGeneratorUnrolled as U
 
   -- want to output messages as we go parsing.... *HMMM* haskell fail. :(
   
@@ -91,8 +92,8 @@ module Main where
   printProblemStatistics x = putStrLn (formatStats x)
 
 
-  runCVX :: Flag -> FilePath -> String -> IO ()
-  runCVX flag dirpath input =
+  runCVX :: Int -> Flag -> FilePath -> String -> IO ()
+  runCVX seed flag dirpath input =
     let writers = case(flag) of
           CVX -> [(cvxgen, "/solver.m")]
           CVXSOCP -> [(codegen, "/solver.m")]
@@ -134,8 +135,12 @@ module Main where
             putStrLn $ "Reading problem " ++ filename
             contents <- hGetContents handle
 
+            -- get RNG seed
+            utc <- getCurrentTime;
+            let seed = round (1000*(toRational (utctDayTime utc)));
+
             putStrLn "Parsing..."
-            runCVX opt newDir contents
+            runCVX seed opt newDir contents
             );
         }
         _ -> error ("Invalid number of arguments\n\n" ++ usageInfo header options)

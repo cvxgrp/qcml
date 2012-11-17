@@ -7,7 +7,7 @@ function ecos_tester()
     cvx_solver sedumi
 
     try 
-        run_test('least_squares'); fprintf('\n');
+%         run_test('least_squares'); fprintf('\n');
 %         run_test('geometric_mean'); fprintf('\n');
 %         run_test('lp'); fprintf('\n');
 %         run_test('quadratic_over_linear'); fprintf('\n');
@@ -16,7 +16,7 @@ function ecos_tester()
 %         run_test('robust_ls'); fprintf('\n');
 %         run_test('ecos_mpc'); fprintf('\n');
 %         run_test('lasso'); fprintf('\n');
-%         run_test('portfolio'); fprintf('\n');
+        run_test('portfolio'); fprintf('\n');
 %         run_test('svm'); fprintf('\n');
 %         run_test('chebyshev'); fprintf('\n');
 
@@ -41,14 +41,14 @@ function run_test(directory)
     
 
     tic;
-    system(['../../src/efe --C ' directory '.prob']);
+    system(['../../src/efe --ecos ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
     try
         cd(directory);
-        !make
-        !./testsolver
+%         !make
+%         !./testsolver
         solver;
         cd ..
         
