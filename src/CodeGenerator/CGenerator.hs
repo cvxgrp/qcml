@@ -1,4 +1,4 @@
-module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paramlist, varlist) where
+module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paramlist, varlist, paramsigns) where
   import CodeGenerator.Common
   import Expression.Expression
   import qualified Data.Map as M
@@ -91,7 +91,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      "  return flag;",
      "}"]
      where params = paramlist x
-           paramSizes = map ((\(x,y) -> x*y).shape) params
+           paramSizes = map ((\(x,y) -> x*y).dimensions) params
            n = cumsum paramSizes
            paramStrings = intercalate "\n" $ map expandParam params
            -- randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
@@ -126,13 +126,21 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   paramlist c = catMaybes maybe_params
     where maybe_params = map (extractParam) (M.elems $ symbolTable c)
 
+  paramsigns :: Codegen -> [Sign]
+  paramsigns c = catMaybes maybe_signs
+    where maybe_signs = map (extractParamSigns) (M.elems $ symbolTable c)
+
   extractVar :: Expr -> Maybe Var
   extractVar (Variable v) = Just v
   extractVar _ = Nothing
 
   extractParam :: Expr -> Maybe Param
-  extractParam (Parameter v _) = Just v
+  extractParam (Parameter v _ _) = Just v
   extractParam _ = Nothing
+
+  extractParamSigns :: Expr -> Maybe Sign
+  extractParamSigns (Parameter _ s _) = Just s
+  extractParamSigns _ = Nothing
 
   -- structs for header file
 
@@ -168,29 +176,22 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      ["} params;"]
 
   toParamString :: Param -> String
-  toParamString (Param s (1,1) _) = "  double " ++ s ++ ";"
-  toParamString (Param s (m,1) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
+  toParamString (Param s (1,1)) = "  double " ++ s ++ ";"
+  toParamString (Param s (m,1)) = "  double " ++ s ++ "[" ++ show m ++ "];"
   -- toParamString (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
-  toParamString (Param s (m,n) False) = "  double " ++ s ++ "[" ++ show m ++ "]["++ show n ++ "];"
-  toParamString (Param s (m,n) True) = "  double " ++ s ++ "[" ++ show n ++ "]["++ show m ++ "];"
+  toParamString (Param s (m,n)) = "  double " ++ s ++ "[" ++ show m ++ "]["++ show n ++ "];"
 
   expandParam :: Param -> String
-  expandParam (Param s (1,1) _) = "  p." ++ s ++ " = randu();"
-  expandParam (Param s (m,1) _) = intercalate "\n" [
+  expandParam (Param s (1,1)) = "  p." ++ s ++ " = randu();"
+  expandParam (Param s (m,1)) = intercalate "\n" [
     "  for(i = 0; i < " ++ show m ++ "; ++i) {",
     "    p." ++ s ++ "[i] = randu();",
     "  }"] 
   -- expandParam (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
-  expandParam (Param s (m,n) False) = intercalate "\n" [
+  expandParam (Param s (m,n)) = intercalate "\n" [
     "  for(i = 0; i < " ++ show m ++ "; ++i) {",
     "    for(j = 0; j < " ++ show n ++ "; ++j) {",
     "      p." ++ s ++ "[i][j] = randu();",
-    "    }",
-    "  }"] 
-  expandParam (Param s (m,n) True) = intercalate "\n" [
-    "  for(j = 0; j < " ++ show n ++ "; ++j) {",
-    "    for(i = 0; i < " ++ show m ++ "; ++i) {",
-    "      p." ++ s ++ "[j][i] = randu();",
     "    }",
     "  }"] 
 
@@ -216,12 +217,11 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     where vars = varlist x -- variables in the problems
           varNames = map name vars
           varTable = buildVarTable x -- all variables introduced in problem rewriting
-          varInfo = map (flip lookup varTable) varNames
+          varInfo = catMaybes $ map (flip lookup varTable) varNames
 
-  expandVarIndices :: Var -> Maybe (Int, Int) -> String
-  expandVarIndices _ Nothing = ""
-  expandVarIndices v (Just (ind, 1)) = "  sol->" ++ (name v) ++ " = w->x["++ show ind ++"];"
-  expandVarIndices v (Just (ind, _)) = intercalate "\n" [
+  expandVarIndices :: Var -> (Int, Int) -> String
+  expandVarIndices v (ind, 1) = "  sol->" ++ (name v) ++ " = w->x["++ show ind ++"];"
+  expandVarIndices v (ind, _) = intercalate "\n" [
     "  for(i = 0; i < " ++ show (rows v) ++ "; ++i) {",
     "    sol->"++ (name v) ++ "[i] = w->x[i + " ++ show ind ++ "];",
     "  }"] 
@@ -291,6 +291,11 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     "  for(i = " ++ show idx ++ "; i < " ++ show (idx+n) ++ "; ++i) {",
     "    b[i] = p->" ++ (name p) ++ "[i - " ++ show idx ++ "];",
     "  }"]
+  expandBCoeff (VectorT 1 p) idx = Just $ "  b[" ++ show idx ++ "] = p->" ++ (name p) ++ ";"
+  expandBCoeff (VectorT n p) idx = Just $ intercalate "\n" [
+    "  for(i = " ++ show idx ++ "; i < " ++ show (idx+n) ++ "; ++i) {",
+    "    b[i] = p->" ++ (name p) ++ "[0][i - " ++ show idx ++ "];",
+    "  }"]
   --"  b[" ++ show (idx + i) ++ "] = p->" ++ (name p) ++ "[" ++ show i ++ "];" | i <- [0 .. (n - 1)]]
   expandBCoeff _ _ = Nothing
 
@@ -330,7 +335,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           matrixG = sortBy columnsOrder' gmat -- G in (i,j,-1) form, but sorted according to columns
           -- for printing
           nnz = length matrixG
-          nnzPerRow = countNNZ' n matrixG
+          nnzPerRow = countNNZ' n 0 0 matrixG
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.fst) matrixG)
 
@@ -358,11 +363,11 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   createCone :: VarTable -> SOC -> Int -> [(Int,Int)]
   createCone table (SOC vars) idx = concat [expandCone i k | (i,k) <- zip idxs sizes ]
     where idxs = scanl (+) idx (map rows vars)
-          sizes = map (flip lookup table) (map name vars)
+          sizes = catMaybes $ map (flip lookup table) (map name vars)
   createCone table (SOCelem vars) idx = concat [expandConeElem idx n i j k | (i,k) <- zip [0,1 ..] sizes, j <- [0 .. (m-1)]]
     where n = length vars
           m = rows (vars!!0)
-          sizes = map (flip lookup table) (map name vars)
+          sizes = catMaybes $ map (flip lookup table) (map name vars)
 
   -- SOCElem [x,y,z]
   -- assuming x is a 2 vec starting at ind 10, y is a 2 vec starting at ind 3, z is a 2 vec starting at ind 5
@@ -374,13 +379,11 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   -- G(4,4) = -1
   -- G(5,6) = -1
   -- G(6,12) = -1
-  expandConeElem :: Int -> Int -> Int -> Int -> Maybe (Int,Int) -> [(Int,Int)]
-  expandConeElem _ _ _ _ Nothing = []
-  expandConeElem idx n i j (Just (k,l)) = [(idx + i + j*n, k + j)] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
+  expandConeElem :: Int -> Int -> Int -> Int -> (Int, Int) -> [(Int,Int)]
+  expandConeElem idx n i j (k,l) = [(idx + i + j*n, k + j)] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
 
-  expandCone :: Int -> Maybe (Int, Int) -> [(Int,Int)]
-  expandCone _ Nothing = []
-  expandCone idx (Just (m,n)) = [(idx +i, m+i) | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
+  expandCone :: Int -> (Int, Int) -> [(Int,Int)]
+  expandCone idx (m,n) = [(idx +i, m+i) | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
 
 
   setA :: VarTable -> SOCP -> String
@@ -389,7 +392,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           n = cumsum varLens
           a = affine_A p
           startIdxs = scanl (+) 0 (map rowHeight a)
-          amat = concat (zipWith (createA table) a startIdxs) -- XXX/TODO: stack overflow somewhere.....
+          amat = concat (zipWith (createA table) a startIdxs)
           matrixA = sortBy columnsOrder amat
 
   rowHeight :: Row -> Int
@@ -399,7 +402,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   createA table row idx = concat [ expandARow i c s | (i,c,s) <- zip3 idxs coefficients sizes ]
     where vars = variables row
           coefficients = coeffs row
-          sizes = map (flip lookup table) (map name vars)
+          sizes = catMaybes $ map (flip lookup table) (map name vars)
           idxs = getRowStartIdxs idx coefficients   -- only for concatenation
 
   getRowStartIdxs :: Int -> [Coeff] -> [Int]
@@ -416,37 +419,28 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     height :: Int,
     width :: Int,
     column :: Int,
-    isTranspose :: Bool
+    isTransposed :: Bool -- to help figure out how to emit the code
   } deriving (Eq)
 
   instance Show Value where
     show x = (value x) ++ "[" ++ show (column x) ++ "](" ++ show (height x) ++ ", " ++ show (width x) ++ ")" 
 
-  expandARow :: Int -> Coeff -> Maybe (Int, Int) -> [(Int,Int,Value)]
-  expandARow _ _ Nothing = []
+  expandARow :: Int -> Coeff -> (Int, Int) -> [(Int,Int,Value)]
   -- size of coeff should match
-  expandARow idx (Eye _ x) (Just (m,n)) = [(idx + i, m + i, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]] -- eye length should equal m
-  expandARow idx (Ones n x) (Just (m,1)) = [(idx + i, m, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
-  expandARow idx (OnesT _ x) (Just (m,n)) = [(idx, m + i, Value (show x) 1 1 i False) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Diag n p) (Just (m,_)) = [(idx + i, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Matrix p) (Just (m,n)) = [(idx +i, m + j, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
-  expandARow idx (Vector n p) (Just (m,1)) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (Eye _ x) (m,n) = [(idx + i, m + i, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]] -- eye length should equal m
+  expandARow idx (Ones n x) (m,1) = [(idx + i, m, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
+  expandARow idx (OnesT _ x) (m,n) = [(idx, m + i, Value (show x) 1 1 i False) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Diag n p) (m,_) = [(idx + i, m + i, toParamVal False i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Matrix p) (m,n) = [(idx + i, m + j, toParamVal False i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (MatrixT p) (m,n) = [(idx + j, m + i, toParamVal True i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (Vector n p) (m,1) = [(idx + i, m, toParamVal False i 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (VectorT _ p) (m,n) = [(idx, m + i, toParamVal True i 0 p) | i <- [0 .. (n-1)]]
 
-  toParamVal :: Int -> Int ->  Param -> Value
-  toParamVal _ _ (Param s (1,1) _) = Value ("p->" ++ s) 1 1 1  False-- "p->" ++ s
-  toParamVal i _ (Param s (m,1) _)
-    | i >= 0 && i < m = Value ("p->" ++ s) m 1 1 False-- "  p->" ++ s ++ "[" ++ show i ++ "]"
-    | otherwise = Value "" m 1 1 False
-  -- toParamVal (Param s (1,m) _) = "  double " ++ s ++ "[" ++ show m ++ "];"
-  toParamVal i j (Param s (1,m) True) -- this is a mess. if the param is "transposed", this just says to access (1,m) as if it were (m,1)
-    | i >= 0 && i < m = Value ("p->" ++ s) 1 m j True-- "p->" ++ s ++ "[" ++ show i ++ "]"
-    | otherwise = Value "" 1 m i True
-  toParamVal i j (Param s (m,n) False)
-    | i >= 0 && j >= 0 && i < m && j < n = Value ("p->" ++ s) m n j False-- "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
-    | otherwise = Value "" m n j False
-  toParamVal i j (Param s (m,n) True) -- if the param is "transposed", we access (m,n) as if it were (n,m)
-    | i >= 0 && j >= 0 && i < m && j < n  = Value ("p->" ++ s) n m j True -- "p->" ++ s ++ "[" ++ show j ++ "]["++ show i ++ "]"
-    | otherwise = Value "" n m i True
+  toParamVal :: Bool -> Int -> Int ->  Param -> Value
+  toParamVal t _ _ (Param s (1,1)) = Value ("p->" ++ s) 1 1 1 t -- "p->" ++ s
+  toParamVal t i _ (Param s (m,1)) = Value ("p->" ++ s) m 1 1 t -- "  p->" ++ s ++ "[" ++ show i ++ "]"
+  toParamVal False i j (Param s (m,n)) = Value ("p->" ++ s) m n j False -- "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
+  toParamVal True i j (Param s (m,n)) = Value ("p->" ++ s) m n i True -- "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
 
 
   -- sorting function for CCS
@@ -469,15 +463,13 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
      "  static double Apr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
      pvals] --pvals]
     where nnz = length xs
-          nnzPerRow = countNNZ cols xs
+          nnzPerRow = countNNZ cols 0 0 xs
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.getCCSRow) xs)
           pr = group (map getCCSVal xs)
           rowIdxs = scanl (+) 0 (map length pr)
           pvals = intercalate "\n" $ zipWith (printVal) pr rowIdxs
-          --pvals = printVals (s ++ "pr") (map getCCSVal xs)
-          --jvals = printVals (s ++ "jc") (map show (scanl (+) 0 nnzPerRow))
-          --ivals = printVals (s ++ "ir") (map (show.getCCSRow) xs)
+
 
   -- massive HAX
   printVal vals idx
@@ -493,21 +485,27 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   expandValue :: Int -> Value -> String
   expandValue _ (Value s 1 1 1 _) = s
   expandValue idx (Value s m 1 1 _) = s ++ "[i - " ++ show idx ++ "]"
-  expandValue _ (Value s 1 m i _) = s ++ "["++ show i ++"]"
+  expandValue _ (Value s 1 m i _) = s ++ "[0]["++ show i ++"]"
   expandValue idx (Value s m n j False) = s ++ "[i - " ++ show idx ++ "][" ++ show j ++ "]"
   expandValue idx (Value s m n j True) = s ++ "[" ++ show j ++ "][i - " ++ show idx ++ "]"
 
-  -- printVals s vs = intercalate "\n" [  "  " ++ s ++ "[" ++ show i ++ "] = " ++ v ++ ";" | (i,v) <- zip [0..] vs ]
 
-  countNNZ' :: Int -> [(Int,Int)] -> [Int]
-  countNNZ' l xs = (map length groups) ++ (take pad $ repeat 0)
-    where groups = groupBy (\(_,c1) (_,c2) -> c1 == c2) xs
-          pad = l - (length groups)
+  -- specialized counters and getters
+  countNNZ' :: Int -> Int -> Int -> [(Int,Int)] -> [Int]
+  countNNZ' n i count []
+    | i >= n = []
+    | otherwise = count:(countNNZ' n (i+1) 0 [])
+  countNNZ' n i count (x:xs)
+    | snd x == i = countNNZ' n i (count + 1) xs
+    | otherwise = count:(countNNZ' n (i+1) 0 (x:xs))   -- x should always be > i here since it's sorted
 
-  countNNZ :: Int -> [(Int,Int,Value)] -> [Int]
-  countNNZ l xs = (map length groups) ++ (take pad $ repeat 0)
-    where groups = groupBy (\(_,c1,_) (_,c2,_) -> c1 == c2) xs
-          pad = l - (length groups)
+  countNNZ :: Int -> Int -> Int -> [(Int,Int,Value)] -> [Int]
+  countNNZ n i count []
+    | i >= n = []
+    | otherwise = count:(countNNZ n (i+1) 0 [])
+  countNNZ n i count ((r,c,v):xs)
+    | c == i = countNNZ n i (count + 1) xs
+    | otherwise = count:(countNNZ n (i+1) 0 ((r,c,v):xs))   -- x should always be > i here since it's sorted
 
   getCCSRow :: (Int,Int,Value) -> Int
   getCCSRow (i,_,_) = i

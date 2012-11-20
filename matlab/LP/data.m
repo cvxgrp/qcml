@@ -10,3 +10,8 @@ c = [1;1];
 % zero = 0;
 
 ct = c';
+
+params.A = A;
+params.b = b;
+params.c = c;
+params.ct = ct;

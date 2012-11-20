@@ -18,10 +18,11 @@ module Atoms.Atoms(
   ecos_sqrt,
   ecos_geo_mean,
   ecos_concat,
-  ecos_transpose,
   ecos_eq,
   ecos_geq,
   ecos_leq,
+  ecos_transpose,
+  ecos_diag,
   ecos_pow_rat,
   isScalar,
   isVector,
@@ -166,7 +167,7 @@ module Atoms.Atoms(
   ecos_mult :: Expr -> Expr -> String -> Expr
   ecos_mult (None s) _ _ = None s
   ecos_mult _ (None s) _ = None s
-  ecos_mult (Parameter p psgn) x s
+  ecos_mult (Parameter p psgn shape) x s
     | (pm == 1) && (pn == 1) && isVector x = expression newVar curvature sgn prog
     | (pm >= 1) && (pn >= 1) && isVector x && compatible = expression newVar curvature sgn prog
     | otherwise = none $ "mult: size of " ++ (name p) ++ " and " ++ (name x) ++ " don't match"
@@ -179,14 +180,19 @@ module Atoms.Atoms(
       sgn = psgn <*> (sign x)
       compatible = pn == rows x
       prog = (ConicSet matA vecB []) <++> (cones x)
-      (pm,pn) = (rows p, cols p)
+      (pm,pn)
+        | shape == NoMod = (rows p, cols p)
+        | shape == Transposed = (cols p, rows p)
+        | shape == Diagonal = (rows p, rows p)
       (m,n)
         | pm == 1 && pn == 1 = (rows x, cols x)
         | otherwise = (pm, cols x)
       newVar = Var ("t"++s) (m, n)
       matA
         | pm == 1 && pn == 1 = [ Row [(Diag m p, var x), (Eye m (-1), newVar)] ]
-        | otherwise = [ Row [(Matrix p, var x), (Eye m (-1), newVar)] ]
+        | shape == Diagonal = [ Row [(Diag m p, var x), (Eye m (-1), newVar)] ]
+        | shape == Transposed = [ Row [(MatrixT p, var x), (Eye m (-1), newVar)] ]
+        | shape == NoMod = [ Row [(Matrix p, var x), (Eye m (-1), newVar)] ]
       vecB = [Ones m 0]
   ecos_mult _ _ _ = None "mult: lhs ought to be parameter"
 
@@ -456,14 +462,6 @@ module Atoms.Atoms(
       matA = [Row ((Eye m (-1), newVar):coeffs) ] -- the *first* of this list *must* be the variable to write *out*, the result of concatenation (otherwise the code will break)
       vecB = [Ones m 0]
 
-  -- transpose a = a' (new parameter named " a' ")
-  -- this works perfectly in Matlab, but care must be taken at
-  -- codegen to parse a "tick" as a transposed parameter
-  ecos_transpose :: Expr -> Expr
-  ecos_transpose (None s) = None s
-  ecos_transpose (Parameter p psgn) = Parameter (Param (name p) (swap $ shape p) (not $ transposed p)) psgn
-  ecos_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
-
   -- inequalities (returns "Maybe ConicSet", since ConicSet are convex)
   -- if it's an invalid inequality, will produce Nothing
   -- a >= b
@@ -531,3 +529,22 @@ module Atoms.Atoms(
           vecB = [Ones m 0]
           isConvexSet = (isAffine a) && (isAffine b)
 
+  -- operators on parameters
+
+  -- transpose a = a' (new parameter named " a' ")
+  -- this works perfectly in Matlab, but care must be taken at
+  -- codegen to parse a "tick" as a transposed parameter
+  ecos_transpose :: Expr -> Expr
+  ecos_transpose (None s) = None s
+  ecos_transpose (Parameter p psgn NoMod) = Parameter p psgn Transposed
+  ecos_transpose (Parameter p psgn Transposed) = Parameter p psgn NoMod
+  ecos_transpose (Parameter p psgn Diagonal) = None $ "transpose: can only transpose vectors"
+  ecos_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
+
+  -- diag a = diag(a) (new diagonal matrix parameter)
+  ecos_diag :: Expr -> Expr
+  ecos_diag (None s) = None s
+  ecos_diag (Parameter (Param s (m,1)) psgn NoMod) = Parameter (Param s (m,1)) psgn Diagonal
+  ecos_diag (Parameter (Param s (1,m)) psgn Transposed) = Parameter (Param s (1,m)) psgn Diagonal
+  ecos_diag (Parameter p psgn Diagonal) = Parameter p psgn Diagonal -- does nothing
+  ecos_diag x = None $ "diag: cannot diagonalize " ++ (name x) ++ "; can only diagonalize vector parameters"

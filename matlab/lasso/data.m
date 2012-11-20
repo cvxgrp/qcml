@@ -13,3 +13,20 @@ a22 = A(2,2);
 a23 = A(2,3);
 b1 = b(1);
 b2 = b(2);
+
+params.a11 = a11;
+params.a12 = a12;
+params.a13 = a13;
+params.a21 = a21;
+params.a22 = a22;
+params.a23 = a23;
+params.b1 = b1;
+params.b2 = b2;
+
+params.u = u;
+params.l = l;
+
+params.lambda = lambda;
+
+params.A = A;
+params.b = b;

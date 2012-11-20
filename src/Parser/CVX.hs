@@ -29,7 +29,8 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
      ("norm", atom_norm),
      ("sqrt", atom_sqrt),
      ("geo_mean", atom_geo_mean),
-     ("pow_rat", atom_pow_rat)]
+     ("pow_rat", atom_pow_rat),
+     ("diag", atom_diag)]
 
   symbolTable = CVXState M.empty M.empty 0
 
@@ -326,9 +327,9 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     size <- optionMaybe shape;
     let dim = fromMaybe (1,1) size
         p = case (sign) of
-          Just E.Positive -> E.Parameter (E.Param s dim False) E.Positive
-          Just E.Negative -> E.Parameter (E.Param s dim False) E.Negative
-          _ -> E.Parameter (E.Param s dim False) E.Unknown
+          Just E.Positive -> E.Parameter (E.Param s dim) E.Positive E.NoMod
+          Just E.Negative -> E.Parameter (E.Param s dim) E.Negative E.NoMod
+          _ -> E.Parameter (E.Param s dim) E.Unknown E.NoMod
     in updateState (insertSymbol p)
   } <?> "parameter"
 
@@ -523,4 +524,10 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     return (e, [p,q])
   } <?> "pow_rat arguments"
 
+  atom_diag :: CVXParser E.Expr
+  atom_diag = do {
+    reserved "diag";
+    args <- parens $ args "diag" 1;
+    return $ ecos_diag (args!!0)
+  }
 

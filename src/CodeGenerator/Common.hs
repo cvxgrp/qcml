@@ -90,12 +90,10 @@ module CodeGenerator.Common (
     
   -- get coeff size and value
   getCoeffInfo :: Coeff -> (Int,Int,String)
-  getCoeffInfo (Matrix p) = (rows p, cols p, s)
-    where s | transposed p = (name p) ++ "'"
-            | otherwise = name p
-  getCoeffInfo (Vector n p)
-    | transposed p = (1,n,(name p)++"'")
-    | otherwise = (n,1,name p)
+  getCoeffInfo (Matrix p) = (rows p, cols p, name p)
+  getCoeffInfo (MatrixT p) = (cols p, rows p, (name p) ++ "'")
+  getCoeffInfo (Vector n p) = (n,1, name p)
+  getCoeffInfo (VectorT n p) = (n,1, (name p)++"'")
   getCoeffInfo (Diag 1 p) = (1,1, name p)
   getCoeffInfo (Diag n p) = (n,n,"spdiags("++ name p ++ ",0,"++show n++","++show n++")")
   getCoeffInfo (OnesT n 0) = (1,n, "0")

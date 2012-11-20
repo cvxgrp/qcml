@@ -10,3 +10,9 @@ xtrue = randn(n,1);
 b = A*xtrue + 0.1*randn(m,1);
 
 e = rand;
+
+params.A = A;
+params.C = C;
+params.d = d;
+params.b = b;
+params.e = e;

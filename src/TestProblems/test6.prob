@@ -1,0 +1,6 @@
+dimension n = 3
+
+parameter a(1,n)
+parameter b(n,1)
+
+minimize b'*(a') 

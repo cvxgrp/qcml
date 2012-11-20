@@ -16,9 +16,9 @@ function ecos_tester()
 %         run_test('robust_ls'); fprintf('\n');
 %         run_test('ecos_mpc'); fprintf('\n');
 %         run_test('lasso'); fprintf('\n');
-        run_test('portfolio'); fprintf('\n');
+%         run_test('portfolio'); fprintf('\n');
 %         run_test('svm'); fprintf('\n');
-%         run_test('chebyshev'); fprintf('\n');
+        run_test('chebyshev'); fprintf('\n');
 
 
     catch e
@@ -41,15 +41,17 @@ function run_test(directory)
     
 
     tic;
-    system(['../../src/efe --ecos ' directory '.prob']);
+    system(['../../src/efe --C ' directory '.prob']);
     fprintf('  ecos rewrite time %f\n', toc);
 
     clear x
     try
         cd(directory);
+        makemex;
+        [sols,info_] = efe_solve(params);
 %         !make
 %         !./testsolver
-        solver;
+%        solver;
         cd ..
         
 %         figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
@@ -68,19 +70,19 @@ function run_test(directory)
 %     [L,D, p] = ldl(C);
 %     spy(L)
 
-    v2 = ecos_optval;   % need this with CVX, don't need it without
+    v2 = info_.pcost; %ecos_optval;   % need this with CVX, don't need it without
     
     x_ecos = zeros(length(x_cvx),1);
     try
         for i = 1:length(x_cvx),
-            x_ecos(i) = eval(['x' num2str(i)]);
+            x_ecos(i) = eval(['sols.x' num2str(i)]);
         end
     catch e
-        if(exist('a','var') && exist('b','var'))
+        if(exist('sols.a','var') && exist('sols.b','var'))
             % for svm
-            x_ecos = [a; b];
+            x_ecos = [sols.a; sols.b];
         else
-            x_ecos = x;
+            x_ecos = sols.x;
         end
     end
     fprintf('  ||x error|| = %f\n', norm(x_cvx - x_ecos));

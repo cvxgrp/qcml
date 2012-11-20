@@ -18,3 +18,19 @@ na1 = norm(a1);
 na2 = norm(a2);
 na3 = norm(a3);
 na4 = norm(a4);
+
+params.a1t = a1t;
+params.a2t = a2t;
+params.a3t = a3t;
+params.a4t = a4t;
+params.b = b;
+
+params.b1 = b1;
+params.b2 = b2;
+params.b3 = b3;
+params.b4 = b4;
+
+params.na1 = na1;
+params.na2 = na2;
+params.na3 = na3;
+params.na4 = na4;

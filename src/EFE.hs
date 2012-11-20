@@ -20,6 +20,7 @@ module Main where
   import CodeGenerator.CVXSOCP
   import CodeGenerator.ECOS
   import CodeGenerator.CGenerator
+  import CodeGenerator.MexGenerator
   import qualified CodeGenerator.CGeneratorUnrolled as U
 
   -- want to output messages as we go parsing.... *HMMM* haskell fail. :(
@@ -99,10 +100,12 @@ module Main where
           CVXSOCP -> [(codegen, "/solver.m")]
           Conelp -> [(codegenConelp, "/solver.m")]
           ECOS -> [(codegenECOS, "/solver.m")]
-          C -> [(cCodegen, "/solver.c"), 
+          C -> [(U.cCodegenUnrolled, "/solver.c"), 
                 (cHeader ver input,"/solver.h"),
                 (makefile ecos_path, "/Makefile"),
-                (cTestSolver, "/testsolver.c")]
+                (cTestSolver, "/testsolver.c"),
+                (mex, "/efe_solve.c"),
+                (makemex ecos_path, "/makemex.m")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }

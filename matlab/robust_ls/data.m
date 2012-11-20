@@ -20,3 +20,26 @@ b4 = b(4);
 
 c11 = C(1,1);
 c12 = C(1,2);
+
+params.a11 = a11;
+params.a12 = a12;
+params.a21 = a21;
+params.a22 = a22;
+params.a31 = a31;
+params.a32 = a32;
+params.a41 = a41;
+params.a42 = a42;
+
+params.b1 = b1;
+params.b2 = b2;
+params.b3 = b3;
+params.b4 = b4;
+
+params.c11 = c11;
+params.c12 = c12;
+
+params.A = A;
+params.b = b;
+params.C = C;
+params.d = d;
+params.e = e;

@@ -2,6 +2,7 @@ module Expression.Expression (
   Curvature(..), 
   Monotonicity(..), 
   Sign(..),
+  ShapeMod(..),
   Expr(..), 
   DCP(..),
   Rewriteable(..),
@@ -35,17 +36,23 @@ module Expression.Expression (
     | Unknown
     deriving (Show, Eq)
 
+  data ShapeMod   -- shape modifier for parameters
+    = Transposed
+    | Diagonal
+    | NoMod
+    deriving (Show, Eq)
+
   data Expr
     = Expr Var Curvature Sign ConicSet
     | Variable Var
-    | Parameter Param Sign
+    | Parameter Param Sign ShapeMod
     | Constant Double
     | None String
 
   instance Show Expr where
     show (Expr v c s _) = name v ++ " = " ++ show s ++ " " ++ show c ++ " Expr"
-    show (Variable v) = "Variable " ++ name v ++ (show $ shape v)
-    show (Parameter s sgn) = (show sgn) ++ (show s)
+    show (Variable v) = "Variable " ++ name v ++ (show $ dimensions v)
+    show (Parameter s sgn _) = (show sgn) ++ (show s)
     show (Constant x) = "Constant " ++ (show x)
     show (None s) = s
   
@@ -53,22 +60,26 @@ module Expression.Expression (
     name (None s) = s
     name (Expr v _ _ _) = name v
     name (Variable v) = name v
-    name (Parameter s _) = name s
+    name (Parameter s _ _) = name s
     name (Constant x) = display x
 
     rows (None _) = 0
     rows (Expr v _ _ _) = rows v
     rows (Variable v) = rows v
-    rows (Parameter p _) = rows p
+    rows (Parameter p _ Transposed) = cols p
+    rows (Parameter p _ Diagonal) = rows p
+    rows (Parameter p _ NoMod) = rows p
     rows (Constant _) = 1
     
     cols (None _) = 0
     cols (Expr v _ _ _) = cols v
     cols (Variable v) = cols v
-    cols (Parameter p _) = cols p
+    cols (Parameter p _ Transposed) = rows p
+    cols (Parameter p _ Diagonal) = rows p
+    cols (Parameter p _ NoMod) = cols p
     cols (Constant _) = 1
 
-    shape x = (rows x, cols x)
+    dimensions x = (rows x, cols x)
 
   -- type classes to enable vexity inference
   class DCP a where
@@ -79,13 +90,13 @@ module Expression.Expression (
     vexity (None _) = Nonconvex
     vexity (Variable _) = Affine
     vexity (Expr _ c _ _) = c
-    vexity (Parameter _ _) = Affine
+    vexity (Parameter _ _ _) = Affine
     vexity (Constant _) = Affine
   
     sign (None _) = Unknown
     sign (Variable _) = Unknown
     sign (Expr _ _ s _) = s
-    sign (Parameter _ s) = s
+    sign (Parameter _ s _) = s
     sign (Constant x)
       | x >= 0 = Positive
       | x < 0 = Negative
@@ -104,7 +115,7 @@ module Expression.Expression (
       | otherwise = SOCP Find v p
     socp (Variable v) = SOCP Find v (ConicSet [] [] [])
     -- parameter and constant casting occurs here
-    socp (Parameter p _) = parameterSOCP p
+    socp (Parameter p _ s) = parameterSOCP p s
     socp (Constant x) = constantSOCP x
     socp (None _) = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
 
@@ -112,11 +123,11 @@ module Expression.Expression (
     var (Variable v) = v
     var (Constant x) = obj (constantSOCP x)
     var (None _) = Var "0" (1,1)
-    var (Parameter p _) = obj (parameterSOCP p)
+    var (Parameter p _ s) = obj (parameterSOCP p s)
 
     cones (Expr _ _ _ k) = k
     cones (Variable _) = ConicSet [] [] []
-    cones (Parameter p _) = constraints (parameterSOCP p)
+    cones (Parameter p _ s) = constraints (parameterSOCP p s)
     cones (Constant x) = constraints (constantSOCP x)
     cones (None _) = ConicSet [] [] []
 
@@ -150,18 +161,22 @@ module Expression.Expression (
   none :: String -> Expr
   none s = None s
 
+  parameter = Parameter
+
   display :: Double -> String
   display = (map (\x -> if (x=='.') then 'd' else x)).show
   
-  parameter = Parameter
-
   -- helper function to construct SOCP for parameters and constants
-  parameterSOCP :: Param -> SOCP
-  parameterSOCP x = SOCP Find newVar (ConicSet matA vecB [])
-    where (m,n) = (rows x, cols x)
-          newVar = Var ("p"++name x) (m,n)
-          matA = [ Row [(Eye m 1, newVar)] ]
-          vecB = [Vector m x]
+  parameterSOCP :: Param -> ShapeMod -> SOCP  -- ignores the shape modifier (just introduces param via eq constraints)
+  parameterSOCP (Param s (m,1)) NoMod = SOCP Find newVar (ConicSet matA vecB [])
+    where newVar = Var ("p"++s) (m,1)
+          matA = [Row [(Eye m 1, newVar)]]
+          vecB = [Vector m (Param s (m,1))]
+  parameterSOCP (Param s (1,m)) Transposed = SOCP Find newVar (ConicSet matA vecB [])
+    where newVar = Var ("p"++s) (m,1)
+          matA = [Row [(Eye m 1, newVar)]]
+          vecB = [VectorT m (Param s (1,m))]
+  parameterSOCP _ _ = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
 
   constantSOCP :: Double -> SOCP
   constantSOCP x = SOCP Find newVar (ConicSet matA vecB [])

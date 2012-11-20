@@ -1,5 +1,5 @@
 module Expression.SOCP (
-  Sense(..), Var(Var), Param(Param,transposed), Symbol(..),
+  Sense(..), Var(Var), Param(Param), Symbol(..),
   Row(..), Coeff(..), (<++>),
   ConicSet(..), SOC(..), SOCP(..), VarList(..), coeffs) where
 
@@ -16,32 +16,30 @@ module Expression.SOCP (
   -- TODO: to handle constant folding, introduce a "Const" object in addition to Var
   data Var = Var {
     vname:: String,  
-    vshape:: (Int, Int)
+    vdims:: (Int, Int)
   } deriving (Show)
 
   data Param = Param {
     pname :: String,
-    -- psign :: Sign, -- only include sign if we need to check it in codegen
-    pshape :: (Int, Int),
-    transposed :: Bool
+    pdims :: (Int, Int)
   } deriving (Show)
 
   class Symbol a where
     rows :: a -> Int
     cols :: a -> Int
-    shape :: a -> (Int, Int)
+    dimensions :: a -> (Int, Int)
     name :: a -> String
 
   instance Symbol Var where
-    rows = fst.vshape
-    cols = snd.vshape
-    shape = vshape
+    rows = fst.vdims
+    cols = snd.vdims
+    dimensions = vdims
     name = vname
 
   instance Symbol Param where
-    rows = fst.pshape
-    cols = snd.pshape
-    shape = pshape
+    rows = fst.pdims
+    cols = snd.pdims
+    dimensions = pdims
     name = pname
   
   -- for creating coefficients
@@ -55,9 +53,11 @@ module Expression.SOCP (
   data Coeff = Eye Int Double   -- eye matrix
       | Ones Int Double         -- ones vector
       | OnesT Int Double        -- ones' row vector
-      | Diag Int Param          -- replicate a parameter to diag(s) matrix
-      | Matrix Param            -- generic matrix
+      | Diag Int Param          -- diagonal matrix (replicated parameter)
+      | Matrix Param            -- generic matrix (matrices are the "largest" shape, so we don't need an extra Int to tell us how it's sized--the Param itself is sized properly)
+      | MatrixT Param           -- matrix transpose
       | Vector Int Param        -- generic vector
+      | VectorT Int Param       -- vector transpose
       -- should add transpose here
       deriving (Show)
   
