@@ -1,0 +1,7 @@
+dimension n = 3
+
+parameter a(3,2)
+
+variable x(n)
+
+minimize sum(a'*x)
