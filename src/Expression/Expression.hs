@@ -154,7 +154,7 @@ module Expression.Expression (
   expression :: Var -> Curvature -> Sign -> ConicSet -> Expr
   expression v c s k = Expr v c s k
   
-  variable :: String -> (Int, Int) -> Expr
+  variable :: String -> (Integer, Integer) -> Expr
   variable name (m,n) = Variable newVar
     where newVar = Var name (m,n)
   

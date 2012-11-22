@@ -38,15 +38,15 @@ module CodeGenerator.Common (
   cumsum = foldl' (+) 0
 
   -- a VarTable is an associatiation list with (name, (start, len))
-  type VarTable = [(String, (Int,Int))]
+  type VarTable = [(String, (Integer,Integer))]
   
   getVariableNames :: SOCP -> [String]
   getVariableNames p = map name (getVariableInfo p)
   
-  getVariableRows :: SOCP -> [Int]
+  getVariableRows :: SOCP -> [Integer]
   getVariableRows p = map rows (getVariableInfo p)
 
-  getBRows :: SOCP -> [Int]
+  getBRows :: SOCP -> [Integer]
   getBRows p = map coeffRows (affine_b p) 
   
   -- gets the list of unique variable names for CVX
@@ -69,13 +69,13 @@ module CodeGenerator.Common (
   getAForCodegen = getAForCodegenWithIndx 1
   getAForCodegenC = getAForCodegenWithIndx 0
 
-  getAForCodegenWithIndx :: Int -> SOCP -> VarTable -> String
+  getAForCodegenWithIndx :: Integer -> SOCP -> VarTable -> String
   getAForCodegenWithIndx i p table = 
     let bsizes = map coeffRows (affine_b p)  -- height of each row
         startIdx = take (length bsizes) (scanl (+) i bsizes)  -- gives start index for each row
     in intercalate "\n" (map (createRow table) (zip (affine_A p) startIdx))
   
-  createRow :: VarTable -> (Row,Int) -> String
+  createRow :: VarTable -> (Row,Integer) -> String
   createRow table (row,ind) = 
     let indices = map (flip lookup table) (varnames row)
         coefficients = coeffs row
@@ -89,7 +89,7 @@ module CodeGenerator.Common (
     in intercalate " " (zipWith (assignToA ind) shifts (zip (elems row) indices))
     
   -- get coeff size and value
-  getCoeffInfo :: Coeff -> (Int,Int,String)
+  getCoeffInfo :: Coeff -> (Integer,Integer,String)
   getCoeffInfo (Matrix p) = (rows p, cols p, name p)
   getCoeffInfo (MatrixT p) = (cols p, rows p, (name p) ++ "'")
   getCoeffInfo (Vector n p) = (n,1, name p)
@@ -107,17 +107,17 @@ module CodeGenerator.Common (
   getCoeffInfo (Eye n x) = (n,n,(show x) ++ "*speye("++show n++", "++show n++")")
   
   -- just get coeff size
-  getCoeffSize :: Coeff -> (Int, Int)
+  getCoeffSize :: Coeff -> (Integer, Integer)
   getCoeffSize x = let (m,n,s) = getCoeffInfo x
     in (m,n)
     
   -- just get coeff rows
-  coeffRows :: Coeff -> Int
+  coeffRows :: Coeff -> Integer
   coeffRows x = let (m,n,s) = getCoeffInfo x
     in m
   
   -- XXX: this is such a bizarre function type signature...
-  assignToA :: Int -> Int -> ((Coeff, Var), Maybe (Int,Int)) -> String
+  assignToA :: Integer -> Integer -> ((Coeff, Var), Maybe (Integer,Integer)) -> String
   assignToA _ _ (_, Nothing) = ""
   assignToA x offset (row, Just (y,l)) = 
     let (m,n,val) = getCoeffInfo (fst row) -- n should equal l at this point!!
@@ -131,14 +131,14 @@ module CodeGenerator.Common (
   getBForCodegen = getBForCodegenWithIndx 1
   getBForCodegenC = getBForCodegenWithIndx 0
 
-  getBForCodegenWithIndx :: Int -> SOCP -> String
+  getBForCodegenWithIndx :: Integer -> SOCP -> String
   getBForCodegenWithIndx i p = 
     let b = affine_b p
         sizes = map coeffRows b
         startIdx = init $ scanl (+) i sizes -- start index changes for C code
     in concat $ map assignToB (zip b startIdx)
   
-  assignToB :: (Coeff,Int) -> String
+  assignToB :: (Coeff,Integer) -> String
   assignToB (val, ind) = 
     let (m,n,s) = getCoeffInfo val
     in case (s) of

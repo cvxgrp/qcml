@@ -16,18 +16,18 @@ module Expression.SOCP (
   -- TODO: to handle constant folding, introduce a "Const" object in addition to Var
   data Var = Var {
     vname:: String,  
-    vdims:: (Int, Int)
+    vdims:: (Integer, Integer)
   } deriving (Show)
 
   data Param = Param {
     pname :: String,
-    pdims :: (Int, Int)
+    pdims :: (Integer, Integer)
   } deriving (Show)
 
   class Symbol a where
-    rows :: a -> Int
-    cols :: a -> Int
-    dimensions :: a -> (Int, Int)
+    rows :: a -> Integer
+    cols :: a -> Integer
+    dimensions :: a -> (Integer, Integer)
     name :: a -> String
 
   instance Symbol Var where
@@ -50,14 +50,14 @@ module Expression.SOCP (
   -- Eye is a diagonal matrix, Ones is an array
   -- the double stores the *value* of the coefficient
   -- XXX. at the moment, don't need more than *one* value for entire coefficient
-  data Coeff = Eye Int Double   -- eye matrix
-      | Ones Int Double         -- ones vector
-      | OnesT Int Double        -- ones' row vector
-      | Diag Int Param          -- diagonal matrix (replicated parameter)
-      | Matrix Param            -- generic matrix (matrices are the "largest" shape, so we don't need an extra Int to tell us how it's sized--the Param itself is sized properly)
+  data Coeff = Eye Integer Double   -- eye matrix
+      | Ones Integer Double         -- ones vector
+      | OnesT Integer Double        -- ones' row vector
+      | Diag Integer Param          -- diagonal matrix (replicated parameter)
+      | Matrix Param            -- generic matrix (matrices are the "largest" shape, so we don't need an extra Integer to tell us how it's sized--the Param itself is sized properly)
       | MatrixT Param           -- matrix transpose
-      | Vector Int Param        -- generic vector
-      | VectorT Int Param       -- vector transpose
+      | Vector Integer Param        -- generic vector
+      | VectorT Integer Param       -- vector transpose
       -- should add transpose here
       deriving (Show)
   

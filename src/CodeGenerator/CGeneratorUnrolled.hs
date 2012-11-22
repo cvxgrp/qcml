@@ -75,7 +75,7 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
      "}"]
      where params = paramlist x
            paramSizes = map ((\(x,y) -> x*y).dimensions) params
-           n = cumsum paramSizes
+           n = fromIntegral (cumsum paramSizes)
            paramStrings = concat $ map expandParam params
            randVals = take n (randoms (mkStdGen seed) :: [Double])  -- TODO/XXX: doesn't take param signs in to account yet
            paraminits = intercalate "\n" [ s ++ " = " ++ (show v) ++ ";"  | (s,v) <- zip paramStrings randVals]
@@ -184,7 +184,7 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
           varTable = buildVarTable x -- all variables introduced in problem rewriting
           varInfo = catMaybes $ map (flip lookup varTable) varNames
 
-  expandVarIndices :: Var -> (Int, Int) -> String
+  expandVarIndices :: Var -> (Integer, Integer) -> String
   expandVarIndices v (ind, 1) = "  sol->" ++ (name v) ++ " = w->x["++ show ind ++"];"
   expandVarIndices v (ind, _) = intercalate "\n" ["  sol->" ++ (name v) ++ "["++ show i ++"] = w->x["++ show (ind + i) ++"];" | i <- [0..(rows v - 1)]]
 
@@ -239,7 +239,7 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
           bLens = getBRows p
           startIdxs = scanl (+) 0 bLens
 
-  expandBCoeff :: Coeff -> Int -> Maybe String
+  expandBCoeff :: Coeff -> Integer -> Maybe String
   expandBCoeff (Ones n 0) idx = Nothing 
   expandBCoeff (Ones 1 x) idx = Just $ "  b[" ++ show idx ++ "] = " ++ show x ++ ";"
   expandBCoeff (Ones n x) idx = Just $ intercalate "\n" ["  b[" ++ show (idx + i) ++ "] = " ++ show x ++ ";" | i <- [0 .. (n - 1)]]
@@ -264,7 +264,7 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
   setG :: VarTable -> SOCP -> String
   setG table p = compress "G" n matrixG -- show matrixG ++ "\n" ++ show gmat
     where varLens = getVariableRows p
-          n = cumsum varLens
+          n = fromIntegral (cumsum varLens)
           cones = cones_K p
           coneGroupSizes = map coneGroups cones
           -- generate permutation vector for cone groups (put smallest cones up front)
@@ -284,8 +284,8 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
 
   -- gets the cones associated with each variable, coneGroups (SOCelem [x,y,z]) = take (rows x) [3,...] 
   coneGroups :: SOC -> [Int]
-  coneGroups (SOC vars) = [cumsum (map (\x -> (rows x)*(cols x)) vars)]
-  coneGroups (SOCelem vars) = (take (rows (vars!!0)) (repeat $ length vars))
+  coneGroups (SOC vars) = [cumsum (map (\x -> fromIntegral $ (rows x)*(cols x)) vars)]
+  coneGroups (SOCelem vars) = (take (fromIntegral $ rows (vars!!0)) (repeat $ length vars))
 
   --coneVars :: SOCP -> [Var]
   --coneVars p = concat (map vars (cones_K p))
@@ -301,11 +301,11 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
   -- third argument "idx" is *row* start index
   createCone :: VarTable -> SOC -> Int -> [(Int,Int,String)]
   createCone table (SOC vars) idx = concat [expandCone i k | (i,k) <- zip idxs sizes ]
-    where idxs = scanl (+) idx (map rows vars)
+    where idxs = scanl (+) idx (map (fromIntegral.rows) vars)
           sizes = catMaybes $ map (flip lookup table) (map name vars)
   createCone table (SOCelem vars) idx = concat [expandConeElem idx n i j k | (i,k) <- zip [0,1 ..] sizes, j <- [0 .. (m-1)]]
     where n = length vars
-          m = rows (vars!!0)
+          m = fromIntegral (rows (vars!!0))
           sizes = catMaybes $ map (flip lookup table) (map name vars)
 
   -- SOCElem [x,y,z]
@@ -318,24 +318,24 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
   -- G(4,4) = -1
   -- G(5,6) = -1
   -- G(6,12) = -1
-  expandConeElem :: Int -> Int -> Int -> Int -> (Int, Int) -> [(Int,Int,String)]
-  expandConeElem idx n i j (k,l) = [(idx + i + j*n, k + j,"-1")] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
+  expandConeElem :: Int -> Int -> Int -> Int -> (Integer, Integer) -> [(Int,Int,String)]
+  expandConeElem idx n i j (k,l) = [(idx + i + j*n, fromIntegral k + j,"-1")] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
 
-  expandCone :: Int -> (Int, Int) -> [(Int,Int,String)]
-  expandCone idx (m,n) = [(idx +i, m+i,"-1") | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
+  expandCone :: Int -> (Integer, Integer) -> [(Int,Int,String)]
+  expandCone idx (m,n) = [(idx + fromIntegral i, fromIntegral (m+i),"-1") | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
 
 
   setA :: VarTable -> SOCP -> String
   setA table p = compress "A" n matrixA
     where varLens = getVariableRows p
-          n = cumsum varLens
+          n = fromIntegral $ cumsum varLens
           a = affine_A p
           startIdxs = scanl (+) 0 (map height a)
           amat = concat (zipWith (createA table) a startIdxs) -- XXX/TODO: stack overflow somewhere.....
           matrixA = sortBy columnsOrder amat
 
   height :: Row -> Int
-  height r = maximum (map coeffRows (coeffs r))
+  height r = fromIntegral $ maximum (map coeffRows (coeffs r))
 
   createA :: VarTable -> Row -> Int -> [(Int,Int,String)]
   createA table row idx = concat [ expandARow i c s | (i,c,s) <- zip3 idxs coefficients sizes ]
@@ -348,22 +348,22 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
   getRowStartIdxs idx c
     | all (==maxHeight) rowHeights = repeat idx
     | otherwise = idx:(scanl (+) idx rowHeights)   -- this currently works only because the maximum is guaranteed to be the *first* element
-    where rowHeights = map coeffRows (tail c)
-          maxHeight = coeffRows (head c)
+    where rowHeights = map (fromIntegral.coeffRows) (tail c)
+          maxHeight = fromIntegral $ coeffRows (head c)
 
 
   -- helper functions for generating CCS
 
-  expandARow :: Int -> Coeff -> (Int, Int) -> [(Int,Int,String)]
+  expandARow :: Int -> Coeff -> (Integer, Integer) -> [(Int,Int,String)]
   -- size of coeff should match (third argument is "(startidx, length)")
-  expandARow idx (Eye _ x) (m,n) = [(idx + i, m + i, show x) | i <- [0 .. (n-1)]] -- eye length should equal m
-  expandARow idx (Ones n x) (m,1) = [(idx + i, m, show x) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
-  expandARow idx (OnesT _ x) (m,n) = [(idx, m + i, show x) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Diag n p) (m,_) = [(idx + i, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Matrix p) (m,n) = [(idx + i, m + j, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
-  expandARow idx (MatrixT p) (m,n) = [(idx + j, m + i, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
-  expandARow idx (Vector n p) (m,1) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
-  expandARow idx (VectorT _ p) (m,n) = [(idx, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (Eye _ x) (m,n) = [(idx + fromIntegral i, fromIntegral (m + i), show x) | i <- [0 .. (n-1)]] -- eye length should equal m
+  expandARow idx (Ones n x) (m,1) = [(idx + fromIntegral i, fromIntegral m, show x) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
+  expandARow idx (OnesT _ x) (m,n) = [(idx, fromIntegral (m + i), show x) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Diag n p) (m,_) = [(idx + fromIntegral i, fromIntegral (m + i), toParamVal (fromIntegral i) 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Matrix p) (m,n) = [(idx + fromIntegral i, fromIntegral (m + j), toParamVal (fromIntegral i) (fromIntegral j) p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (MatrixT p) (m,n) = [(idx + fromIntegral j, fromIntegral (m + i), toParamVal (fromIntegral i) (fromIntegral j) p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (Vector n p) (m,1) = [(idx + fromIntegral i, fromIntegral m, toParamVal (fromIntegral i) 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (VectorT _ p) (m,n) = [(idx, fromIntegral (m + i), toParamVal (fromIntegral i) 0 p) | i <- [0 .. (n-1)]]
   -- will fail inelegantly otherwise....
 
   toParamVal :: Int -> Int ->  Param -> String

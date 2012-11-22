@@ -46,6 +46,6 @@ module CodeGenerator.CVXSOCP (codegen) where
       1 -> (extractString $ head newNames) ++ " >= 0"
       otherwise -> "norms([" ++ (intercalate ", " (map extractString (tail newNames))) ++ "],[],2) <= " ++ (extractString $ head newNames)
 
-  extractString :: Maybe (Int,Int) -> String
+  extractString :: Maybe (Integer,Integer) -> String
   extractString Nothing = ""
   extractString (Just (x,l)) = "x_codegen(" ++ show x ++ ":" ++ show (x+l-1) ++ ")"

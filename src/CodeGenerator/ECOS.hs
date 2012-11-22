@@ -17,7 +17,7 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
         bsizes = getBRows p
         m = show $ foldl (+) 0 bsizes
         (k, g, cones) = getConeConstraintsForECOS p varTable
-        nk = show (length vars - k)
+        nk = show (fromIntegral (length vars) - k)
         kshow = show k
         csign
           | sense p == Minimize = "1"
@@ -45,13 +45,13 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
     -- ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
   
   -- gets the dimensions for cone constraints
-  getConeConstraintsForECOS :: SOCP -> VarTable -> (Int, String, String)
+  getConeConstraintsForECOS :: SOCP -> VarTable -> (Integer, String, String)
   getConeConstraintsForECOS p table = 
    let coneInfo = map coneVar (cones_K p)
        coneVariables = map fst coneInfo
        coneSizes = map snd coneInfo
        -- generate permutation vector (put smallest cones up front)
-       coneGroupSizes = zip (map head coneSizes) [1..(length coneSizes)]
+       coneGroupSizes = zip (map head coneSizes) [1..fromIntegral(length coneSizes)]
        pvec = map (snd) (sort coneGroupSizes)
        -- get the width of the cones (number of cones to generate per var)
        ncones = map coneWidth coneSizes
@@ -66,15 +66,15 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
    in (m, matrixG, "dims.q = " ++ show higherDimCones ++ ";\ndims.l = " ++ show l ++ ";")
 
   -- permute the cones
-  permuteCones :: [Int]->[Int]->[[Var]]->[([Var],Int)]
+  permuteCones :: [Integer]->[Integer]->[[Var]]->[([Var],Integer)]
   permuteCones [] _ _ = []
   permuteCones _ [] _ = []
   permuteCones _ _ [] = []
   permuteCones (p:ps) ns xs  =
-   let val = (xs!!(p-1), ns!!(p-1))
+   let val = (xs!!(fromIntegral p-1), ns!!(fromIntegral p-1))
    in val:permuteCones ps ns xs
 
-  createMatrixG :: [(Var,Int)] -> [Int] -> VarTable -> String
+  createMatrixG :: [(Var,Integer)] -> [Integer] -> VarTable -> String
   createMatrixG [] _ _  = ""
   createMatrixG _ [] _  = ""
   createMatrixG (x:xs) (n:ns) table = 
@@ -88,34 +88,34 @@ module CodeGenerator.ECOS(codegenECOS, codegenConelp) where
      ++ createMatrixG xs ns table
 
   -- gets the variables in the cone
-  coneVar :: SOC -> ([Var],[Int])
+  coneVar :: SOC -> ([Var],[Integer])
   coneVar (SOC vars) = (vars, [coneLength vars])
-  coneVar (SOCelem vars) = let n = rows (vars!!0)
-    in (vars,(take n (repeat $ length vars)))
+  coneVar (SOCelem vars) = let n = fromIntegral $ rows (vars!!0)
+    in (vars,(take n (repeat $ fromIntegral (length vars))))
 
   -- gets the size of the cone by looking at the variables' sizes in the cone
-  coneLength :: [Var] -> Int
+  coneLength :: [Var] -> Integer
   coneLength x = let varSizes = map (\x -> (rows x)*(cols x)) x
     in foldl (+) 0 varSizes
   
   -- gets the cone width
-  coneWidth :: [Int] -> Int
+  coneWidth :: [Integer] -> Integer
   coneWidth [x] = 1
   coneWidth x = head x
   
   -- flatten a list of tuples
-  flattenp :: [([Var],Int)] -> [(Var, Int)]
+  flattenp :: [([Var],Integer)] -> [(Var, Integer)]
   flattenp [] = []
   flattenp [x] = zip (fst x) (repeat (snd x))
   flattenp (x:xs) = zip (fst x) (repeat (snd x)) ++ flattenp xs
   
   -- gets the start index from the list of variables, their lengths, and the group sizes
-  getStartIdx :: Int->[([Var],Int)]->[Int]
-  getStartIdx n [(vars,g)] = map (+n) [1..length vars]
+  getStartIdx :: Integer->[([Var],Integer)]->[Integer]
+  getStartIdx n [(vars,g)] = map (+n) [1..fromIntegral (length vars)]
   getStartIdx n ((vars,g):xs) =
      let m = rows (vars!!0) -- assumes variables have same sizes
          fac = case(g) of
            1 -> coneLength vars
            otherwise -> m*g
-     in (map (+n) [1..length vars]) ++ getStartIdx (fac+n) xs
+     in (map (+n) [1..fromIntegral (length vars)]) ++ getStartIdx (fac+n) xs
 

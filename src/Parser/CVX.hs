@@ -36,8 +36,8 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
 
   data CVXState = CVXState {
       symbols :: M.Map String E.Expr,
-      dimensions :: M.Map String Int,
-      varcount :: Int
+      dimensions :: M.Map String Integer,
+      varcount :: Integer
     }
 
   incrCount :: CVXState -> CVXState
@@ -49,7 +49,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     = CVXState newSymbols (dimensions state) (varcount state)
       where newSymbols = M.insert (E.name x) x (symbols state)
 
-  insertDim :: (String, Int) -> CVXState -> CVXState
+  insertDim :: (String, Integer) -> CVXState -> CVXState
   insertDim (s,i) state 
     = CVXState (symbols state) newDimensions (varcount state)
       where newDimensions = M.insert s i (dimensions state)
@@ -86,7 +86,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       otherwise -> return e
     } <?> "expression"
   
-  unaryNegate :: Int -> E.Expr -> E.Expr
+  unaryNegate :: Integer -> E.Expr -> E.Expr
   unaryNegate t a = ecos_negate a (show t)
   
   -- a significant difference from the paper is that parameters are also
@@ -94,13 +94,13 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   --
   -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
   -- to be a *unary* function parameterized by the first "term"
-  multiply :: Int -> E.Expr -> E.Expr -> E.Expr
+  multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
   multiply t a b = ecos_mult a b (show t)
                   
-  add :: Int -> E.Expr -> E.Expr -> E.Expr
+  add :: Integer -> E.Expr -> E.Expr -> E.Expr
   add t a b = ecos_plus a b (show t)
           
-  minus :: Int -> E.Expr -> E.Expr -> E.Expr
+  minus :: Integer -> E.Expr -> E.Expr -> E.Expr
   minus t a b = ecos_minus a b (show t)
   
   -- constructors to help build the expression table
@@ -260,7 +260,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
     } <?> "problem"
   
-  dimension :: CVXParser Int
+  dimension :: CVXParser Integer
   dimension = 
     do {
       s <- identifier;
@@ -278,7 +278,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         return (fromInteger dim);
     } <?> "dimension"
 
-  shape :: CVXParser (Int, Int)
+  shape :: CVXParser (Integer, Integer)
   shape = 
     do {
       dims <- parens (sepBy dimension comma);

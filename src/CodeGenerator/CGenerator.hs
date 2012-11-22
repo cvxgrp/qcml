@@ -219,7 +219,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           varTable = buildVarTable x -- all variables introduced in problem rewriting
           varInfo = catMaybes $ map (flip lookup varTable) varNames
 
-  expandVarIndices :: Var -> (Int, Int) -> String
+  expandVarIndices :: Var -> (Integer, Integer) -> String
   expandVarIndices v (ind, 1) = "  sol->" ++ (name v) ++ " = w->x["++ show ind ++"];"
   expandVarIndices v (ind, _) = intercalate "\n" [
     "  for(i = 0; i < " ++ show (rows v) ++ "; ++i) {",
@@ -285,14 +285,14 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
 
   -- only shows value of constants (for initialization list)
   showCoeff :: Coeff -> String
-  showCoeff (Ones n x) = intercalate ", " $ (take n (repeat (show x)))
-  showCoeff (Vector n p) = intercalate ", " $ (take n (repeat "0"))
-  showCoeff (VectorT n p) = intercalate ", " $ (take n (repeat "0"))
-  showCoeff (OnesT n x) = intercalate ", " $ (take n (repeat (show x)))
+  showCoeff (Ones n x) = intercalate ", " $ (take (fromIntegral n) (repeat (show x)))
+  showCoeff (Vector n p) = intercalate ", " $ (take (fromIntegral n) (repeat "0"))
+  showCoeff (VectorT n p) = intercalate ", " $ (take (fromIntegral n) (repeat "0"))
+  showCoeff (OnesT n x) = intercalate ", " $ (take (fromIntegral n) (repeat (show x)))
   showCoeff _ = ""
 
   -- only expands non constants in to loops
-  expandBCoeff :: Coeff -> Int -> Maybe String
+  expandBCoeff :: Coeff -> Integer -> Maybe String
   expandBCoeff (Vector 1 p) idx = Just $ "  b[" ++ show idx ++ "] = p->" ++ (name p) ++ ";"
   expandBCoeff (Vector n p) idx = Just $ intercalate "\n" [
     "  ptr = (double *) p->" ++ (name p) ++ ";",
@@ -315,7 +315,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     "  ECOS_cleanup(w,0);",
     "}"]
 
-  setQ :: [Int] -> String
+  setQ :: [Integer] -> String
   setQ xs = "  static idxint q[" ++ show q ++ "] = {" ++ vals ++ "};"
     where vals = intercalate ", " (map show xs)
           q = length xs
@@ -330,7 +330,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           cones = cones_K p
           coneGroupSizes = map coneGroups cones
           -- generate permutation vector for cone groups (put smallest cones up front)
-          forSortingCones = zip (map head coneGroupSizes) [1..(length coneGroupSizes)]
+          forSortingCones = zip (map head coneGroupSizes) [1..fromIntegral (length coneGroupSizes)]
           pvec = map snd (sort forSortingCones)  -- permutation vector
           -- sort the cones and get the new sizes
           sortedCones = reorderCones pvec cones
@@ -347,32 +347,32 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           pr = intercalate ", " (take nnz $ repeat "-1.0")
 
   -- gets the list of cone sizes
-  coneSizes :: SOCP -> [Int]
+  coneSizes :: SOCP -> [Integer]
   coneSizes p = concat (map coneGroups (cones_K p))
 
   -- gets the cones associated with each variable, coneGroups (SOCelem [x,y,z]) = take (rows x) [3,...] 
-  coneGroups :: SOC -> [Int]
+  coneGroups :: SOC -> [Integer]
   coneGroups (SOC vars) = [cumsum (map (\x -> (rows x)*(cols x)) vars)]
-  coneGroups (SOCelem vars) = (take (rows (vars!!0)) (repeat $ length vars))
+  coneGroups (SOCelem vars) = (take (fromIntegral $ rows (vars!!0)) (repeat $ fromIntegral (length vars)))
 
   --coneVars :: SOCP -> [Var]
   --coneVars p = concat (map vars (cones_K p))
 
   -- reorder the list of cones so that smallest ones are up front
-  reorderCones :: [Int]->[SOC]->[SOC]
+  reorderCones :: [Integer]->[SOC]->[SOC]
   reorderCones [] _ = []
   reorderCones _ [] = []
   reorderCones (p:ps) cones = val : reorderCones ps cones
-    where val = cones!!(p - 1)
+    where val = cones!!(fromIntegral p - 1)
 
   -- produces (i,j,val) of nonzero locations in matrix G
   -- third argument "idx" is *row* start index
-  createCone :: VarTable -> SOC -> Int -> [(Int,Int)]
+  createCone :: VarTable -> SOC -> Integer -> [(Integer,Integer)]
   createCone table (SOC vars) idx = concat [expandCone i k | (i,k) <- zip idxs sizes ]
     where idxs = scanl (+) idx (map rows vars)
           sizes = catMaybes $ map (flip lookup table) (map name vars)
   createCone table (SOCelem vars) idx = concat [expandConeElem idx n i j k | (i,k) <- zip [0,1 ..] sizes, j <- [0 .. (m-1)]]
-    where n = length vars
+    where n = fromIntegral (length vars)
           m = rows (vars!!0)
           sizes = catMaybes $ map (flip lookup table) (map name vars)
 
@@ -386,10 +386,10 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   -- G(4,4) = -1
   -- G(5,6) = -1
   -- G(6,12) = -1
-  expandConeElem :: Int -> Int -> Int -> Int -> (Int, Int) -> [(Int,Int)]
+  expandConeElem :: Integer -> Integer -> Integer -> Integer -> (Integer, Integer) -> [(Integer,Integer)]
   expandConeElem idx n i j (k,l) = [(idx + i + j*n, k + j)] -- "G(" ++ show (idx + i + j*n) ++ ", " ++ show (k + j) ++ ") = -1;"
 
-  expandCone :: Int -> (Int, Int) -> [(Int,Int)]
+  expandCone :: Integer -> (Integer, Integer) -> [(Integer,Integer)]
   expandCone idx (m,n) = [(idx +i, m+i) | i <- [0 .. (n-1)]] --intercalate "\n" ["G(" ++ show (idx + i) ++ ", " ++ show (m + i) ++ ") = -1" | i <- [0.. (n-1)]]
 
 
@@ -402,17 +402,17 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           amat = concat (zipWith (createA table) a startIdxs)
           matrixA = sortBy columnsOrder amat
 
-  rowHeight :: Row -> Int
+  rowHeight :: Row -> Integer
   rowHeight r = maximum (map coeffRows (coeffs r))
 
-  createA :: VarTable -> Row -> Int -> [(Int,Int,Value)]
+  createA :: VarTable -> Row -> Integer -> [(Integer,Integer,Value)]
   createA table row idx = concat [ expandARow i c s | (i,c,s) <- zip3 idxs coefficients sizes ]
     where vars = variables row
           coefficients = coeffs row
           sizes = catMaybes $ map (flip lookup table) (map name vars)
           idxs = getRowStartIdxs idx coefficients   -- only for concatenation
 
-  getRowStartIdxs :: Int -> [Coeff] -> [Int]
+  getRowStartIdxs :: Integer -> [Coeff] -> [Integer]
   getRowStartIdxs idx (c:cs)
     | all (==maxHeight) rowHeights = repeat idx
     | otherwise = idx:(scanl (+) idx rowHeights)   -- this currently works only because the maximum is guaranteed to be the *first* element
@@ -423,23 +423,23 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   -- helper functions for generating CCS
   data Value = Value {
       value :: String,
-      ri :: Int,
-      cj :: Int,
-      width :: Int,
-      height :: Int
+      ri :: Integer,
+      cj :: Integer,
+      width :: Integer,
+      height :: Integer
     } 
     | Const {
       value :: String,
-      ri :: Int,
-      cj ::Int,
-      width :: Int,
-      height :: Int
+      ri :: Integer,
+      cj ::Integer,
+      width :: Integer,
+      height :: Integer
     } deriving (Eq)
 
   instance Show Value where
     show x = (value x) ++ "[" ++ show (ri x) ++ "][" ++ show (cj x) ++ "]" 
 
-  expandARow :: Int -> Coeff -> (Int, Int) -> [(Int,Int,Value)]
+  expandARow :: Integer -> Coeff -> (Integer, Integer) -> [(Integer,Integer,Value)]
   -- size of coeff should match
   expandARow idx (Eye _ x) (m,n) = [(idx + i, m + i, Const (show x) 0 0 1 1) | i <- [0 .. (n-1)]] -- eye length should equal m
   expandARow idx (Ones n x) (m,1) = [(idx + i, m, Const (show x) 0 0 1 1)| i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
@@ -450,24 +450,24 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   expandARow idx (Vector n p) (m,1) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
   expandARow idx (VectorT _ p) (m,n) = [(idx, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]]
 
-  toParamVal :: Int -> Int -> Param -> Value
+  toParamVal :: Integer -> Integer -> Param -> Value
   toParamVal i j p = Value (name p) i j (rows p) (cols p)
 
 
   -- sorting function for CCS
-  columnsOrder' :: (Int,Int) -> (Int,Int) -> Ordering
+  columnsOrder' :: (Integer,Integer) -> (Integer,Integer) -> Ordering
   columnsOrder' (m1,n1) (m2,n2)  | n1 > n2 = GT
                                  | n1 == n2 && (m1 > m2) = GT
                                  | otherwise = LT
 
-  columnsOrder :: (Int,Int,Value) -> (Int,Int,Value) -> Ordering
+  columnsOrder :: (Integer,Integer,Value) -> (Integer,Integer,Value) -> Ordering
   columnsOrder (m1,n1,_) (m2,n2,_)  | n1 > n2 = GT
                                     | n1 == n2 && (m1 > m2) = GT
                                     | otherwise = LT
 
   -- compress (i,j,val) form in to column compressed form and outputs the string
   -- assumes (i,j,val) are sorted by columns
-  compress :: Int -> [(Int,Int,Value)] -> String
+  compress :: Integer -> [(Integer,Integer,Value)] -> String
   compress cols xs = intercalate "\n" $
     ["  static idxint Ajc[" ++ show (cols+1) ++ "] = {" ++ jc ++ "};",
      "  static idxint Air[" ++ show nnz ++ "] = {" ++ ir ++ "};",
@@ -486,24 +486,24 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           -- rowIdxs = scanl (+) 0 (map length pr)
           -- pvals = intercalate "\n" $ zipWith (printVal) pr rowIdxs
 
-  createPrList :: Int -> [(Int,Value)] -> [String]
+  createPrList :: Integer -> [(Integer,Value)] -> [String]
   createPrList _ [] = []
   createPrList i [(j,v)] | i == j = [value v]
                          | otherwise = "0":createPrList (i+1) [(j,v)]
   createPrList i (x:xs) | i == (fst x) = (value (snd x)):createPrList (i+1) xs
                         | otherwise = "0":createPrList (i+1) (x:xs)
 
-  createIndexMaps :: [(Int,Value)] -> String
+  createIndexMaps :: [(Integer,Value)] -> String
   createIndexMaps xs = intercalate "\n" (map createIndexMap groups)
     where groups = groupBy (\(_,v1) (_,v2) -> (value v1 == value v2)) xs
 
-  createIndexMap :: [(Int,Value)] -> String
+  createIndexMap :: [(Integer,Value)] -> String
   createIndexMap [] = ""
   createIndexMap [(i,v)] = "  Apr[" ++ show i ++ "] = p->" ++ value v ++ ";"
   createIndexMap ((i,v):xs) = intercalate "\n" $ [
         "  static const idxint " ++ s ++ "_ind_map[" ++ show n ++ "] = {" ++ inds ++ "};",
         assignment]
-    where n = 1 + length xs
+    where n = 1 + fromIntegral (length xs)
           m = (height v)*(width v)
           s = value v
           assignment 
@@ -527,7 +527,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
 
 
   -- specialized counters and getters
-  countNNZ' :: Int -> Int -> Int -> [(Int,Int)] -> [Int]
+  countNNZ' :: Integer -> Integer -> Integer -> [(Integer,Integer)] -> [Integer]
   countNNZ' n i count []
     | i >= n = []
     | otherwise = count:(countNNZ' n (i+1) 0 [])
@@ -535,7 +535,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     | snd x == i = countNNZ' n i (count + 1) xs
     | otherwise = count:(countNNZ' n (i+1) 0 (x:xs))   -- x should always be > i here since it's sorted
 
-  countNNZ :: Int -> Int -> Int -> [(Int,Int,Value)] -> [Int]
+  countNNZ :: Integer -> Integer -> Integer -> [(Integer,Integer,Value)] -> [Integer]
   countNNZ n i count []
     | i >= n = []
     | otherwise = count:(countNNZ n (i+1) 0 [])
@@ -543,23 +543,23 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     | c == i = countNNZ n i (count + 1) xs
     | otherwise = count:(countNNZ n (i+1) 0 ((r,c,v):xs))   -- x should always be > i here since it's sorted
 
-  getCCSRow :: (Int,Int,Value) -> Int
+  getCCSRow :: (Integer,Integer,Value) -> Integer
   getCCSRow (i,_,_) = i
 
-  getCCSVal :: (Int,Int,Value) -> Value
+  getCCSVal :: (Integer,Integer,Value) -> Value
   getCCSVal (_,_,p) = p
 
-  valueOrder :: (Int,Value) -> (Int,Value) -> Ordering
+  valueOrder :: (Integer,Value) -> (Integer,Value) -> Ordering
   valueOrder (_,v1) (_,v2)  | (value v1) > (value v2) = GT
                             | (value v1) == (value v2) && (ri v1) > (ri v2) = GT
                             | (value v1) == (value v2) && (ri v1) == (ri v2) && (cj v1) > (cj v2) = GT
                             | otherwise = LT
 
-  indexOrder :: (Int,Value) -> (Int,Value) -> Ordering
+  indexOrder :: (Integer,Value) -> (Integer,Value) -> Ordering
   indexOrder (i1,_) (i2,_) | i1 > i2 = GT
                             | otherwise = LT
 
-  isConst :: (Int,Value) -> Bool
+  isConst :: (Integer,Value) -> Bool
   isConst (_,Const _ _ _ _ _) = True
   isConst _ = False
 
