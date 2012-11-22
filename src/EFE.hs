@@ -100,7 +100,7 @@ module Main where
           CVXSOCP -> [(codegen, "/solver.m")]
           Conelp -> [(codegenConelp, "/solver.m")]
           ECOS -> [(codegenECOS, "/solver.m")]
-          C -> [(U.cCodegenUnrolled, "/solver.c"), 
+          C -> [(cCodegen, "/solver.c"), 
                 (cHeader ver input,"/solver.h"),
                 (makefile ecos_path, "/Makefile"),
                 (cTestSolver, "/testsolver.c"),

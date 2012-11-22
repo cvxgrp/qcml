@@ -235,10 +235,9 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
     ["pwork *setup(params *p)",
      "{",
      "  idxint i = 0;",
-     "  static double b[" ++ show m ++ "]; /* = {0.0}; */",
+     "  double *ptr;",
      setBval p,
-     "  static double c[" ++ show n ++ "]; /* = {0.0}; */",
-     setCval p,
+     "  static double c[" ++ show n ++ "] = {" ++ setC p ++ "}; /* rest = {0.0}; */",
      "  static double h[" ++ show k ++ "]; /* = {0.0}; */",
      setQ higherDimCones,
      setG varTable p,
@@ -252,8 +251,8 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
       bLens = getBRows p
       coneLens = coneSizes p
       higherDimCones = sort $ filter (>1) coneLens
-      n = cumsum varLens
       m = cumsum bLens
+      n = cumsum varLens
       k = cumsum coneLens
       l = k - (cumsum higherDimCones)
       arglist = intercalate ", " 
@@ -265,36 +264,46 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
       varTable = buildVarTable x -- all variables introduced in problem rewriting
 
 
-  setCval :: SOCP -> String
-  setCval p = case (sense p) of
-      Minimize -> "  c["++ show (n-1) ++ "] = 1;"
-      Maximize -> "  c[" ++ show (n-1) ++ "] = -1;"
-      Find -> ""
-    where varLens = getVariableRows p
-          n = cumsum varLens
+  setC :: SOCP -> String
+  setC p = case (sense p) of
+      Minimize -> "1"
+      Maximize -> "-1"
+      Find -> "0"
+
 
   setBval :: SOCP -> String
-  setBval p = intercalate "\n" $ catMaybes (zipWith expandBCoeff bCoeffs startIdxs)
+  setBval p = intercalate "\n" $
+      ["  static double b[" ++ show m ++ "] = {" ++ expandBConst bCoeffs ++ "};"] ++
+      catMaybes (zipWith expandBCoeff bCoeffs startIdxs)
     where bCoeffs = affine_b p
           bLens = getBRows p
+          m = last startIdxs
           startIdxs = scanl (+) 0 bLens
 
+  expandBConst :: [Coeff] -> String
+  expandBConst xs = intercalate ", " (map showCoeff xs)
+
+  -- only shows value of constants (for initialization list)
+  showCoeff :: Coeff -> String
+  showCoeff (Ones n x) = intercalate ", " $ (take n (repeat (show x)))
+  showCoeff (Vector n p) = intercalate ", " $ (take n (repeat "0"))
+  showCoeff (VectorT n p) = intercalate ", " $ (take n (repeat "0"))
+  showCoeff (OnesT n x) = intercalate ", " $ (take n (repeat (show x)))
+  showCoeff _ = ""
+
+  -- only expands non constants in to loops
   expandBCoeff :: Coeff -> Int -> Maybe String
-  expandBCoeff (Ones n 0) idx = Nothing 
-  expandBCoeff (Ones 1 x) idx = Just $ "  b[" ++ show idx ++ "] = " ++ show x ++ ";"
-  expandBCoeff (Ones n x) idx = Just $ intercalate "\n" [
-    "  for(i = " ++ show idx ++ "; i < " ++ show (idx+n) ++ "; ++i) {",
-    "    b[i] = " ++ show x ++ ";",
-    "  }"]
   expandBCoeff (Vector 1 p) idx = Just $ "  b[" ++ show idx ++ "] = p->" ++ (name p) ++ ";"
   expandBCoeff (Vector n p) idx = Just $ intercalate "\n" [
+    "  ptr = (double *) p->" ++ (name p) ++ ";",
     "  for(i = " ++ show idx ++ "; i < " ++ show (idx+n) ++ "; ++i) {",
-    "    b[i] = p->" ++ (name p) ++ "[i - " ++ show idx ++ "];",
+    "    b[i] = *ptr++;",
     "  }"]
   expandBCoeff (VectorT 1 p) idx = Just $ "  b[" ++ show idx ++ "] = p->" ++ (name p) ++ ";"
   expandBCoeff (VectorT n p) idx = Just $ intercalate "\n" [
+    "  ptr = (double *) p->" ++ (name p) ++ ";",
     "  for(i = " ++ show idx ++ "; i < " ++ show (idx+n) ++ "; ++i) {",
-    "    b[i] = p->" ++ (name p) ++ "[0][i - " ++ show idx ++ "];",
+    "    b[i] = *ptr++;",
     "  }"]
   --"  b[" ++ show (idx + i) ++ "] = p->" ++ (name p) ++ "[" ++ show i ++ "];" | i <- [0 .. (n - 1)]]
   expandBCoeff _ _ = Nothing
@@ -315,10 +324,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   setG table p = intercalate "\n" $
     ["  static idxint Gjc[" ++ show (n+1) ++ "] = {" ++ jc ++ "};",
      "  static idxint Gir[" ++ show nnz ++ "] = {" ++ ir ++ "};",
-     "  static double Gpr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
-     "  for(i = 0; i < " ++ show nnz ++ "; ++i) {",
-     "    Gpr[i] = -1;",
-     "  }"]
+     "  static double Gpr[" ++ show nnz ++ "] = {" ++ pr ++ "};"]
     where varLens = getVariableRows p
           n = cumsum varLens
           cones = cones_K p
@@ -338,6 +344,7 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           nnzPerRow = countNNZ' n 0 0 matrixG
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.fst) matrixG)
+          pr = intercalate ", " (take nnz $ repeat "-1.0")
 
   -- gets the list of cone sizes
   coneSizes :: SOCP -> [Int]
@@ -406,41 +413,45 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
           idxs = getRowStartIdxs idx coefficients   -- only for concatenation
 
   getRowStartIdxs :: Int -> [Coeff] -> [Int]
-  getRowStartIdxs idx c
+  getRowStartIdxs idx (c:cs)
     | all (==maxHeight) rowHeights = repeat idx
-    | otherwise = scanl (+) 0 rowHeights   -- this currently works only because the maximum is guaranteed to be the *first* element
-    where rowHeights = map coeffRows (tail c)
-          maxHeight = coeffRows (head c)
+    | otherwise = idx:(scanl (+) idx rowHeights)   -- this currently works only because the maximum is guaranteed to be the *first* element
+    where rowHeights = map coeffRows cs
+          maxHeight = coeffRows c
 
 
   -- helper functions for generating CCS
   data Value = Value {
-    value :: String,
-    height :: Int,
-    width :: Int,
-    column :: Int,
-    isTransposed :: Bool -- to help figure out how to emit the code
-  } deriving (Eq)
+      value :: String,
+      ri :: Int,
+      cj :: Int,
+      width :: Int,
+      height :: Int
+    } 
+    | Const {
+      value :: String,
+      ri :: Int,
+      cj ::Int,
+      width :: Int,
+      height :: Int
+    } deriving (Eq)
 
   instance Show Value where
-    show x = (value x) ++ "[" ++ show (column x) ++ "](" ++ show (height x) ++ ", " ++ show (width x) ++ ")" 
+    show x = (value x) ++ "[" ++ show (ri x) ++ "][" ++ show (cj x) ++ "]" 
 
   expandARow :: Int -> Coeff -> (Int, Int) -> [(Int,Int,Value)]
   -- size of coeff should match
-  expandARow idx (Eye _ x) (m,n) = [(idx + i, m + i, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]] -- eye length should equal m
-  expandARow idx (Ones n x) (m,1) = [(idx + i, m, Value (show x) 1 1 1 False) | i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
-  expandARow idx (OnesT _ x) (m,n) = [(idx, m + i, Value (show x) 1 1 i False) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Diag n p) (m,_) = [(idx + i, m + i, toParamVal False i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
-  expandARow idx (Matrix p) (m,n) = [(idx + i, m + j, toParamVal False i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
-  expandARow idx (MatrixT p) (m,n) = [(idx + j, m + i, toParamVal True i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
-  expandARow idx (Vector n p) (m,1) = [(idx + i, m, toParamVal False i 0 p) | i <- [0 .. (n-1)]]
-  expandARow idx (VectorT _ p) (m,n) = [(idx, m + i, toParamVal True i 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (Eye _ x) (m,n) = [(idx + i, m + i, Const (show x) 0 0 1 1) | i <- [0 .. (n-1)]] -- eye length should equal m
+  expandARow idx (Ones n x) (m,1) = [(idx + i, m, Const (show x) 0 0 1 1)| i <- [0 .. (n-1)]]  -- different pattern based on different coeff...
+  expandARow idx (OnesT _ x) (m,n) = [(idx, m + i, Const (show x) 0 0 1 1) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Diag n p) (m,_) = [(idx + i, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]] -- onesT length should equal m
+  expandARow idx (Matrix p) (m,n) = [(idx + i, m + j, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (MatrixT p) (m,n) = [(idx + j, m + i, toParamVal i j p) | i <- [0 .. (rows p-1)], j <- [0 .. (cols p-1)]]
+  expandARow idx (Vector n p) (m,1) = [(idx + i, m, toParamVal i 0 p) | i <- [0 .. (n-1)]]
+  expandARow idx (VectorT _ p) (m,n) = [(idx, m + i, toParamVal i 0 p) | i <- [0 .. (n-1)]]
 
-  toParamVal :: Bool -> Int -> Int ->  Param -> Value
-  toParamVal t _ _ (Param s (1,1)) = Value ("p->" ++ s) 1 1 1 t -- "p->" ++ s
-  toParamVal t i _ (Param s (m,1)) = Value ("p->" ++ s) m 1 1 t -- "  p->" ++ s ++ "[" ++ show i ++ "]"
-  toParamVal False i j (Param s (m,n)) = Value ("p->" ++ s) m n j False -- "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
-  toParamVal True i j (Param s (m,n)) = Value ("p->" ++ s) m n i True -- "p->" ++ s ++ "[" ++ show i ++ "]["++ show j ++ "]"
+  toParamVal :: Int -> Int -> Param -> Value
+  toParamVal i j p = Value (name p) i j (rows p) (cols p)
 
 
   -- sorting function for CCS
@@ -460,34 +471,59 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
   compress cols xs = intercalate "\n" $
     ["  static idxint Ajc[" ++ show (cols+1) ++ "] = {" ++ jc ++ "};",
      "  static idxint Air[" ++ show nnz ++ "] = {" ++ ir ++ "};",
-     "  static double Apr[" ++ show nnz ++ "];", --" /* = {" ++ pr ++ "}; */",
-     pvals] --pvals]
+     "  static double Apr[" ++ show nnz ++ "] = {" ++ pr ++ "};",
+     indexMaps] --pvals]
     where nnz = length xs
           nnzPerRow = countNNZ cols 0 0 xs
           jc = intercalate ", " (map show (scanl (+) 0 nnzPerRow))
           ir = intercalate ", " (map (show.getCCSRow) xs)
-          pr = group (map getCCSVal xs)
-          rowIdxs = scanl (+) 0 (map length pr)
-          pvals = intercalate "\n" $ zipWith (printVal) pr rowIdxs
+          indexedValue = zipWith (\(_,_,v) i -> (i,v)) xs [0..]
+          aEntries = sortBy valueOrder indexedValue
+          (constants, vals) = partition isConst aEntries
+          constantsSorted = sortBy indexOrder constants
+          pr = intercalate "," (createPrList 0 constantsSorted)
+          indexMaps = createIndexMaps vals
+          -- rowIdxs = scanl (+) 0 (map length pr)
+          -- pvals = intercalate "\n" $ zipWith (printVal) pr rowIdxs
 
+  createPrList :: Int -> [(Int,Value)] -> [String]
+  createPrList _ [] = []
+  createPrList i [(j,v)] | i == j = [value v]
+                         | otherwise = "0":createPrList (i+1) [(j,v)]
+  createPrList i (x:xs) | i == (fst x) = (value (snd x)):createPrList (i+1) xs
+                        | otherwise = "0":createPrList (i+1) (x:xs)
 
-  -- massive HAX
-  printVal vals idx
-    | m == 1 && (height v == 1) && (width v == 1) = "  Apr[" ++ show idx ++ "] = " ++ (value v) ++ ";"
-    | m == 1 && (height v == 1) = "  Apr[" ++ show idx ++ "] = " ++ expandValue idx v ++ ";"
-    | otherwise = intercalate "\n" [
-        "  for(i = " ++ show idx ++ "; i < " ++ show (idx + m) ++ "; ++i) {",
-        "    Apr[i] = " ++ expandValue idx v ++ ";",
-        "  }"]
-        where m = length vals
-              v = head vals
+  createIndexMaps :: [(Int,Value)] -> String
+  createIndexMaps xs = intercalate "\n" (map createIndexMap groups)
+    where groups = groupBy (\(_,v1) (_,v2) -> (value v1 == value v2)) xs
 
-  expandValue :: Int -> Value -> String
-  expandValue _ (Value s 1 1 1 _) = s
-  expandValue idx (Value s m 1 1 _) = s ++ "[i - " ++ show idx ++ "]"
-  expandValue _ (Value s 1 m i _) = s ++ "[0]["++ show i ++"]"
-  expandValue idx (Value s m n j False) = s ++ "[i - " ++ show idx ++ "][" ++ show j ++ "]"
-  expandValue idx (Value s m n j True) = s ++ "[" ++ show j ++ "][i - " ++ show idx ++ "]"
+  createIndexMap :: [(Int,Value)] -> String
+  createIndexMap [] = ""
+  createIndexMap [(i,v)] = "  Apr[" ++ show i ++ "] = p->" ++ value v ++ ";"
+  createIndexMap ((i,v):xs) = intercalate "\n" $ [
+        "  static const idxint " ++ s ++ "_ind_map[" ++ show n ++ "] = {" ++ inds ++ "};",
+        assignment]
+    where n = 1 + length xs
+          m = (height v)*(width v)
+          s = value v
+          assignment 
+            | width v == 1 && height v == 1 = intercalate "\n" $ [
+              "  for (i = 0; i < " ++ show n ++ "; ++i) {",
+              "    Apr[ " ++ s ++ "_ind_map[i] ] = p->" ++ s ++ ";",
+              "  }"]
+            | n == m = intercalate "\n" $ [
+              "  ptr = (double *) p->" ++ s ++ ";",
+              "  for (i = 0; i < " ++ show n ++ "; ++i) {",
+              "    Apr[ " ++ s ++ "_ind_map[i] ] = *ptr++;",
+              "  }"]
+            | otherwise = intercalate "\n" $ map (\x -> intercalate "\n" $ [
+              "  ptr = (double *) p->" ++ s ++ ";",
+              "  for (i = "++ show x ++ "; i < " ++ show (m+x) ++ "; ++i) {",
+              "    Apr[ " ++ s ++ "_ind_map[i] ] = *ptr++;",
+              "  }"]) [0,m..m*(floor (fromIntegral n/(fromIntegral m) - 1))] -- n/(width*height) expected to be integer
+                -- if a param shows up in multiple places, this will ensure that *ptr doesn't exceed its memory location
+                -- it will reset the pointer, but start from a different map location
+          inds = intercalate ", " ((show i):(map (show.fst) xs))
 
 
   -- specialized counters and getters
@@ -512,4 +548,18 @@ module CodeGenerator.CGenerator(cHeader, cCodegen, cTestSolver, makefile, paraml
 
   getCCSVal :: (Int,Int,Value) -> Value
   getCCSVal (_,_,p) = p
+
+  valueOrder :: (Int,Value) -> (Int,Value) -> Ordering
+  valueOrder (_,v1) (_,v2)  | (value v1) > (value v2) = GT
+                            | (value v1) == (value v2) && (ri v1) > (ri v2) = GT
+                            | (value v1) == (value v2) && (ri v1) == (ri v2) && (cj v1) > (cj v2) = GT
+                            | otherwise = LT
+
+  indexOrder :: (Int,Value) -> (Int,Value) -> Ordering
+  indexOrder (i1,_) (i2,_) | i1 > i2 = GT
+                            | otherwise = LT
+
+  isConst :: (Int,Value) -> Bool
+  isConst (_,Const _ _ _ _ _) = True
+  isConst _ = False
 

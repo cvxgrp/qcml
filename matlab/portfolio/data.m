@@ -14,3 +14,4 @@ mut = mu';
 gamma = 1;
 
 params.F = F; params.d = d; params.B = B; params.mu = mu; params.gamma = gamma;
+params.D = D;

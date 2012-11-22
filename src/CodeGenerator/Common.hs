@@ -59,7 +59,7 @@ module CodeGenerator.Common (
         coneVars = concat $ map variables (cones_K p) -- get the list of all variables in the cones_K
         allVariables = [objectiveVar] ++ coneVars ++ aVars
         uniqueVarNames = nubBy (\x y-> name x == name y) allVariables
-    in (tail uniqueVarNames) ++ [head uniqueVarNames]
+    in uniqueVarNames
     
   -- write out results
   socpToProb :: VarTable -> [String]

@@ -16,7 +16,7 @@ module CodeGenerator.CVXSOCP (codegen) where
                     | sense p == Maximize = "-1"
                     | sense p == Find = "0"
     in unlines $ ["c_ = sparse(" ++ n ++ ",1);",
-      "c_(" ++ n ++ ") = " ++ csign ++ ";",
+      "c_(1) = " ++ csign ++ ";",
       "b_ = sparse(" ++ m ++ ",1);",
       getBForCodegen p ++
       "A_ = sparse(" ++ m ++ ", " ++ n ++ ");",

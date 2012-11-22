@@ -347,7 +347,7 @@ module CodeGenerator.CGeneratorUnrolled(cHeaderUnrolled, cCodegenUnrolled, cTest
   getRowStartIdxs :: Int -> [Coeff] -> [Int]
   getRowStartIdxs idx c
     | all (==maxHeight) rowHeights = repeat idx
-    | otherwise = scanl (+) 0 rowHeights   -- this currently works only because the maximum is guaranteed to be the *first* element
+    | otherwise = idx:(scanl (+) idx rowHeights)   -- this currently works only because the maximum is guaranteed to be the *first* element
     where rowHeights = map coeffRows (tail c)
           maxHeight = coeffRows (head c)
 

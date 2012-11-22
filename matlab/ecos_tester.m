@@ -1,4 +1,5 @@
 function ecos_tester()
+    clear all;
     addpath(pwd)
     randn('state', 0);
     rand('state', 0);
@@ -7,17 +8,17 @@ function ecos_tester()
     cvx_solver sedumi
 
     try 
-%         run_test('least_squares'); fprintf('\n');
-%         run_test('geometric_mean'); fprintf('\n');
-%         run_test('lp'); fprintf('\n');
-%         run_test('quadratic_over_linear'); fprintf('\n');
-%         run_test('inv_prob'); fprintf('\n');
-%         run_test('min_max'); fprintf('\n');
-%         run_test('robust_ls'); fprintf('\n');
-%         run_test('ecos_mpc'); fprintf('\n');
-%         run_test('lasso'); fprintf('\n');
-%         run_test('portfolio'); fprintf('\n');
-%         run_test('svm'); fprintf('\n');
+        run_test('least_squares'); fprintf('\n');
+        run_test('geometric_mean'); fprintf('\n');
+        run_test('lp'); fprintf('\n');
+        run_test('quadratic_over_linear'); fprintf('\n');
+        run_test('inv_prob'); fprintf('\n');
+        run_test('min_max'); fprintf('\n');
+        run_test('robust_ls'); fprintf('\n');
+        run_test('ecos_mpc'); fprintf('\n');
+        run_test('lasso'); fprintf('\n');
+        run_test('portfolio'); fprintf('\n');
+        run_test('svm'); fprintf('\n');
         run_test('chebyshev'); fprintf('\n');
 
 
@@ -29,6 +30,8 @@ function ecos_tester()
 end
 
 function run_test(directory)
+    EMIT_C = true;
+
     disp([directory ' problem'])
     
     cd(directory)
@@ -40,19 +43,29 @@ function run_test(directory)
     x_cvx = x;
     
 
-    tic;
-    system(['../../src/efe --C ' directory '.prob']);
-    fprintf('  ecos rewrite time %f\n', toc);
+    if(EMIT_C)
+        tic;
+        system(['../../src/efe --C ' directory '.prob']);
+        fprintf('  ecos rewrite time %f\n', toc);
+    else
+        tic;
+        system(['../../src/efe --ecos ' directory '.prob']);
+        fprintf('  ecos rewrite time %f\n', toc);
+    end
 
     clear x
     try
-        cd(directory);
-        makemex;
-        [sols,info_] = efe_solve(params);
-%         !make
-%         !./testsolver
-%        solver;
-        cd ..
+        if(EMIT_C)                    
+            cd(directory);
+            makemex;
+            [sols,info_] = efe_solve(params);
+            cd ..
+        else
+            cd(directory);
+            solver; % if ecos or conelp
+            cd ..
+        end
+
         
 %         figure(1); subplot(1,2,1); spy(A_); subplot(1,2,2); spy(A1)
 %         figure(2); subplot(1,2,1); spy(G_); subplot(1,2,2); spy(G1)
@@ -70,19 +83,36 @@ function run_test(directory)
 %     [L,D, p] = ldl(C);
 %     spy(L)
 
-    v2 = info_.pcost; %ecos_optval;   % need this with CVX, don't need it without
+    if(EMIT_C)
+        v2 = info_.pcost;
+    else
+        v2 = ecos_optval;
+    end
     
     x_ecos = zeros(length(x_cvx),1);
     try
         for i = 1:length(x_cvx),
-            x_ecos(i) = eval(['sols.x' num2str(i)]);
+            if(EMIT_C)
+                x_ecos(i) = eval(['sols.x' num2str(i)]);
+            else
+                x_ecos(i) = eval(['x' num2str(i)]);
+            end
         end
     catch e
-        if(exist('sols.a','var') && exist('sols.b','var'))
-            % for svm
-            x_ecos = [sols.a; sols.b];
+        if(EMIT_C)
+            if(isfield(sols,'a') && isfield(sols,'b'))
+                % for svm
+                x_ecos = [sols.a; sols.b];
+            else
+                x_ecos = sols.x;
+            end
         else
-            x_ecos = sols.x;
+            if(exist('a','var') && exist('b','var'))
+                % for svm
+                x_ecos = [a; b];
+            else
+                x_ecos = x;
+            end
         end
     end
     fprintf('  ||x error|| = %f\n', norm(x_cvx - x_ecos));
