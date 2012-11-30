@@ -5,15 +5,19 @@ function errs = ecos_tester()
 %     rand('state', 0);
     cvx_precision best
     cvx_quiet true
-    cvx_solver sedumi
+    cvx_solver sdpt3
     
-    N = 100;
+    % biggest problem seems to be that it doesn't detect infeasibility and
+    % unboundedness
     
-    fprintf('Running tests. Ensure that ECOS_GENERATOR was previously run.\n\n');
+    N = 10;
+    
+    fprintf('Running tests. Ensure that ECOS_CREATOR was previously run.\n\n');
     try
         errs.LS = run_test('least_squares', N);
         % run_test('geometric_mean'); fprintf('\n');
         errs.LP = run_test('lp', N);
+        errs.PATHLP = run_test('pathological_lp',1);    % actually, CVX is *wrong* here
         % run_test('quadratic_over_linear'); fprintf('\n');
         % run_test('inv_prob'); fprintf('\n');
         % run_test('min_max'); fprintf('\n');
@@ -23,7 +27,7 @@ function errs = ecos_tester()
         errs.PORT = run_test('portfolio', N);
         errs.SVM = run_test('svm', N);
     catch e
-        disp('FAILED RUN: possibly forgot to run ecos_generator');
+        disp('FAILED RUN: possibly forgot to run ecos_creator.');
         cd ..   % return to top level directory
         e.message
     end
@@ -61,11 +65,12 @@ function error_msgs = run_test(directory, N)
         eval(directory)
         v1 = cvx_optval;
         %x_cvx = x;
+        sol_status = cvx_status;
 
         clear x
         try
             evalc('ecos_solver'); v2 = ecos_optval;
-            if(abs(v1 - v2) >= RELTOL*abs(v1))
+            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.ecos = fail.ecos + 1;
             end
         catch myERROR
@@ -76,7 +81,7 @@ function error_msgs = run_test(directory, N)
         try
             CONELP_LINSOLVER_ = 'ldlsparse';    % used in conelp
             evalc('conelp_solver'); v2 = ecos_optval;
-            if(abs(v1 - v2) >= RELTOL*abs(v1))
+            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
             end
         catch myERROR
@@ -87,7 +92,7 @@ function error_msgs = run_test(directory, N)
         try
             CONELP_LINSOLVER_ = 'backslash';    % used in conelp
             evalc('conelp_solver'); v2 = ecos_optval;
-            if(abs(v1 - v2) >= RELTOL*abs(v1))
+            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.conelp_backslash = fail.conelp_backslash + 1;
             end
         catch myERROR
@@ -97,7 +102,7 @@ function error_msgs = run_test(directory, N)
         
         try
             evalc('cvxsocp_solver'); v2 = ecos_optval;
-            if(abs(v1 - v2) >= RELTOL*abs(v1))
+            if(~(strcmp(sol_status,cvx_status)) || (abs(v1 - v2) >= RELTOL*abs(v1)))
                 fail.cvxsocp = fail.cvxsocp + 1;
             end
         catch myERROR
@@ -107,7 +112,7 @@ function error_msgs = run_test(directory, N)
         
         try
             evalc('[sols,info_] = efe_solve(params)'); v2 = info_.pcost;
-            if(abs(v1 - v2) >= RELTOL*abs(v1))
+            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.c = fail.c + 1;
             end
         catch myERROR
@@ -126,6 +131,20 @@ function error_msgs = run_test(directory, N)
         
     %fprintf('%s problem has %d / %d failures', upper(directory), num_fail, N);
     cd ..
+end
+
+function failed = fail_test(status, info, v1, v2, tol)
+    failed = false;
+    switch lower(status)
+        case 'solved'
+            failed = (abs(v1 - v2) >= tol*abs(v1));
+        case 'infeasible'
+            failed = ~((info.pinf == 1 && info.dinf == 0) || (info.dinf == 1 && info.pinf == 0));
+        case 'unbounded'
+            error('no test for unbounded yet.');
+        otherwise
+            error(['unknown test for ' status '.']);
+    end
 end
 
 %

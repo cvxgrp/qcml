@@ -3,18 +3,19 @@ function ecos_creator()
     
     try
         for i = 1:length(solver_type),
-            create_solver('least_squares', solver_type{i}); fprintf('\n');
-            % create_solver('geometric_mean'); fprintf('\n');
-            create_solver('lp', solver_type{i}); fprintf('\n');
-            % create_solver('quadratic_over_linear'); fprintf('\n');
-            % create_solver('inv_prob'); fprintf('\n');
-            % create_solver('min_max'); fprintf('\n');
-            create_solver('robust_ls', solver_type{i}); fprintf('\n');
-            % create_solver('ecos_mpc'); fprintf('\n');
-            create_solver('lasso', solver_type{i}); fprintf('\n');
-            create_solver('portfolio', solver_type{i}); fprintf('\n');
-            create_solver('svm', solver_type{i}); fprintf('\n');
-            % create_solver('chebyshev'); fprintf('\n');
+            create_solver('least_squares', solver_type{i});
+            % create_solver('geometric_mean');
+            create_solver('lp', solver_type{i});
+            create_solver('pathological_lp', solver_type{i});
+            % create_solver('quadratic_over_linear');
+            % create_solver('inv_prob');
+            % create_solver('min_max');
+            create_solver('robust_ls', solver_type{i});
+            % create_solver('ecos_mpc');
+            create_solver('lasso', solver_type{i});
+            create_solver('portfolio', solver_type{i});
+            create_solver('svm', solver_type{i});
+            % create_solver('chebyshev');
         end
     catch e
         cd ..   % return to top level directory
@@ -60,7 +61,7 @@ function create_solver(directory, language)
                 [status, result] = system(['../../src/efe --ecos ' directory '.prob']);            
                 copyfile([directory '/solver.m'], 'ecos_solver.m', 'f');
         end
-        fprintf('  Took %f seconds to generate solver.\n', toc);
+        fprintf('  Took %f seconds to generate solver.\n\n', toc);
     catch e
         cd ..
         throw(e);
