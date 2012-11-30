@@ -1,5 +1,5 @@
-dimension n = 1000  # dimension of problem
-dimension m = 30
+dimension n = 10  # dimension of problem
+dimension m = 3
 
 # testing comments
 variable x(n)

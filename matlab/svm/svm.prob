@@ -1,4 +1,4 @@
-dimension m = 100
+dimension m = 10
 dimension n = 2
 
 parameter gamma positive

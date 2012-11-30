@@ -1,6 +1,6 @@
-m = 100;
-n = 20;
-p = 5;
+m = 10;
+n = 5;
+p = 3;
 A = randn(m,n);
 C = randn(p,n);
 d = randn(p,1);

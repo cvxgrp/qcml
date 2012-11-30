@@ -1,10 +1,14 @@
-parameter A(100,20)
-parameter b(100)
-parameter C(5,20)
-parameter d(5)
+dimension m = 10
+dimension n = 5
+dimension p = 3
+
+parameter A(m,n)
+parameter b(m)
+parameter C(p,n)
+parameter d(p)
 parameter e
 
-variable x(20)
+variable x(n)
 
 minimize square(norm(A*x - b))
 subject to

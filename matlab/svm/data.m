@@ -1,5 +1,5 @@
 n = 2;       % dimension
-m = 100;    % number of samples
+m = 10;    % number of samples
 X = randn(m,n) + 1.5;
 Y = randn(m,n) - 1.5;
 
