@@ -14,4 +14,13 @@
 *.out
 src/main
 src/test
-src/probtocvx
+src/EFE
+
+# generated folders under TestProblems
+src/TestProblems/*
+
+# generated folders under matlab
+matlab/*/*
+
+*.DS_Store
+*.auxlock

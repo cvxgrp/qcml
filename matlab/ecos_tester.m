@@ -1,16 +1,15 @@
 function errs = ecos_tester()
     clear all;
-    addpath(pwd)
-%     randn('state', 0);
-%     rand('state', 0);
-    cvx_precision best
+%    randn('state', 0);
+%    rand('state', 0);
+%    cvx_precision best
     cvx_quiet true
     cvx_solver sdpt3
     
     % biggest problem seems to be that it doesn't detect infeasibility and
     % unboundedness
     
-    N = 10;
+    N = 100;
     
     fprintf('Running tests. Ensure that ECOS_CREATOR was previously run.\n\n');
     try
@@ -31,9 +30,7 @@ function errs = ecos_tester()
         cd ..   % return to top level directory
         e.message
     end
-    
 
-    rmpath(pwd)
 end
 
 function error_msgs = run_test(directory, N)
@@ -129,19 +126,17 @@ function error_msgs = run_test(directory, N)
     fprintf('\n# FAIL (RELTOL=%f) out of %d trials....\n', RELTOL, N);
     disp(fail)
         
-    %fprintf('%s problem has %d / %d failures', upper(directory), num_fail, N);
     cd ..
 end
 
 function failed = fail_test(status, info, v1, v2, tol)
-    failed = false;
     switch lower(status)
         case 'solved'
             failed = (abs(v1 - v2) >= tol*abs(v1));
         case 'infeasible'
-            failed = ~((info.pinf == 1 && info.dinf == 0) || (info.dinf == 1 && info.pinf == 0));
+            failed = ~(info.pinf == 1 && info.dinf == 0);
         case 'unbounded'
-            error('no test for unbounded yet.');
+            failed = ~(info.dinf == 1 && info.pinf == 0);
         otherwise
             error(['unknown test for ' status '.']);
     end

@@ -1,8 +1,57 @@
-ECOS front end (EFE)
-====================
+Second-order Cone Optimization Parser (SCOOP)
+=============================================
+
+This project is a modular convex optimization framework for solving *second-order
+cone* optimization problems (SOCP). It consists of a parser for a simple front-end 
+language, a canonicalizer (implemented in Haskell), and various code generators (also
+written in Haskell).
+
+The components are currently tightly coupled inside SCOOP, but the eventual hope
+is that the canonicalizer and code generator can be written in a low-level language
+such as C, which can then be embedded in other programming languages, giving rise to
+things such as
+
+* ruby SCOOP
+* python SCOOP
+* C++ SCOOP
+* js SCOOP
+* matlab SCOOP / a la CVX
+
+and so on. SCOOP will be simultaneously a library for *modeling* convex optimization 
+problems (different SCOOP flavors will provide different modeling interfaces, within
+SCOOP capabilities) and also a library for *generating* low-level (usually C) source
+for solving SOCPs.
+
+By separating the front end DSL, the canonicalizer, and the code generator, the hope
+is that we can easily support convex optimization in multiple languages and generate
+code in different contexts for different target architectures.
+
+The biggest concern I have at hand is the question of when data is known. Obviously,
+in an embedded DSL (like CVX), you just take everything and parse it. But for code
+generation, it's essential to know which things are "right-hand sides" and change
+with every "iteration."
+
+The question of when the sparsity pattern is known also affects our design. I don't
+think there's a way to handle runtime sparsity elegantly other than to do block
+sparse matrix copies.
+
+I'll probably supply two modes: if you constrain the sparsity pattern (i.e., give it
+to me at codegen time), I'll generate static index maps. If you leave it open, I'll 
+generate block sparse matrix copies. (This is only for codegen, obviously.) The same
+alternative exists with the dimensions of the problem.
+
+If dimensions and sparsity patterns aren't known until runtime (like, inside the
+target source), then we have no choice by to do things "dynamically". (I tried to
+use some LUA tricks, but it all amounts to the same thing anyway.)
+
+At the moment, the solver has a distinct "break" from the canonicalizer, which is 
+by design. Not sure how to get the language distinct from the "library" though...
+
+Old notes
+=========
 
 This project contains a front end for the *embedded conic solver* (`ECOS`) to
-solve *second-order cone problems* (SOCP). In `ECOS`, a second-order cone
+solve SOCPs. In `ECOS`, a second-order cone
 problem is
 
     minimize c'*x
@@ -11,7 +60,7 @@ problem is
       A*x == b
       s In K
 
-where `K` is a product cone of linear and second-order cones..
+where `K` is a symmetric product cone of linear and second-order cones.
 
 The front end provides an input language (and accompanying syntax) used to
 enter problems in text files. The front end is called with the text file
