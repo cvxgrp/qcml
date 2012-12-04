@@ -1,4 +1,4 @@
-module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
+module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   module Text.ParserCombinators.Parsec,
   module P) where
   import qualified Expression.Expression as E
@@ -32,32 +32,32 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
      ("pow_rat", atom_pow_rat),
      ("diag", atom_diag)]
 
-  symbolTable = CVXState M.empty M.empty 0
+  symbolTable = ScoopState M.empty M.empty 0
 
-  data CVXState = CVXState {
+  data ScoopState = ScoopState {
       symbols :: M.Map String E.Expr,
       dimensions :: M.Map String Integer,
       varcount :: Integer
     }
 
-  incrCount :: CVXState -> CVXState
+  incrCount :: ScoopState -> ScoopState
   incrCount state
-    = CVXState (symbols state) (dimensions state) (1 + varcount state)
+    = ScoopState (symbols state) (dimensions state) (1 + varcount state)
 
-  insertSymbol :: E.Expr -> CVXState -> CVXState
+  insertSymbol :: E.Expr -> ScoopState -> ScoopState
   insertSymbol x state 
-    = CVXState newSymbols (dimensions state) (varcount state)
+    = ScoopState newSymbols (dimensions state) (varcount state)
       where newSymbols = M.insert (E.name x) x (symbols state)
 
-  insertDim :: (String, Integer) -> CVXState -> CVXState
+  insertDim :: (String, Integer) -> ScoopState -> ScoopState
   insertDim (s,i) state 
-    = CVXState (symbols state) newDimensions (varcount state)
+    = ScoopState (symbols state) newDimensions (varcount state)
       where newDimensions = M.insert s i (dimensions state)
     
-  -- type CVXState = M.Map String E.CVXSymbol
-  type CVXParser a = GenParser Char CVXState a
+  -- type ScoopState = M.Map String E.CVXSymbol
+  type ScoopParser a = GenParser Char ScoopState a
 
-  lexer :: P.TokenParser CVXState
+  lexer :: P.TokenParser ScoopState
   lexer = P.makeTokenParser (emptyDef {
       commentLine = "#",
       identStart = letter <|> char '_',
@@ -78,7 +78,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
-  expr :: CVXParser E.Expr
+  expr :: ScoopParser E.Expr
   expr = do {
     e <- buildExpressionParser table term;
     case e of
@@ -87,7 +87,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     } <?> "expression"
   
   unaryNegate :: Integer -> E.Expr -> E.Expr
-  unaryNegate t a = ecos_negate a (show t)
+  unaryNegate t a = scoop_negate a (show t)
   
   -- a significant difference from the paper is that parameters are also
   -- expressions, so we can multiply two things of the same *type*
@@ -95,13 +95,13 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
   -- to be a *unary* function parameterized by the first "term"
   multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
-  multiply t a b = ecos_mult a b (show t)
+  multiply t a b = scoop_mult a b (show t)
                   
   add :: Integer -> E.Expr -> E.Expr -> E.Expr
-  add t a b = ecos_plus a b (show t)
+  add t a b = scoop_plus a b (show t)
           
   minus :: Integer -> E.Expr -> E.Expr -> E.Expr
-  minus t a b = ecos_minus a b (show t)
+  minus t a b = scoop_minus a b (show t)
   
   -- constructors to help build the expression table
   binary name fun assoc 
@@ -124,7 +124,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     = Postfix (do { char name; whiteSpace; return fun })  
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ [postfix '\'' ecos_transpose],
+  table = [ [postfix '\'' scoop_transpose],
             [binary "*" multiply AssocRight],
             [prefix "-" unaryNegate],
             [binary "+" add AssocLeft, 
@@ -140,12 +140,12 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       <|> concatenation
       <?> "simple expressions"
   
-  vertConcatArgs :: CVXParser [E.Expr]
+  vertConcatArgs :: ScoopParser [E.Expr]
   vertConcatArgs = do {
     sepBy expr semi
   }
   
-  concatenation :: CVXParser E.Expr
+  concatenation :: ScoopParser E.Expr
   concatenation = do { 
     args <- brackets vertConcatArgs;
     t <- getState; 
@@ -153,10 +153,10 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     case (args) of
       [] -> fail "Attempted to concatenate empty expressions"
       [x] -> return x
-      x -> return (ecos_concat x (show $ varcount t))
+      x -> return (scoop_concat x (show $ varcount t))
   }
   
-  variable :: CVXParser E.Expr
+  variable :: ScoopParser E.Expr
   variable = do { 
     s <- identifier;
     t <- getState; 
@@ -165,7 +165,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       _ -> fail $ "expected a variable but got " ++ s 
   } <?> "variable"
   
-  parameter :: CVXParser E.Expr
+  parameter :: ScoopParser E.Expr
   parameter = do { 
     s <- identifier;
     t <- getState;
@@ -174,13 +174,13 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       _ -> fail $ "expected a parameter but got " ++ s 
   } <?> "parameter"
   
-  constant :: CVXParser E.Expr
+  constant :: ScoopParser E.Expr
   constant = do {
     s <- naturalOrFloat;
     return $ E.Constant (either fromIntegral id s)
   } <?> "constant"
              
-  boolOp :: CVXParser String
+  boolOp :: ScoopParser String
   boolOp = do {
     reserved "==";
     return "=="
@@ -192,7 +192,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     return ">="
   } <?> "boolean operator"
     
-  constraint :: CVXParser E.ConicSet
+  constraint :: ScoopParser E.ConicSet
   constraint = do {
     lhs <- expr;
     p <- boolOp;
@@ -201,22 +201,22 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     t <- getState; 
     updateState incrCount; 
     let result = case (p) of
-          "==" -> (ecos_eq lhs rhs)
-          "<=" -> (ecos_leq lhs rhs (show $ varcount t))
-          ">=" -> (ecos_geq lhs rhs (show $ varcount t))
+          "==" -> (scoop_eq lhs rhs)
+          "<=" -> (scoop_leq lhs rhs (show $ varcount t))
+          ">=" -> (scoop_geq lhs rhs (show $ varcount t))
     in case (result) of
       Just x -> return x
       _ -> fail "Not a signed DCP compliant restraint or dimension mismatch."
   } <?> "constraint"
   
-  constraints :: CVXParser [E.ConicSet]
+  constraints :: ScoopParser [E.ConicSet]
   constraints = do { 
     reserved "subject to";
     result <- many constraint;
     return result 
   } <?> "constraints"
   
-  objective :: E.Sense -> CVXParser E.Expr
+  objective :: E.Sense -> ScoopParser E.Expr
   objective v = do {
     obj <- expr;
     case(E.vexity obj, v) of
@@ -227,7 +227,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       _ -> fail $ (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
   } <?> "objective"
   
-  sense :: CVXParser E.Sense
+  sense :: ScoopParser E.Sense
   sense = 
     do {
       reserved "minimize";
@@ -243,7 +243,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     }
     <?> "problem sense (maximize or minimize or find)"
   
-  problem :: CVXParser E.SOCP
+  problem :: ScoopParser E.SOCP
   problem = 
     do {
       probSense <- sense;
@@ -260,7 +260,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
     } <?> "problem"
   
-  dimension :: CVXParser Integer
+  dimension :: ScoopParser Integer
   dimension = 
     do {
       s <- identifier;
@@ -278,7 +278,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         return (fromInteger dim);
     } <?> "dimension"
 
-  shape :: CVXParser (Integer, Integer)
+  shape :: ScoopParser (Integer, Integer)
   shape = 
     do {
       dims <- parens (sepBy dimension comma);
@@ -288,7 +288,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         _ -> fail $ "wrong number of dimensions"
     } <?> "shape"
   
-  modifier :: CVXParser E.Sign
+  modifier :: ScoopParser E.Sign
   modifier = 
     do {
       reserved "positive";
@@ -307,7 +307,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       return E.Negative
     } <?> "sign modifier"
 
-  defVariable :: CVXParser ()
+  defVariable :: ScoopParser ()
   defVariable = do {
     reserved "variable";
     s <- identifier; 
@@ -319,7 +319,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
   } <?> "variable"
   
-  defParameter :: CVXParser ()
+  defParameter :: ScoopParser ()
   defParameter = do {
     reserved "parameter";
     s <- identifier;
@@ -333,7 +333,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     in updateState (insertSymbol p)
   } <?> "parameter"
 
-  defDimension :: CVXParser ()
+  defDimension :: ScoopParser ()
   defDimension = do {
     reserved "dimension";
     s <- identifier;
@@ -347,12 +347,12 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   } <?> "dimension"
   
 
-  definitions :: CVXParser ()
+  definitions :: ScoopParser ()
   definitions =  defVariable <|> defParameter <|> defDimension
     <?> "definitions"
 
   
-  cvxProg :: CVXParser C.Codegen
+  cvxProg :: ScoopParser C.Codegen
   cvxProg = do {
     whiteSpace;
     many definitions;
@@ -364,7 +364,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
 
 
 {-- atom parsers --}
-  args :: String -> Int -> CVXParser [E.Expr]
+  args :: String -> Int -> ScoopParser [E.Expr]
   args s n = do {
     arguments <- sepBy expr comma;
     if (length arguments /= n)
@@ -372,149 +372,149 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     else return arguments
   }
 
-  atom_square :: CVXParser E.Expr
+  atom_square :: ScoopParser E.Expr
   atom_square = do {
     reserved "square";
     args <- parens $ args "square" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_square (args!!0) (show $ varcount t)
+    return $ scoop_square (args!!0) (show $ varcount t)
   }
 
-  atom_quad_over_lin :: CVXParser E.Expr
+  atom_quad_over_lin :: ScoopParser E.Expr
   atom_quad_over_lin = do {
     reserved "quad_over_lin";
     args <- parens $ args "quad_over_lin" 2;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_quad_over_lin (args!!0) (args!!1) (show $ varcount t)
+    return $ scoop_quad_over_lin (args!!0) (args!!1) (show $ varcount t)
   }
 
-  atom_inv_pos :: CVXParser E.Expr 
+  atom_inv_pos :: ScoopParser E.Expr 
   atom_inv_pos = do {
     reserved "inv_pos";
     args <- parens $ args "inv_pos" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_inv_pos (args!!0) (show $ varcount t)
+    return $ scoop_inv_pos (args!!0) (show $ varcount t)
   }
 
-  atom_max :: CVXParser E.Expr 
+  atom_max :: ScoopParser E.Expr 
   atom_max = do {
     reserved "max";
     args <- parens $ args "max" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_max (args!!0) (show $ varcount t)
+    return $ scoop_max (args!!0) (show $ varcount t)
   }
 
-  atom_min :: CVXParser E.Expr 
+  atom_min :: ScoopParser E.Expr 
   atom_min = do {
     reserved "min";
     args <- parens $ args "min" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_min (args!!0) (show $ varcount t)
+    return $ scoop_min (args!!0) (show $ varcount t)
   }
   
-  atom_pos :: CVXParser E.Expr 
+  atom_pos :: ScoopParser E.Expr 
   atom_pos = do {
     reserved "pos";
     args <- parens $ args "pos" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_pos (args!!0) (show $ varcount t)
+    return $ scoop_pos (args!!0) (show $ varcount t)
   }
 
-  atom_neg :: CVXParser E.Expr 
+  atom_neg :: ScoopParser E.Expr 
   atom_neg = do {
     reserved "neg";
     args <- parens $ args "neg" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_neg (args!!0) (show $ varcount t)
+    return $ scoop_neg (args!!0) (show $ varcount t)
   }
 
-  atom_sum :: CVXParser E.Expr 
+  atom_sum :: ScoopParser E.Expr 
   atom_sum = do {
     reserved "sum";
     args <- parens $ args "sum" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_sum (args!!0) (show $ varcount t)
+    return $ scoop_sum (args!!0) (show $ varcount t)
   }
 
-  atom_norm :: CVXParser E.Expr 
+  atom_norm :: ScoopParser E.Expr 
   atom_norm = do {
     reserved "norm";
     args <- parens $ args "norm" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_norm (args!!0) (show $ varcount t)
+    return $ scoop_norm (args!!0) (show $ varcount t)
   } <|> do {
     reserved "norm2";
     args <- parens $ args "norm2" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_norm (args!!0) (show $ varcount t)
+    return $ scoop_norm (args!!0) (show $ varcount t)
   }
 
-  atom_abs :: CVXParser E.Expr 
+  atom_abs :: ScoopParser E.Expr 
   atom_abs = do {
     reserved "abs";
     args <- parens $ args "abs" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_abs (args!!0) (show $ varcount t)
+    return $ scoop_abs (args!!0) (show $ varcount t)
   } 
 
-  atom_norm_inf :: CVXParser E.Expr 
+  atom_norm_inf :: ScoopParser E.Expr 
   atom_norm_inf = do {
     reserved "norm_inf";
     args <- parens $ args "norm_inf" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_norm_inf (args!!0) (show $ varcount t)
+    return $ scoop_norm_inf (args!!0) (show $ varcount t)
   }
 
-  atom_norm1 :: CVXParser E.Expr 
+  atom_norm1 :: ScoopParser E.Expr 
   atom_norm1 = do {
     reserved "norm1";
     args <- parens $ args "norm1" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_norm1 (args!!0) (show $ varcount t)
+    return $ scoop_norm1 (args!!0) (show $ varcount t)
   }
 
-  atom_sqrt :: CVXParser E.Expr 
+  atom_sqrt :: ScoopParser E.Expr 
   atom_sqrt = do {
     reserved "sqrt";
     args <- parens $ args "sqrt" 1;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_sqrt (args!!0) (show $ varcount t)
+    return $ scoop_sqrt (args!!0) (show $ varcount t)
   }
 
-  atom_geo_mean :: CVXParser E.Expr
+  atom_geo_mean :: ScoopParser E.Expr
   atom_geo_mean = do {
     reserved "geo_mean";
     args <- parens $ args "geo_mean" 2;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_geo_mean (args!!0) (args!!1) (show $ varcount t)
+    return $ scoop_geo_mean (args!!0) (args!!1) (show $ varcount t)
   }
 
-  atom_pow_rat :: CVXParser E.Expr
+  atom_pow_rat :: ScoopParser E.Expr
   atom_pow_rat = do {
     reserved "pow_rat";
     (arg, pqs) <- parens pow_rat_args;
     t <- getState; 
     updateState incrCount; 
-    return $ ecos_pow_rat arg (pqs!!0) (pqs!!1) (show $ varcount t)
+    return $ scoop_pow_rat arg (pqs!!0) (pqs!!1) (show $ varcount t)
   }
 
   -- XXX/TODO: could make arguments optional if needed
-  pow_rat_args :: CVXParser (E.Expr, [Integer])
+  pow_rat_args :: ScoopParser (E.Expr, [Integer])
   pow_rat_args = do {
     e <- expr;
     comma;
@@ -524,10 +524,10 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     return (e, [p,q])
   } <?> "pow_rat arguments"
 
-  atom_diag :: CVXParser E.Expr
+  atom_diag :: ScoopParser E.Expr
   atom_diag = do {
     reserved "diag";
     args <- parens $ args "diag" 1;
-    return $ ecos_diag (args!!0)
+    return $ scoop_diag (args!!0)
   }
 

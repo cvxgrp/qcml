@@ -1,11 +1,11 @@
 SRC = $(wildcard Expression/*.hs) $(wildcard Parser/*.hs) $(wildcard Atoms/*.hs) 
-PROBSRC = EFE.hs $(SRC) $(wildcard CodeGenerator/*.hs)
+PROBSRC = SCOOP.hs $(SRC) $(wildcard CodeGenerator/*.hs)
 
 .PHONY: all
-all: efe
+all: scoop
 
-efe: $(PROBSRC)
+scoop: $(PROBSRC)
 	ghc --make $<
 
 clean:
-	rm -rf *.hi *.o Expression/*.hi Expression/*.o Parser/*.hi Parser/*.o CodeGenerator/*.hi CodeGenerator/*.o efe
+	rm -rf *.hi *.o Expression/*.hi Expression/*.o Parser/*.hi Parser/*.o CodeGenerator/*.hi CodeGenerator/*.o scoop

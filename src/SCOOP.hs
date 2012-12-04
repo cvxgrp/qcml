@@ -6,7 +6,7 @@ module Main where
   import System.Environment
   import System.Directory
   import Control.Monad
-  import Parser.CVX
+  import Parser.SCOOP
   
   -- need this for rows + cols
   import Expression.Expression  
@@ -55,7 +55,7 @@ module Main where
       (o, n, []) -> return (o,n)
       (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
   
-  header = "Usage: EFE [-v|--version] output probPath"
+  header = "Usage: SCOOP [-v|--version] output probPath"
 
   createSolverDirectory :: String -> IO String
   createSolverDirectory path = do {
@@ -104,8 +104,8 @@ module Main where
                 (cHeader ver input,"/solver.h"),
                 (makefile ecos_path, "/Makefile"),
                 (cTestSolver, "/testsolver.c"),
-                (mex, "/efe_solve.c"),
-                (makemex ecos_path, "/makemex.m")]
+                (mex, "/scooper.c"),
+                (makescoop ecos_path, "/makescoop.m")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }
@@ -126,13 +126,13 @@ module Main where
     (flags, nonOpts)  <- programOpts args
     if (any (==Version) flags)
     then
-      putStrLn ("ProbToCVX version " ++  ver)
+      putStrLn ("SCOOP version " ++  ver)
     else
       case (flags,nonOpts) of
         ([opt], [filename]) -> do {
           putStrLn "";
-          putStrLn "Running ECOS front end.";
-          putStrLn "=======================";
+          putStrLn "Running SCOOP.";
+          putStrLn "==============";
           newDir <- createSolverDirectory filename;
           withFile filename ReadMode (\handle -> do
             putStrLn $ "Reading problem " ++ filename

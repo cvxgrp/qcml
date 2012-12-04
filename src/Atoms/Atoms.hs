@@ -1,29 +1,29 @@
 module Atoms.Atoms(
-  ecos_square,
-  ecos_quad_over_lin,
-  ecos_inv_pos,
-  ecos_mult,
-  ecos_plus,
-  ecos_minus,
-  ecos_negate,
-  ecos_max,
-  ecos_min,
-  ecos_pos,
-  ecos_neg,
-  ecos_sum,
-  ecos_norm,
-  ecos_abs,
-  ecos_norm_inf,
-  ecos_norm1,
-  ecos_sqrt,
-  ecos_geo_mean,
-  ecos_concat,
-  ecos_eq,
-  ecos_geq,
-  ecos_leq,
-  ecos_transpose,
-  ecos_diag,
-  ecos_pow_rat,
+  scoop_square,
+  scoop_quad_over_lin,
+  scoop_inv_pos,
+  scoop_mult,
+  scoop_plus,
+  scoop_minus,
+  scoop_negate,
+  scoop_max,
+  scoop_min,
+  scoop_pos,
+  scoop_neg,
+  scoop_sum,
+  scoop_norm,
+  scoop_abs,
+  scoop_norm_inf,
+  scoop_norm1,
+  scoop_sqrt,
+  scoop_geo_mean,
+  scoop_concat,
+  scoop_eq,
+  scoop_geq,
+  scoop_leq,
+  scoop_transpose,
+  scoop_diag,
+  scoop_pow_rat,
   isScalar,
   isVector,
   isMatrix,
@@ -99,9 +99,9 @@ module Atoms.Atoms(
   -- in addition to arguments, atoms take a string to uniquely identify/modify their variables
   
   -- square x = x^2
-  ecos_square :: Expr -> String -> Expr
-  ecos_square (None s) _ = None s
-  ecos_square x s = expression newVar curvature Positive prog
+  scoop_square :: Expr -> String -> Expr
+  scoop_square (None s) _ = None s
+  scoop_square x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
@@ -119,10 +119,10 @@ module Atoms.Atoms(
       kones = [SOCelem [z0, z1, var x]]
 
   -- quad_over_lin x y = x^Tx / y, if y is vector, it's x.^2 ./ y
-  ecos_quad_over_lin :: Expr -> Expr -> String -> Expr
-  ecos_quad_over_lin (None s) _ _ = None s
-  ecos_quad_over_lin _ (None s) _ = None s
-  ecos_quad_over_lin x y s
+  scoop_quad_over_lin :: Expr -> Expr -> String -> Expr
+  scoop_quad_over_lin (None s) _ _ = None s
+  scoop_quad_over_lin _ (None s) _ = None s
+  scoop_quad_over_lin x y s
     | isVector x && isVector y && compatible = expression newVar curvature Positive prog
     | otherwise = none $ "quad_over_lin: " ++ (name y) ++ " is not scalar or compatible with " ++ (name x)
     where
@@ -146,9 +146,9 @@ module Atoms.Atoms(
         | otherwise = [SOCelem [z0,z1, var x], SOCelem [var y]]
 
   -- inv_pos(x) = 1/x for x >= 0
-  ecos_inv_pos :: Expr -> String -> Expr
-  ecos_inv_pos (None s) _ = None s
-  ecos_inv_pos x s = expression newVar curvature Positive prog
+  scoop_inv_pos :: Expr -> String -> Expr
+  scoop_inv_pos (None s) _ = None s
+  scoop_inv_pos x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex Decreasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -164,10 +164,10 @@ module Atoms.Atoms(
       kones = [SOCelem [z0, z1, one], SOCelem [var x]]
 
   -- mult a x = ax
-  ecos_mult :: Expr -> Expr -> String -> Expr
-  ecos_mult (None s) _ _ = None s
-  ecos_mult _ (None s) _ = None s
-  ecos_mult (Parameter p psgn shape) x s
+  scoop_mult :: Expr -> Expr -> String -> Expr
+  scoop_mult (None s) _ _ = None s
+  scoop_mult _ (None s) _ = None s
+  scoop_mult (Parameter p psgn shape) x s
     | (pm == 1) && (pn == 1) && isVector x = expression newVar curvature sgn prog
     | (pm >= 1) && (pn >= 1) && isVector x && compatible = expression newVar curvature sgn prog
     | otherwise = none $ "mult: size of " ++ (name p) ++ " and " ++ (name x) ++ " don't match"
@@ -194,13 +194,13 @@ module Atoms.Atoms(
         | shape == Transposed = [ Row [(MatrixT p, var x), (Eye m (-1), newVar)] ]
         | shape == NoMod = [ Row [(Matrix p, var x), (Eye m (-1), newVar)] ]
       vecB = [Ones m 0]
-  ecos_mult _ _ _ = None "mult: lhs ought to be parameter"
+  scoop_mult _ _ _ = None "mult: lhs ought to be parameter"
 
   -- plus x y = x + y
-  ecos_plus :: Expr -> Expr -> String -> Expr
-  ecos_plus (None s) _ _ = None s
-  ecos_plus _ (None s) _ = None s
-  ecos_plus x y s
+  scoop_plus :: Expr -> Expr -> String -> Expr
+  scoop_plus (None s) _ _ = None s
+  scoop_plus _ (None s) _ = None s
+  scoop_plus x y s
     | isVector x && isVector y && compatible = expression newVar curvature sgn prog
     | otherwise = none $ "plus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match"
     where
@@ -220,10 +220,10 @@ module Atoms.Atoms(
       vecB = [Ones m 0]
 
   -- minus x y = x - y
-  ecos_minus :: Expr -> Expr -> String -> Expr
-  ecos_minus (None s) _ _ = None s
-  ecos_minus _ (None s) _ = None s
-  ecos_minus x y s
+  scoop_minus :: Expr -> Expr -> String -> Expr
+  scoop_minus (None s) _ _ = None s
+  scoop_minus _ (None s) _ = None s
+  scoop_minus x y s
     | isVector x && isVector y && compatible = expression newVar curvature sgn prog
     | otherwise = none $ "minus: size of " ++ (name x) ++ " and " ++ (name y) ++ " don't match"
     where
@@ -243,9 +243,9 @@ module Atoms.Atoms(
       vecB = [Ones m 0]
 
   -- neg x = -x
-  ecos_negate :: Expr -> String -> Expr
-  ecos_negate (None s) _ = None s
-  ecos_negate x s = expression newVar curvature sgn prog
+  scoop_negate :: Expr -> String -> Expr
+  scoop_negate (None s) _ = None s
+  scoop_negate x s = expression newVar curvature sgn prog
     where
       curvature = applyDCP Affine Decreasing (vexity x)
       sgn = neg (sign x)
@@ -256,9 +256,9 @@ module Atoms.Atoms(
       vecB = [Ones m 0]
 
   -- pos(x) = max(x,0)
-  ecos_pos :: Expr -> String -> Expr
-  ecos_pos (None s) _ = None s
-  ecos_pos x s = expression newVar curvature Positive prog
+  scoop_pos :: Expr -> String -> Expr
+  scoop_pos (None s) _ = None s
+  scoop_pos x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex Increasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -270,9 +270,9 @@ module Atoms.Atoms(
       kones = [SOCelem [newVar], SOCelem [z0]]
 
   -- neg(x) = max(-x,0)
-  ecos_neg :: Expr -> String -> Expr
-  ecos_neg (None s) _ = None s
-  ecos_neg x s = expression newVar curvature Positive prog
+  scoop_neg :: Expr -> String -> Expr
+  scoop_neg (None s) _ = None s
+  scoop_neg x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex Decreasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -284,9 +284,9 @@ module Atoms.Atoms(
       kones = [SOCelem [newVar], SOCelem [z0]]
   
   -- max(x) = max(x_1, x_2, \ldots, x_n)
-  ecos_max :: Expr -> String -> Expr
-  ecos_max (None s) _ = None s
-  ecos_max x s = expression newVar curvature (sign x) prog
+  scoop_max :: Expr -> String -> Expr
+  scoop_max (None s) _ = None s
+  scoop_max x s = expression newVar curvature (sign x) prog
     where
       curvature = applyDCP Convex Increasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -299,9 +299,9 @@ module Atoms.Atoms(
 
 
   -- min(x) = min (x_1, x_2, \ldots, x_n)
-  ecos_min :: Expr -> String -> Expr
-  ecos_min (None s) _ = None s
-  ecos_min x s = expression newVar curvature (sign x) prog
+  scoop_min :: Expr -> String -> Expr
+  scoop_min (None s) _ = None s
+  scoop_min x s = expression newVar curvature (sign x) prog
     where
       curvature = applyDCP Concave Increasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -313,9 +313,9 @@ module Atoms.Atoms(
       kones = [SOCelem [z0]]
  
   -- sum(x) = x_1 + x_2 + ... + x_n
-  ecos_sum :: Expr -> String -> Expr
-  ecos_sum (None s) _ = None s
-  ecos_sum x s = expression newVar curvature (sign x) prog
+  scoop_sum :: Expr -> String -> Expr
+  scoop_sum (None s) _ = None s
+  scoop_sum x s = expression newVar curvature (sign x) prog
     where      
       curvature = applyDCP Affine Increasing (vexity x)
       prog = (ConicSet matA vecB []) <++> (cones x)
@@ -325,9 +325,9 @@ module Atoms.Atoms(
       vecB = [Ones 1 0]
 
   -- abs(x) = |x|
-  ecos_abs :: Expr -> String -> Expr
-  ecos_abs (None s) _ = None s
-  ecos_abs x s = expression newVar curvature Positive prog
+  scoop_abs :: Expr -> String -> Expr
+  scoop_abs (None s) _ = None s
+  scoop_abs x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
@@ -341,9 +341,9 @@ module Atoms.Atoms(
 
 
   -- norm(x) = ||x||_2
-  ecos_norm :: Expr -> String -> Expr
-  ecos_norm (None s) _ = None s
-  ecos_norm x s = expression newVar curvature Positive prog
+  scoop_norm :: Expr -> String -> Expr
+  scoop_norm (None s) _ = None s
+  scoop_norm x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Convex monotonicity (vexity x)
       monotonicity = case (sign x) of
@@ -355,15 +355,15 @@ module Atoms.Atoms(
       kones = [SOC [newVar, var x]]
 
   -- norm_inf(x) = ||x||_\infty
-  ecos_norm_inf x s = ecos_max (ecos_abs x (s++"s0")) s
+  scoop_norm_inf x s = scoop_max (scoop_abs x (s++"s0")) s
 
   -- norm1(x) = ||x||_1
-  ecos_norm1 x s = ecos_sum (ecos_abs x (s++"s0")) s
+  scoop_norm1 x s = scoop_sum (scoop_abs x (s++"s0")) s
 
   -- sqrt(x) = geo_mean(x,1)
-  ecos_sqrt :: Expr -> String -> Expr
-  ecos_sqrt (None s) _ = None s
-  ecos_sqrt x s = expression newVar curvature Positive prog
+  scoop_sqrt :: Expr -> String -> Expr
+  scoop_sqrt (None s) _ = None s
+  scoop_sqrt x s = expression newVar curvature Positive prog
     where
       curvature = applyDCP Concave Increasing (vexity x)
       prog = (ConicSet matA vecB kones) <++> (cones x)
@@ -377,10 +377,10 @@ module Atoms.Atoms(
       kones = [SOCelem [z0,z1,newVar]]
       
   -- geo_mean(x,y) = sqrt(x*y)
-  ecos_geo_mean :: Expr -> Expr -> String -> Expr
-  ecos_geo_mean (None s) _ _ = None s
-  ecos_geo_mean _ (None s) _ = None s
-  ecos_geo_mean x y s
+  scoop_geo_mean :: Expr -> Expr -> String -> Expr
+  scoop_geo_mean (None s) _ _ = None s
+  scoop_geo_mean _ (None s) _ = None s
+  scoop_geo_mean x y s
     | isVector x && isVector y && compatible = expression newVar curvature Positive prog
     | otherwise = none $ "geo_mean: " ++ (name x) ++ " and " ++ (name y) ++ " are not of compatible dimensions"
     where
@@ -405,35 +405,35 @@ module Atoms.Atoms(
       kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
 
   -- pow_rat (x, p,q) = x^(p/q) for q <= p <= 4
-  ecos_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
-  ecos_pow_rat x 4 3 s = result -- also tacks on constraint that x >= 0
+  scoop_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
+  scoop_pow_rat x 4 3 s = result -- also tacks on constraint that x >= 0
     where curvature = applyDCP Convex Increasing (vexity x)
           newVar = Var ("t"++s) (rows x, cols x)
-          result = case (ecos_geq (ecos_pow_rat (Variable newVar) 3 4 (s++"s0")) x (s++"s1")) of
+          result = case (scoop_geq (scoop_pow_rat (Variable newVar) 3 4 (s++"s0")) x (s++"s1")) of
             Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
             Nothing -> none $ "unknown x^(4/3) error?"
-  ecos_pow_rat x 4 2 s = ecos_square x s
-  ecos_pow_rat x 4 1 s = ecos_square (ecos_square x s) (s++"s0")
-  ecos_pow_rat x 3 2 s = ecos_quad_over_lin x (ecos_sqrt x s) (s++"s0")
-  ecos_pow_rat x 3 1 s = ecos_quad_over_lin (ecos_square x s) x (s++"s0")
-  ecos_pow_rat x 2 1 s = ecos_square x s
-  ecos_pow_rat x 1 2 s = ecos_sqrt x s
-  ecos_pow_rat x 1 3 s = result
+  scoop_pow_rat x 4 2 s = scoop_square x s
+  scoop_pow_rat x 4 1 s = scoop_square (scoop_square x s) (s++"s0")
+  scoop_pow_rat x 3 2 s = scoop_quad_over_lin x (scoop_sqrt x s) (s++"s0")
+  scoop_pow_rat x 3 1 s = scoop_quad_over_lin (scoop_square x s) x (s++"s0")
+  scoop_pow_rat x 2 1 s = scoop_square x s
+  scoop_pow_rat x 1 2 s = scoop_sqrt x s
+  scoop_pow_rat x 1 3 s = result
     where curvature = applyDCP Concave Increasing (vexity x)
           newVar = Var ("t"++s) (rows x, cols x)
-          result = case (ecos_leq (ecos_pow_rat (Variable newVar) 3 1 (s++"s0")) x (s++"s1")) of
+          result = case (scoop_leq (scoop_pow_rat (Variable newVar) 3 1 (s++"s0")) x (s++"s1")) of
             Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
             Nothing -> none $ "unknown x^(1/3) error?"
-  ecos_pow_rat x 2 3 s = result
+  scoop_pow_rat x 2 3 s = result
     where curvature = applyDCP Concave Increasing (vexity x)
           newVar = Var ("t"++s) (rows x, cols x)
-          result = case (ecos_leq (ecos_pow_rat (Variable newVar) 3 2 (s++"s0")) x (s++"s1")) of
+          result = case (scoop_leq (scoop_pow_rat (Variable newVar) 3 2 (s++"s0")) x (s++"s1")) of
             Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
             Nothing -> none $ "unknown x^(2/3) error?"
-  ecos_pow_rat x 1 4 s = ecos_sqrt (ecos_sqrt x s) (s++"s0")
-  ecos_pow_rat x 2 4 s = ecos_sqrt x s
-  ecos_pow_rat x 3 4 s = ecos_geo_mean x (ecos_sqrt x s) (s++"s0")
-  ecos_pow_rat x p q _ 
+  scoop_pow_rat x 1 4 s = scoop_sqrt (scoop_sqrt x s) (s++"s0")
+  scoop_pow_rat x 2 4 s = scoop_sqrt x s
+  scoop_pow_rat x 3 4 s = scoop_geo_mean x (scoop_sqrt x s) (s++"s0")
+  scoop_pow_rat x p q _ 
     | p == q = x
     | otherwise = None $ "pow_rat: not implemented for p = " ++ show p ++ " and q = " ++ show q
 
@@ -442,8 +442,8 @@ module Atoms.Atoms(
 
   -- t = [x;y;z; ...]
   -- XXX/TODO: do we need a None here?
-  ecos_concat :: [Expr] -> String -> Expr
-  ecos_concat x s = expression newVar curvature sgn prog
+  scoop_concat :: [Expr] -> String -> Expr
+  scoop_concat x s = expression newVar curvature sgn prog
     where
       -- starts with Affine vexity
       -- each argument is Increasing
@@ -465,8 +465,8 @@ module Atoms.Atoms(
   -- inequalities (returns "Maybe ConicSet", since ConicSet are convex)
   -- if it's an invalid inequality, will produce Nothing
   -- a >= b
-  ecos_geq :: Expr -> Expr -> String -> Maybe ConicSet
-  ecos_geq a b s
+  scoop_geq :: Expr -> Expr -> String -> Maybe ConicSet
+  scoop_geq a b s
     | isConvexSet && (m1 == m2) = Just prog
     | isConvexSet && (m1 == 1) = Just prog
     | isConvexSet && (m2 == 1) = Just prog
@@ -487,8 +487,8 @@ module Atoms.Atoms(
           isConvexSet = (isConcave a) && (isConvex b)
 
   -- a <= b
-  ecos_leq :: Expr -> Expr -> String -> Maybe ConicSet
-  ecos_leq a b s
+  scoop_leq :: Expr -> Expr -> String -> Maybe ConicSet
+  scoop_leq a b s
     | isConvexSet && (m1 == m2) = Just prog
     | isConvexSet && (m1 == 1) = Just prog
     | isConvexSet && (m2 == 1) = Just prog
@@ -509,8 +509,8 @@ module Atoms.Atoms(
           isConvexSet = (isConvex a) && (isConcave b)
 
   -- a == b
-  ecos_eq :: Expr -> Expr -> Maybe ConicSet
-  ecos_eq a b
+  scoop_eq :: Expr -> Expr -> Maybe ConicSet
+  scoop_eq a b
     | isConvexSet && (m1 == m2) = Just prog
     | isConvexSet && (m1 == 1) = Just prog
     | isConvexSet && (m2 == 1) = Just prog
@@ -534,17 +534,17 @@ module Atoms.Atoms(
   -- transpose a = a' (new parameter named " a' ")
   -- this works perfectly in Matlab, but care must be taken at
   -- codegen to parse a "tick" as a transposed parameter
-  ecos_transpose :: Expr -> Expr
-  ecos_transpose (None s) = None s
-  ecos_transpose (Parameter p psgn NoMod) = Parameter p psgn Transposed
-  ecos_transpose (Parameter p psgn Transposed) = Parameter p psgn NoMod
-  ecos_transpose (Parameter p psgn Diagonal) = None $ "transpose: can only transpose vectors"
-  ecos_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
+  scoop_transpose :: Expr -> Expr
+  scoop_transpose (None s) = None s
+  scoop_transpose (Parameter p psgn NoMod) = Parameter p psgn Transposed
+  scoop_transpose (Parameter p psgn Transposed) = Parameter p psgn NoMod
+  scoop_transpose (Parameter p psgn Diagonal) = None $ "transpose: can only transpose vectors"
+  scoop_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
 
   -- diag a = diag(a) (new diagonal matrix parameter)
-  ecos_diag :: Expr -> Expr
-  ecos_diag (None s) = None s
-  ecos_diag (Parameter (Param s (m,1)) psgn NoMod) = Parameter (Param s (m,1)) psgn Diagonal
-  ecos_diag (Parameter (Param s (1,m)) psgn Transposed) = Parameter (Param s (1,m)) psgn Diagonal
-  ecos_diag (Parameter p psgn Diagonal) = Parameter p psgn Diagonal -- does nothing
-  ecos_diag x = None $ "diag: cannot diagonalize " ++ (name x) ++ "; can only diagonalize vector parameters"
+  scoop_diag :: Expr -> Expr
+  scoop_diag (None s) = None s
+  scoop_diag (Parameter (Param s (m,1)) psgn NoMod) = Parameter (Param s (m,1)) psgn Diagonal
+  scoop_diag (Parameter (Param s (1,m)) psgn Transposed) = Parameter (Param s (1,m)) psgn Diagonal
+  scoop_diag (Parameter p psgn Diagonal) = Parameter p psgn Diagonal -- does nothing
+  scoop_diag x = None $ "diag: cannot diagonalize " ++ (name x) ++ "; can only diagonalize vector parameters"

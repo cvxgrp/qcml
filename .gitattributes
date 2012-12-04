@@ -1,4 +1,6 @@
-doc/* merge=ours
-talks/* merge=ours
-matlab/ecos_presolve merge=ours
+matlab/ecos_presolve.m merge=ours
 Makefile merge=ours
+.gitattributes export-ignore
+.gitignore export-ignore
+doc export-ignore
+talks export-ignore
