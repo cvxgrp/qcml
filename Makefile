@@ -1,20 +1,13 @@
 SRCDIR = src
-DOCDIR = doc
 
-.PHONY: all doc prog
-all: doc prog
-
-doc:
-	cd $(DOCDIR); make
+.PHONY: all prog
+all: prog
 
 prog:
 	cd $(SRCDIR); make
 
-.PHONY: clean clean-doc clean-prog
-clean: clean-doc clean-prog
-
-clean-doc:
-	cd $(DOCDIR); make clean
+.PHONY: clean clean-prog
+clean: clean-prog
 
 clean-prog:
 	cd $(SRCDIR); make clean
