@@ -1,5 +1,5 @@
-dimension n = 1000  # dimension of problem
-dimension m = 30
+dimension n = 10  # dimension of problem
+dimension m = 3
 
 # testing comments
 variable x(n)
@@ -8,10 +8,10 @@ parameter mu(n)
 parameter B
 parameter gamma positive
 parameter F(n,m)
-parameter D(n,n)
+parameter d(n)
 
 # ignoring comments?
-maximize mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x)))
+maximize mu'*x - gamma*(square(norm(F'*x)) + square(norm(diag(d)*x)))
 subject to
     sum(x) == B # ignored?
     x >= 0

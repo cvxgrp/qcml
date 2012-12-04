@@ -1,25 +1,39 @@
 module Main where
   import System.Console.GetOpt
   import Data.Char
+  import Data.List
   import System.IO
   import System.Environment
+  import System.Directory
+  import Control.Monad
   import Parser.CVX
   
-  -- need this for problem sense (should try to remove it somehow)
+  -- need this for rows + cols
   import Expression.Expression  
 
+  -- need this for seeding random numbers
+  import Data.Time.Clock
+
   -- need this for code generators
+  import CodeGenerator.Common(Codegen(problem), getVariableRows)
   import CodeGenerator.CVX
   import CodeGenerator.CVXSOCP
   import CodeGenerator.ECOS
+  import CodeGenerator.CGenerator
+  import CodeGenerator.MexGenerator
+  import qualified CodeGenerator.CGeneratorUnrolled as U
+
+  -- want to output messages as we go parsing.... *HMMM* haskell fail. :(
   
-  import Data.Map as M
-  
+  import qualified Data.Map as M
+
   ver = "0.0.1"
+  ecos_path = "/Users/echu/src/ecos"
   
   data Flag
-    = Version | CVX | CVXSOCP | Conelp | ECOS | Filename String
+    = Version | CVX | CVXSOCP | Conelp | ECOS | C | Filename String
     deriving (Show, Eq)
+
   
   options :: [OptDescr Flag]
   options =
@@ -27,7 +41,8 @@ module Main where
       Option [] ["cvx"] (NoArg CVX) "cvx output",
       Option [] ["cvxsocp"] (NoArg CVXSOCP) "cvx socp output",
       Option [] ["conelp"] (NoArg Conelp) "conelp matlab output",
-      Option [] ["ecos"] (NoArg ECOS) "ecos / paris matlab output"
+      Option [] ["ecos"] (NoArg ECOS) "ecos matlab output",
+      Option ['c'] ["C"] (NoArg C) "C code output (calls ECOS)"
     ]
   
   -- inp, outp :: Maybe String -> Flag
@@ -40,25 +55,71 @@ module Main where
       (o, n, []) -> return (o,n)
       (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
   
-  header = "Usage: ProbToCVX [-v|--version] output probPath"
-  
+  header = "Usage: EFE [-v|--version] output probPath"
 
-  runCVX :: Flag -> String -> IO ()
-  runCVX flag input =
-    let printFunc = case(flag) of
-          CVX -> cvxgen
-          CVXSOCP -> codegen
-          Conelp -> codegenConelp
-          ECOS -> codegenECOS
+  createSolverDirectory :: String -> IO String
+  createSolverDirectory path = do {
+      putStrLn $ "Creating directory " ++ pathName ++ "/";
+      createDirectoryIfMissing False pathName;
+      return pathName;
+    }
+    where indices = elemIndices '.' path
+          pathName | indices == [] = path
+                   | otherwise = take (last indices) path
+
+  -- belongs in codegen common or something....
+  formatStats :: Codegen -> String
+  formatStats x = unlines $
+    ["Problem statistic summary",
+     "=========================",
+     "  original problem",
+     "    " ++ show nump ++ " parameters (in " ++ show lenp ++ " symbols)",
+     "    " ++ show numv ++ " variables (in " ++ show lenv ++ " vectors)",
+     "",
+     "  transformed problem",
+     "    " ++ show nump ++ " parameters (in " ++ show lenp ++ " symbols)",
+     "    " ++ show numtv ++ " variables (in " ++ show lentv ++ " vectors)"]
+    where params = paramlist x
+          vars = varlist x
+          (lenp, lenv) = (length params, length vars)
+          sizes x = (rows x)*(cols x)
+          (nump, numv) = (foldl (+) 0 (map sizes params), foldl (+) 0 (map sizes vars))
+          tvsizes = getVariableRows (problem x)
+          lentv = length tvsizes
+          numtv = foldl (+) 0 tvsizes
+
+
+  printProblemStatistics :: Codegen -> IO ()
+  printProblemStatistics x = putStrLn (formatStats x)
+
+
+  runCVX :: Int -> Flag -> FilePath -> String -> IO ()
+  runCVX seed flag dirpath input =
+    let writers = case(flag) of
+          CVX -> [(cvxgen, "/solver.m")]
+          CVXSOCP -> [(codegen, "/solver.m")]
+          Conelp -> [(codegenConelp, "/solver.m")]
+          ECOS -> [(codegenECOS, "/solver.m")]
+          C -> [(cCodegen, "/solver.c"), 
+                (cHeader ver input,"/solver.h"),
+                (makefile ecos_path, "/Makefile"),
+                (cTestSolver, "/testsolver.c"),
+                (mex, "/efe_solve.c"),
+                (makemex ecos_path, "/makemex.m")]
     in case (runParser cvxProg symbolTable "" input) of
-        Left err -> do{ putStr "parse error at "
-                      ; print err
-                      }
-        Right x  -> putStrLn $ printFunc x
-        --case (sense x) of
-        --  Minimize -> putStrLn (printFunc (rewrite x) 1)
-        --  Maximize -> putStrLn (printFunc (rewrite x) (-1))
-  
+        Left err -> do{ putStr "parse error at ";
+                        print err }
+        Right x  -> do {
+            forM_ writers (\(f, path) -> do {
+              putStrLn $ "Generating code for " ++ (dirpath ++ path);
+              writeFile (dirpath ++ path) (f x)
+            });
+            putStrLn "";
+            printProblemStatistics x;
+          }
+          -- TODO: print statistics for problem (done by looking at symbols in x)
+          -- TODO: print statistics for *transformed* problem (done by look at "problem x")
+
   main :: IO ()
   main = do
     args <- getArgs
@@ -68,10 +129,22 @@ module Main where
       putStrLn ("ProbToCVX version " ++  ver)
     else
       case (flags,nonOpts) of
-        ([opt], [filename]) -> 
+        ([opt], [filename]) -> do {
+          putStrLn "";
+          putStrLn "Running ECOS front end.";
+          putStrLn "=======================";
+          newDir <- createSolverDirectory filename;
           withFile filename ReadMode (\handle -> do
+            putStrLn $ "Reading problem " ++ filename
             contents <- hGetContents handle
-            runCVX opt contents
-            )
+
+            -- get RNG seed
+            utc <- getCurrentTime;
+            let seed = round (1000*(toRational (utctDayTime utc)));
+
+            putStrLn "Parsing..."
+            runCVX seed opt newDir contents
+            );
+        }
         _ -> error ("Invalid number of arguments\n\n" ++ usageInfo header options)
       

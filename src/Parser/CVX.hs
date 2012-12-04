@@ -3,6 +3,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   module P) where
   import qualified Expression.Expression as E
   import qualified Data.Map as M
+  import qualified CodeGenerator.Common as C(Codegen(..))
   import Atoms.Atoms
   
   import Data.Maybe
@@ -27,14 +28,16 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
      ("norm1", atom_norm1),
      ("norm", atom_norm),
      ("sqrt", atom_sqrt),
-     ("geo_mean", atom_geo_mean)]
+     ("geo_mean", atom_geo_mean),
+     ("pow_rat", atom_pow_rat),
+     ("diag", atom_diag)]
 
   symbolTable = CVXState M.empty M.empty 0
 
   data CVXState = CVXState {
       symbols :: M.Map String E.Expr,
-      dimensions :: M.Map String Int,
-      varcount :: Int
+      dimensions :: M.Map String Integer,
+      varcount :: Integer
     }
 
   incrCount :: CVXState -> CVXState
@@ -46,7 +49,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     = CVXState newSymbols (dimensions state) (varcount state)
       where newSymbols = M.insert (E.name x) x (symbols state)
 
-  insertDim :: (String, Int) -> CVXState -> CVXState
+  insertDim :: (String, Integer) -> CVXState -> CVXState
   insertDim (s,i) state 
     = CVXState (symbols state) newDimensions (varcount state)
       where newDimensions = M.insert s i (dimensions state)
@@ -83,16 +86,21 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       otherwise -> return e
     } <?> "expression"
   
-  unaryNegate :: Int -> E.Expr -> E.Expr
+  unaryNegate :: Integer -> E.Expr -> E.Expr
   unaryNegate t a = ecos_negate a (show t)
   
-  multiply :: Int -> E.Expr -> E.Expr -> E.Expr
+  -- a significant difference from the paper is that parameters are also
+  -- expressions, so we can multiply two things of the same *type*
+  --
+  -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
+  -- to be a *unary* function parameterized by the first "term"
+  multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
   multiply t a b = ecos_mult a b (show t)
                   
-  add :: Int -> E.Expr -> E.Expr -> E.Expr
+  add :: Integer -> E.Expr -> E.Expr -> E.Expr
   add t a b = ecos_plus a b (show t)
           
-  minus :: Int -> E.Expr -> E.Expr -> E.Expr
+  minus :: Integer -> E.Expr -> E.Expr -> E.Expr
   minus t a b = ecos_minus a b (show t)
   
   -- constructors to help build the expression table
@@ -122,7 +130,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
             [binary "+" add AssocLeft, 
              binary "-" minus AssocLeft]] 
   
-  -- a term is made up of "(cvxExpr)", functions thereof, parameters, or 
+  -- a term is made up of "(expr)", functions thereof, parameters, or 
   -- variables
   term = parens expr
       <|> choice (map snd builtinFunctions)
@@ -169,11 +177,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
   constant :: CVXParser E.Expr
   constant = do {
     s <- naturalOrFloat;
-    if(either (>=0) (>=0.0) s)
-    then
-      return (E.parameter (either show show s) E.Positive (1,1))
-    else
-      return (E.parameter (either show show s) E.Negative (1,1))
+    return $ E.Constant (either fromIntegral id s)
   } <?> "constant"
              
   boolOp :: CVXParser String
@@ -220,7 +224,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
       (_,E.Find) -> return obj -- or 0?
       (E.Convex, E.Minimize) -> return obj
       (E.Concave, E.Maximize) -> return obj
-      _ -> fail $ show obj-- (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
+      _ -> fail $ (show (E.vexity obj) ++ " objective does not agree with sense: " ++ show v)
   } <?> "objective"
   
   sense :: CVXParser E.Sense
@@ -251,12 +255,12 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         let prob = E.socp obj
         in case (cones) of
           Just x -> return (E.SOCP probSense (E.obj prob) (foldr (E.<++>) (E.constraints prob) x))
-          _ -> return prob
+          _ -> return (E.SOCP probSense (E.obj prob) (E.constraints prob))
       else
         fail $ "expected scalar objective; got objective with " ++ show (E.rows obj) ++ " rows and " ++ show (E.cols obj) ++ " columns."
     } <?> "problem"
   
-  dimension :: CVXParser Int
+  dimension :: CVXParser Integer
   dimension = 
     do {
       s <- identifier;
@@ -274,7 +278,7 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
         return (fromInteger dim);
     } <?> "dimension"
 
-  shape :: CVXParser (Int, Int)
+  shape :: CVXParser (Integer, Integer)
   shape = 
     do {
       dims <- parens (sepBy dimension comma);
@@ -323,9 +327,9 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     size <- optionMaybe shape;
     let dim = fromMaybe (1,1) size
         p = case (sign) of
-          Just E.Positive -> E.parameter s E.Positive dim
-          Just E.Negative -> E.parameter s E.Negative dim
-          _ -> E.parameter s E.Unknown dim
+          Just E.Positive -> E.Parameter (E.Param s dim) E.Positive E.NoMod
+          Just E.Negative -> E.Parameter (E.Param s dim) E.Negative E.NoMod
+          _ -> E.Parameter (E.Param s dim) E.Unknown E.NoMod
     in updateState (insertSymbol p)
   } <?> "parameter"
 
@@ -348,13 +352,14 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     <?> "definitions"
 
   
-  cvxProg :: CVXParser E.SOCP
+  cvxProg :: CVXParser C.Codegen
   cvxProg = do {
     whiteSpace;
     many definitions;
     p <- problem;
+    t <- getState;
     eof;
-    return p
+    return $ C.Codegen p (symbols t)
   } <?> "problem"
 
 
@@ -499,4 +504,30 @@ module Parser.CVX (cvxProg, CVXParser, lexer, symbolTable,
     return $ ecos_geo_mean (args!!0) (args!!1) (show $ varcount t)
   }
 
+  atom_pow_rat :: CVXParser E.Expr
+  atom_pow_rat = do {
+    reserved "pow_rat";
+    (arg, pqs) <- parens pow_rat_args;
+    t <- getState; 
+    updateState incrCount; 
+    return $ ecos_pow_rat arg (pqs!!0) (pqs!!1) (show $ varcount t)
+  }
+
+  -- XXX/TODO: could make arguments optional if needed
+  pow_rat_args :: CVXParser (E.Expr, [Integer])
+  pow_rat_args = do {
+    e <- expr;
+    comma;
+    p <- natural;
+    comma;
+    q <- natural;
+    return (e, [p,q])
+  } <?> "pow_rat arguments"
+
+  atom_diag :: CVXParser E.Expr
+  atom_diag = do {
+    reserved "diag";
+    args <- parens $ args "diag" 1;
+    return $ ecos_diag (args!!0)
+  }
 
