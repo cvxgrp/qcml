@@ -1,0 +1,4 @@
+doc/* merge=ours
+talks/* merge=ours
+matlab/ecos_presolve merge=ours
+Makefile merge=ours
