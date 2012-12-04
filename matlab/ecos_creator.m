@@ -1,21 +1,13 @@
 function ecos_creator()
     solver_type = {'cvxsocp','ecos','conelp', 'C'};
     
+    test_problems;  % load the list of test problems
+    
     try
-        for i = 1:length(solver_type),
-            create_solver('least_squares', solver_type{i});
-            % create_solver('geometric_mean');
-            create_solver('lp', solver_type{i});
-            create_solver('pathological_lp', solver_type{i});
-            % create_solver('quadratic_over_linear');
-            % create_solver('inv_prob');
-            % create_solver('min_max');
-            create_solver('robust_ls', solver_type{i});
-            % create_solver('ecos_mpc');
-            create_solver('lasso', solver_type{i});
-            create_solver('portfolio', solver_type{i});
-            create_solver('svm', solver_type{i});
-            % create_solver('chebyshev');
+        for j = 1:length(problems)
+            for i = 1:length(solver_type),
+                create_solver(problems{j}, solver_type{i});
+            end
         end
     catch e
         cd ..   % return to top level directory
@@ -38,27 +30,27 @@ function create_solver(directory, language)
         tic;
         switch lower(language)
             case 'cvxsocp'
-                [status, result] = system(['../../src/efe --cvxsocp ' directory '.prob']);
+                [status, result] = system(['../../src/scoop --cvxsocp ' directory '.prob']);
                 copyfile([directory '/solver.m'], 'cvxsocp_solver.m', 'f');
             case 'ecos'
-                [status, result] = system(['../../src/efe --ecos ' directory '.prob']);
+                [status, result] = system(['../../src/scoop --ecos ' directory '.prob']);
                 copyfile([directory '/solver.m'], 'ecos_solver.m', 'f');
             case 'conelp'
-                [status, result] = system(['../../src/efe --conelp ' directory '.prob']);
+                [status, result] = system(['../../src/scoop --conelp ' directory '.prob']);
                 copyfile([directory '/solver.m'], 'conelp_solver.m', 'f');
             case 'c'
-                [status, result] = system(['../../src/efe --C ' directory '.prob']);
+                [status, result] = system(['../../src/scoop --C ' directory '.prob']);
                 cd(directory);
                 try
-                    evalc('makemex');
+                    evalc('makescoop');
                 catch e
                     cd ..
                     throw(e);
                 end
                 cd ..
-                copyfile([directory '/efe_solve.' mexext]);
+                copyfile([directory '/scooper.' mexext]);
             otherwise
-                [status, result] = system(['../../src/efe --ecos ' directory '.prob']);            
+                [status, result] = system(['../../src/scoop --ecos ' directory '.prob']);            
                 copyfile([directory '/solver.m'], 'ecos_solver.m', 'f');
         end
         fprintf('  Took %f seconds to generate solver.\n\n', toc);

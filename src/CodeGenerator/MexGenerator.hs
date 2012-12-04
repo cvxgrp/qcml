@@ -1,4 +1,4 @@
-module CodeGenerator.MexGenerator(mex, makemex) where
+module CodeGenerator.MexGenerator(mex, makescoop) where
 
   import CodeGenerator.CGenerator(varlist,paramlist,paramsigns)
   import CodeGenerator.Common
@@ -88,9 +88,9 @@ module CodeGenerator.MexGenerator(mex, makemex) where
     "#ifdef MEXARGMUENTCHECKS",
     "  if( !(nrhs == 1) )",
     "  {",
-    "       mexErrMsgTxt(\"efe_solve only takes 1 argument: efe_solve(params)\");",
+    "       mexErrMsgTxt(\"scooper only takes 1 argument: scooper(params)\");",
     "  }",
-    "  if( nlhs > 2 ) mexErrMsgTxt(\"efe_solve has up to 2 output arguments only\");",
+    "  if( nlhs > 2 ) mexErrMsgTxt(\"scooper has up to 2 output arguments only\");",
     "#endif"]
 
   checkParam :: Param -> Sign -> String
@@ -290,9 +290,9 @@ module CodeGenerator.MexGenerator(mex, makemex) where
 
 
 
-  makemex :: String -> Codegen -> String
-  makemex path _ = unlines $ [
-    "function makemex(what)",
+  makescoop :: String -> Codegen -> String
+  makescoop path _ = unlines $ [
+    "function makescoop(what)",
     "",
     "if( nargin == 0 )",
         "what = {'all'};",
@@ -301,7 +301,8 @@ module CodeGenerator.MexGenerator(mex, makemex) where
             "isempty(strfind(what, 'amd')) && ...",
             "isempty(strfind(what, 'clean')) && ...",
             "isempty(strfind(what, 'ecos')) && ...",
-            "isempty(strfind(what, 'efemex')) )",
+            "isempty(strfind(what, 'scooper')) && ...",
+            "isempty(strfind(what, 'purge')) )",
         "fprintf('No rule to make target \"%s\", exiting.\\n', what);",
     "end",
     "",
@@ -352,10 +353,10 @@ module CodeGenerator.MexGenerator(mex, makemex) where
     "end",
     "",
     "",
-    "% efe_solve",
-    "if( any(strcmpi(what,'efemex')) || any(strcmpi(what,'all')) )",
-        "fprintf('Compiling efe_solve...');",
-        "cmd = sprintf('mex -c -O -DMATLAB_MEX_FILE -DMEXARGMUENTCHECKS %s -I"++path++"/code/include -I"++path++"/code/external/SuiteSparse_config -I"++path++"/code/external/ldl/include -I"++path++"/code/external/amd/include efe_solve.c', d);",
+    "% scooper",
+    "if( any(strcmpi(what,'scooper')) || any(strcmpi(what,'all')) )",
+        "fprintf('Compiling scooper...');",
+        "cmd = sprintf('mex -c -O -DMATLAB_MEX_FILE -DMEXARGMUENTCHECKS %s -I"++path++"/code/include -I"++path++"/code/external/SuiteSparse_config -I"++path++"/code/external/ldl/include -I"++path++"/code/external/amd/include scooper.c', d);",
         "eval(cmd);",
         "cmd = sprintf('mex -c -O -DMATLAB_MEX_FILE -DMEXARGMUENTCHECKS %s -I"++path++"/code/include -I"++path++"/code/external/SuiteSparse_config -I"++path++"/code/external/ldl/include -I"++path++"/code/external/amd/include solver.c', d);",
         "eval(cmd);",
@@ -363,23 +364,23 @@ module CodeGenerator.MexGenerator(mex, makemex) where
         "fprintf('Linking...     ');",
         "% clear ecos",
         "if( ispc )",
-            "cmd = sprintf('mex %s amd_1.obj amd_2.obj amd_aat.obj amd_control.obj amd_defaults.obj amd_dump.obj amd_global.obj amd_info.obj amd_order.obj amd_post_tree.obj amd_postorder.obj amd_preprocess.obj amd_valid.obj ldl.obj kkt.obj preproc.obj spla.obj cone.obj ecos.obj timer.obj splamm.obj solver.obj efe_solve.obj -output \"efe_solve\"', d);",
+            "cmd = sprintf('mex %s amd_1.obj amd_2.obj amd_aat.obj amd_control.obj amd_defaults.obj amd_dump.obj amd_global.obj amd_info.obj amd_order.obj amd_post_tree.obj amd_postorder.obj amd_preprocess.obj amd_valid.obj ldl.obj kkt.obj preproc.obj spla.obj cone.obj ecos.obj timer.obj splamm.obj solver.obj scooper.obj -output \"scooper\"', d);",
             "eval(cmd);    ",
         "elseif( ismac )",
-            "cmd = sprintf('mex %s -lm amd_1.o   amd_2.o   amd_aat.o   amd_control.o   amd_defaults.o   amd_dump.o   amd_global.o   amd_info.o   amd_order.o   amd_post_tree.o   amd_postorder.o   amd_preprocess.o   amd_valid.o     ldl.o   kkt.o   preproc.o   spla.o   cone.o   ecos.o timer.o   splamm.o   solver.o   efe_solve.o   -output \"efe_solve\"', d);",
+            "cmd = sprintf('mex %s -lm amd_1.o   amd_2.o   amd_aat.o   amd_control.o   amd_defaults.o   amd_dump.o   amd_global.o   amd_info.o   amd_order.o   amd_post_tree.o   amd_postorder.o   amd_preprocess.o   amd_valid.o     ldl.o   kkt.o   preproc.o   spla.o   cone.o   ecos.o timer.o   splamm.o   solver.o   scooper.o   -output \"scooper\"', d);",
             "eval(cmd);",
         "elseif( isunix )",
-            "cmd = sprintf('mex %s -lm -lrt amd_1.o   amd_2.o   amd_aat.o   amd_control.o   amd_defaults.o   amd_dump.o   amd_global.o   amd_info.o   amd_order.o   amd_post_tree.o   amd_postorder.o   amd_preprocess.o   amd_valid.o     ldl.o   kkt.o   preproc.o   spla.o   cone.o   ecos.o timer.o   splamm.o   solver.o   efe_solve.o   -output \"efe_solve\"', d);",
+            "cmd = sprintf('mex %s -lm -lrt amd_1.o   amd_2.o   amd_aat.o   amd_control.o   amd_defaults.o   amd_dump.o   amd_global.o   amd_info.o   amd_order.o   amd_post_tree.o   amd_postorder.o   amd_preprocess.o   amd_valid.o     ldl.o   kkt.o   preproc.o   spla.o   cone.o   ecos.o timer.o   splamm.o   solver.o   scooper.o   -output \"scooper\"', d);",
             "eval(cmd);",
         "end",
         "fprintf('\\t\\t\\t\\t[done]\\n');",
     "        ",
     "%     fprintf('Copying MEX file...');",
     "%     clear ecos",
-    "%     copyfile(['efe_solve.',mexext], ['../efe_solve.',mexext], 'f');",
+    "%     copyfile(['scooper.',mexext], ['../scooper.',mexext], 'f');",
     "%     % copyfile( 'ecos.m', '../ecos.m','f');",
     "%     fprintf('\\t\\t\\t[done]\\n');",
-        "disp('efe_solve successfully compiled. Happy solving!');",
+        "disp('scooper successfully compiled. Happy solving!');",
     "end",
     "",
     "  ",
@@ -394,7 +395,7 @@ module CodeGenerator.MexGenerator(mex, makemex) where
     "% purge",
     "if( any(strcmpi(what,'purge')) )",
         "fprintf('Deleting mex file...  ');",
-        "if( ispc ), delete(['ecos.',mexext]); end",
-        "if( isunix), delete(['ecos.',mexext]); end",
+        "if( ispc ), delete(['scooper.',mexext]); end",
+        "if( isunix), delete(['scooper.',mexext]); end",
         "fprintf('\\t\\t[done]\\n');",
     "end"]

@@ -149,8 +149,6 @@ module Expression.Expression (
   flipVexity Nonconvex = Nonconvex
   
   -- constructors for expr, variables, parameter, and none
-  -- TODO: SOCP problem keeps track of top-level variable and also has arbitrary sense
-  -- TODO: need to have user-specified problem adjust the socp sense
   expression :: Var -> Curvature -> Sign -> ConicSet -> Expr
   expression v c s k = Expr v c s k
   
@@ -161,13 +159,14 @@ module Expression.Expression (
   none :: String -> Expr
   none s = None s
 
-  parameter = Parameter
+  parameter :: String -> Sign -> (Integer, Integer) -> Expr
+  parameter name s (m,n) = Parameter (Param name (m,n)) s NoMod
 
   display :: Double -> String
   display = (map (\x -> if (x=='.') then 'd' else x)).show
   
   -- helper function to construct SOCP for parameters and constants
-  parameterSOCP :: Param -> ShapeMod -> SOCP  -- ignores the shape modifier (just introduces param via eq constraints)
+  parameterSOCP :: Param -> ShapeMod -> SOCP
   parameterSOCP (Param s (m,1)) NoMod = SOCP Find newVar (ConicSet matA vecB [])
     where newVar = Var ("p"++s) (m,1)
           matA = [Row [(Eye m 1, newVar)]]
@@ -176,7 +175,7 @@ module Expression.Expression (
     where newVar = Var ("p"++s) (m,1)
           matA = [Row [(Eye m 1, newVar)]]
           vecB = [VectorT m (Param s (1,m))]
-  parameterSOCP _ _ = SOCP Find (Var "0" (1,1)) (ConicSet [] [] [])
+  parameterSOCP _ _ = SOCP Find (Var "0" (1,1)) (ConicSet [] [] []) -- matrix parameters fail in to this case
 
   constantSOCP :: Double -> SOCP
   constantSOCP x = SOCP Find newVar (ConicSet matA vecB [])

@@ -8,23 +8,24 @@ function errs = ecos_tester()
     
     % biggest problem seems to be that it doesn't detect infeasibility and
     % unboundedness
-    
-    N = 100;
+        
+    N = 10; % number of tests (for problems with random data)
     
     fprintf('Running tests. Ensure that ECOS_CREATOR was previously run.\n\n');
     try
         errs.LS = run_test('least_squares', N);
-        % run_test('geometric_mean'); fprintf('\n');
+        errs.GEOMEAN = run_test('geometric_mean',1);
         errs.LP = run_test('lp', N);
         errs.PATHLP = run_test('pathological_lp',1);    % actually, CVX is *wrong* here
-        % run_test('quadratic_over_linear'); fprintf('\n');
-        % run_test('inv_prob'); fprintf('\n');
-        % run_test('min_max'); fprintf('\n');
+        errs.QOL = run_test('quadratic_over_linear',1);
+        errs.INV = run_test('inv_prob', 1);
+        errs.MINMAX = run_test('min_max',1); 
         errs.RLS = run_test('robust_ls', N);
-        % run_test('ecos_mpc'); fprintf('\n');
+        errs.MPC = run_test('ecos_mpc', 1);
         errs.LASSO = run_test('lasso', N);
         errs.PORT = run_test('portfolio', N);
         errs.SVM = run_test('svm', N);
+        errs.CHEB = run_test('chebyshev', 1);
     catch e
         disp('FAILED RUN: possibly forgot to run ecos_creator.');
         cd ..   % return to top level directory
@@ -108,7 +109,7 @@ function error_msgs = run_test(directory, N)
         end
         
         try
-            evalc('[sols,info_] = efe_solve(params)'); v2 = info_.pcost;
+            evalc('[sols,info_] = scooper(params)'); v2 = info_.pcost;
             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.c = fail.c + 1;
             end

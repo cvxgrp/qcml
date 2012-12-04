@@ -12,9 +12,7 @@
 *.prob~
 *.toc
 *.out
-src/main
-src/test
-src/EFE
+src/SCOOP
 
 # generated folders under TestProblems
 src/TestProblems/*
