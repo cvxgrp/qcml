@@ -61,9 +61,8 @@ module Scratch where
     put (s+1)
     get
 
-  mscoop_sum :: State Int Expr -> State Int Expr
+  mscoop_sum :: [Expr] -> State Int Expr
   mscoop_sum x = do
     s <- incr
-    a <- x
-    return (scoop_sum a (show s))
+    return (scoop_sum x (show s))
   --mscoop_sum (State a x) = State (scoop_sum a (show x)) (x+1)

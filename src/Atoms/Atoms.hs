@@ -105,18 +105,18 @@ module Atoms.Atoms(
   -- sign operations
 
   -- how to *multiply* two signs
-  (<*>) :: Sign -> Sign -> Sign
-  Positive <*> Positive = Positive
-  Negative <*> Negative = Positive
-  Positive <*> Negative = Negative
-  Negative <*> Positive = Negative
-  _ <*> _ = Unknown
+  (|*|) :: Sign -> Sign -> Sign
+  Positive |*| Positive = Positive
+  Negative |*| Negative = Positive
+  Positive |*| Negative = Negative
+  Negative |*| Positive = Negative
+  _ |*| _ = Unknown
 
   -- how to *add* two signs
-  (<+>) :: Sign -> Sign -> Sign
-  Positive <+> Positive = Positive
-  Negative <+> Negative = Negative
-  _ <+> _ = Unknown
+  (|+|) :: Sign -> Sign -> Sign
+  Positive |+| Positive = Positive
+  Negative |+| Negative = Negative
+  _ |+| _ = Unknown
 
   -- how to *negate* a sign
   neg :: Sign -> Sign
@@ -209,7 +209,7 @@ module Atoms.Atoms(
         Positive -> Increasing
         Negative -> Decreasing
         otherwise -> Nonmonotone
-      sgn = psgn <*> (sign x)
+      sgn = psgn |*| (sign x)
       compatible = pn == rows x
       prog = (ConicSet matA vecB []) <++> (cones x)
       (pm,pn)
@@ -238,7 +238,7 @@ module Atoms.Atoms(
     where
       curvature = applyDCP c1 Increasing (vexity y)
       c1 = applyDCP Affine Increasing (vexity x)
-      sgn = (sign x) <+> (sign y)
+      sgn = (sign x) |+| (sign y)
       compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
       prog = (ConicSet matA vecB []) <++> (cones x) <++> (cones y)
       (m,n) 
@@ -261,7 +261,7 @@ module Atoms.Atoms(
     where
       curvature = applyDCP c1 Decreasing (vexity y)
       c1 = applyDCP Affine Increasing (vexity x)
-      sgn = (sign x) <+> neg (sign y)
+      sgn = (sign x) |+| neg (sign y)
       compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
       prog = (ConicSet matA vecB []) <++> (cones x) <++> (cones y)
       (m,n) 
