@@ -2,6 +2,10 @@ module Atoms.SCOOP_Square(scoop_square) where
 
   import Expression.Expression
   import Control.Monad.State
+  import CodeGenerator.CVX
+  import CodeGenerator.Common
+  import qualified Data.Map as M
+
 
   -- basically, any atom can take anything that can be represented with a var
   -- this includes other Expressions, Vars, etc.
@@ -11,13 +15,128 @@ module Atoms.SCOOP_Square(scoop_square) where
   -- square x =
   --   t <- newVar
   --   quad_over_lin x t
+  data MyExpr = MyExpr Var Curvature Sign deriving (Show) -- gives expression name, its curvature, and its sign
 
-  type Atom = State (Int,SOCP) ()
+  type MyExpression = State (Int,SOCP) MyExpr
 
   -- i could create a vector this way....
   --instance (DCP t) => DCP [t] where
   --  vexity xs = map vexity xs
   --  sign xs = map sign xs
+
+  -- can i write a function that takes a *single* argument and applies it to an arglist?
+  -- YES!
+  -- ... :: (a -> MyExpression) -> [a] -> MyExpression
+  -- it will "concat" across rows of [a] to form "aTranspose", then map f across "aTranspose"
+
+  emptySOCP = SOCP Find (Var "" (1,1)) (ConicSet [] [] [])  -- not sure if this will cause problems....
+
+  -- !#$%&*+./<=>?@\^|-~:
+  isIn' :: [Var] -> ([Var] -> SOC) -> State (Int,SOCP) ()
+  isIn' xs c = do 
+    (count,prob) <- get
+    let newCones = constraints prob <++> (ConicSet [] [] [c xs])
+        newProb = SOCP (sense prob) (obj prob) newCones
+    put (count, newProb)
+
+  -- actually constructs a row
+  (.==) :: Row -> Coeff -> State (Int,SOCP) ()
+  r .== c = do
+    (count, prob) <- get
+    let newCones = constraints prob <++> (ConicSet [r] [c] [])
+        newProb = SOCP (sense prob) (obj prob) newCones
+    put (count, newProb)
+
+  (.+) :: Row -> Row -> Row
+  a .+ b = Row (elems a ++ elems b)
+
+  (.*) :: Coeff -> Var -> Row
+  a .* b = Row [(a,b)]
+
+  infixl 7 .*
+  infixl 6 .+
+  infix 4 .==
+
+  minimize :: Var -> State (Int,SOCP) ()
+  minimize x = do
+    (count, prob) <- get
+    let newProb = SOCP Minimize x (constraints prob)
+    put (count, newProb)
+
+  maximize :: Var -> State (Int,SOCP) ()
+  maximize x = do
+    (count, prob) <- get
+    let newProb = SOCP Maximize x (constraints prob)
+    put (count, newProb)
+
+  find :: Var -> State (Int,SOCP) ()
+  find x = do
+    (count, prob) <- get
+    let newProb = SOCP Find x (constraints prob)
+    put (count, newProb)
+
+  subjectTo :: State (Int,SOCP) ()
+  subjectTo = return ()  -- nop
+
+  square' :: (Symbol' a) => a -> MyExpression
+  square' x = do
+    let (m,n) = dimensions' x
+    t <- newVar' (m,n)
+    z0 <- newVar' (m,n)
+    z1 <- newVar' (m,n)
+
+    --positiveSign
+    --negativeSign
+    --if (all positive) then positiveSign
+    --else negativeSign
+
+    --if (any positive) then positiveSign
+    --else negativeSign
+
+    -- how to attach signed monotonicity
+
+    -- definition
+    minimize t  -- set the objective variable
+    subjectTo
+    [z0, z1, var' x] `isIn'` SOCelem
+    (Eye m 0.5).*t .+ (Eye m (-1)).*z0 .== Ones m (-0.5)
+    (Eye m (-0.5)).*t .+ (Eye m (-1)).*z1 .== Ones m (-0.5)
+
+    return $ MyExpr t Convex Positive
+
+  symbolTable' :: M.Map String Expr
+  symbolTable' = M.empty
+
+  testagain :: MyExpression
+  testagain = do
+    t <- square' (3.0 :: Double)  -- this doesn't get "rewritten"... need to fix that somehow
+    square' t
+
+  genP = execState testagain (0,emptySOCP)
+
+  testme = cvxgen (Codegen (snd genP) symbolTable')
+
+  class Symbol' a where
+    rows' :: a -> Integer
+    rows' = rows' . var'
+    cols' :: a -> Integer
+    cols' = cols' . var'
+    dimensions' :: a -> (Integer, Integer)
+    dimensions' x = (rows' x, cols' x)
+    name' :: a -> String
+    name' = name' . var'
+    var' :: a -> Var
+
+  instance Symbol' Var where
+    rows' = rows
+    cols' = cols
+    name' = name
+    var' x = x 
+
+
+  instance DCP MyExpr where
+    vexity (MyExpr _ c _) = c
+    sign (MyExpr _ _ s) = s
 
   instance DCP Var where
     vexity x = Affine
@@ -29,11 +148,13 @@ module Atoms.SCOOP_Square(scoop_square) where
       | x >= 0 = Positive
       | otherwise = Negative
 
-  -- these should now return monads...
-  instance Rewriteable Double where
-    socp x = constantSOCP x
-    var x = obj (constantSOCP x)
-    cones x = constraints (constantSOCP x)
+  instance Symbol' Double where
+    var' x = Var ("c" ++ display x) (1,1)
+
+  instance Symbol' MyExpr where
+    var' (MyExpr v _ _) = v 
+
+
 
   display :: Double -> String
   display = (map (\x -> if (x=='.') then 'd' else x)).show
@@ -139,6 +260,12 @@ module Atoms.SCOOP_Square(scoop_square) where
   
   --  fail :: String -> m a  
   --  fail msg = error msg  
+
+  newVar' :: (Integer, Integer) -> State (Int,SOCP) Var
+  newVar' (m,n) = do
+    s <- get
+    put (fst s+1, snd s)
+    return (Var ("t" ++ show (fst s)) (m,n))
 
   -- TODO: insert some explanation about monads in all atom definitions
   newVar :: (Integer, Integer) -> State Int Var

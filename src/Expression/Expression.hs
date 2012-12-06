@@ -112,8 +112,6 @@ module Expression.Expression (
     cols (Parameter p _ NoMod) = cols p
     cols (Constant _) = 1
 
-    dimensions x = (rows x, cols x)
-
   -- type classes to enable vexity inference
   class DCP a where
     vexity :: a -> Curvature

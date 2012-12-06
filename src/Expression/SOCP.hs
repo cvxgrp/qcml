@@ -60,6 +60,7 @@ module Expression.SOCP (
     rows :: a -> Integer
     cols :: a -> Integer
     dimensions :: a -> (Integer, Integer)
+    dimensions x = (rows x, cols x)
     name :: a -> String
 
   instance Symbol Var where
