@@ -74,6 +74,7 @@ module Expression.Expression (
     | NoMod
     deriving (Show, Eq)
 
+  -- this entire thing needs to be in a monad....
   data Expr
     = Expr Var Curvature Sign ConicSet
     | Variable Var
