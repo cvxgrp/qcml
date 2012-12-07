@@ -15,7 +15,11 @@ module Atoms.SCOOP_Square(scoop_square) where
   -- square x =
   --   t <- newVar
   --   quad_over_lin x t
-  data MyExpr = MyExpr Var Curvature Sign deriving (Show) -- gives expression name, its curvature, and its sign
+
+  -- this thing is really for parser's use
+  data MyExpr = MyExpr Var Curvature Sign -- gives expression name, its curvature, and its sign
+              | MyParam Var Param Sign -- gives param's name (its var) and its value (a param)
+              | MyConstant Var Double -- gives constant's name (its var) and its value (a double)
 
   type MyExpression = State (Int,SOCP) MyExpr
 
@@ -69,8 +73,8 @@ module Atoms.SCOOP_Square(scoop_square) where
     let newProb = SOCP Maximize x (constraints prob)
     put (count, newProb)
 
-  find :: Var -> State (Int,SOCP) ()
-  find x = do
+  find' :: Var -> State (Int,SOCP) ()
+  find' x = do
     (count, prob) <- get
     let newProb = SOCP Find x (constraints prob)
     put (count, newProb)
@@ -78,12 +82,23 @@ module Atoms.SCOOP_Square(scoop_square) where
   subjectTo :: State (Int,SOCP) ()
   subjectTo = return ()  -- nop
 
-  square' :: (Symbol' a) => a -> MyExpression
+  scoop_constant :: Double -> MyExpression
+  scoop_constant x = do
+    t <- newVar' 1
+
+    find' t
+    subjectTo
+    (Ones 1 1) .* t .== Ones 1 x
+
+    return $ MyConstant t x
+
+
+  square' :: (ShapedVar a) => a -> MyExpression
   square' x = do
-    let (m,n) = dimensions' x
-    t <- newVar' (m,n)
-    z0 <- newVar' (m,n)
-    z1 <- newVar' (m,n)
+    let m = rows'' x
+    t <- newVar' m
+    z0 <- newVar' m
+    z1 <- newVar' m
 
     --positiveSign
     --negativeSign
@@ -98,49 +113,127 @@ module Atoms.SCOOP_Square(scoop_square) where
     -- definition
     minimize t  -- set the objective variable
     subjectTo
-    [z0, z1, var' x] `isIn'` SOCelem
+    [z0, z1, var'' x] `isIn'` SOCelem
     (Eye m 0.5).*t .+ (Eye m (-1)).*z0 .== Ones m (-0.5)
     (Eye m (-0.5)).*t .+ (Eye m (-1)).*z1 .== Ones m (-0.5)
 
     return $ MyExpr t Convex Positive
+
+  -- atoms will be bound by type
+  -- will create container in parser so params, constants, and vars/exprs are in same container
+  -- but the operations will "unpack" them
+
+  scoop_mult' :: (Paramed a, ShapedVar b) => a -> b -> MyExpression
+  scoop_mult' x y = fail "well, you got this far"
+
+  --scoop_mult (None s) _ _ = None s
+  --scoop_mult _ (None s) _ = None s
+  --scoop_mult (Parameter p psgn shape) x s
+  --  | (pm == 1) && (pn == 1) && isVector x = expression newVar curvature sgn prog
+  --  | (pm >= 1) && (pn >= 1) && isVector x && compatible = expression newVar curvature sgn prog
+  --  | otherwise = none $ "mult: size of " ++ (name p) ++ " and " ++ (name x) ++ " don't match"
+  --  where
+  --    curvature = applyDCP Affine monotonicity (vexity x)
+  --    monotonicity = case (psgn) of
+  --      Positive -> Increasing
+  --      Negative -> Decreasing
+  --      otherwise -> Nonmonotone
+  --    sgn = psgn |*| (sign x)
+  --    compatible = pn == rows x
+  --    prog = (ConicSet matA vecB []) <++> (cones x)
+  --    (pm,pn)
+  --      | shape == NoMod = (rows p, cols p)
+  --      | shape == Transposed = (cols p, rows p)
+  --      | shape == Diagonal = (rows p, rows p)
+  --    (m,n)
+  --      | pm == 1 && pn == 1 = (rows x, cols x)
+  --      | otherwise = (pm, cols x)
+  --    newVar = Var ("t"++s) (m, n)
+  --    matA
+  --      | pm == 1 && pn == 1 = [ Row [(Diag m p, var x), (Eye m (-1), newVar)] ]
+  --      | shape == Diagonal = [ Row [(Diag m p, var x), (Eye m (-1), newVar)] ]
+  --      | shape == Transposed = [ Row [(MatrixT p, var x), (Eye m (-1), newVar)] ]
+  --      | shape == NoMod = [ Row [(Matrix p, var x), (Eye m (-1), newVar)] ]
+  --    vecB = [Ones m 0]
+  --scoop_mult _ _ _ = None "mult: lhs ought to be parameter"
 
   symbolTable' :: M.Map String Expr
   symbolTable' = M.empty
 
   testagain :: MyExpression
   testagain = do
-    t <- square' (3.0 :: Double)  -- this doesn't get "rewritten"... need to fix that somehow
+    c <- scoop_constant 3.0 -- for mult, i have to write an "unscoop" function--kind of like a pre-solve
+    t <- square' c  -- this doesn't get "rewritten"... need to fix that somehow, 
+    scoop_mult' (3.0::Double) t
+    -- rewriting is carried in the context
+    -- so arguments must be rewritten before being called
+    -- this means only vars and expr can be passed to atoms
     square' t
 
   genP = execState testagain (0,emptySOCP)
 
   testme = cvxgen (Codegen (snd genP) symbolTable')
 
-  class Symbol' a where
-    rows' :: a -> Integer
-    rows' = rows' . var'
-    cols' :: a -> Integer
-    cols' = cols' . var'
-    dimensions' :: a -> (Integer, Integer)
-    dimensions' x = (rows' x, cols' x)
-    name' :: a -> String
-    name' = name' . var'
-    var' :: a -> Var
+  --class Symbol' a where
+  --  rows' :: a -> Integer
+  --  rows' = rows' . var'
+  --  cols' :: a -> Integer
+  --  cols' = cols' . var'
+  --  dimensions' :: a -> (Integer, Integer)
+  --  dimensions' x = (rows' x, cols' x)
+  --  name' :: a -> String
+  --  name' = name' . var'
+  --  var' :: a -> Var
 
-  instance Symbol' Var where
-    rows' = rows
-    cols' = cols
-    name' = name
-    var' x = x 
+  class Paramed a where
 
 
-  instance DCP MyExpr where
-    vexity (MyExpr _ c _) = c
-    sign (MyExpr _ _ s) = s
+  class ShapedVar a where
+    isParam :: a -> Bool
+    isParam _ = False
+    isConst :: a -> Bool
+    isConst _ = False
+    rows'' :: a -> Integer
+    rows'' = rows'' . var''
+    cols'' :: a -> Integer
+    cols'' = cols'' . var''
+    dimensions'' :: a -> (Integer, Integer)
+    dimensions'' x = (rows'' x, cols'' x)
+    var'' :: a -> Var
 
-  instance DCP Var where
-    vexity x = Affine
-    sign x = Unknown
+  instance ShapedVar Var where
+    rows'' = rows
+    cols'' = cols
+    var'' x = x
+
+  instance ShapedVar MyExpr where
+    var'' (MyExpr v _ _) = v
+    var'' (MyConstant v _) = v 
+    var'' (MyParam v _ _) = v 
+
+    isParam (MyParam _ _ _) = True
+    isParam _ = False
+
+    isConst (MyConstant _ _) = True
+    isConst _ = False
+
+  instance Paramed Param where
+
+  instance Paramed Double where
+
+  --instance Symbol' Var where
+  --  rows' = rows
+  --  cols' = cols
+  --  name' = name
+  --  var' x = x
+
+  --instance DCP MyExpr where
+  --  vexity (MyExpr _ c _) = c
+  --  sign (MyExpr _ _ s) = s
+
+  --instance DCP Var where
+  --  vexity x = Affine
+  --  sign x = Unknown
 
   instance DCP Double where
     vexity x = Affine
@@ -148,34 +241,34 @@ module Atoms.SCOOP_Square(scoop_square) where
       | x >= 0 = Positive
       | otherwise = Negative
 
-  instance Symbol' Double where
-    var' x = Var ("c" ++ display x) (1,1)
+  --instance Symbol' Double where
+  --  var' x = Var ("c" ++ display x) (1,1)
 
-  instance Symbol' MyExpr where
-    var' (MyExpr v _ _) = v 
+  --instance Symbol' MyExpr where
+  --  var' (MyExpr v _ _) = v 
 
 
 
-  display :: Double -> String
-  display = (map (\x -> if (x=='.') then 'd' else x)).show
+  --display :: Double -> String
+  --display = (map (\x -> if (x=='.') then 'd' else x)).show
 
-  -- helper function to construct SOCP for parameters and constants
-  parameterSOCP :: Param -> ShapeMod -> SOCP
-  parameterSOCP (Param s (m,1)) NoMod = SOCP Find newVar (ConicSet matA vecB [])
-    where newVar = Var ("p"++s) (m,1)
-          matA = [Row [(Eye m 1, newVar)]]
-          vecB = [Vector m (Param s (m,1))]
-  parameterSOCP (Param s (1,m)) Transposed = SOCP Find newVar (ConicSet matA vecB [])
-    where newVar = Var ("p"++s) (m,1)
-          matA = [Row [(Eye m 1, newVar)]]
-          vecB = [VectorT m (Param s (1,m))]
-  parameterSOCP _ _ = SOCP Find (Var "0" (1,1)) (ConicSet [] [] []) -- matrix parameters fail in to this case
+  ---- helper function to construct SOCP for parameters and constants
+  --parameterSOCP :: Param -> ShapeMod -> SOCP
+  --parameterSOCP (Param s (m,1)) NoMod = SOCP Find newVar (ConicSet matA vecB [])
+  --  where newVar = Var ("p"++s) (m,1)
+  --        matA = [Row [(Eye m 1, newVar)]]
+  --        vecB = [Vector m (Param s (m,1))]
+  --parameterSOCP (Param s (1,m)) Transposed = SOCP Find newVar (ConicSet matA vecB [])
+  --  where newVar = Var ("p"++s) (m,1)
+  --        matA = [Row [(Eye m 1, newVar)]]
+  --        vecB = [VectorT m (Param s (1,m))]
+  --parameterSOCP _ _ = SOCP Find (Var "0" (1,1)) (ConicSet [] [] []) -- matrix parameters fail in to this case
 
-  constantSOCP :: Double -> SOCP
-  constantSOCP x = SOCP Find newVar (ConicSet matA vecB [])
-    where newVar = Var ("c"++(display x)) (1,1) -- this means if the constant 5 shows up multiple times, it will only create one variable [1;1;1] x = [5;5;5] instead of [1 0 0; 0 1 0; 0 0 1] x = [5;5;5]
-          matA = [ Row [(Ones 1 1, newVar)] ]
-          vecB = [Ones 1 x]
+  --constantSOCP :: Double -> SOCP
+  --constantSOCP x = SOCP Find newVar (ConicSet matA vecB [])
+  --  where newVar = Var ("c"++(display x)) (1,1) -- this means if the constant 5 shows up multiple times, it will only create one variable [1;1;1] x = [5;5;5] instead of [1 0 0; 0 1 0; 0 0 1] x = [5;5;5]
+  --        matA = [ Row [(Ones 1 1, newVar)] ]
+  --        vecB = [Ones 1 x]
 
   -- monadic version
   -- constantSOCP :: Double -> State Int SOCP
@@ -261,11 +354,11 @@ module Atoms.SCOOP_Square(scoop_square) where
   --  fail :: String -> m a  
   --  fail msg = error msg  
 
-  newVar' :: (Integer, Integer) -> State (Int,SOCP) Var
-  newVar' (m,n) = do
+  newVar' :: Integer -> State (Int,SOCP) Var
+  newVar' m = do
     s <- get
     put (fst s+1, snd s)
-    return (Var ("t" ++ show (fst s)) (m,n))
+    return (Var ("t" ++ show (fst s)) (m,1))
 
   -- TODO: insert some explanation about monads in all atom definitions
   newVar :: (Integer, Integer) -> State Int Var
@@ -358,39 +451,9 @@ module Atoms.SCOOP_Square(scoop_square) where
   funny = return (runState testcase 0)
 
   test = runState funny 0
-  -- -- square x = x^2
-  --scoop_square :: Expr -> String -> Expr
-  --scoop_square (None s) _ = None s
-  --scoop_square x s = expression newVar curvature Positive prog
-  --  where
-  --    curvature = applyDCP Convex monotonicity (vexity x)
-  --    monotonicity = case (sign x) of
-  --      Positive -> Increasing
-  --      Negative -> Decreasing
-  --      otherwise -> Nonmonotone
-  --    prog = (ConicSet matA vecB kones) <++> (cones x)
-  --    (m,n) = (rows x, cols x)
-  --    newVar = Var ("t"++s) (m, n)
-  --    z0 = Var (name newVar ++ "z0") (m, n)
-  --    z1 = Var (name newVar ++ "z1") (m, n)
-  --    matA = [ Row [(Eye m 0.5, newVar), (Eye m (-1), z0)],
-  --             Row [(Eye m (-0.5), newVar), (Eye m (-1), z1)] ]
-  --    vecB = [Ones m (-0.5), Ones m (-0.5)]
-  --    kones = [SOCelem [z0, z1, var x]]
 
 
-  -- t <- newVar (3,1)
-  -- a <- newParam (5,3)
-  --
-  -- a*t == 0
 
-  -- with RPN state, things will look more like...
-  -- do
-  --  scoop_square
-  --  scoop_plus
-  --  scoop_minus
-  -- etc.
-  -- not quite what i'd like...
 
   -- i'd like something like
   -- y <- scoop_square [x]
