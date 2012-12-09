@@ -9,7 +9,7 @@ function errs = ecos_tester()
     % biggest problem seems to be that it doesn't detect infeasibility and
     % unboundedness
         
-    N = 10; % number of tests (for problems with random data)
+    N = 100; % number of tests (for problems with random data)
     
     fprintf('Running tests. Ensure that ECOS_CREATOR was previously run.\n\n');
     try

@@ -3,7 +3,8 @@ module Atoms.SCOOP_Square(scoop_square) where
   import Expression.Expression
   import Control.Monad.State
   import CodeGenerator.CVX
-  import CodeGenerator.Common
+  -- "and" and "find" are atom keywords, so we exclude them
+  import CodeGenerator.Common hiding (find)
   import qualified Data.Map as M
 
 
@@ -17,6 +18,7 @@ module Atoms.SCOOP_Square(scoop_square) where
   --   quad_over_lin x t
 
   -- this thing is really for parser's use
+  -- curvature and sign will belong in state now....
   data MyExpr = MyExpr Var Curvature Sign -- gives expression name, its curvature, and its sign
               | MyParam Var Param Sign -- gives param's name (its var) and its value (a param)
               | MyConstant Var Double -- gives constant's name (its var) and its value (a double)
@@ -61,11 +63,12 @@ module Atoms.SCOOP_Square(scoop_square) where
   infixl 6 .+
   infix 4 .==
 
-  minimize :: Var -> State (Int,SOCP) ()
+  minimize :: Var -> State (Int,SOCP) (Curvature, Sign)
   minimize x = do
     (count, prob) <- get
     let newProb = SOCP Minimize x (constraints prob)
     put (count, newProb)
+    return (Convex, Positive) -- depends on state
 
   maximize :: Var -> State (Int,SOCP) ()
   maximize x = do
@@ -73,8 +76,8 @@ module Atoms.SCOOP_Square(scoop_square) where
     let newProb = SOCP Maximize x (constraints prob)
     put (count, newProb)
 
-  find' :: Var -> State (Int,SOCP) ()
-  find' x = do
+  find :: Var -> State (Int,SOCP) ()
+  find x = do
     (count, prob) <- get
     let newProb = SOCP Find x (constraints prob)
     put (count, newProb)
@@ -86,38 +89,56 @@ module Atoms.SCOOP_Square(scoop_square) where
   scoop_constant x = do
     t <- newVar' 1
 
-    find' t
+    find t
     subjectTo
     (Ones 1 1) .* t .== Ones 1 x
 
     return $ MyConstant t x
 
+  positive :: State (Int, SOCP) ()
+  positive = return ()
+
+  increasing :: (ShapedVar a) => a -> State (Int, SOCP) ()
+  increasing x = return ()
+
+  -- just an alias to sequence together ops
+  (<&>) :: (Monad m) => m a -> m b -> m b
+  x <&> y = x >> y
+ 
 
   square' :: (ShapedVar a) => a -> MyExpression
   square' x = do
+    positive <&> increasing x
+    -- case(sign x) of
+    --    Positive -> positive <&> increasing x
+    --    Negative -> positive <&> decreasing x
+    --    otherwise -> positive <&> nonmonotone x
+    --
+    -- once we know if the expr's monotonicity, we can tell whether the expression
+    -- will be convex, concave, or nonmonotone based on the previous monad state
+
     let m = rows'' x
     t <- newVar' m
     z0 <- newVar' m
     z1 <- newVar' m
 
-    --positiveSign
-    --negativeSign
-    --if (all positive) then positiveSign
-    --else negativeSign
-
-    --if (any positive) then positiveSign
-    --else negativeSign
-
-    -- how to attach signed monotonicity
-
     -- definition
-    minimize t  -- set the objective variable
-    subjectTo
+    (v,s) <- minimize t  -- set the objective variable, 
+                -- minimize will ensure that the monad state == Convex or Affine, 
+                -- maximize will ensure that it's == Concave or Affine, 
+                -- find will ensure that it's == Affine
+                -- 
+                -- doesn't actually "solve", but instead gets you the sign and curvature
+                -- 
+                -- those can be allowed to fail
+                --
+    subjectTo   -- since this is a no-op, haskell should be lazy and optimize it out
     [z0, z1, var'' x] `isIn'` SOCelem
     (Eye m 0.5).*t .+ (Eye m (-1)).*z0 .== Ones m (-0.5)
     (Eye m (-0.5)).*t .+ (Eye m (-1)).*z1 .== Ones m (-0.5)
 
-    return $ MyExpr t Convex Positive
+    return $ MyExpr t v s -- should read MyExpr t myVexity mySign
+
 
   -- atoms will be bound by type
   -- will create container in parser so params, constants, and vars/exprs are in same container
@@ -162,8 +183,8 @@ module Atoms.SCOOP_Square(scoop_square) where
 
   testagain :: MyExpression
   testagain = do
-    c <- scoop_constant 3.0 -- for mult, i have to write an "unscoop" function--kind of like a pre-solve
-    t <- square' c  -- this doesn't get "rewritten"... need to fix that somehow, 
+    c <- scoop_constant 3.0 
+    t <- square' c  
     scoop_mult' (3.0::Double) t
     -- rewriting is carried in the context
     -- so arguments must be rewritten before being called
@@ -189,10 +210,10 @@ module Atoms.SCOOP_Square(scoop_square) where
 
 
   class ShapedVar a where
-    isParam :: a -> Bool
-    isParam _ = False
-    isConst :: a -> Bool
-    isConst _ = False
+    --isParam :: a -> Bool
+    --isParam _ = False
+    --isConst :: a -> Bool
+    --isConst _ = False
     rows'' :: a -> Integer
     rows'' = rows'' . var''
     cols'' :: a -> Integer
@@ -211,11 +232,11 @@ module Atoms.SCOOP_Square(scoop_square) where
     var'' (MyConstant v _) = v 
     var'' (MyParam v _ _) = v 
 
-    isParam (MyParam _ _ _) = True
-    isParam _ = False
+    --isParam (MyParam _ _ _) = True
+    --isParam _ = False
 
-    isConst (MyConstant _ _) = True
-    isConst _ = False
+    --isConst (MyConstant _ _) = True
+    --isConst _ = False
 
   instance Paramed Param where
 
