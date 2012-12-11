@@ -33,30 +33,30 @@ module CodeGenerator.ROME(codegenROME) where
       "A__ = [A_; G_]; b__ = [b_; h_];",
       "data_.A = A__; data_.b = b__; data_.c = c_;",
       "params_.GEN_PLOTS = false; params_.alpha = 1.8; % alpha is overrelaxation",
-      "params_.EPS_ABS=1e-6; params_.EPS_REL=1e-6; params_.MAX_ITERS=5000;",
-      "[x_codegen, y_, scoop_status] = rome_cone_solve(data_,cone_,params_);",
-      "cvx_begin",
-      "  variables xx("++n++") ss("++kshow++" + " ++ m ++")",
-      "  minimize (c_'*xx)",
-      "  subject to",
-      "    A__*xx + ss == b__",
-      "    ss(1:cone_.zero) == 0",
-      "    ss(cone_.zero+1:cone_.zero+cone_.lp) >= 0",
-      "    kk = cone_.zero+cone_.lp;",
-      "    for i = 1:cone_.k_soc,",
-      "      norm(ss(kk+1:kk+cone_.ns_soc(i)-1)) <= ss(kk+cone_.ns_soc(i))",
-      "      kk = kk + cone_.ns_soc(i);",
-      "    end",
-      "cvx_end",
-      "x_codegen = xx;",
-      "scoop_status = cvx_status;"
+      "params_.EPS_ABS=1e-8; params_.EPS_REL=1e-8; params_.MAX_ITERS=10000;",
+      "[x_codegen, y_, scoop_status] = rome_cone_solve(data_,cone_,params_);"
+      --"cvx_begin",
+      --"  variables xx("++n++") ss("++kshow++" + " ++ m ++")",
+      --"  minimize (c_'*xx)",
+      --"  subject to",
+      --"    A__*xx + ss == b__",
+      --"    ss(1:cone_.zero) == 0",
+      --"    ss(cone_.zero+1:cone_.zero+cone_.lp) >= 0",
+      --"    kk = cone_.zero+cone_.lp;",
+      --"    for i = 1:cone_.k_soc,",
+      --"      norm(ss(kk+1:kk+cone_.ns_soc(i)-1)) <= ss(kk+cone_.ns_soc(i))",
+      --"      kk = kk + cone_.ns_soc(i);",
+      --"    end",
+      --"cvx_end",
+      --"x_codegen = xx;",
+      -- "scoop_status = cvx_status;"
 
       --"x_codegen(ind) = xtmp;",
       --"x_codegen = x_codegen + g_ - F_*x_codegen;",
       --"ind = (x_codegen == 0); tmp = g_ - F_*x_codegen;",
       --"x_codegen(ind) = tmp(ind);"
     ] ++ socpToProb varTable
-    ++ ["scoop_optval = cvx_optval; %x_codegen(1);"]
+    ++ ["scoop_optval = x_codegen(1);"]
     -- dump data to a header file to call ecos c code...
     -- ++ ["cg_dump_conelpproblem(c_,G_, h_, dims, A_, b_, 'data.h');"]
   
@@ -105,10 +105,12 @@ module CodeGenerator.ROME(codegenROME) where
 
   -- gets the variables in the cone
   coneVar :: SOC -> ([Var],[Integer])
-  coneVar (SOC vars) = let rotatedVars = rotate vars in
-    (rotatedVars, [coneLength rotatedVars])
-  coneVar (SOCelem vars) = let n = fromIntegral $ rows (vars!!0)
-    in (rotate vars,(take n (repeat $ fromIntegral (length vars))))
+  coneVar (SOC vars) = let rotatedVars = rotate vars
+    in (rotatedVars, [coneLength rotatedVars])
+  coneVar (SOCelem vars) = 
+    let rotatedVars = rotate vars
+        n = fromIntegral $ rows (rotatedVars!!0)
+    in (rotatedVars,(take n (repeat $ fromIntegral (length rotatedVars))))
 
   -- gets the size of the cone by looking at the variables' sizes in the cone
   coneLength :: [Var] -> Integer
@@ -133,13 +135,20 @@ module CodeGenerator.ROME(codegenROME) where
   
   -- gets the start index from the list of variables, their lengths, and the group sizes
   getStartIdx :: Integer->[([Var],Integer)]->[Integer]
-  getStartIdx n [(vars,g)] = map (+n) [1..fromIntegral (length vars)]
+  getStartIdx n [(vars,g)] = 
+    let ms = case(g) of
+          1 -> init $ scanl (+) 1 (map rows vars)
+          otherwise -> [1..fromIntegral (length vars)]
+    in map (+n) ms
   getStartIdx n ((vars,g):xs) =
      let m = rows (vars!!0) -- assumes variables have same sizes
          fac = case(g) of
            1 -> coneLength vars
            otherwise -> m*g
-     in (map (+n) [1..fromIntegral (length vars)]) ++ getStartIdx (fac+n) xs
+         ms = case(g) of
+           1 -> init $ scanl (+) 1 (map rows vars)
+           otherwise -> [1..fromIntegral (length vars)]
+     in (map (+n) ms) ++ getStartIdx (fac+n) xs
 
  -- TODO/XXX: writing code generators is not as easy as it seems, especially when SOC have diff conventions
  -- e.g. (u,v) \in SOC => ||u|| <= v OR ||v|| <= u .... 

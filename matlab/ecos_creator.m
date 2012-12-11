@@ -1,5 +1,5 @@
 function ecos_creator()
-    solver_type = {'rome'};%'cvxsocp','rome','ecos','conelp', 'C'};
+    solver_type = {'cvxsocp','rome','ecos','conelp', 'C'};
     
     test_problems;  % load the list of test problems
     
