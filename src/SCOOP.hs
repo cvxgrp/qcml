@@ -53,6 +53,7 @@ module Main where
   import CodeGenerator.ECOS
   import CodeGenerator.CGenerator
   import CodeGenerator.MexGenerator
+  import CodeGenerator.ROME
   import qualified CodeGenerator.CGeneratorUnrolled as U
 
   -- want to output messages as we go parsing.... *HMMM* haskell fail. :(
@@ -63,7 +64,7 @@ module Main where
   ecos_path = "/Users/echu/src/ecos"
   
   data Flag
-    = Version | CVX | CVXSOCP | Conelp | ECOS | C | Filename String
+    = Version | CVX | CVXSOCP | Conelp | ECOS | C | ROME | Filename String
     deriving (Show, Eq)
 
   
@@ -74,7 +75,8 @@ module Main where
       Option [] ["cvxsocp"] (NoArg CVXSOCP) "cvx socp output",
       Option [] ["conelp"] (NoArg Conelp) "conelp matlab output",
       Option [] ["ecos"] (NoArg ECOS) "ecos matlab output",
-      Option ['c'] ["C"] (NoArg C) "C code output (calls ECOS)"
+      Option ['c'] ["C"] (NoArg C) "C code output (calls ECOS)",
+      Option [] ["rome"] (NoArg ROME) "ROME matlab output (ADMM)"
     ]
   
   -- inp, outp :: Maybe String -> Flag
@@ -138,6 +140,7 @@ module Main where
                 (cTestSolver, "/testsolver.c"),
                 (mex, "/scooper.c"),
                 (makescoop ecos_path, "/makescoop.m")]
+          ROME -> [(codegenROME, "/solver.m")]
     in case (runParser cvxProg symbolTable "" input) of
         Left err -> do{ putStr "parse error at ";
                         print err }

@@ -9,23 +9,23 @@ function errs = ecos_tester()
     % biggest problem seems to be that it doesn't detect infeasibility and
     % unboundedness
         
-    N = 100; % number of tests (for problems with random data)
+    N = 10; % number of tests (for problems with random data)
     
     fprintf('Running tests. Ensure that ECOS_CREATOR was previously run.\n\n');
     try
         errs.LS = run_test('least_squares', N);
-        errs.GEOMEAN = run_test('geometric_mean',1);
-        errs.LP = run_test('lp', N);
-        errs.PATHLP = run_test('pathological_lp',1);    % actually, CVX is *wrong* here
-        errs.QOL = run_test('quadratic_over_linear',1);
-        errs.INV = run_test('inv_prob', 1);
-        errs.MINMAX = run_test('min_max',1); 
-        errs.RLS = run_test('robust_ls', N);
-        errs.MPC = run_test('ecos_mpc', 1);
-        errs.LASSO = run_test('lasso', N);
-        errs.PORT = run_test('portfolio', N);
-        errs.SVM = run_test('svm', N);
-        errs.CHEB = run_test('chebyshev', 1);
+%         errs.GEOMEAN = run_test('geometric_mean',1);
+%         errs.LP = run_test('lp', N);
+%         errs.PATHLP = run_test('pathological_lp',1);    % actually, CVX is *wrong* here
+%         errs.QOL = run_test('quadratic_over_linear',1);
+%         errs.INV = run_test('inv_prob', 1);
+%         errs.MINMAX = run_test('min_max',1); 
+%         errs.RLS = run_test('robust_ls', N);
+%         errs.MPC = run_test('ecos_mpc', 1);
+%         errs.LASSO = run_test('lasso', N);
+%         errs.PORT = run_test('portfolio', N);
+%         errs.SVM = run_test('svm', N);
+%         errs.CHEB = run_test('chebyshev', 1);
     catch e
         disp('FAILED RUN: possibly forgot to run ecos_creator.');
         cd ..   % return to top level directory
@@ -39,13 +39,14 @@ function error_msgs = run_test(directory, N)
     global CONELP_LINSOLVER_;
     fail.ecos = 0; fail.conelp_ldlsparse = 0; 
     fail.conelp_backslash = 0; fail.c = 0;
-    fail.cvxsocp = 0;
+    fail.cvxsocp = 0; fail.rome = 0;
     
     error_msgs.ecos = {};
     error_msgs.conelp_ldlsparse = {};
     error_msgs.conelp_backslash = {};
     error_msgs.c = {};
     error_msgs.cvxsocp = {};
+    error_msgs.rome = {};
     
     s = sprintf('Comparing all solvers for %s to CVX.', upper(directory));
     fprintf('%s\n',s);
@@ -66,57 +67,71 @@ function error_msgs = run_test(directory, N)
         sol_status = cvx_status;
 
         clear x
-        try
-            evalc('ecos_solver'); v2 = ecos_optval;
-            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
-                fail.ecos = fail.ecos + 1;
-            end
-        catch myERROR
-            fail.ecos = fail.ecos+1;
-            error_msgs.ecos{end+1} = myERROR;
-        end
+%         try
+%             evalc('ecos_solver'); v2 = ecos_optval;
+%             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
+%                 fail.ecos = fail.ecos + 1;
+%             end
+%         catch myERROR
+%             fail.ecos = fail.ecos+1;
+%             error_msgs.ecos{end+1} = myERROR;
+%         end
+%         
+%         try
+%             CONELP_LINSOLVER_ = 'ldlsparse';    % used in conelp
+%             evalc('conelp_solver'); v2 = ecos_optval;
+%             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
+%                 fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
+%             end
+%         catch myERROR
+%             fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
+%             error_msgs.conelp_ldlsparse{end+1} = myERROR;
+%         end
+%         
+%         try
+%             CONELP_LINSOLVER_ = 'backslash';    % used in conelp
+%             evalc('conelp_solver'); v2 = ecos_optval;
+%             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
+%                 fail.conelp_backslash = fail.conelp_backslash + 1;
+%             end
+%         catch myERROR
+%             fail.conelp_backslash = fail.conelp_backslash + 1;
+%             error_msgs.conelp_backslash{end+1} = myERROR;
+%         end
+%         
+%         try
+%             evalc('cvxsocp_solver'); v2 = ecos_optval;
+%             if(~(strcmp(sol_status,cvx_status)) || (abs(v1 - v2) >= RELTOL*abs(v1)))
+%                 fail.cvxsocp = fail.cvxsocp + 1;
+%             end
+%         catch myERROR
+%             fail.cvxsocp = fail.cvxsocp + 1;
+%             error_msgs.cvxsocp{end+1} = myERROR;
+%         end
         
         try
-            CONELP_LINSOLVER_ = 'ldlsparse';    % used in conelp
-            evalc('conelp_solver'); v2 = ecos_optval;
-            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
-                fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
+            rome_solver; v2 = scoop_optval;
+            scoop_status
+            sol_status
+            [v1 v2]
+            abs(v1 - v2)
+            if(~(strcmp(lower(scoop_status),lower(sol_status))) || (abs(v1 - v2) >= RELTOL*abs(v1)))
+                fail.rome = fail.rome + 1;
             end
         catch myERROR
-            fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
-            error_msgs.conelp_ldlsparse{end+1} = myERROR;
+            fail.rome = fail.rome + 1;
+            error_msgs.rome{end+1} = myERROR;
         end
         
-        try
-            CONELP_LINSOLVER_ = 'backslash';    % used in conelp
-            evalc('conelp_solver'); v2 = ecos_optval;
-            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
-                fail.conelp_backslash = fail.conelp_backslash + 1;
-            end
-        catch myERROR
-            fail.conelp_backslash = fail.conelp_backslash + 1;
-            error_msgs.conelp_backslash{end+1} = myERROR;
-        end
-        
-        try
-            evalc('cvxsocp_solver'); v2 = ecos_optval;
-            if(~(strcmp(sol_status,cvx_status)) || (abs(v1 - v2) >= RELTOL*abs(v1)))
-                fail.cvxsocp = fail.cvxsocp + 1;
-            end
-        catch myERROR
-            fail.cvxsocp = fail.cvxsocp + 1;
-            error_msgs.cvxsocp{end+1} = myERROR;
-        end
-        
-        try
-            evalc('[sols,info_] = scooper(params)'); v2 = info_.pcost;
-            if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
-                fail.c = fail.c + 1;
-            end
-        catch myERROR
-            fail.c = fail.c + 1;
-            error_msgs.c{end+1} = myERROR;
-        end
+%         try
+%             evalc('[sols,info_] = scooper(params)'); v2 = info_.pcost;
+%             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
+%                 fail.c = fail.c + 1;
+%             end
+%         catch myERROR
+%             fail.c = fail.c + 1;
+%             error_msgs.c{end+1} = myERROR;
+%         end
         
         bar = repmat(sprintf('='),1,round(i/N*30));
         msg = sprintf('[%-30s] %d/%d', bar, i, N);

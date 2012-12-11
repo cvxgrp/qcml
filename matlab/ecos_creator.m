@@ -1,5 +1,5 @@
 function ecos_creator()
-    solver_type = {'cvxsocp','ecos','conelp', 'C'};
+    solver_type = {'rome'};%'cvxsocp','rome','ecos','conelp', 'C'};
     
     test_problems;  % load the list of test problems
     
@@ -38,6 +38,9 @@ function create_solver(directory, language)
             case 'conelp'
                 [status, result] = system(['../../src/scoop --conelp ' directory '.prob']);
                 copyfile([directory '/solver.m'], 'conelp_solver.m', 'f');
+            case 'rome'
+                [status, result] = system(['../../src/scoop --rome ' directory '.prob']);
+                copyfile([directory '/solver.m'], 'rome_solver.m', 'f');
             case 'c'
                 [status, result] = system(['../../src/scoop --C ' directory '.prob']);
                 cd(directory);

@@ -5,6 +5,7 @@ for i = 1:length(problems)
     !rm ecos_solver.m;
     !rm cvxsocp_solver.m;
     !rm conelp_solver.m
+    !rm rome_solver.m
     !rm scooper.*
     cd ..
 end
