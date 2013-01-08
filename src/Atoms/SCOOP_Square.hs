@@ -20,7 +20,7 @@ module Atoms.SCOOP_Square(scoop_square) where
   scoop_square :: (ShapedVar a) => a -> Expression
   scoop_square x = do
     case(sign'' x) of
-      Positive -> positive <&> increasing x
+      Positive -> positive <&> increasing x   -- TODO: fix this syntax... <&> is actually kind of special (not just >> / sequence of ops)
       Negative -> positive <&> decreasing x
       otherwise -> positive <&> nonmonotone x
 
@@ -37,6 +37,37 @@ module Atoms.SCOOP_Square(scoop_square) where
     (Eye m (-0.5)).*t .+ (Eye m (-1)).*z1 .== Ones m (-0.5)
 
     return $ MyExpr t v s -- should read MyExpr t myVexity mySign
+
+  scoop_negate :: (ShapedVar a) => a -> Expression
+  scoop_negate x = do
+    case(sign'' x) of
+      Positive -> negative <&> decreasing x
+      Negative -> positive <&> decreasing x
+      otherwise -> unknown <&> decreasing x
+
+    let m = rows'' x
+    t <- newVar m
+    (v,s) <- find t
+    subjectTo
+    (Eye m (-1)).*(var'' x) .+ (Eye m (-1)).*t .== Ones m 0
+
+    return $ MyExpr t v s
+
+  scoop_plus :: (ShapedVar a, ShapedVar b) => a -> b -> Expression
+  scoop_plus x y = do
+    -- doesn't yet check compatible sizes (or handle special cases of scalar + vector)
+    case(sign'' x, sign'' y) of
+      (Positive, Positive) -> positive <&> increasing x <&> increasing y
+      (Negative, Negative) -> negative <&> increasing x <&> increasing y
+      otherwise -> unknown <&> increasing x <&> increasing y
+    
+    let m = rows'' x
+    t <- newVar m
+    (v,s) <- find t
+    subjectTo
+    (Eye m 1).* var'' x .+ (Eye m 1).*var'' y .+ (Eye m (-1)).*t .== Ones m 0
+
+    return $ MyExpr t v s
 
 
   -- atoms will be bound by type
@@ -83,13 +114,16 @@ module Atoms.SCOOP_Square(scoop_square) where
   testagain :: Expression
   testagain = do
     x <- newVar 1
-    c <- scoop_constant 3.0 
+    a <- scoop_square x
+    c <- scoop_negate a
+
     t <- scoop_square x  
     -- scoop_mult' (3.0::Double) t
     -- rewriting is carried in the context
     -- so arguments must be rewritten before being called
     -- this means only vars and expr can be passed to atoms
-    scoop_square t
+    y <- scoop_negate t
+    scoop_plus y c
 
   genP = execState testagain initState
 

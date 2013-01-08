@@ -35,6 +35,7 @@ module CodeGenerator.ROME(codegenROME) where
       "params_.GEN_PLOTS = false; params_.alpha = 1.8; % alpha is overrelaxation",
       "params_.EPS_ABS=1e-8; params_.EPS_REL=1e-8; params_.MAX_ITERS=10000;",
       "[x_codegen, y_, scoop_status] = rome_cone_solve(data_,cone_,params_);",
+      "%{",
       "cvx_begin",
       "  variables xx("++n++") ss("++kshow++" + " ++ m ++")",
       "  minimize (c_'*xx)",
@@ -49,7 +50,8 @@ module CodeGenerator.ROME(codegenROME) where
       "    end",
       "cvx_end",
       "x_codegen = xx;",
-      "scoop_status = cvx_status;"
+      "scoop_status = cvx_status;",
+      "%}"
 
       --"x_codegen(ind) = xtmp;",
       --"x_codegen = x_codegen + g_ - F_*x_codegen;",

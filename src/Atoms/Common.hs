@@ -82,6 +82,7 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
   infixl 6 .+
   infix 4 .==
 
+  -- atoms defined as minimizations are Convex
   minimize :: Var -> State ExpressionState (Curvature, Sign)
   minimize x = do
     (count, vexity, sign, prob) <- get
@@ -93,6 +94,7 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
         put (count, Convex, sign, newProb)
         return (Convex, sign)
 
+  -- atoms defined as maximizations are Concave
   maximize :: Var -> State ExpressionState (Curvature, Sign)
   maximize x = do
     (count, vexity, sign, prob) <- get
@@ -104,6 +106,7 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
         put (count, Concave, sign, newProb)
         return (Concave, sign)
 
+  -- atoms defined as feasibility problems are Affine
   find :: Var -> State ExpressionState (Curvature, Sign)
   find x = do
     (count, vexity, sign, prob) <- get
@@ -117,27 +120,33 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
   subjectTo :: State ExpressionState ()
   subjectTo = return ()  -- nop
 
-
+  -- sign ops set curvature to Affine (why? so that chaining increasing and decreasing will do the right thing)
+  -- now, order matters...
+  --
+  -- positive; increasing x; increasing y
+  -- different from
+  -- increasing x; positive; increasing y
+  
   positive :: State ExpressionState ()
   positive = do
     (count, vexity, sign, prob) <- get
-    put (count, vexity, Positive, prob)
+    put (count, Affine, Positive, prob)
 
   negative :: State ExpressionState ()
   negative = do
     (count, vexity, sign, prob) <- get
-    put (count, vexity, Negative, prob)
+    put (count, Affine, Negative, prob)
 
   -- do i need this?
   unknown :: State ExpressionState ()
   unknown = do
     (count, vexity, sign, prob) <- get
-    put (count, vexity, Unknown, prob)
+    put (count, Affine, Unknown, prob)
 
   increasing :: (ShapedVar a) => a -> State ExpressionState ()
   increasing x = do
     (count, vexity, sign, prob) <- get
-    case(vexity'' x) of
+    case(propVexity vexity (vexity'' x)) of
       Affine -> put (count, Affine, sign, prob)
       Convex -> put (count, Convex, sign, prob)
       Concave -> put (count, Concave, sign, prob)
@@ -146,7 +155,7 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
   decreasing :: (ShapedVar a) => a -> State ExpressionState ()
   decreasing x = do
     (count, vexity, sign, prob) <- get
-    case(vexity'' x) of
+    case(propVexity vexity (vexity'' x)) of
       Affine -> put (count, Affine, sign, prob)
       Convex -> put (count, Concave, sign, prob)
       Concave -> put (count, Convex, sign, prob)
@@ -155,13 +164,23 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
   nonmonotone :: (ShapedVar a) => a -> State ExpressionState ()
   nonmonotone x = do
     (count, vexity, sign, prob) <- get
-    case(vexity'' x) of
+    case(propVexity vexity (vexity'' x)) of
       Affine -> put (count, Affine, sign, prob)
       otherwise -> put (count, Nonconvex, sign, prob)
 
   -- just an alias to sequence together ops
   (<&>) :: (Monad m) => m a -> m b -> m b
   x <&> y = x >> y
+
+
+  propVexity :: Curvature -> Curvature -> Curvature
+  propVexity Nonconvex _ = Nonconvex
+  propVexity _ Nonconvex = Nonconvex
+  propVexity x Affine = x
+  propVexity Affine x = x
+  propVexity Convex Convex = Convex
+  propVexity Concave Concave = Concave
+  propVexity _ _ = Nonconvex
 
 
   newVar :: Integer -> State ExpressionState Var
