@@ -41,6 +41,13 @@ function error_msgs = run_test(directory, N)
     fail.conelp_backslash = 0; fail.c = 0;
     fail.cvxsocp = 0; fail.rome = 0;
     
+    ave_runtime.ecos = 0;
+    ave_runtime.conelp_ldlsparse = 0;
+    ave_runtime.conelp_backslash = 0;
+    ave_runtime.c = 0;
+    ave_runtime.cvxsocp = 0;
+    ave_runtime.rome = 0;
+    
     error_msgs.ecos = {};
     error_msgs.conelp_ldlsparse = {};
     error_msgs.conelp_backslash = {};
@@ -68,7 +75,9 @@ function error_msgs = run_test(directory, N)
 
         clear x
         try
+            tic;
             evalc('ecos_solver'); v2 = ecos_optval;
+            ave_runtime.ecos = ave_runtime.ecos + 1000*toc/N;
             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.ecos = fail.ecos + 1;
             end
@@ -79,7 +88,9 @@ function error_msgs = run_test(directory, N)
         
         try
             CONELP_LINSOLVER_ = 'ldlsparse';    % used in conelp
+            tic;
             evalc('conelp_solver'); v2 = ecos_optval;
+            ave_runtime.conelp_ldlsparse = ave_runtime.conelp_ldlsparse + 1000*toc/N;
             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.conelp_ldlsparse = fail.conelp_ldlsparse + 1;
             end
@@ -90,7 +101,9 @@ function error_msgs = run_test(directory, N)
         
         try
             CONELP_LINSOLVER_ = 'backslash';    % used in conelp
+            tic;
             evalc('conelp_solver'); v2 = ecos_optval;
+            ave_runtime.conelp_backslash = ave_runtime.conelp_backslash + 1000*toc/N;
             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.conelp_backslash = fail.conelp_backslash + 1;
             end
@@ -100,7 +113,9 @@ function error_msgs = run_test(directory, N)
         end
         
         try
+            tic;
             evalc('cvxsocp_solver'); v2 = ecos_optval;
+            ave_runtime.cvxsocp = ave_runtime.cvxsocp + 1000*toc/N;
             if(~(strcmp(sol_status,cvx_status)) || (abs(v1 - v2) >= RELTOL*abs(v1)))
                 fail.cvxsocp = fail.cvxsocp + 1;
             end
@@ -110,7 +125,9 @@ function error_msgs = run_test(directory, N)
         end
         
         try
+            tic;
             evalc('rome_solver'); v2 = scoop_optval;
+            ave_runtime.rome = ave_runtime.rome + 1000*toc/N;
             if(~(strcmp(lower(scoop_status),lower(sol_status))) || (abs(v1 - v2) >= RELTOL*abs(v1)))
                 fail.rome = fail.rome + 1;
             end
@@ -120,7 +137,9 @@ function error_msgs = run_test(directory, N)
         end
         
         try
+            tic;
             evalc('[sols,info_] = scooper(params)'); v2 = info_.pcost;
+            ave_runtime.c = ave_runtime.c + 1000*toc/N;
             if(fail_test(sol_status, info_, v1, v2, RELTOL)) 
                 fail.c = fail.c + 1;
             end
@@ -137,6 +156,9 @@ function error_msgs = run_test(directory, N)
     end
     fprintf('\n# FAIL (RELTOL=%f) out of %d trials....\n', RELTOL, N);
     disp(fail)
+    
+    fprintf('\nAVERAGE runtime (in ms) for solver out of %d trials....\n', N);
+    disp(ave_runtime)
         
     cd ..
 end
