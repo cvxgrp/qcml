@@ -8,10 +8,10 @@ module Main where
   import Parser.SCOOP
   
   -- need this for rows + cols
-  import Expression.Expression  
+  -- import Expression.Expression  
 
-  import CodeGenerator.Common(Codegen(problem), getVariableRows)
-  import CodeGenerator.CVX
+  --import CodeGenerator.Common(Codegen(problem), getVariableRows)
+  --import CodeGenerator.CVX
   
   import qualified Data.Map as M
 
@@ -81,7 +81,7 @@ module Main where
             logStrLn verb "Rewriting problem ...";
             logStrLn verb "";
 
-            putStr (cvxgen x);
+            putStr x;
 
             -- logStrLn verb "";
             -- printProblemStatistics x;
