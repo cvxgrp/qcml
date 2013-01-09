@@ -377,7 +377,6 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
     updateState (insertDim s);
   } <?> "dimension"
-  
 
   line :: ScoopParser ()
   line =  defVariable <|> defParameter <|> defDimension 
