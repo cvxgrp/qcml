@@ -1,15 +1,17 @@
 module Main where
   import System.Console.GetOpt
-  import Data.Char
-  import Data.List
+  --import Data.Char
+  import Data.List(elemIndices)
   import System.IO
-  import System.Environment
-  import System.Directory
-  import Control.Monad
+  import System.Environment(getArgs)
+  --import Control.Monad
   import Parser.SCOOP
   
   -- need this for rows + cols
   import Expression.Expression  
+
+  import CodeGenerator.Common(Codegen(problem), getVariableRows)
+  import CodeGenerator.CVX
   
   import qualified Data.Map as M
 
@@ -38,14 +40,10 @@ module Main where
   
   header = "Usage: SCOOP [--version] [-v|--verbose] probPath"
 
-  createRewriteFile :: Flag -> String -> IO String
-  createRewriteFile flag path = do {
-      logStrLn flag $ "Creating file " ++ pathName ++ "/";
-      createDirectoryIfMissing False pathName;
-      return pathName;
-    }
+  getNewFilename :: String -> IO String
+  getNewFilename path = return fileName
     where indices = elemIndices '.' path
-          pathName | indices == [] = path
+          fileName | indices == [] = path ++ ".scoop"
                    | otherwise = take (last indices) path ++ ".scoop"
 
   -- belongs in codegen common or something....
@@ -74,44 +72,51 @@ module Main where
   --printProblemStatistics x = putStrLn (formatStats x)
 
 
-  --runCVX :: Int -> Flag -> FilePath -> String -> IO ()
-  --runCVX seed flag dirpath input =
-  --  let writers = case(flag) of
-  --        CVX -> [(cvxgen, "/solver.m")]
-  --        CVXSOCP -> [(codegen, "/solver.m")]
-  --        Conelp -> [(codegenConelp, "/solver.m")]
-  --        ECOS -> [(codegenECOS, "/solver.m")]
-  --        C -> [(cCodegen, "/solver.c"), 
-  --              (cHeader ver input,"/solver.h"),
-  --              (makefile ecos_path, "/Makefile"),
-  --              (cTestSolver, "/testsolver.c"),
-  --              (mex, "/scooper.c"),
-  --              (makescoop ecos_path, "/makescoop.m")]
-  --  in case (runParser cvxProg symbolTable "" input) of
-  --      Left err -> do{ putStr "parse error at ";
-  --                      print err }
-  --      Right x  -> do {
-  --          forM_ writers (\(f, path) -> do {
-  --            putStrLn $ "Generating code for " ++ (dirpath ++ path);
-  --            writeFile (dirpath ++ path) (f x)
-  --          });
-  --          putStrLn "";
-  --          printProblemStatistics x;
-  --        }
+  runSCOOP :: Bool -> FilePath -> String -> IO ()
+  runSCOOP verb filename input =
+    case (runParser cvxProg symbolTable "" input) of
+        Left err -> do{ logStr True "parse error at ";
+                        logPrint True err }
+        Right x  -> do {
+            logStrLn verb "Rewriting problem ...";
+            logStrLn verb "";
+
+            putStr (cvxgen x);
+
+            -- logStrLn verb "";
+            -- printProblemStatistics x;
+          }
           -- TODO: print statistics for problem (done by looking at symbols in x)
           -- TODO: print statistics for *transformed* problem (done by look at "problem x")
 
-  logPrint :: Show a => Flag -> a -> IO ()
-  logPrint Verbose = hPrint stderr
-  logPrint _ = (\_ -> return ())
+  -- auxilary log functions
+  logPrint :: Show a => Bool -> a -> IO ()
+  logPrint True = hPrint stderr
+  logPrint False = (\_ -> return ())
 
-  logStr :: Flag -> String -> IO ()
-  logStr Verbose = hPutStr stderr
-  logStr _ = (\_ -> return ())
+  logStr :: Bool -> String -> IO ()
+  logStr True = hPutStr stderr
+  logStr False = (\_ -> return ())
 
-  logStrLn :: Flag -> String -> IO ()
-  logStrLn Verbose = hPutStrLn stderr
-  logStrLn _ = (\_ -> return ())
+  logStrLn :: Bool -> String -> IO ()
+  logStrLn True = hPutStrLn stderr
+  logStrLn False = (\_ -> return ())
+
+
+  mainProg :: Bool -> String -> IO ()
+  mainProg verb filename = do
+    logStrLn verb "";
+    logStrLn verb "Running SCOOP.";
+    logStrLn verb "==============";
+
+    newFile <- getNewFilename filename;
+    withFile filename ReadMode (\handle -> do
+      logStrLn verb $ "Reading problem " ++ filename
+      contents <- hGetContents handle
+
+      logStrLn verb "Parsing ..."
+      runSCOOP verb newFile contents
+      );
 
   main :: IO ()
   main = do
@@ -119,26 +124,10 @@ module Main where
     (flags, nonOpts)  <- programOpts args
     if (any (==Version) flags)
     then
-      logStrLn Verbose ("SCOOP version " ++  ver)
+      putStrLn ("SCOOP version " ++  ver)
     else
       case (flags,nonOpts) of
-        ([opt], [filename]) -> do {
-          logStrLn opt "";
-          logStrLn opt "Running SCOOP.";
-          logStrLn opt "==============";
-
-          newDir <- createRewriteFile opt filename;
-          withFile filename ReadMode (\handle -> do
-            logStrLn opt $ "Reading problem " ++ filename
-            contents <- hGetContents handle
-
-            -- get RNG seed
-            --utc <- getCurrentTime;
-            --let seed = round (1000*(toRational (utctDayTime utc)));
-
-            logStrLn opt "Parsing..."
-            --runCVX seed opt newDir contents
-            );
-        }
+        ([Verbose], [filename]) -> mainProg True filename
+        ([], [filename]) -> mainProg False filename
         _ -> error ("Invalid number of arguments\n\n" ++ usageInfo header options)
       
