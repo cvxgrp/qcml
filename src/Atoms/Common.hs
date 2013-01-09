@@ -32,6 +32,8 @@ module Atoms.Common(ShapedVar(..), isIn, Paramed, Expression, ExpressionState, n
   --  socp' :: SOCP             -- top-level variable, seeded initially by top-level parser
   --} deriving (Show)
 
+  -- new problem state for lang-to-lang xform
+  -- type ProblemState = (Integer, String), the String is the current program (as a string)
   type ExpressionState = (Integer, Curvature, Sign, SOCP)
 
   initState = (0, Affine, Unknown, emptySOCP)
