@@ -15,10 +15,10 @@
 src/SCOOP
 
 # generated folders under TestProblems
-src/TestProblems/*
+src/TestProblems/*/
 
 # generated folders under matlab
-matlab/*/*
+matlab/*/*/
 
 *.DS_Store
 *.auxlock

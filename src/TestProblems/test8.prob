@@ -1,0 +1,14 @@
+dimension m
+dimension n
+
+variable x
+parameter b(m,n)
+variable y(n)
+
+minimize c 
+subject to
+
+minimize allThisCrap
+subject to
+
+variable c
