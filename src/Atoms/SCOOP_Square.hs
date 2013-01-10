@@ -2,8 +2,8 @@ module Atoms.SCOOP_Square(scoop_square) where
   import Atoms.Common
   import qualified Data.Map as M
   import Control.Monad.State
-  import CodeGenerator.Common hiding (find)
-  import CodeGenerator.CVX
+  --import CodeGenerator.Common hiding (find)
+  --import CodeGenerator.CVX
 
 
   scoop_constant :: Double -> Expression
@@ -130,7 +130,7 @@ module Atoms.SCOOP_Square(scoop_square) where
   getProb :: ExpressionState -> SOCP
   getProb (_,_,_,x) = x
 
-  testme = cvxgen (Codegen (getProb genP) symbolTable')
+  --testme = cvxgen (Codegen (getProb genP) symbolTable')
 
   --class Symbol' a where
   --  rows' :: a -> Integer

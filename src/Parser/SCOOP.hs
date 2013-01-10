@@ -46,6 +46,9 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   import Text.ParserCombinators.Parsec
   import Text.ParserCombinators.Parsec.Expr
   
+  import qualified Control.Monad.State as St
+
+
   --builtinFunctions =
   --  [("square", atom_square),
   --   ("quad_over_lin", atom_quad_over_lin),
@@ -238,7 +241,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --        ">=" -> (scoop_geq lhs rhs (show $ varcount t))
   --  in case (result) of
   --    Just x -> return x
-  --    _ -> fail "Not a signed DCP compliant restraint or dimension mismatch."
+  --    _ -> fail "Not a signed DCP compliant constraint or dimension mismatch."
   --} <?> "constraint"
   
   --constraints :: ScoopParser [E.ConicSet]
@@ -276,14 +279,14 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     }
     <?> "problem sense (maximize or minimize or find)"
   
-  objective :: ScoopParser ()
+  objective :: ScoopParser Statement
   objective = 
     do {
       probSense <- sense;
       obj <- objFunc probSense;
       optionMaybe (reserved "subject to");
 
-      return ()
+      return $ scoop_id "objective and its stuff goes here!"
       -- cones <- optionMaybe constraints;
       
       -- (we don't check that main objective is scalar)
@@ -344,58 +347,124 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       return E.Negative
     } <?> "sign modifier"
 
-  defVariable :: ScoopParser ()
+  defVariable :: ScoopParser Statement
   defVariable = do {
     reserved "variable";
     s <- identifier; 
     size <- optionMaybe shape;
     let (m,n) = (fromMaybe ("1","1") size)
-    in if (n == "1") then
+    in if (n == "1") then do
       updateState (insertSymbol (E.Expr s m E.Affine E.Unknown))
+      return (scoop_id $ concat ["variable ", s, "(", m, ")"])
     else
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
   } <?> "variable"
   
-  defParameter :: ScoopParser ()
+  defParameter :: ScoopParser Statement
   defParameter = do {
     reserved "parameter";
     s <- identifier;
-    sign <- optionMaybe modifier;
     size <- optionMaybe shape;
+    sign <- optionMaybe modifier;
     let (m,n) = fromMaybe ("1","1") size
         p = case (sign) of
           Just E.Positive -> E.Param s m n E.Positive
           Just E.Negative -> E.Param s m n E.Negative
           _ -> E.Param s m n E.Unknown
-    in updateState (insertSymbol p)
+    in do
+      updateState (insertSymbol p)
+      return (scoop_id $ concat ["parameter ", s, "(", m, ",", n, ")", sign_string $ fromMaybe E.Unknown sign]) 
   } <?> "parameter"
 
-  defDimension :: ScoopParser ()
+  sign_string :: E.Sign -> String
+  sign_string E.Unknown = ""
+  sign_string E.Positive = " positive"
+  sign_string E.Negative = " negative"
+
+  defDimension :: ScoopParser Statement
   defDimension = do {
     reserved "dimension";
     s <- identifier;
 
     updateState (insertDim s);
+    return (scoop_id $ concat ["dimension ", s])
   } <?> "dimension"
 
-  line :: ScoopParser ()
+  line :: ScoopParser Statement
   line =  defVariable <|> defParameter <|> defDimension 
     <?> "a line (variable, parameter, dimension definition, or a constraint)"
 
+
+  type ExpressionState = (Integer, [String])
+
+  initState = (0, [])
+
+  type Expression = St.State ExpressionState E.Expr
+  type Statement = St.State ExpressionState ()
+
+  newVar :: Integer -> St.State ExpressionState E.Expr
+  newVar m = do
+    (count, prob) <- St.get
+    St.put (count+1, prob)
+    return (E.Expr ("t" ++ show count) (show m) E.Affine E.Unknown)
+
+  scoop_id :: String -> Statement
+  scoop_id s = do
+    (c1,sold) <- St.get
+    St.put (c1, sold ++ [s])
+ 
+
+  scoop_constant :: Double -> Expression
+  scoop_constant x = do
+    t <- newVar 1
+
+    --find t
+    --subjectTo
+    --(Ones 1 1) .* t .== Ones 1 x
+
+    return t
+
+  p1 :: Expression
+  p1 = scoop_constant 3.0
+
+  p2 :: E.Expr -> Expression
+  p2 a = 
+    scoop_constant 4.0
 
   -- one file is *one* problem
   -- "minimize", "maximize", or "find" must appear exactly *once*
   cvxProg :: ScoopParser String
   cvxProg = do {
+    -- parse the program
     whiteSpace;
-    manyTill line objective;
+    l <- manyTill line (lookAhead objective);
+    o <- objective;
     whiteSpace;
-    many line;
+    ll <- many line;
     --p <- problem;
     --t <- getState;
     eof;
-    return "Hello"
-  } <?> "problem"
+
+    -- once the program is parse, we sequence together all the monads and execute
+    let f = do {
+          e <- p1;
+          p2 e;
+          foldl (>>) (return ()) l; -- "execute" all the lines up to the objective
+          o; -- "execute" the objective
+          foldl (>>) (return ()) ll; -- "execute" all lines after the objective
+        }
+        v = St.execState f initState  -- "exectue" and get state
+    in return (getString v) -- finally, return only the string (the new program)
+  } <?> "optimization problem"
+
+  getString :: ExpressionState -> String
+  getString (_,x) = unlines x
+
+  -- atomic constraints are:
+  -- linear (in vars) == param/const
+  -- norm(var) <= var
+  -- norm(var, var, var, ...) <= var
+  -- norm([var; var; var]) <= var
 
 
 {-- atom parsers --}

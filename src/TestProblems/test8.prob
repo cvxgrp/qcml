@@ -2,11 +2,8 @@ dimension m
 dimension n
 
 variable x
-parameter b(m,n)
+parameter b(m,n) positive
 variable y(n)
-
-minimize c 
-subject to
 
 minimize allThisCrap
 subject to
