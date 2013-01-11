@@ -38,6 +38,8 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   import qualified Data.Set as S
   --import qualified CodeGenerator.Common as C(Codegen(..))
   --import Atoms.Atoms
+
+  import Atoms.Common
   
   import Data.Maybe
   
@@ -71,7 +73,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   symbolTable = ScoopState M.empty S.empty 0
 
   data ScoopState = ScoopState {
-      symbols :: M.Map String E.Expr,
+      symbols :: M.Map String E.Symbol,
       dimensions :: S.Set String,
       varcount :: Integer
     }
@@ -80,10 +82,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   incrCount state
     = ScoopState (symbols state) (dimensions state) (1 + varcount state)
 
-  insertSymbol :: E.Expr -> ScoopState -> ScoopState
+  insertSymbol :: (E.Symbolic a) => a -> ScoopState -> ScoopState
   insertSymbol x state 
     = ScoopState newSymbols (dimensions state) (varcount state)
-      where newSymbols = M.insert (E.name x) x (symbols state)
+      where newSymbols = M.insert (E.name x) (E.sym x) (symbols state)
 
   insertDim :: String -> ScoopState -> ScoopState
   insertDim s state 
@@ -286,7 +288,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       obj <- objFunc probSense;
       optionMaybe (reserved "subject to");
 
-      return $ scoop_id "objective and its stuff goes here!"
+      return $ addLine "objective and its stuff goes here!"
       -- cones <- optionMaybe constraints;
       
       -- (we don't check that main objective is scalar)
@@ -355,7 +357,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     let (m,n) = (fromMaybe ("1","1") size)
     in if (n == "1") then do
       updateState (insertSymbol (E.Expr s m E.Affine E.Unknown))
-      return (scoop_id $ concat ["variable ", s, "(", m, ")"])
+      return (addLine $ concat ["variable ", s, "(", m, ")"])
     else
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
   } <?> "variable"
@@ -373,7 +375,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
           _ -> E.Param s m n E.Unknown
     in do
       updateState (insertSymbol p)
-      return (scoop_id $ concat ["parameter ", s, "(", m, ",", n, ")", sign_string $ fromMaybe E.Unknown sign]) 
+      return (addLine $ concat ["parameter ", s, "(", m, ",", n, ")", sign_string $ fromMaybe E.Unknown sign]) 
   } <?> "parameter"
 
   sign_string :: E.Sign -> String
@@ -387,7 +389,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     s <- identifier;
 
     updateState (insertDim s);
-    return (scoop_id $ concat ["dimension ", s])
+    return (addLine $ concat ["dimension ", s])
   } <?> "dimension"
 
   line :: ScoopParser Statement
@@ -395,34 +397,24 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     <?> "a line (variable, parameter, dimension definition, or a constraint)"
 
 
-  type ExpressionState = (Integer, [String])
 
-  initState = (0, [])
+  scoop_test :: (Expressive a) => a -> Statement
+  scoop_test x = do
+    xt <- express x
 
-  type Expression = St.State ExpressionState E.Expr
-  type Statement = St.State ExpressionState ()
+    addLine (E.name xt)
 
-  newVar :: Integer -> St.State ExpressionState E.Expr
-  newVar m = do
-    (count, prob) <- St.get
-    St.put (count+1, prob)
-    return (E.Expr ("t" ++ show count) (show m) E.Affine E.Unknown)
-
-  scoop_id :: String -> Statement
-  scoop_id s = do
-    (c1,sold) <- St.get
-    St.put (c1, sold ++ [s])
- 
 
   scoop_constant :: Double -> Expression
   scoop_constant x = do
-    t <- newVar 1
+    t <- newVar "1"
 
+    addLine $ concat [t, " == ", show x]
     --find t
     --subjectTo
     --(Ones 1 1) .* t .== Ones 1 x
 
-    return t
+    return $ E.Expr t "1" E.Affine E.Unknown
 
   p1 :: Expression
   p1 = scoop_constant 3.0
@@ -447,8 +439,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
     -- once the program is parse, we sequence together all the monads and execute
     let f = do {
-          e <- p1;
-          p2 e;
+          scoop_test (5.6::Double);
+          s <- p1;
+          p2 s;
+          scoop_test s;
           foldl (>>) (return ()) l; -- "execute" all the lines up to the objective
           o; -- "execute" the objective
           foldl (>>) (return ()) ll; -- "execute" all lines after the objective
@@ -457,8 +451,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     in return (getString v) -- finally, return only the string (the new program)
   } <?> "optimization problem"
 
-  getString :: ExpressionState -> String
-  getString (_,x) = unlines x
+
 
   -- atomic constraints are:
   -- linear (in vars) == param/const

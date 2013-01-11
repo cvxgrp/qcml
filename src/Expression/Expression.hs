@@ -35,7 +35,9 @@ module Expression.Expression (
   Monotonicity(..), 
   Sign(..),
   Expr(..),
-  Symbol(..)
+  Param(..),
+  Symbol(..),
+  Symbolic(..)
 ) where
 
   -- import Expression.SOCP
@@ -60,36 +62,52 @@ module Expression.Expression (
     | Unknown
     deriving (Show, Eq)
 
-  type Row = String
-  type Col = String
+  type Row = String -- alias "Row" to be "String" type
+  type Col = String -- alias "Col" to be "String" type
 
-  data Expr = 
-    Expr String Row Curvature Sign | 
-    Param String Row Col Sign
-    deriving (Show) -- delete later
+  data Expr = Expr String Row Curvature Sign
 
-  class Symbol a where
+  data Param = Param String Row Col Sign
+
+  -- container type for Expr and Param symbols
+  data Symbol = ESym Expr | PSym Param
+
+  class Symbolic a where
     name :: a -> String
     vexity :: a -> Curvature
     sign :: a -> Sign
     rows :: a -> Row
     cols :: a -> Col
+    sym :: a -> Symbol
 
-  instance Symbol Expr where
+  instance Symbolic Expr where
     name (Expr s _ _ _) = s
-    name (Param s _ _ _) = s
-
     vexity (Expr _ _ c _) = c
-    vexity (Param _ _ _ _) = Affine
-
     sign (Expr _ _ _ s) = s
-    sign (Param _ _ _ s) = s
-
     rows (Expr _ r _ _) = r
-    rows (Param _ r _ _) = r
-
     cols (Expr _ _ _ _) = "1"
+    sym x = ESym x
+
+  instance Symbolic Param where
+    name (Param s _ _ _) = s
+    vexity (Param _ _ _ _) = Affine
+    sign (Param _ _ _ s) = s
+    rows (Param _ r _ _) = r
     cols (Param _ _ c _) = c
+    sym x = PSym x
+
+  instance Symbolic Symbol where
+    name (ESym x) = name x
+    name (PSym x) = name x
+    vexity (ESym x) = vexity x
+    vexity (PSym x) = vexity x
+    sign (ESym x) = sign x
+    sign (PSym x) = sign x
+    rows (ESym x) = rows x
+    rows (PSym x) = rows x
+    cols (ESym x) = cols x
+    cols (PSym x) = cols x
+    sym x = x
 
   
   --instance Symbol Expr where

@@ -19,6 +19,11 @@ src/TestProblems/*/
 
 # generated folders under matlab
 matlab/*/*/
+matlab/*/scooper.*
+matlab/*/conelp_solver.m
+matlab/*/cvxsocp_solver.m
+matlab/*/ecos_solver.m
+matlab/*/rome_solver.m
 
 *.DS_Store
 *.auxlock
