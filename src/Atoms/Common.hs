@@ -8,6 +8,7 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
 
   import Expression.Expression
   import Control.Monad.State
+  import Data.List (sortBy)
 
   type ExpressionState = (Integer, [String])
 
@@ -34,9 +35,7 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
   getString :: ExpressionState -> String
   getString (_,x) = unlines x
 
-  -- TODO: need to add an "expressify" option for Doubles, Params, and Exprs
-  -- basically, for Params and Doubles, will introduce new variables.
-
+  -- allows Expr, Params, Doubles to be turned in to Expressions
   class Expressive a where
     express :: a -> Expression
 
@@ -58,6 +57,25 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
             | otherwise = Negative
       return (Expr t "1" Affine s)
   
+
+  -- generic function that checks argument in arglist
+  -- all arguments must have same rows *or* some must be scalar
+  --
+  --   although dimensions are abstract, assumes that differently named dimensions
+  --   are going to have different numeric values
+  isValidArgs :: [Expr] -> Bool
+  isValidArgs exprs = all checkFun (tail sortedExprs)
+    where sortedExprs = sortBy rowOrdering exprs -- have to sort in case scalars are first argument
+          checkFun = (\x -> x==m || x=="1").rows
+          m = rows (head sortedExprs)
+
+  rowOrdering :: Expr -> Expr -> Ordering
+  rowOrdering x y
+    | rows x < rows y = GT
+    | rows x > rows y = LT
+    | otherwise = EQ
+
+
   -- "and" and "find" are atom keywords, so we exclude them
 
 
@@ -132,95 +150,80 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
   --infixl 6 .+
   --infix 4 .==
 
-  ---- atoms defined as minimizations are Convex
-  --minimize :: Var -> State ExpressionState (Curvature, Sign)
-  --minimize x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case (vexity) of
-  --    Nonconvex -> fail "cannot minimize nonconvex expression" -- XXX: error message may need to change
-  --    Concave -> fail "cannot minimize concave expression"
-  --    otherwise -> do
-  --      let newProb = SOCP Minimize x (constraints prob)
-  --      put (count, Convex, sign, newProb)
-  --      return (Convex, sign)
+    t = increasing x
+    r = increasing y
+    r = convex (convex t)
 
-  ---- atoms defined as maximizations are Concave
-  --maximize :: Var -> State ExpressionState (Curvature, Sign)
-  --maximize x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case (vexity) of
-  --    Nonconvex -> fail "cannot maximize nonconvex expression" -- XXX: error message may need to change
-  --    Convex -> fail "cannot maximize convex expression"
-  --    otherwise -> do
-  --      let newProb = SOCP Maximize x (constraints prob)
-  --      put (count, Concave, sign, newProb)
-  --      return (Concave, sign)
+    convex [(increasing x) (increasing y)]
 
-  ---- atoms defined as feasibility problems are Affine
-  --find :: Var -> State ExpressionState (Curvature, Sign)
-  --find x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case (vexity) of
-  --    Nonconvex -> fail "cannot find over nonconvex expression" -- XXX: error message may need to change
-  --    otherwise -> do
-  --      let newProb = SOCP (sense prob) x (constraints prob)
-  --      put (count, vexity, sign, newProb)
-  --      return (vexity, sign)
+  -- a convex function of an expression
+  convex :: Expr -> Expr
+  convex (Expr n r Convex s) = Expr n r Convex s
+  convex (Expr n r Affine s) = Expr n r Convex s
+  convex (Expr n r _ s) = Expr n r Nonconvex s
 
-  --subjectTo :: State ExpressionState ()
-  --subjectTo = return ()  -- nop
+  -- a concave function of an expression
+  concave :: Expr -> Expr
+  concave (Expr n r Concave s) = Expr n r Concave s
+  concave (Expr n r Affine s) = Expr n r Concave s
+  concave (Expr n r _ s) = Expr n r Nonconvex s
 
-  ---- sign ops set curvature to Affine (why? so that chaining increasing and decreasing will do the right thing)
-  ---- now, order matters...
-  ----
-  ---- positive; increasing x; increasing y
-  ---- different from
-  ---- increasing x; positive; increasing y
+  -- an affine function of an expression
+  affine :: Expr -> Expr
+  affine (Expr n r Affine s) = Expr n r Affine s
+  affine (Expr n r _ s) = Expr n r Nonconvex s
+
+  -- sign ops set curvature to Affine (why? so that chaining increasing and decreasing will do the right thing)
+  -- now, order matters...
+  --
+  -- positive; increasing x; increasing y
+  -- different from
+  -- increasing x; positive; increasing y
   
-  --positive :: State ExpressionState ()
-  --positive = do
-  --  (count, vexity, sign, prob) <- get
-  --  put (count, Affine, Positive, prob)
+  positive :: Expression
+  positive = do
+    (count, vexity, sign, prob) <- get
+    put (count, Affine, Positive, prob)
 
-  --negative :: State ExpressionState ()
-  --negative = do
-  --  (count, vexity, sign, prob) <- get
-  --  put (count, Affine, Negative, prob)
+  negative :: Expression
+  negative = do
+    (count, vexity, sign, prob) <- get
+    put (count, Affine, Negative, prob)
 
-  ---- do i need this?
-  --unknown :: State ExpressionState ()
-  --unknown = do
-  --  (count, vexity, sign, prob) <- get
-  --  put (count, Affine, Unknown, prob)
+  -- do i need this?
+  unknown :: Expression
+  unknown = do
+    (count, vexity, sign, prob) <- get
+    put (count, Affine, Unknown, prob)
 
-  --increasing :: (ShapedVar a) => a -> State ExpressionState ()
-  --increasing x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case(propVexity vexity (vexity'' x)) of
-  --    Affine -> put (count, Affine, sign, prob)
-  --    Convex -> put (count, Convex, sign, prob)
-  --    Concave -> put (count, Concave, sign, prob)
-  --    otherwise -> put (count, Nonconvex, sign, prob)
+  increasing :: (ShapedVar a) => a -> State ExpressionState ()
+  increasing x = do
+    (count, vexity, sign, prob) <- get
+    case(propVexity vexity (vexity'' x)) of
+      Affine -> put (count, Affine, sign, prob)
+      Convex -> put (count, Convex, sign, prob)
+      Concave -> put (count, Concave, sign, prob)
+      otherwise -> put (count, Nonconvex, sign, prob)
 
-  --decreasing :: (ShapedVar a) => a -> State ExpressionState ()
-  --decreasing x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case(propVexity vexity (vexity'' x)) of
-  --    Affine -> put (count, Affine, sign, prob)
-  --    Convex -> put (count, Concave, sign, prob)
-  --    Concave -> put (count, Convex, sign, prob)
-  --    otherwise -> put (count, Nonconvex, sign, prob)
+  decreasing :: (ShapedVar a) => a -> State ExpressionState ()
+  decreasing x = do
+    (count, vexity, sign, prob) <- get
+    case(propVexity vexity (vexity'' x)) of
+      Affine -> put (count, Affine, sign, prob)
+      Convex -> put (count, Concave, sign, prob)
+      Concave -> put (count, Convex, sign, prob)
+      otherwise -> put (count, Nonconvex, sign, prob)
 
-  --nonmonotone :: (ShapedVar a) => a -> State ExpressionState ()
-  --nonmonotone x = do
-  --  (count, vexity, sign, prob) <- get
-  --  case(propVexity vexity (vexity'' x)) of
-  --    Affine -> put (count, Affine, sign, prob)
-  --    otherwise -> put (count, Nonconvex, sign, prob)
+  nonmonotone :: (ShapedVar a) => a -> State ExpressionState ()
+  nonmonotone x = do
+    (count, vexity, sign, prob) <- get
+    case(propVexity vexity (vexity'' x)) of
+      Affine -> put (count, Affine, sign, prob)
+      otherwise -> put (count, Nonconvex, sign, prob)
 
-  ---- just an alias to sequence together ops
-  --(<&>) :: (Monad m) => m a -> m b -> m b
-  --x <&> y = x >> y
+  -- just an alias to sequence together ops
+  (<&>) :: (Monad m) => m a -> m b -> m b
+  x <&> y = x >> y
 
 
   --propVexity :: Curvature -> Curvature -> Curvature

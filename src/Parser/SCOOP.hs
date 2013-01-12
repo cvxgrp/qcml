@@ -50,7 +50,6 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   
   import qualified Control.Monad.State as St
 
-
   --builtinFunctions =
   --  [("square", atom_square),
   --   ("quad_over_lin", atom_quad_over_lin),
@@ -115,67 +114,67 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
-  --expr :: ScoopParser E.Expr
-  --expr = do {
-  --  e <- buildExpressionParser table term;
-  --  case e of
-  --    E.None s -> fail s
-  --    otherwise -> return e
-  --  } <?> "expression"
+  expr :: ScoopParser E.Expr
+  expr = do {
+    e <- buildExpressionParser table term;
+    case e of
+      E.None s -> fail s
+      otherwise -> return e
+    } <?> "expression"
   
-  --unaryNegate :: Integer -> E.Expr -> E.Expr
-  --unaryNegate t a = scoop_negate a (show t)
+  unaryNegate :: Integer -> E.Expr -> E.Expr
+  unaryNegate t a = scoop_negate a (show t)
   
-  ---- a significant difference from the paper is that parameters are also
-  ---- expressions, so we can multiply two things of the same *type*
-  ----
-  ---- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
-  ---- to be a *unary* function parameterized by the first "term"
-  --multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
-  --multiply t a b = scoop_mult a b (show t)
+  -- a significant difference from the paper is that parameters are also
+  -- expressions, so we can multiply two things of the same *type*
+  --
+  -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
+  -- to be a *unary* function parameterized by the first "term"
+  multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
+  multiply t a b = scoop_mult a b (show t)
                   
-  --add :: Integer -> E.Expr -> E.Expr -> E.Expr
-  --add t a b = scoop_plus a b (show t)
+  add :: Integer -> E.Expr -> E.Expr -> E.Expr
+  add t a b = scoop_plus a b (show t)
           
-  --minus :: Integer -> E.Expr -> E.Expr -> E.Expr
-  --minus t a b = scoop_minus a b (show t)
+  minus :: Integer -> E.Expr -> E.Expr -> E.Expr
+  minus t a b = scoop_minus a b (show t)
   
-  ---- constructors to help build the expression table
-  --binary name fun assoc 
-  --  = Infix (do{ 
-  --    reservedOp name; 
-  --    t <- getState; 
-  --    updateState incrCount; 
-  --    return $ fun (varcount t)}) assoc
-  --prefix name fun
-  --  = Prefix (do{ 
-  --    reservedOp name; 
-  --    t <- getState; 
-  --    updateState incrCount; 
-  --    return $ fun (varcount t) })
-  ---- parsec doesn't play nice with "mu'*x", since it can't parse
-  ---- a transpose followed immediately by a multiply
-  ---- instead, i have it gobble a *single* character (since i know transpose
-  ---- is a single character operator), and then eat any whitespace following
-  --postfix name fun
-  --  = Postfix (do { char name; whiteSpace; return fun })  
+  -- constructors to help build the expression table
+  binary name fun assoc 
+    = Infix (do{ 
+      reservedOp name; 
+      t <- getState; 
+      updateState incrCount; 
+      return $ fun (varcount t)}) assoc
+  prefix name fun
+    = Prefix (do{ 
+      reservedOp name; 
+      t <- getState; 
+      updateState incrCount; 
+      return $ fun (varcount t) })
+  -- parsec doesn't play nice with "mu'*x", since it can't parse
+  -- a transpose followed immediately by a multiply
+  -- instead, i have it gobble a *single* character (since i know transpose
+  -- is a single character operator), and then eat any whitespace following
+  postfix name fun
+    = Postfix (do { char name; whiteSpace; return fun })  
   
-  ---- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  --table = [ [postfix '\'' scoop_transpose],
-  --          [binary "*" multiply AssocRight],
-  --          [prefix "-" unaryNegate],
-  --          [binary "+" add AssocLeft, 
-  --           binary "-" minus AssocLeft]] 
+  -- XXX: precedence ordering is *mathematical* precedence (not C-style)
+  table = [ [postfix '\'' scoop_transpose],
+            [binary "*" multiply AssocRight],
+            [prefix "-" unaryNegate],
+            [binary "+" add AssocLeft, 
+             binary "-" minus AssocLeft]] 
   
-  ---- a term is made up of "(expr)", functions thereof, parameters, or 
-  ---- variables
-  --term = parens expr
-  --    <|> choice (map snd builtinFunctions)
-  --    <|> parameter
-  --    <|> variable
-  --    <|> constant
-  --    <|> concatenation
-  --    <?> "simple expressions"
+  -- a term is made up of "(expr)", functions thereof, parameters, or 
+  -- variables
+  term = parens expr
+      <|> choice (map snd builtinFunctions)
+      <|> parameter
+      <|> variable
+      <|> constant
+      <|> concatenation
+      <?> "simple expressions"
   
   --vertConcatArgs :: ScoopParser [E.Expr]
   --vertConcatArgs = do {
@@ -393,10 +392,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   } <?> "dimension"
 
   line :: ScoopParser Statement
-  line =  defVariable <|> defParameter <|> defDimension 
+  line =  defVariable <|> defParameter <|> defDimension -- <|> constraint
     <?> "a line (variable, parameter, dimension definition, or a constraint)"
 
-
+  -- constraint can be affine equality constraint or norm(x) <= t, norm([x;y;z]) <=t or norm(x,y,z) <= t
 
   scoop_test :: (Expressive a) => a -> Statement
   scoop_test x = do
