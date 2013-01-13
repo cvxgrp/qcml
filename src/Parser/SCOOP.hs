@@ -69,26 +69,25 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --   ("pow_rat", atom_pow_rat),
   --   ("diag", atom_diag)]
 
-  symbolTable = ScoopState M.empty S.empty 0
+  symbolTable = ScoopState M.empty S.empty
 
   data ScoopState = ScoopState {
       symbols :: M.Map String E.Symbol,
-      dimensions :: S.Set String,
-      varcount :: Integer
-    }
+      dimensions :: S.Set String
+  }
 
-  incrCount :: ScoopState -> ScoopState
-  incrCount state
-    = ScoopState (symbols state) (dimensions state) (1 + varcount state)
+  --incrCount :: ScoopState -> ScoopState
+  --incrCount state
+  --  = ScoopState (symbols state) (dimensions state) (1 + varcount state)
 
   insertSymbol :: (E.Symbolic a) => a -> ScoopState -> ScoopState
   insertSymbol x state 
-    = ScoopState newSymbols (dimensions state) (varcount state)
+    = ScoopState newSymbols (dimensions state)
       where newSymbols = M.insert (E.name x) (E.sym x) (symbols state)
 
   insertDim :: String -> ScoopState -> ScoopState
   insertDim s state 
-    = ScoopState (symbols state) newDimensions (varcount state)
+    = ScoopState (symbols state) newDimensions
       where newDimensions = S.insert s (dimensions state)
     
   type ScoopParser a = GenParser Char ScoopState a
@@ -114,44 +113,45 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
-  expr :: ScoopParser E.Expr
-  expr = do {
-    e <- buildExpressionParser table term;
-    case e of
-      E.None s -> fail s
-      otherwise -> return e
-    } <?> "expression"
+  expr :: ScoopParser (Expression E.Symbol)
+  expr = buildExpressionParser table term
   
-  unaryNegate :: Integer -> E.Expr -> E.Expr
-  unaryNegate t a = scoop_negate a (show t)
+  --unaryNegate :: Integer -> E.Expr -> E.Expr
+  --unaryNegate t a = scoop_negate a (show t)
   
   -- a significant difference from the paper is that parameters are also
   -- expressions, so we can multiply two things of the same *type*
   --
   -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
   -- to be a *unary* function parameterized by the first "term"
-  multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
-  multiply t a b = scoop_mult a b (show t)
+  --multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
+  --multiply t a b = scoop_mult a b (show t)
+
+  binApply :: String -> (E.Expr -> E.Expr -> Expression E.Expr) -> Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  binApply s f x y = do
+    xsym <- x -- extract symbol
+    ysym <- y -- extract symbol
+    xexp <- express xsym -- extract expression from symbol
+    yexp <- express ysym -- extract expression from symbol
+    result <- f xexp yexp -- apply the function
+    if(isValidArgs [xexp,yexp]) then
+      return (E.ESym result)
+    else
+      fail $ "binary operation " ++ s ++ " has incompatible argument sizes" -- doesn't say which arg it is...
+
                   
-  add :: Integer -> E.Expr -> E.Expr -> E.Expr
-  add t a b = scoop_plus a b (show t)
+  add :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  add a b = binApply "plus" primitiveAdd a b
           
-  minus :: Integer -> E.Expr -> E.Expr -> E.Expr
-  minus t a b = scoop_minus a b (show t)
+  minus :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  minus a b = binApply "minus" primitiveMinus a b
   
   -- constructors to help build the expression table
   binary name fun assoc 
-    = Infix (do{ 
-      reservedOp name; 
-      t <- getState; 
-      updateState incrCount; 
-      return $ fun (varcount t)}) assoc
+    = Infix (do{ reservedOp name; return fun }) assoc
   prefix name fun
-    = Prefix (do{ 
-      reservedOp name; 
-      t <- getState; 
-      updateState incrCount; 
-      return $ fun (varcount t) })
+    = Prefix (do{ reservedOp name; return fun })
+
   -- parsec doesn't play nice with "mu'*x", since it can't parse
   -- a transpose followed immediately by a multiply
   -- instead, i have it gobble a *single* character (since i know transpose
@@ -160,20 +160,20 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     = Postfix (do { char name; whiteSpace; return fun })  
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ [postfix '\'' scoop_transpose],
-            [binary "*" multiply AssocRight],
-            [prefix "-" unaryNegate],
+  table = [ --[postfix '\'' scoop_transpose],
+            --[binary "*" multiply AssocRight],
+            --[prefix "-" unaryNegate],
             [binary "+" add AssocLeft, 
              binary "-" minus AssocLeft]] 
   
   -- a term is made up of "(expr)", functions thereof, parameters, or 
   -- variables
   term = parens expr
-      <|> choice (map snd builtinFunctions)
+      -- <|> choice (map snd builtinFunctions)
       <|> parameter
       <|> variable
       <|> constant
-      <|> concatenation
+      -- <|> concatenation
       <?> "simple expressions"
   
   --vertConcatArgs :: ScoopParser [E.Expr]
@@ -192,58 +192,66 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --    x -> return (scoop_concat x (show $ varcount t))
   --}
   
-  --variable :: ScoopParser E.Expr
-  --variable = do { 
-  --  s <- identifier;
-  --  t <- getState; 
-  --  case (M.lookup s (symbols t)) of
-  --    Just x -> return x
-  --    _ -> fail $ "expected a variable but got " ++ s 
-  --} <?> "variable"
+  variable :: ScoopParser (Expression E.Symbol)
+  variable = do { 
+    s <- identifier;
+    t <- getState; 
+    case (M.lookup s (symbols t)) of
+      Just x -> return (do{ return x })
+      _ -> fail $ "expected a variable but got " ++ s 
+  } <?> "variable"
   
-  --parameter :: ScoopParser E.Expr
-  --parameter = do { 
-  --  s <- identifier;
-  --  t <- getState;
-  --  case (M.lookup s (symbols t)) of
-  --    Just x -> return x
-  --    _ -> fail $ "expected a parameter but got " ++ s 
-  --} <?> "parameter"
+  parameter :: ScoopParser (Expression E.Symbol)
+  parameter = do { 
+    s <- identifier;
+    t <- getState;
+    case (M.lookup s (symbols t)) of
+      Just x -> return (do{ return x })
+      _ -> fail $ "expected a parameter but got " ++ s 
+  } <?> "parameter"
   
-  --constant :: ScoopParser E.Expr
-  --constant = do {
-  --  s <- naturalOrFloat;
-  --  return $ E.Constant (either fromIntegral id s)
-  --} <?> "constant"
+  constant :: ScoopParser (Expression E.Symbol)
+  constant = do {
+    s <- naturalOrFloat;
+    return (do{ return $ E.sym (either fromIntegral id s) })
+  } <?> "constant"
              
-  --boolOp :: ScoopParser String
-  --boolOp = do {
-  --  reserved "==";
-  --  return "=="
-  --} <|> do {
-  --  reserved "<=";
-  --  return "<="
-  --} <|> do {
-  --  reserved ">=";
-  --  return ">="
-  --} <?> "boolean operator"
+  boolOp :: ScoopParser String
+  boolOp = do {
+    reserved "==";
+    return "=="
+  } <|> do {
+    reserved "<=";
+    return "<="
+  } <|> do {
+    reserved ">=";
+    return ">="
+  } <?> "boolean operator"
     
-  --constraint :: ScoopParser E.ConicSet
-  --constraint = do {
-  --  lhs <- expr;
-  --  p <- boolOp;
-  --  rhs <- expr;
-    
-  --  t <- getState; 
-  --  updateState incrCount; 
-  --  let result = case (p) of
-  --        "==" -> (scoop_eq lhs rhs)
-  --        "<=" -> (scoop_leq lhs rhs (show $ varcount t))
-  --        ">=" -> (scoop_geq lhs rhs (show $ varcount t))
-  --  in case (result) of
-  --    Just x -> return x
-  --    _ -> fail "Not a signed DCP compliant constraint or dimension mismatch."
-  --} <?> "constraint"
+
+  -- TODO: this may be duplicate of "binApply"
+  createStatement :: (E.Symbol -> E.Symbol -> Expression ()) -> Expression E.Symbol -> Expression E.Symbol -> Expression ()
+  createStatement f lhs rhs = do {
+    x <- lhs;
+    y <- rhs;
+    if (isValidArgs [x,y]) then
+      f x y
+    else
+      fail "Dimension mismatch."
+  }
+
+  constraint :: ScoopParser (Expression ())
+  constraint = do {
+    lhs <- expr;
+    p <- boolOp;
+    rhs <- expr;
+
+    case (p) of
+      "==" -> return $ createStatement scoop_eq lhs rhs
+      "<=" -> return $ createStatement scoop_leq lhs rhs
+      ">=" -> return $ createStatement scoop_geq lhs rhs
+
+  } <?> "constraint"
   
   --constraints :: ScoopParser [E.ConicSet]
   --constraints = do { 
@@ -280,14 +288,14 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     }
     <?> "problem sense (maximize or minimize or find)"
   
-  objective :: ScoopParser Statement
+  objective :: ScoopParser (Expression ())
   objective = 
     do {
       probSense <- sense;
       obj <- objFunc probSense;
       optionMaybe (reserved "subject to");
 
-      return $ addLine "objective and its stuff goes here!"
+      return $ addLine "# objective and its stuff goes here!"
       -- cones <- optionMaybe constraints;
       
       -- (we don't check that main objective is scalar)
@@ -348,7 +356,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       return E.Negative
     } <?> "sign modifier"
 
-  defVariable :: ScoopParser Statement
+  defVariable :: ScoopParser (Expression ())
   defVariable = do {
     reserved "variable";
     s <- identifier; 
@@ -361,7 +369,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
   } <?> "variable"
   
-  defParameter :: ScoopParser Statement
+  defParameter :: ScoopParser (Expression ())
   defParameter = do {
     reserved "parameter";
     s <- identifier;
@@ -382,7 +390,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   sign_string E.Positive = " positive"
   sign_string E.Negative = " negative"
 
-  defDimension :: ScoopParser Statement
+  defDimension :: ScoopParser (Expression ())
   defDimension = do {
     reserved "dimension";
     s <- identifier;
@@ -391,20 +399,21 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     return (addLine $ concat ["dimension ", s])
   } <?> "dimension"
 
-  line :: ScoopParser Statement
-  line =  defVariable <|> defParameter <|> defDimension -- <|> constraint
+  line :: ScoopParser (Expression ())
+  line =  defVariable <|> defParameter <|> defDimension <|> constraint
     <?> "a line (variable, parameter, dimension definition, or a constraint)"
 
   -- constraint can be affine equality constraint or norm(x) <= t, norm([x;y;z]) <=t or norm(x,y,z) <= t
 
-  scoop_test :: (Expressive a) => a -> Statement
+  scoop_test :: (Expressive a) => a -> (Expression ())
   scoop_test x = do
     xt <- express x
+    return ()
 
-    addLine (E.name xt)
+    -- addLine (E.name xt)
 
 
-  scoop_constant :: Double -> Expression
+  scoop_constant :: Double -> Expression E.Expr
   scoop_constant x = do
     t <- newVar "1"
 
@@ -415,10 +424,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
     return $ E.Expr t "1" E.Affine E.Unknown
 
-  p1 :: Expression
+  p1 :: Expression E.Expr
   p1 = scoop_constant 3.0
 
-  p2 :: E.Expr -> Expression
+  p2 :: E.Expr -> Expression E.Expr
   p2 a = 
     scoop_constant 4.0
 
@@ -438,10 +447,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
     -- once the program is parse, we sequence together all the monads and execute
     let f = do {
-          scoop_test (5.6::Double);
-          s <- p1;
-          p2 s;
-          scoop_test s;
+          -- scoop_test (5.6::Double);
+          -- s <- p1;
+          -- p2 s;
+          -- scoop_test s;
           foldl (>>) (return ()) l; -- "execute" all the lines up to the objective
           o; -- "execute" the objective
           foldl (>>) (return ()) ll; -- "execute" all lines after the objective

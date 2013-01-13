@@ -70,7 +70,7 @@ module Expression.Expression (
   data Param = Param String Row Col Sign
 
   -- container type for Expr and Param symbols
-  data Symbol = ESym Expr | PSym Param
+  data Symbol = ESym Expr | PSym Param | CSym Double
 
   class Symbolic a where
     name :: a -> String
@@ -96,17 +96,31 @@ module Expression.Expression (
     cols (Param _ _ c _) = c
     sym x = PSym x
 
+  instance Symbolic Double where
+    name x = show x
+    vexity _ = Affine
+    sign x | x >= 0 = Positive
+           | x < 0 = Negative
+    rows _ = "1"
+    cols _ = "1"
+    sym x = CSym x
+
   instance Symbolic Symbol where
     name (ESym x) = name x
     name (PSym x) = name x
+    name (CSym x) = name x
     vexity (ESym x) = vexity x
     vexity (PSym x) = vexity x
+    vexity (CSym x) = vexity x
     sign (ESym x) = sign x
     sign (PSym x) = sign x
+    sign (CSym x) = sign x
     rows (ESym x) = rows x
     rows (PSym x) = rows x
+    rows (CSym x) = rows x
     cols (ESym x) = cols x
     cols (PSym x) = cols x
+    cols (CSym x) = cols x
     sym x = x
 
   

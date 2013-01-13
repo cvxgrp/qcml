@@ -1,4 +1,5 @@
-module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState, Expressive(..)) where
+module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressive(..),
+  isValidArgs, primitiveAdd, primitiveMinus, scoop_eq, scoop_leq, scoop_geq) where
 
 
   -- the goal of using "monads" to encapsulate my atom definitions is to
@@ -16,17 +17,18 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
 
   -- An "Expression" is a monad that carries a state (ExpressionState) and contains
   -- an Expr object. A "Statement" contains nothing upon "return".
-  type Expression = State ExpressionState Expr
-  type Statement = State ExpressionState ()
+  --type Expression = State ExpressionState Expr
+  --type Statement = State ExpressionState ()
+  type Expression = State ExpressionState
 
-  newVar :: String -> State ExpressionState String
+  newVar :: String -> Expression String
   newVar m = do
     (c, prob) <- get
     let v = "t" ++ show c
     put (c+1, prob ++ ["variable " ++ v ++ "(" ++ m ++ ")"])
     return v
 
-  addLine :: String -> Statement
+  addLine :: String -> Expression ()
   addLine s = do
     (c,prob) <- get
     put (c, prob ++ [s])
@@ -37,7 +39,7 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
 
   -- allows Expr, Params, Doubles to be turned in to Expressions
   class Expressive a where
-    express :: a -> Expression
+    express :: a -> Expression Expr
 
   instance Expressive Expr where
     express x = return x
@@ -56,6 +58,11 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
       let s | x >= 0 = Positive
             | otherwise = Negative
       return (Expr t "1" Affine s)
+
+  instance Expressive Symbol where
+    express (ESym x) = express x
+    express (PSym x) = express x
+    express (CSym x) = express x
   
 
   -- generic function that checks argument in arglist
@@ -63,20 +70,91 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
   --
   --   although dimensions are abstract, assumes that differently named dimensions
   --   are going to have different numeric values
-  isValidArgs :: [Expr] -> Bool
+  isValidArgs :: Symbolic a => [a] -> Bool
   isValidArgs exprs = all checkFun (tail sortedExprs)
     where sortedExprs = sortBy rowOrdering exprs -- have to sort in case scalars are first argument
           checkFun = (\x -> x==m || x=="1").rows
           m = rows (head sortedExprs)
 
-  rowOrdering :: Expr -> Expr -> Ordering
+  rowOrdering :: Symbolic a => a -> a -> Ordering
   rowOrdering x y
     | rows x < rows y = GT
     | rows x > rows y = LT
     | otherwise = EQ
 
 
+  -- BELONGS IN ATOMS!
+  -- all atoms assume the expression sizes have been "checked"
+  primitiveAdd :: Expr -> Expr -> Expression Expr
+  primitiveAdd x y = do
+    let m = max (rows x) (rows y)
+    t <- newVar m
+
+    let v = Affine <&> increasing x <&> increasing y
+    let s = case (sign x, sign y) of
+              (Positive, Positive) -> Positive
+              (Negative, Negative) -> Negative
+              otherwise -> Unknown
+    -- definition of plus
+    addLine $ concat [t, " == ", (name x), " + ", (name y)]
+    return $ Expr t m v s
+
+  primitiveMinus :: Expr -> Expr -> Expression Expr
+  primitiveMinus x y = do
+    let m = max (rows x) (rows y)
+    t <- newVar m
+
+    let v = Affine <&> increasing x <&> decreasing y
+    let s = case (sign x, sign y) of
+              (Positive, Negative) -> Positive
+              (Negative, Positive) -> Negative
+              otherwise -> Unknown
+    -- definition of plus
+    addLine $ concat [t, " == ", (name x), " - ", (name y)]
+    return $ Expr t m v s
+
   -- "and" and "find" are atom keywords, so we exclude them
+
+  isConvex :: (Symbolic a) => a -> Bool
+  isConvex x
+    | vexity x == Convex = True
+    | vexity x == Affine = True
+    | otherwise = False
+
+  isConcave :: (Symbolic a) => a -> Bool
+  isConcave x
+    | vexity x == Concave = True
+    | vexity x == Affine = True
+    | otherwise = False
+
+  scoop_leq :: Symbol -> Symbol -> Expression ()
+  scoop_leq x y = do
+    let m = max (rows x) (rows y)
+    if(isConvex x && isConcave y) then do
+      slack <- newVar m
+      addLine $ concat [name x, " + ", slack, " == ", name y]
+      addLine $ slack ++ " >= 0"
+    else
+      fail $ "Nonconvex inequality constraint (" ++ show (vexity x) ++ " <= " ++ show (vexity y) ++ ")."
+
+  scoop_geq :: Symbol -> Symbol -> Expression ()
+  scoop_geq x y = do
+    let m = max (rows x) (rows y)
+    if (isConcave y && isConvex x) then do
+      slack <- newVar m
+      addLine $ concat [name x, " - ", slack, " == ", name y]
+      addLine $ slack ++ " >= 0"
+    else
+      fail $ "Nonconvex inequality constraint (" ++ show (vexity x) ++ " >= " ++ show (vexity y) ++ ")."
+
+  -- a == b
+  scoop_eq :: Symbol -> Symbol -> Expression ()
+  scoop_eq x y = do
+    let (v1, v2) = (vexity x, vexity y)
+    case(v1,v2) of
+      (Affine, Affine) -> addLine $ concat [name x, " == ", name y]
+      otherwise -> fail $ "Nonconvex equality constraint (" ++ show v1 ++ " == " ++ show v2 ++ ")."
+
 
 
   -- basically, any atom can take anything that can be represented with a var
@@ -150,80 +228,75 @@ module Atoms.Common(Expression, Statement, newVar, addLine, getString, initState
   --infixl 6 .+
   --infix 4 .==
 
-    t = increasing x
-    r = increasing y
-    r = convex (convex t)
+  --  t = increasing x
+  --  r = increasing y
+  --  r = convex (convex t)
 
-    convex [(increasing x) (increasing y)]
+  --  convex [(increasing x) (increasing y)]
 
-  -- a convex function of an expression
-  convex :: Expr -> Expr
-  convex (Expr n r Convex s) = Expr n r Convex s
-  convex (Expr n r Affine s) = Expr n r Convex s
-  convex (Expr n r _ s) = Expr n r Nonconvex s
+  ---- a convex function of an expression
+  --convex :: (Curvature, Sign)
+  --convex = (Convex, )
 
-  -- a concave function of an expression
-  concave :: Expr -> Expr
-  concave (Expr n r Concave s) = Expr n r Concave s
-  concave (Expr n r Affine s) = Expr n r Concave s
-  concave (Expr n r _ s) = Expr n r Nonconvex s
+  ---- a concave function of an expression
+  --concave :: (Curvature, Sign)
+  --concave = (Concave, )
 
-  -- an affine function of an expression
-  affine :: Expr -> Expr
-  affine (Expr n r Affine s) = Expr n r Affine s
-  affine (Expr n r _ s) = Expr n r Nonconvex s
+  ---- an affine function of an expression
+  --affine :: (Curvature, Sign)
+  --affine = (Affine, )
 
-  -- sign ops set curvature to Affine (why? so that chaining increasing and decreasing will do the right thing)
-  -- now, order matters...
-  --
-  -- positive; increasing x; increasing y
-  -- different from
-  -- increasing x; positive; increasing y
+  ---- sign ops set curvature to Affine (why? so that chaining increasing and decreasing will do the right thing)
+  ---- now, order matters...
+  ----
+  ---- positive; increasing x; increasing y
+  ---- different from
+  ---- increasing x; positive; increasing y
   
-  positive :: Expression
-  positive = do
-    (count, vexity, sign, prob) <- get
-    put (count, Affine, Positive, prob)
+  --positive :: Expression
+  --positive = do
+  --  (count, vexity, sign, prob) <- get
+  --  put (count, Affine, Positive, prob)
 
-  negative :: Expression
-  negative = do
-    (count, vexity, sign, prob) <- get
-    put (count, Affine, Negative, prob)
+  --negative :: Expression
+  --negative = do
+  --  (count, vexity, sign, prob) <- get
+  --  put (count, Affine, Negative, prob)
 
-  -- do i need this?
-  unknown :: Expression
-  unknown = do
-    (count, vexity, sign, prob) <- get
-    put (count, Affine, Unknown, prob)
+  ---- do i need this?
+  --unknown :: Expression
+  --unknown = do
+  --  (count, vexity, sign, prob) <- get
+  --  put (count, Affine, Unknown, prob)
 
-  increasing :: (ShapedVar a) => a -> State ExpressionState ()
-  increasing x = do
-    (count, vexity, sign, prob) <- get
-    case(propVexity vexity (vexity'' x)) of
-      Affine -> put (count, Affine, sign, prob)
-      Convex -> put (count, Convex, sign, prob)
-      Concave -> put (count, Concave, sign, prob)
-      otherwise -> put (count, Nonconvex, sign, prob)
+  increasing :: Expr -> Curvature
+  increasing x = case(vexity x) of
+      Affine -> Affine
+      Convex -> Convex
+      Concave -> Concave
+      otherwise -> Nonconvex
 
-  decreasing :: (ShapedVar a) => a -> State ExpressionState ()
-  decreasing x = do
-    (count, vexity, sign, prob) <- get
-    case(propVexity vexity (vexity'' x)) of
-      Affine -> put (count, Affine, sign, prob)
-      Convex -> put (count, Concave, sign, prob)
-      Concave -> put (count, Convex, sign, prob)
-      otherwise -> put (count, Nonconvex, sign, prob)
-
-  nonmonotone :: (ShapedVar a) => a -> State ExpressionState ()
-  nonmonotone x = do
-    (count, vexity, sign, prob) <- get
-    case(propVexity vexity (vexity'' x)) of
-      Affine -> put (count, Affine, sign, prob)
-      otherwise -> put (count, Nonconvex, sign, prob)
+  decreasing :: Expr -> Curvature
+  decreasing x = case(vexity x) of
+      Affine -> Affine
+      Convex -> Concave
+      Concave -> Convex
+      otherwise -> Nonconvex
+  
+  nonmonotone :: Expr -> Curvature
+  nonmonotone x = case(vexity x) of
+    Affine -> Affine
+    otherwise -> Nonconvex
 
   -- just an alias to sequence together ops
-  (<&>) :: (Monad m) => m a -> m b -> m b
-  x <&> y = x >> y
+  (<&>) :: Curvature -> Curvature -> Curvature
+  Affine <&> y = y
+  x <&> Affine = x
+  Convex <&> Convex = Convex
+  Concave <&> Concave = Concave
+  _ <&> _ = Nonconvex
+
+  -- TODO: divide in to primitives (plus, minus, multiply), scalar atoms, and vector atoms
 
 
   --propVexity :: Curvature -> Curvature -> Curvature
