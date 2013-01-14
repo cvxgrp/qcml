@@ -62,13 +62,10 @@ module Expression.Expression (
     | Unknown
     deriving (Show, Eq)
 
-  type Row = String -- alias "Row" to be "String" type
-  type Col = String -- alias "Col" to be "String" type
 
   -- TODO: obviously, i could put Expr and Param in same 
-  data Expr = Expr String Row Curvature Sign
-
-  data Param = Param String Row Col Sign
+  data Expr = Expr String Curvature Sign
+  data Param = Param String Sign
 
   -- container type for Expr and Param symbols
   data Symbol = ESym Expr | PSym Param | CSym Double
@@ -77,24 +74,18 @@ module Expression.Expression (
     name :: a -> String
     vexity :: a -> Curvature
     sign :: a -> Sign
-    rows :: a -> Row
-    cols :: a -> Col
     sym :: a -> Symbol
 
   instance Symbolic Expr where
-    name (Expr s _ _ _) = s
-    vexity (Expr _ _ c _) = c
-    sign (Expr _ _ _ s) = s
-    rows (Expr _ r _ _) = r
-    cols (Expr _ _ _ _) = "1"
+    name (Expr s _ _) = s
+    vexity (Expr _ c _) = c
+    sign (Expr _ _ s) = s
     sym x = ESym x
 
   instance Symbolic Param where
-    name (Param s _ _ _) = s
-    vexity (Param _ _ _ _) = Affine
-    sign (Param _ _ _ s) = s
-    rows (Param _ r _ _) = r
-    cols (Param _ _ c _) = c
+    name (Param s _) = s
+    vexity (Param _ _) = Affine
+    sign (Param _ s) = s
     sym x = PSym x
 
   instance Symbolic Double where
@@ -102,8 +93,6 @@ module Expression.Expression (
     vexity _ = Affine
     sign x | x >= 0 = Positive
            | x < 0 = Negative
-    rows _ = "1"
-    cols _ = "1"
     sym x = CSym x
 
   instance Symbolic Symbol where
@@ -116,12 +105,6 @@ module Expression.Expression (
     sign (ESym x) = sign x
     sign (PSym x) = sign x
     sign (CSym x) = sign x
-    rows (ESym x) = rows x
-    rows (PSym x) = rows x
-    rows (CSym x) = rows x
-    cols (ESym x) = cols x
-    cols (PSym x) = cols x
-    cols (CSym x) = cols x
     sym x = x
 
   

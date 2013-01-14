@@ -1,4 +1,4 @@
-module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressive(..),
+module Atoms.Common(Rewriter, newVar, addLine, getString, initState, Rewriteable(..),
   isValidArgs, increasing, decreasing, nonmonotone, (<&>)) where
 
 
@@ -11,42 +11,42 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
   import Control.Monad.State
   import Data.List (sortBy)
 
-  type ExpressionState = (Integer, [String])
+  type RewriterState = (Integer, [String])
 
   initState = (0, [])
 
-  -- An "Expression" is a monad that carries a state (ExpressionState) and contains
+  -- An "Rewriter" is a monad that carries a state (RewriterState) and contains
   -- an Expr object. A "Statement" contains nothing upon "return".
-  --type Expression = State ExpressionState Expr
-  --type Statement = State ExpressionState ()
-  type Expression = State ExpressionState
+  --type Rewriter = State RewriterState Expr
+  --type Statement = State RewriterState ()
+  type Rewriter = State RewriterState
 
-  newVar :: String -> Expression String
+  newVar :: String -> Rewriter String
   newVar m = do
     (c, prob) <- get
     let v = "t" ++ show c
     put (c+1, prob ++ ["variable " ++ v ++ "(" ++ m ++ ")"])
     return v
 
-  addLine :: String -> Expression ()
+  addLine :: String -> Rewriter ()
   addLine s = do
     (c,prob) <- get
     put (c, prob ++ [s])
 
   -- gets the string (problem) associated with the state
-  getString :: ExpressionState -> String
+  getString :: RewriterState -> String
   getString (_,x) = unlines x
 
-  -- allows Expr, Params, Doubles to be turned in to Expressions
-  class Expressive a where
-    express :: a -> Expression Expr
-    parameterize :: a -> Expression Param
+  -- allows Expr, Params, Doubles to be turned in to Rewriters
+  class Rewriteable a where
+    express :: a -> Rewriter Expr
+    parameterize :: a -> Rewriter Param
 
-  instance Expressive Expr where
+  instance Rewriteable Expr where
     express x = return x
     parameterize = fail "cannot turn an expression into a paramteter"
   
-  instance Expressive Param where
+  instance Rewriteable Param where
     express (Param x r "1" s) = do
       t <- newVar r
       addLine $ concat [t, " == ", x]
@@ -55,7 +55,7 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
 
     parameterize x = return x
 
-  instance Expressive Double where
+  instance Rewriteable Double where
     express x = do
       t <- newVar "1"
       addLine $ concat [t, " == ", show x]
@@ -67,7 +67,7 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
       where sign | x >= 0 = Positive
                  | x < 0 = Negative
 
-  instance Expressive Symbol where
+  instance Rewriteable Symbol where
     express (ESym e) = express e
     express (PSym p) = express p
     express (CSym c) = express c
@@ -79,8 +79,8 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
 
 
   -- Double to Param
-  -- also have Param to Expression
-  -- and have Double to Expression directly
+  -- also have Param to Rewriter
+  -- and have Double to Rewriter directly
 
   -- generic function that checks argument in arglist
   -- all arguments must have same rows *or* some must be scalar
@@ -102,37 +102,37 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
 
 
   -- basically, any atom can take anything that can be represented with a var
-  -- this includes other Expressions, Vars, etc.
-  -- square :: (Vexable a, Signable a) => a -> Expression
+  -- this includes other Rewriters, Vars, etc.
+  -- square :: (Vexable a, Signable a) => a -> Rewriter
 
   -- so "x" should be a var
   -- square x =
   --   t <- newVar
   --   quad_over_lin x t
 
-  -- the expression state should just be an ExpressionStack.. so it's an RPN stack
+  -- the Rewriter state should just be an RewriterStack.. so it's an RPN stack
   -- operands get pushed on to it. operands are just Expr's
 
-  --data ExpressionState = ExpressionState { 
+  --data RewriterState = RewriterState { 
   --  count' :: Int,          -- number of new variables introduced so far
-  --  vexity' :: Curvature,     -- expression curvature, hmmmmm....
-  --  sign' :: Sign,            -- expression sign, hmmmmm.....
+  --  vexity' :: Curvature,     -- Rewriter curvature, hmmmmm....
+  --  sign' :: Sign,            -- Rewriter sign, hmmmmm.....
   --  socp' :: SOCP             -- top-level variable, seeded initially by top-level parser
   --} deriving (Show)
 
   ---- new problem state for lang-to-lang xform
   ---- type ProblemState = (Integer, giString), the String is the current program (as a string)
-  --type ExpressionState = (Integer, Curvature, Sign, SOCP)
+  --type RewriterState = (Integer, Curvature, Sign, SOCP)
 
   --initState = (0, Affine, Unknown, emptySOCP)
 
   ---- this thing is really for parser's use
   ---- curvature and sign will belong in state now....
-  --data MyExpr = MyExpr Var Curvature Sign -- gives expression name, its curvature, and its sign
+  --data MyExpr = MyExpr Var Curvature Sign -- gives Rewriter name, its curvature, and its sign
   --            | MyParam Var Param Sign -- gives param's name (its var) and its value (a param)
   --            | MyConstant Var Double -- gives constant's name (its var) and its value (a double)
 
-  --type Expression = State ExpressionState MyExpr
+  --type Rewriter = State RewriterState MyExpr
 
   ---- i could create a vector this way....
   ----instance (DCP t) => DCP [t] where
@@ -141,13 +141,13 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
 
   ---- can i write a function that takes a *single* argument and applies it to an arglist?
   ---- YES!
-  ---- ... :: (a -> Expression) -> [a] -> Expression
+  ---- ... :: (a -> Rewriter) -> [a] -> Rewriter
   ---- it will "concat" across rows of [a] to form "aTranspose", then map f across "aTranspose"
 
   --emptySOCP = SOCP Find (Var "" (1,1)) (ConicSet [] [] [])  -- not sure if this will cause problems....
 
   ---- !#$%&*+./<=>?@\^|-~:
-  --isIn :: [Var] -> ([Var] -> SOC) -> State ExpressionState ()
+  --isIn :: [Var] -> ([Var] -> SOC) -> State RewriterState ()
   --isIn xs c = do 
   --  (count, vexity, sign, prob) <- get
   --  let newCones = constraints prob <++> (ConicSet [] [] [c xs])
@@ -155,7 +155,7 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
   --  put (count, vexity, sign, newProb)
 
   ---- actually constructs a row
-  --(.==) :: Row -> Coeff -> State ExpressionState ()
+  --(.==) :: Row -> Coeff -> State RewriterState ()
   --r .== c = do
   --  (count, vexity, sign, prob) <- get
   --  let newCones = constraints prob <++> (ConicSet [r] [c] [])
@@ -178,15 +178,15 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
 
   --  convex [(increasing x) (increasing y)]
 
-  ---- a convex function of an expression
+  ---- a convex function of an Rewriter
   --convex :: (Curvature, Sign)
   --convex = (Convex, )
 
-  ---- a concave function of an expression
+  ---- a concave function of an Rewriter
   --concave :: (Curvature, Sign)
   --concave = (Concave, )
 
-  ---- an affine function of an expression
+  ---- an affine function of an Rewriter
   --affine :: (Curvature, Sign)
   --affine = (Affine, )
 
@@ -197,18 +197,18 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
   ---- different from
   ---- increasing x; positive; increasing y
   
-  --positive :: Expression
+  --positive :: Rewriter
   --positive = do
   --  (count, vexity, sign, prob) <- get
   --  put (count, Affine, Positive, prob)
 
-  --negative :: Expression
+  --negative :: Rewriter
   --negative = do
   --  (count, vexity, sign, prob) <- get
   --  put (count, Affine, Negative, prob)
 
   ---- do i need this?
-  --unknown :: Expression
+  --unknown :: Rewriter
   --unknown = do
   --  (count, vexity, sign, prob) <- get
   --  put (count, Affine, Unknown, prob)
@@ -253,14 +253,14 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
   --propVexity _ _ = Nonconvex
 
 
-  --newVar :: Integer -> State ExpressionState Var
+  --newVar :: Integer -> State RewriterState Var
   --newVar m = do
   --  (count, vexity, sign, prob) <- get
   --  put (count+1, vexity, sign, prob)
   --  return (Var ("t" ++ show count) (m,1))
  
 
-  ---- stuff belongs in Expression.Expression
+  ---- stuff belongs in Rewriter.Rewriter
   --class Paramed a where
 
 

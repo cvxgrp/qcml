@@ -34,12 +34,12 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   module Text.ParserCombinators.Parsec,
   module P) where
   import qualified Expression.Expression as E
-  import qualified Data.Map as M
-  import qualified Data.Set as S
+  import qualified Data.Map as Map(empty, lookup)
+  import qualified Data.Set as Set(empty, member)
   --import qualified CodeGenerator.Common as C(Codegen(..))
-  --import Atoms.Atoms
 
   import Atoms.Atoms
+  import Parser.Utility
   
   import Data.Maybe
   
@@ -49,6 +49,12 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   import Text.ParserCombinators.Parsec.Expr
   
   import qualified Control.Monad.State as St
+
+  -- contains two separate monads: the parser monad and the rewriter monad.
+  -- errors in the parser are *distinct* from errors in the rewriter
+  --   for instance, the string "x+" is a parse error
+  --   but the string "x+y" where x has m rows and y has n rows is a 
+  --   syntax error, which is thrown in the rewriter (with arcane error messages at the moment)
 
   --builtinFunctions =
   --  [("square", atom_square),
@@ -69,23 +75,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --   ("pow_rat", atom_pow_rat),
   --   ("diag", atom_diag)]
 
-  symbolTable = ScoopState M.empty S.empty
-
-  data ScoopState = ScoopState {
-      symbols :: M.Map String E.Symbol, -- vars or parameters
-      dimensions :: S.Set String
-  }
-
-  insertSymbol :: (E.Symbolic a) => a -> ScoopState -> ScoopState
-  insertSymbol x state 
-    = ScoopState newSymbols (dimensions state)
-      where newSymbols = M.insert (E.name x) (E.sym x) (symbols state)
-
-  insertDim :: String -> ScoopState -> ScoopState
-  insertDim s state 
-    = ScoopState (symbols state) newDimensions
-      where newDimensions = S.insert s (dimensions state)
-    
+  symbolTable = ScoopState Map.empty Set.empty
   type ScoopParser a = GenParser Char ScoopState a
 
   lexer :: P.TokenParser ScoopState
@@ -109,42 +99,9 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
-  -- binApply and createStatement can probably be combined... not sure how yet.
-  binApply :: String -> (E.Expr -> E.Expr -> Expression E.Expr) -> Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
-  binApply s f x y = do
-    xsym <- x -- extract symbol
-    ysym <- y -- extract symbol
-    xexp <- express xsym -- extract expression from symbol
-    yexp <- express ysym -- extract expression from symbol
-    result <- f xexp yexp -- apply the function
-    if(isValidArgs [xexp,yexp]) then
-      return (E.ESym result)
-    else
-      fail $ "Binary operation \'" ++ s ++ "\' has incompatible argument sizes." -- doesn't say which arg it is...
-
-  unApply :: String -> (E.Expr -> Expression E.Expr) -> Expression E.Symbol -> Expression E.Symbol
-  unApply s f x = do
-    xsym <- x
-    xexp <- express xsym
-    result <- f xexp
-    if(isValidArgs [xexp]) then
-      return (E.ESym result)
-    else
-      fail $ "Unary operation \'" ++ s ++ "\' has incompatible argument sizes."
 
 
-  -- TODO: this may be duplicate of "binApply"
-  createStatement :: (E.Symbol -> E.Symbol -> Expression ()) -> Expression E.Symbol -> Expression E.Symbol -> Expression ()
-  createStatement f lhs rhs = do {
-    x <- lhs;
-    y <- rhs;
-    if (isValidArgs [x,y]) then
-      f x y
-    else
-      fail "Dimension mismatch."
-  }
-
-  expr :: ScoopParser (Expression E.Symbol)
+  expr :: ScoopParser (Rewriter E.Symbol)
   expr = buildExpressionParser table term
   
 
@@ -154,13 +111,11 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --
   -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
   -- to be a *unary* function parameterized by the first "term"
-  multiply :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  multiply :: Rewriter E.Symbol -> Rewriter E.Symbol -> Rewriter E.Symbol
   multiply p x = do
     xsym <- x
     psym <- p
-    
-    fail "NO MULYTY. LOLLL!!"
-    
+        
     pparam <- parameterize psym -- error message doesn't say which line (noninformative)
     xexp <- express xsym
     result <- primitiveMultiply pparam xexp
@@ -170,16 +125,15 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     else
       fail "MULTIPLY: Dimension mismatch."
 
-    
 
-
-  unaryNegate :: Expression E.Symbol -> Expression E.Symbol
+  unaryNegate :: Rewriter E.Symbol -> Rewriter E.Symbol
   unaryNegate a = unApply "negate" primitiveNegate a
+  -- TODO: -3.2 should not be rewritten as (-t and t == 3.2)
 
-  add :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  add :: Rewriter E.Symbol -> Rewriter E.Symbol -> Rewriter E.Symbol
   add a b = binApply "plus" primitiveAdd a b
           
-  minus :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol  
+  minus :: Rewriter E.Symbol -> Rewriter E.Symbol -> Rewriter E.Symbol  
   minus a b = binApply "minus" primitiveMinus a b
   
   -- constructors to help build the expression table
@@ -228,25 +182,25 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --    x -> return (scoop_concat x (show $ varcount t))
   --}
   
-  variable :: ScoopParser (Expression E.Symbol)
+  variable :: ScoopParser (Rewriter E.Symbol)
   variable = do { 
     s <- identifier;
     t <- getState; 
-    case (M.lookup s (symbols t)) of
+    case (Map.lookup s (symbols t)) of
       Just x -> return (do{ return x })
       _ -> fail $ "expected a variable but got " ++ s 
   } <?> "variable"
   
-  parameter :: ScoopParser (Expression E.Symbol)
+  parameter :: ScoopParser (Rewriter E.Symbol)
   parameter = do { 
     s <- identifier;
     t <- getState;
-    case (M.lookup s (symbols t)) of
+    case (Map.lookup s (symbols t)) of
       Just x -> return (do{ return x })
       _ -> fail $ "expected a parameter but got " ++ s 
   } <?> "parameter"
   
-  constant :: ScoopParser (Expression E.Symbol)
+  constant :: ScoopParser (Rewriter E.Symbol)
   constant = do {
     s <- naturalOrFloat;
     return (do{ return $ E.sym (either fromIntegral id s) })
@@ -265,7 +219,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   } <?> "boolean operator"
     
 
-  constraint :: ScoopParser (Expression ())
+  constraint :: ScoopParser (Rewriter ())
   constraint = do {
     lhs <- expr;
     p <- boolOp;
@@ -313,7 +267,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     }
     <?> "problem sense (maximize or minimize or find)"
   
-  objective :: ScoopParser (Expression ())
+  objective :: ScoopParser (Rewriter ())
   objective = 
     do {
       probSense <- sense;
@@ -337,7 +291,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     do {
       s <- identifier;
       t <- getState;
-      if(S.member s (dimensions t))
+      if(Set.member s (dimensions t))
       then
         return s
       else
@@ -381,7 +335,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       return E.Negative
     } <?> "sign modifier"
 
-  defVariable :: ScoopParser (Expression ())
+  defVariable :: ScoopParser (Rewriter ())
   defVariable = do {
     reserved "variable";
     s <- identifier; 
@@ -394,7 +348,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
   } <?> "variable"
   
-  defParameter :: ScoopParser (Expression ())
+  defParameter :: ScoopParser (Rewriter ())
   defParameter = do {
     reserved "parameter";
     s <- identifier;
@@ -415,7 +369,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   sign_string E.Positive = " positive"
   sign_string E.Negative = " negative"
 
-  defDimension :: ScoopParser (Expression ())
+  defDimension :: ScoopParser (Rewriter ())
   defDimension = do {
     reserved "dimension";
     s <- identifier;
@@ -424,13 +378,13 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     return (addLine $ concat ["dimension ", s])
   } <?> "dimension"
 
-  line :: ScoopParser (Expression ())
+  line :: ScoopParser (Rewriter ())
   line =  defVariable <|> defParameter <|> defDimension <|> constraint
     <?> "a line (variable, parameter, dimension definition, or a constraint)"
 
   -- constraint can be affine equality constraint or norm(x) <= t, norm([x;y;z]) <=t or norm(x,y,z) <= t
 
-  scoop_test :: (Expressive a) => a -> (Expression ())
+  scoop_test :: (Rewriteable a) => a -> (Rewriter ())
   scoop_test x = do
     xt <- express x
     return ()
@@ -438,7 +392,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     -- addLine (E.name xt)
 
 
-  scoop_constant :: Double -> Expression E.Expr
+  scoop_constant :: Double -> Rewriter E.Expr
   scoop_constant x = do
     t <- newVar "1"
 
@@ -449,10 +403,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
     return $ E.Expr t "1" E.Affine E.Unknown
 
-  p1 :: Expression E.Expr
+  p1 :: Rewriter E.Expr
   p1 = scoop_constant 3.0
 
-  p2 :: E.Expr -> Expression E.Expr
+  p2 :: E.Expr -> Rewriter E.Expr
   p2 a = 
     scoop_constant 4.0
 

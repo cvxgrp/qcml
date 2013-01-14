@@ -308,9 +308,16 @@ module Atoms.Atoms(
       (m, n) = (rows x, cols x)
       newVar = Var ("t"++s) (1, 1)
       z0 = Var (name newVar ++ "z0") (m, n)
-      matA = [Row [(Ones m (-1), newVar), (Eye m 1, var x), (Eye m (-1), z0)]]
+      matA = [Row [(Ones m (-1), newVar), (Eye m 1, var x), (Eye m (-1), z0)]] -- x - z0 == t, z0 >= 0
       vecB = [Ones m 0]
       kones = [SOCelem [z0]]
+
+  -- min x =>
+  -- minimize t
+  -- x - z == t*ONES, z >= 0
+  -- min x,y =>
+  -- minimize t
+  -- x - z0 == t, y - z1 == t, z0, z1 >= 0, (t is a vector)
  
   -- sum(x) = x_1 + x_2 + ... + x_n
   scoop_sum :: Expr -> String -> Expr
@@ -323,6 +330,9 @@ module Atoms.Atoms(
       newVar = Var ("t"++s) (1, 1)
       matA = [Row [(Ones 1 (-1), newVar), (OnesT m 1, var x)]]
       vecB = [Ones 1 0]
+
+  -- sum x = 1^T x
+  -- sum x, y = x + y
 
   -- abs(x) = |x|
   scoop_abs :: Expr -> String -> Expr

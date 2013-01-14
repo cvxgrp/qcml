@@ -6,7 +6,7 @@ parameter b(m,n) positive
 variable y(n)
 
 
-x + 3.2*y == -3 + 2
+x + (-3.2)*y == -3 + 2
 #x == x*y
 #x + y == y+4
 #4 + y == 3
