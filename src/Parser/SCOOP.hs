@@ -39,7 +39,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --import qualified CodeGenerator.Common as C(Codegen(..))
   --import Atoms.Atoms
 
-  import Atoms.Common
+  import Atoms.Atoms
   
   import Data.Maybe
   
@@ -72,13 +72,9 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   symbolTable = ScoopState M.empty S.empty
 
   data ScoopState = ScoopState {
-      symbols :: M.Map String E.Symbol,
+      symbols :: M.Map String E.Symbol, -- vars or parameters
       dimensions :: S.Set String
   }
-
-  --incrCount :: ScoopState -> ScoopState
-  --incrCount state
-  --  = ScoopState (symbols state) (dimensions state) (1 + varcount state)
 
   insertSymbol :: (E.Symbolic a) => a -> ScoopState -> ScoopState
   insertSymbol x state 
@@ -113,20 +109,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   natural = P.natural lexer
   naturalOrFloat = P.naturalOrFloat lexer
 
-  expr :: ScoopParser (Expression E.Symbol)
-  expr = buildExpressionParser table term
-  
-  --unaryNegate :: Integer -> E.Expr -> E.Expr
-  --unaryNegate t a = scoop_negate a (show t)
-  
-  -- a significant difference from the paper is that parameters are also
-  -- expressions, so we can multiply two things of the same *type*
-  --
-  -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
-  -- to be a *unary* function parameterized by the first "term"
-  --multiply :: Integer -> E.Expr -> E.Expr -> E.Expr
-  --multiply t a b = scoop_mult a b (show t)
-
+  -- binApply and createStatement can probably be combined... not sure how yet.
   binApply :: String -> (E.Expr -> E.Expr -> Expression E.Expr) -> Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
   binApply s f x y = do
     xsym <- x -- extract symbol
@@ -137,13 +120,66 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     if(isValidArgs [xexp,yexp]) then
       return (E.ESym result)
     else
-      fail $ "binary operation " ++ s ++ " has incompatible argument sizes" -- doesn't say which arg it is...
+      fail $ "Binary operation \'" ++ s ++ "\' has incompatible argument sizes." -- doesn't say which arg it is...
 
-                  
+  unApply :: String -> (E.Expr -> Expression E.Expr) -> Expression E.Symbol -> Expression E.Symbol
+  unApply s f x = do
+    xsym <- x
+    xexp <- express xsym
+    result <- f xexp
+    if(isValidArgs [xexp]) then
+      return (E.ESym result)
+    else
+      fail $ "Unary operation \'" ++ s ++ "\' has incompatible argument sizes."
+
+
+  -- TODO: this may be duplicate of "binApply"
+  createStatement :: (E.Symbol -> E.Symbol -> Expression ()) -> Expression E.Symbol -> Expression E.Symbol -> Expression ()
+  createStatement f lhs rhs = do {
+    x <- lhs;
+    y <- rhs;
+    if (isValidArgs [x,y]) then
+      f x y
+    else
+      fail "Dimension mismatch."
+  }
+
+  expr :: ScoopParser (Expression E.Symbol)
+  expr = buildExpressionParser table term
+  
+
+  
+  -- a significant difference from the paper is that parameters are also
+  -- expressions, so we can multiply two things of the same *type*
+  --
+  -- TODO/XXX: parsec handles the precedence for me, but i can't force multiply
+  -- to be a *unary* function parameterized by the first "term"
+  multiply :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  multiply p x = do
+    xsym <- x
+    psym <- p
+    
+    fail "NO MULYTY. LOLLL!!"
+    
+    pparam <- parameterize psym -- error message doesn't say which line (noninformative)
+    xexp <- express xsym
+    result <- primitiveMultiply pparam xexp
+
+    if(E.cols psym == "1" || E.rows xsym == "1" || E.rows xsym == E.cols psym) then
+      return (E.ESym result)
+    else
+      fail "MULTIPLY: Dimension mismatch."
+
+    
+
+
+  unaryNegate :: Expression E.Symbol -> Expression E.Symbol
+  unaryNegate a = unApply "negate" primitiveNegate a
+
   add :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
   add a b = binApply "plus" primitiveAdd a b
           
-  minus :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol
+  minus :: Expression E.Symbol -> Expression E.Symbol -> Expression E.Symbol  
   minus a b = binApply "minus" primitiveMinus a b
   
   -- constructors to help build the expression table
@@ -161,8 +197,8 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
   table = [ --[postfix '\'' scoop_transpose],
-            --[binary "*" multiply AssocRight],
-            --[prefix "-" unaryNegate],
+            [binary "*" multiply AssocRight],
+            [prefix "-" unaryNegate],
             [binary "+" add AssocLeft, 
              binary "-" minus AssocLeft]] 
   
@@ -174,7 +210,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       <|> variable
       <|> constant
       -- <|> concatenation
-      <?> "simple expressions"
+      <?> "term in expression"
   
   --vertConcatArgs :: ScoopParser [E.Expr]
   --vertConcatArgs = do {
@@ -228,17 +264,6 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     return ">="
   } <?> "boolean operator"
     
-
-  -- TODO: this may be duplicate of "binApply"
-  createStatement :: (E.Symbol -> E.Symbol -> Expression ()) -> Expression E.Symbol -> Expression E.Symbol -> Expression ()
-  createStatement f lhs rhs = do {
-    x <- lhs;
-    y <- rhs;
-    if (isValidArgs [x,y]) then
-      f x y
-    else
-      fail "Dimension mismatch."
-  }
 
   constraint :: ScoopParser (Expression ())
   constraint = do {
@@ -295,7 +320,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       obj <- objFunc probSense;
       optionMaybe (reserved "subject to");
 
-      return $ addLine "# objective and its stuff goes here!"
+      return $ addLine "minimize fakeObj"
       -- cones <- optionMaybe constraints;
       
       -- (we don't check that main objective is scalar)

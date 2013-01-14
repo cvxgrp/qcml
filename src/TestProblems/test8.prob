@@ -5,8 +5,10 @@ variable x
 parameter b(m,n) positive
 variable y(n)
 
-x == 3
-x + y == y+4
+
+x + 3.2*y == -3 + 2
+#x == x*y
+#x + y == y+4
 #4 + y == 3
 
 minimize allThisCrap

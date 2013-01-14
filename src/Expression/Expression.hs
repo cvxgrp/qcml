@@ -65,6 +65,7 @@ module Expression.Expression (
   type Row = String -- alias "Row" to be "String" type
   type Col = String -- alias "Col" to be "String" type
 
+  -- TODO: obviously, i could put Expr and Param in same 
   data Expr = Expr String Row Curvature Sign
 
   data Param = Param String Row Col Sign

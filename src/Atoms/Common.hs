@@ -1,5 +1,5 @@
 module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressive(..),
-  isValidArgs, primitiveAdd, primitiveMinus, scoop_eq, scoop_leq, scoop_geq) where
+  isValidArgs, increasing, decreasing, nonmonotone, (<&>)) where
 
 
   -- the goal of using "monads" to encapsulate my atom definitions is to
@@ -40,9 +40,11 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
   -- allows Expr, Params, Doubles to be turned in to Expressions
   class Expressive a where
     express :: a -> Expression Expr
+    parameterize :: a -> Expression Param
 
   instance Expressive Expr where
     express x = return x
+    parameterize = fail "cannot turn an expression into a paramteter"
   
   instance Expressive Param where
     express (Param x r "1" s) = do
@@ -50,6 +52,8 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
       addLine $ concat [t, " == ", x]
       return (Expr t r Affine s)
     express _ = fail "cannot create matrix variable for matrix parameter"
+
+    parameterize x = return x
 
   instance Expressive Double where
     express x = do
@@ -59,11 +63,24 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
             | otherwise = Negative
       return (Expr t "1" Affine s)
 
+    parameterize x = return $ Param (show x) "1" "1" sign
+      where sign | x >= 0 = Positive
+                 | x < 0 = Negative
+
   instance Expressive Symbol where
-    express (ESym x) = express x
-    express (PSym x) = express x
-    express (CSym x) = express x
-  
+    express (ESym e) = express e
+    express (PSym p) = express p
+    express (CSym c) = express c
+
+    parameterize (ESym e) = parameterize e
+    parameterize (PSym p) = parameterize p
+    parameterize (CSym c) = parameterize c
+
+
+
+  -- Double to Param
+  -- also have Param to Expression
+  -- and have Double to Expression directly
 
   -- generic function that checks argument in arglist
   -- all arguments must have same rows *or* some must be scalar
@@ -81,79 +98,6 @@ module Atoms.Common(Expression, newVar, addLine, getString, initState, Expressiv
     | rows x < rows y = GT
     | rows x > rows y = LT
     | otherwise = EQ
-
-
-  -- BELONGS IN ATOMS!
-  -- all atoms assume the expression sizes have been "checked"
-  primitiveAdd :: Expr -> Expr -> Expression Expr
-  primitiveAdd x y = do
-    let m = max (rows x) (rows y)
-    t <- newVar m
-
-    let v = Affine <&> increasing x <&> increasing y
-    let s = case (sign x, sign y) of
-              (Positive, Positive) -> Positive
-              (Negative, Negative) -> Negative
-              otherwise -> Unknown
-    -- definition of plus
-    addLine $ concat [t, " == ", (name x), " + ", (name y)]
-    return $ Expr t m v s
-
-  primitiveMinus :: Expr -> Expr -> Expression Expr
-  primitiveMinus x y = do
-    let m = max (rows x) (rows y)
-    t <- newVar m
-
-    let v = Affine <&> increasing x <&> decreasing y
-    let s = case (sign x, sign y) of
-              (Positive, Negative) -> Positive
-              (Negative, Positive) -> Negative
-              otherwise -> Unknown
-    -- definition of plus
-    addLine $ concat [t, " == ", (name x), " - ", (name y)]
-    return $ Expr t m v s
-
-  -- "and" and "find" are atom keywords, so we exclude them
-
-  isConvex :: (Symbolic a) => a -> Bool
-  isConvex x
-    | vexity x == Convex = True
-    | vexity x == Affine = True
-    | otherwise = False
-
-  isConcave :: (Symbolic a) => a -> Bool
-  isConcave x
-    | vexity x == Concave = True
-    | vexity x == Affine = True
-    | otherwise = False
-
-  scoop_leq :: Symbol -> Symbol -> Expression ()
-  scoop_leq x y = do
-    let m = max (rows x) (rows y)
-    if(isConvex x && isConcave y) then do
-      slack <- newVar m
-      addLine $ concat [name x, " + ", slack, " == ", name y]
-      addLine $ slack ++ " >= 0"
-    else
-      fail $ "Nonconvex inequality constraint (" ++ show (vexity x) ++ " <= " ++ show (vexity y) ++ ")."
-
-  scoop_geq :: Symbol -> Symbol -> Expression ()
-  scoop_geq x y = do
-    let m = max (rows x) (rows y)
-    if (isConcave y && isConvex x) then do
-      slack <- newVar m
-      addLine $ concat [name x, " - ", slack, " == ", name y]
-      addLine $ slack ++ " >= 0"
-    else
-      fail $ "Nonconvex inequality constraint (" ++ show (vexity x) ++ " >= " ++ show (vexity y) ++ ")."
-
-  -- a == b
-  scoop_eq :: Symbol -> Symbol -> Expression ()
-  scoop_eq x y = do
-    let (v1, v2) = (vexity x, vexity y)
-    case(v1,v2) of
-      (Affine, Affine) -> addLine $ concat [name x, " == ", name y]
-      otherwise -> fail $ "Nonconvex equality constraint (" ++ show v1 ++ " == " ++ show v2 ++ ")."
 
 
 
