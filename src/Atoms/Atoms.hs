@@ -30,12 +30,13 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 --}
 module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMultiply,
-  scoop_eq, scoop_leq, scoop_geq, module Atoms.Common) where
+  scoop_eq, scoop_leq, scoop_geq, 
+  scoop_concat, scoop_transpose, scoop_diag,
+  module Atoms.Common) where
   import Expression.Expression
   import Atoms.Common
+  import Data.List (intercalate)
 
-  -- BELONGS IN ATOMS!
-  -- all atoms assume the Rewriter sizes have been "checked"
   isConvex :: (Symbolic a) => a -> Bool
   isConvex x
     | vexity x == Convex = True
@@ -48,11 +49,12 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
     | vexity x == Affine = True
     | otherwise = False
 
+  -- assumes size / dimension checking will be done at code generation stage
+  -- a "_variable" is a private type for which dimension checking is inferred (done later)
 
   primitiveAdd :: Expr -> Expr -> Rewriter Expr
   primitiveAdd x y = do
-    let m = max (rows x) (rows y)
-    t <- newVar m
+    t <- newVar
 
     let v = Affine <&> increasing x <&> increasing y
     let s = case (sign x, sign y) of
@@ -61,12 +63,11 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
               otherwise -> Unknown
     -- definition of plus
     addLine $ concat [t, " == ", (name x), " + ", (name y)]
-    return $ Expr t m v s
+    return $ Expr t v s
 
   primitiveMinus :: Expr -> Expr -> Rewriter Expr
   primitiveMinus x y = do
-    let m = max (rows x) (rows y)
-    t <- newVar m
+    t <- newVar
 
     let v = Affine <&> increasing x <&> decreasing y
     let s = case (sign x, sign y) of
@@ -75,11 +76,11 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
               otherwise -> Unknown
     -- definition of plus
     addLine $ concat [t, " == ", (name x), " - ", (name y)]
-    return $ Expr t m v s
+    return $ Expr t v s
 
   primitiveNegate :: Expr -> Rewriter Expr
   primitiveNegate x = do
-    t <- newVar (rows x)
+    t <- newVar
 
     let v = Affine <&> decreasing x
     let s = case (sign x) of
@@ -88,11 +89,11 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
               otherwise -> Unknown
 
     addLine $ concat [t, " == -", (name x)]
-    return $ Expr t (rows x) v s
+    return $ Expr t v s
 
   primitiveMultiply :: Param -> Expr -> Rewriter Expr
   primitiveMultiply p x = do
-    t <- newVar (rows p)
+    t <- newVar
 
     let v = case (sign p) of
               Positive -> Affine <&> increasing x
@@ -106,14 +107,13 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
               otherwise -> Unknown
 
     addLine $ concat [t, " == ", (name p), "*", (name x)]
-    return $ Expr t (rows p) v s
+    return $ Expr t v s
 
   -- operations for creating statements
   scoop_leq :: Symbol -> Symbol -> Rewriter ()
   scoop_leq x y = do
-    let m = max (rows x) (rows y)
     if(isConvex x && isConcave y) then do
-      slack <- newVar m
+      slack <- newVar
       addLine $ concat [name x, " + ", slack, " == ", name y]
       addLine $ slack ++ " >= 0"
     else
@@ -121,9 +121,8 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
 
   scoop_geq :: Symbol -> Symbol -> Rewriter ()
   scoop_geq x y = do
-    let m = max (rows x) (rows y)
     if (isConcave y && isConvex x) then do
-      slack <- newVar m
+      slack <- newVar
       addLine $ concat [name x, " - ", slack, " == ", name y]
       addLine $ slack ++ " >= 0"
     else
@@ -166,7 +165,8 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
   -- _variable's are rewriter-created
   -- their dimensions are automatically inferred (during codegen)
 
-{--
+  -- going with alternative 2, introduced "_variable" keyword
+
   -- operations that create Expr
   -- t = [x;y;z; ...]
   --    concatenation will be code generator operation
@@ -176,47 +176,28 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
     let s | all (==Positive) (map sign xs) = Positive
           | all (==Negative) (map sign xs) = Negative
           | otherwise = Unknown
-
-  x s = expression newVar curvature sgn prog
-    where
-      -- starts with Affine vexity
-      -- each argument is Increasing
-      -- fold across entire array using previously determined partial vexity
-      -- result is "global" vexity (of entire vector)
-      curvature = foldr (\y vex -> applyDCP vex Increasing (vexity y)) Affine x
-      sgn
-        | all (==Positive) (map sign x) = Positive
-        | all (==Negative) (map sign x) = Negative
-        | otherwise = Unknown
-      prog = foldr (<++>) (ConicSet matA vecB [])  (map cones x)
-      sizes = map rows x
-      m = foldr (+) 0 sizes -- cumulative sum of all rows
-      newVar = Var ("t"++s) (m,1)
-      coeffs = zip (map (flip Eye 1) sizes) (map var x)
-      matA = [Row ((Eye m (-1), newVar):coeffs) ] -- the *first* of this list *must* be the variable to write *out*, the result of concatenation (otherwise the code will break)
-      vecB = [Ones m 0]
+    t <- newVar
+    addLine $ (t ++ " ==[ " ++ intercalate "; " (map name xs) ++ " ]")
+    return $ Expr t v s
   -- operators on parameters
 
   -- transpose a = a' (new parameter named " a' ")
   -- this works perfectly in Matlab, but care must be taken at
   -- codegen to parse a "tick" as a transposed parameter
-  scoop_transpose :: Expr -> Expr
-  scoop_transpose (None s) = None s
-  scoop_transpose (Parameter p psgn NoMod) = Parameter p psgn Transposed
-  scoop_transpose (Parameter p psgn Transposed) = Parameter p psgn NoMod
-  scoop_transpose (Parameter p psgn Diagonal) = None $ "transpose: can only transpose vectors"
-  scoop_transpose x = None $ "transpose: cannot transpose " ++ (name x) ++ "; can only transpose parameters"
+  scoop_transpose :: Param -> Rewriter Param
+  scoop_transpose x = return $ Param ((name x)++"\'") (sign x)
 
-  -- diag a = diag(a) (new diagonal matrix parameter)
-  scoop_diag :: Expr -> Expr
-  scoop_diag (None s) = None s
-  scoop_diag (Parameter (Param s (m,1)) psgn NoMod) = Parameter (Param s (m,1)) psgn Diagonal
-  scoop_diag (Parameter (Param s (1,m)) psgn Transposed) = Parameter (Param s (1,m)) psgn Diagonal
-  scoop_diag (Parameter p psgn Diagonal) = Parameter p psgn Diagonal -- does nothing
-  scoop_diag x = None $ "diag: cannot diagonalize " ++ (name x) ++ "; can only diagonalize vector parameters"
+  -- diag a = diag(a) (new diagonal matrix parameter), handled at codegen
+  -- TODO: check that Param is indeed a vector param
+  scoop_diag :: Param -> Rewriter Param
+  scoop_diag x = return $ Param ("diag(" ++ name x ++ ")") (sign x)
+
+  -- TODO: atoms!
+  -- TODO: DCP error messages are part of rewriter
+  -- TODO: are type errors a part of rewriter?
 
 
-
+{--
 -- square x = x^2
   scoop_square :: Expr -> String -> Expr
   scoop_square (None s) _ = None s

@@ -5,3 +5,4 @@ parameter a(3,1)
 variable x(n)
 
 minimize sum([a'*x; a'*x])
+

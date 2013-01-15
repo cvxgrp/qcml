@@ -75,7 +75,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --   ("pow_rat", atom_pow_rat),
   --   ("diag", atom_diag)]
 
-  symbolTable = ScoopState Map.empty Set.empty
+  symbolTable = ScoopState Map.empty Map.empty Set.empty
   type ScoopParser a = GenParser Char ScoopState a
 
   lexer :: P.TokenParser ScoopState
@@ -120,21 +120,58 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     xexp <- express xsym
     result <- primitiveMultiply pparam xexp
 
-    if(E.cols psym == "1" || E.rows xsym == "1" || E.rows xsym == E.cols psym) then
-      return (E.ESym result)
-    else
-      fail "MULTIPLY: Dimension mismatch."
+    return (E.ESym result)
 
 
   unaryNegate :: Rewriter E.Symbol -> Rewriter E.Symbol
-  unaryNegate a = unApply "negate" primitiveNegate a
-  -- TODO: -3.2 should not be rewritten as (-t and t == 3.2)
+  unaryNegate a = do
+    sym <- a
+    case(sym) of
+      (E.CSym x) -> return (E.CSym (-x))    -- directly negate constants
+      otherwise -> unApply primitiveNegate a
 
   add :: Rewriter E.Symbol -> Rewriter E.Symbol -> Rewriter E.Symbol
-  add a b = binApply "plus" primitiveAdd a b
+  add a b = binApply primitiveAdd a b
+  -- TODO: leave affine func of (list of) vars, 1 param
           
   minus :: Rewriter E.Symbol -> Rewriter E.Symbol -> Rewriter E.Symbol  
-  minus a b = binApply "minus" primitiveMinus a b
+  minus a b = binApply primitiveMinus a b
+  -- TODO: leave affine func of (list of) vars, 1 param
+
+  transposeFun :: Rewriter E.Symbol -> Rewriter E.Symbol
+  transposeFun a = do
+    sym <- a
+    case (sym) of
+      (E.PSym x) -> do { p <- scoop_transpose x; return (E.PSym p) }
+      (E.CSym x) -> return (E.CSym x) 
+      otherwise -> fail "Unknown transpose error."
+
+  transpose :: ScoopParser (Rewriter E.Symbol)
+  transpose = do {
+    arg <- parameterOrConstant <|> parens parameterOrConstant;
+    ts <- many1 (char '\''); -- gobble as many tick marks as possible
+    whiteSpace;
+    if(length ts `mod` 2 == 0) then -- if even, then it's as if transpose never applied
+      return arg
+    else
+      return (transposeFun arg)
+  } <?> "transpose operator"
+
+  parameterOrConstant = parameter <|> constant 
+    <?> "parameter or constant"
+
+  diag :: ScoopParser (Rewriter E.Symbol)
+  diag = do {
+    reserved "diag";
+    arg <- parens parameterOrConstant;
+    return $ (do {
+      sym <- arg; 
+      case (sym) of
+        (E.PSym x) -> do { p <- scoop_diag x; return (E.PSym p) }
+        (E.CSym x) -> do { px <- parameterize x; p <- scoop_diag px; return (E.PSym p) }
+        otherwise -> fail "Unknown diagonalization error."
+    })
+  } <?> "diag operator"
   
   -- constructors to help build the expression table
   binary name fun assoc 
@@ -150,7 +187,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     = Postfix (do { char name; whiteSpace; return fun })  
   
   -- XXX: precedence ordering is *mathematical* precedence (not C-style)
-  table = [ --[postfix '\'' scoop_transpose],
+  table = [ -- [postfix '\'' transpose],
             [binary "*" multiply AssocRight],
             [prefix "-" unaryNegate],
             [binary "+" add AssocLeft, 
@@ -158,52 +195,51 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   
   -- a term is made up of "(expr)", functions thereof, parameters, or 
   -- variables
-  term = parens expr
+  term = try transpose
+      <|> diag
+      <|> parens expr
       -- <|> choice (map snd builtinFunctions)
-      <|> parameter
-      <|> variable
-      <|> constant
-      -- <|> concatenation
+      <|> try variable
+      <|> parameterOrConstant
+      <|> concatenation
       <?> "term in expression"
   
-  --vertConcatArgs :: ScoopParser [E.Expr]
-  --vertConcatArgs = do {
-  --  sepBy expr semi
-  --}
+  vertConcatArgs :: ScoopParser [Rewriter E.Symbol]
+  vertConcatArgs = do {
+    sepBy expr semi
+  }
   
-  --concatenation :: ScoopParser E.Expr
-  --concatenation = do { 
-  --  args <- brackets vertConcatArgs;
-  --  t <- getState; 
-  --  updateState incrCount; 
-  --  case (args) of
-  --    [] -> fail "Attempted to concatenate empty expressions"
-  --    [x] -> return x
-  --    x -> return (scoop_concat x (show $ varcount t))
-  --}
+  concatenation :: ScoopParser (Rewriter E.Symbol)
+  concatenation = do { 
+    args <- brackets vertConcatArgs;
+    case (args) of
+      [] -> fail "Attempted to concatenate empty expressions"
+      [x] -> return x
+      x -> return (listApply scoop_concat x)
+  }
   
   variable :: ScoopParser (Rewriter E.Symbol)
   variable = do { 
     s <- identifier;
     t <- getState; 
-    case (Map.lookup s (symbols t)) of
-      Just x -> return (do{ return x })
-      _ -> fail $ "expected a variable but got " ++ s 
+    case (Map.lookup s (variables t)) of
+      Just x -> return (do{ return (E.ESym x) })
+      _ -> fail $ ">> Expected a variable but got \'" ++ s ++ "\' instead."
   } <?> "variable"
   
   parameter :: ScoopParser (Rewriter E.Symbol)
   parameter = do { 
     s <- identifier;
     t <- getState;
-    case (Map.lookup s (symbols t)) of
-      Just x -> return (do{ return x })
-      _ -> fail $ "expected a parameter but got " ++ s 
+    case (Map.lookup s (parameters t)) of
+      Just x -> return (do{ return (E.PSym x) })
+      _ -> fail $ ">> Expected a parameter but got \'" ++ s  ++ "\' instead."
   } <?> "parameter"
   
   constant :: ScoopParser (Rewriter E.Symbol)
   constant = do {
     s <- naturalOrFloat;
-    return (do{ return $ E.sym (either fromIntegral id s) })
+    return (do{ return $ E.CSym (either fromIntegral id s) })
   } <?> "constant"
              
   boolOp :: ScoopParser String
@@ -217,20 +253,39 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     reserved ">=";
     return ">="
   } <?> "boolean operator"
+
+  zero :: ScoopParser ()
+  zero = try (string "0.0" >> whiteSpace) <|> (string "0" >> whiteSpace)
+
+  lpCone :: ScoopParser (Rewriter ())
+  lpCone = do {
+    t <- variable;
+    reserved ">=";
+    zero;
+
+    return (do { v <- t; addLine $ (E.name v) ++ " >= 0"})
+  } <|> do {
+    zero;
+    reserved "<=";
+    t <- variable;
+
+    return (do { v <- t; addLine $ (E.name v) ++ " >= 0"})
+  }
+  -- TODO: add norm cones to these
     
-
   constraint :: ScoopParser (Rewriter ())
-  constraint = do {
-    lhs <- expr;
-    p <- boolOp;
-    rhs <- expr;
+  constraint = try lpCone <|>
+    do {
+      lhs <- expr;
+      p <- boolOp;
+      rhs <- expr;
 
-    case (p) of
-      "==" -> return $ createStatement scoop_eq lhs rhs
-      "<=" -> return $ createStatement scoop_leq lhs rhs
-      ">=" -> return $ createStatement scoop_geq lhs rhs
+      case (p) of
+        "==" -> return $ boolApply scoop_eq lhs rhs
+        "<=" -> return $ boolApply scoop_leq lhs rhs
+        ">=" -> return $ boolApply scoop_geq lhs rhs
 
-  } <?> "constraint"
+    } <?> "constraint"
   
   --constraints :: ScoopParser [E.ConicSet]
   --constraints = do { 
@@ -342,7 +397,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     size <- optionMaybe shape;
     let (m,n) = (fromMaybe ("1","1") size)
     in if (n == "1") then do
-      updateState (insertSymbol (E.Expr s m E.Affine E.Unknown))
+      updateState (insertVariable (E.Expr s E.Affine E.Unknown))
       return (addLine $ concat ["variable ", s, "(", m, ")"])
     else
       fail $ "only vector variables are allowed. you attempted to create a matrix variable."
@@ -356,11 +411,11 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     sign <- optionMaybe modifier;
     let (m,n) = fromMaybe ("1","1") size
         p = case (sign) of
-          Just E.Positive -> E.Param s m n E.Positive
-          Just E.Negative -> E.Param s m n E.Negative
-          _ -> E.Param s m n E.Unknown
+          Just E.Positive -> E.Param s E.Positive
+          Just E.Negative -> E.Param s E.Negative
+          _ -> E.Param s E.Unknown
     in do
-      updateState (insertSymbol p)
+      updateState (insertParameter p)
       return (addLine $ concat ["parameter ", s, "(", m, ",", n, ")", sign_string $ fromMaybe E.Unknown sign]) 
   } <?> "parameter"
 
@@ -394,14 +449,14 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
   scoop_constant :: Double -> Rewriter E.Expr
   scoop_constant x = do
-    t <- newVar "1"
+    t <- newVar
 
     addLine $ concat [t, " == ", show x]
     --find t
     --subjectTo
     --(Ones 1 1) .* t .== Ones 1 x
 
-    return $ E.Expr t "1" E.Affine E.Unknown
+    return $ E.Expr t E.Affine E.Unknown
 
   p1 :: Rewriter E.Expr
   p1 = scoop_constant 3.0

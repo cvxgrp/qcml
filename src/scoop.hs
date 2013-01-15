@@ -2,6 +2,7 @@ module Main where
   import System.Console.GetOpt
   --import Data.Char
   import Data.List(elemIndices)
+  import Data.Time(getCurrentTime)
   import System.IO
   import System.Environment(getArgs)
   --import Control.Monad
@@ -81,6 +82,9 @@ module Main where
             logStrLn verb "Rewriting problem ...";
             logStrLn verb "";
 
+            now <- getCurrentTime;
+
+            putStrLn $ "# SCOOP IR, rewritten at: " ++ (show now);
             putStr x;
 
             -- logStrLn verb "";

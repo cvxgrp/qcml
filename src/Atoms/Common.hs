@@ -1,5 +1,5 @@
 module Atoms.Common(Rewriter, newVar, addLine, getString, initState, Rewriteable(..),
-  isValidArgs, increasing, decreasing, nonmonotone, (<&>)) where
+  increasing, decreasing, nonmonotone, (<&>), RewriterState) where
 
 
   -- the goal of using "monads" to encapsulate my atom definitions is to
@@ -17,15 +17,18 @@ module Atoms.Common(Rewriter, newVar, addLine, getString, initState, Rewriteable
 
   -- An "Rewriter" is a monad that carries a state (RewriterState) and contains
   -- an Expr object. A "Statement" contains nothing upon "return".
+
+  -- a "Rewriter" fails when DCP rule is violated
+
   --type Rewriter = State RewriterState Expr
   --type Statement = State RewriterState ()
-  type Rewriter = State RewriterState
+  type Rewriter a = State RewriterState a
 
-  newVar :: String -> Rewriter String
-  newVar m = do
+  newVar :: Rewriter String
+  newVar = do
     (c, prob) <- get
     let v = "t" ++ show c
-    put (c+1, prob ++ ["variable " ++ v ++ "(" ++ m ++ ")"])
+    put (c+1, prob ++ ["_variable " ++ v])
     return v
 
   addLine :: String -> Rewriter ()
@@ -47,23 +50,23 @@ module Atoms.Common(Rewriter, newVar, addLine, getString, initState, Rewriteable
     parameterize = fail "cannot turn an expression into a paramteter"
   
   instance Rewriteable Param where
-    express (Param x r "1" s) = do
-      t <- newVar r
+    express (Param x s) = do
+      t <- newVar
       addLine $ concat [t, " == ", x]
-      return (Expr t r Affine s)
-    express _ = fail "cannot create matrix variable for matrix parameter"
+      return (Expr t Affine s)
+    -- TODO: express _ = fail "cannot create matrix variable for matrix parameter"
 
     parameterize x = return x
 
   instance Rewriteable Double where
     express x = do
-      t <- newVar "1"
+      t <- newVar
       addLine $ concat [t, " == ", show x]
       let s | x >= 0 = Positive
             | otherwise = Negative
-      return (Expr t "1" Affine s)
+      return (Expr t Affine s)
 
-    parameterize x = return $ Param (show x) "1" "1" sign
+    parameterize x = return $ Param (show x) sign
       where sign | x >= 0 = Positive
                  | x < 0 = Negative
 
@@ -87,17 +90,18 @@ module Atoms.Common(Rewriter, newVar, addLine, getString, initState, Rewriteable
   --
   --   although dimensions are abstract, assumes that differently named dimensions
   --   are going to have different numeric values
-  isValidArgs :: Symbolic a => [a] -> Bool
-  isValidArgs exprs = all checkFun (tail sortedExprs)
-    where sortedExprs = sortBy rowOrdering exprs -- have to sort in case scalars are first argument
-          checkFun = (\x -> x==m || x=="1").rows
-          m = rows (head sortedExprs)
 
-  rowOrdering :: Symbolic a => a -> a -> Ordering
-  rowOrdering x y
-    | rows x < rows y = GT
-    | rows x > rows y = LT
-    | otherwise = EQ
+  --isValidArgs :: Symbolic a => [a] -> Bool
+  --isValidArgs exprs = all checkFun (tail sortedExprs)
+  --  where sortedExprs = sortBy rowOrdering exprs -- have to sort in case scalars are first argument
+  --        checkFun = (\x -> x==m || x=="1").rows
+  --        m = rows (head sortedExprs)
+
+  --rowOrdering :: Symbolic a => a -> a -> Ordering
+  --rowOrdering x y
+  --  | rows x < rows y = GT
+  --  | rows x > rows y = LT
+  --  | otherwise = EQ
 
 
 

@@ -3,10 +3,23 @@ dimension n
 
 variable x
 parameter b(m,n) positive
+parameter f(n)
+parameter d positive
 variable y(n)
 
+[b';y] + x == 2.3
+[x;y] + b == -2.3
+#(b)'*x + 3.2 == y
+#x + y == 0
 
-x + (-3.2)*y == -3 + 2
+#d*3 == 2
+diag(f)*x == 3
+diag(3.2)*y == 5
+#x >= 0
+#0 <= y
+
+#3.2'+x + y == 0
+#x + (-3.2)*y == -3 + 2
 #x == x*y
 #x + y == y+4
 #4 + y == 3
