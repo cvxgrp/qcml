@@ -7,6 +7,8 @@ parameter f(n)
 parameter d positive
 variable y(n)
 
+d*square(x) >= 4
+
 [b';y] + x == 2.3
 [x;y] + b == -2.3
 #(b)'*x + 3.2 == y

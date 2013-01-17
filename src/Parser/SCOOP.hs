@@ -74,6 +74,15 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --   ("geo_mean", atom_geo_mean),
   --   ("pow_rat", atom_pow_rat),
   --   ("diag", atom_diag)]
+  
+  builtinFunctions =
+    [("square", unaryFunction "square" scoop_square),
+     ("quad_over_lin", binaryFunction "quad_over_lin" scoop_quad_over_lin),
+     ("inv_pos", unaryFunction "inv_pos" scoop_inv_pos),
+     ("pos", unaryFunction "pos" scoop_pos),
+     ("neg", unaryFunction "neg" scoop_neg),
+     ("max", unaryFunction "max" scoop_max),
+     ("min", unaryFunction "min" scoop_min)]
 
   symbolTable = ScoopState Map.empty Map.empty Set.empty
   type ScoopParser a = GenParser Char ScoopState a
@@ -83,8 +92,8 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       commentLine = "#",
       identStart = letter <|> char '_',
       identLetter = alphaNum <|> char '_',
-      reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "dimension", "nonnegative", "nonpositive", "positive", "negative"],
-        -- ++ (map fst builtinFunctions),
+      reservedNames = ["minimize", "maximize", "subject to", "parameter", "variable", "dimension", "nonnegative", "nonpositive", "positive", "negative"]
+        ++ (map fst builtinFunctions),
       reservedOpNames = ["*", "+", "-", "'", "=", "==", "<=", ">="]
     })
   
@@ -103,6 +112,14 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
   expr :: ScoopParser (Rewriter E.Symbol)
   expr = buildExpressionParser table term
+  -- do 
+  --   e <- buildExpressionParser table term
+  --   return (do { 
+  --     sym <- e;
+  --     if(E.vexity sym == E.Nonconvex) then 
+  --       fail "Nonconvex expression"; 
+  --     else 
+  --       return sym; })
   
 
   
@@ -198,7 +215,7 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   term = try transpose
       <|> diag
       <|> parens expr
-      -- <|> choice (map snd builtinFunctions)
+      <|> choice (map snd builtinFunctions)
       <|> try variable
       <|> parameterOrConstant
       <|> concatenation
@@ -503,6 +520,22 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
 
 
 {-- atom parsers --}
+  unaryFunction :: String -> (E.Expr -> Rewriter E.Expr) -> ScoopParser (Rewriter E.Symbol)
+  unaryFunction s f = do {
+    reserved s;
+    arg <- parens expr;
+    return $ unApply f arg
+  }
+  
+  binaryFunction :: String -> (E.Expr -> E.Expr -> Rewriter E.Expr) -> ScoopParser (Rewriter E.Symbol)
+  binaryFunction s f = do {
+    reserved s;
+    args <- parens (sepBy expr comma);
+    if (length args /= 2) then
+      fail $ s ++ ": number of arguments do not agree"
+    else
+      return $ binApply f (args!!0) (args!!1)
+  }
   --args :: String -> Int -> ScoopParser [E.Expr]
   --args s n = do {
   --  arguments <- sepBy expr comma;
