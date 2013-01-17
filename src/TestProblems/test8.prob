@@ -7,7 +7,7 @@ parameter f(n)
 parameter d positive
 variable y(n)
 
-d*square(x) >= 4
+d*square(x) <= 4
 
 [b';y] + x == 2.3
 [x;y] + b == -2.3
@@ -26,7 +26,6 @@ diag(3.2)*y == 5
 #x + y == y+4
 #4 + y == 3
 
-minimize allThisCrap
-subject to
+minimize square(x)
 
 variable c

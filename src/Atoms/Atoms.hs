@@ -34,6 +34,8 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
   scoop_concat, scoop_transpose, scoop_diag,
   scoop_square, scoop_quad_over_lin, scoop_inv_pos, scoop_pos, scoop_neg,
   scoop_max, scoop_min,
+  scoop_sum, scoop_abs, scoop_norm, scoop_norm1, scoop_norm_inf,
+  scoop_sqrt, scoop_geo_mean,
   module Atoms.Common) where
   import Expression.Expression
   import Atoms.Common
@@ -239,7 +241,7 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
       
 
   -- inv_pos(x) = 1/x for x >= 0
-  scoop_inv_pos :: Expr -> Rewriter Expression
+  scoop_inv_pos :: Expr -> Rewriter Expr
   scoop_inv_pos x = do
     let v = Convex <&> decreasing x
     
@@ -310,8 +312,6 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
     
     return $ Expr t v (sign x)
     
-
-{--
   -- min x =>
   -- minimize t
   -- x - z == t*ONES, z >= 0
@@ -320,100 +320,123 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
   -- x - z0 == t, y - z1 == t, z0, z1 >= 0, (t is a vector)
  
   -- sum(x) = x_1 + x_2 + ... + x_n
-  scoop_sum :: Expr -> String -> Expr
-  scoop_sum (None s) _ = None s
-  scoop_sum x s = expression newVar curvature (sign x) prog
-    where      
-      curvature = applyDCP Affine Increasing (vexity x)
-      prog = (ConicSet matA vecB []) <++> (cones x)
-      m = rows x
-      newVar = Var ("t"++s) (1, 1)
-      matA = [Row [(Ones 1 (-1), newVar), (OnesT m 1, var x)]]
-      vecB = [Ones 1 0]
+  scoop_sum :: Expr -> Rewriter Expr
+  scoop_sum x = do
+    let v = Affine <&> increasing x
+    t <- newVar
+    
+    addLine $ concat ["ones'*", (name x), " - ", t, " == 0"]
+    
+    return $ Expr t v (sign x)
 
   -- sum x = 1^T x
   -- sum x, y = x + y
 
   -- abs(x) = |x|
-  scoop_abs :: Expr -> String -> Expr
-  scoop_abs (None s) _ = None s
-  scoop_abs x s = expression newVar curvature Positive prog
-    where
-      curvature = applyDCP Convex monotonicity (vexity x)
-      monotonicity = case (sign x) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-      prog = (ConicSet [] [] kones) <++> (cones x)
-      (m,n) = (rows x, cols x)
-      newVar = Var ("t"++s) (m, n)
-      kones = [SOCelem [newVar, var x]]
+  scoop_abs :: Expr -> Rewriter Expr
+  scoop_abs x = do
+    let v = case (sign x) of 
+              Positive -> Convex <&> increasing x
+              Negative -> Convex <&> decreasing x
+              otherwise -> Convex <&> nonmonotone x
+    
+    t <- newVar
+    
+    addLine $ concat ["norm(", name x, ") <= ", t, " # this is elementwise..."]
+    
+    return $ Expr t v Positive
+     
+    -- expression newVar curvature Positive prog
+    -- where
+    --   curvature = applyDCP Convex monotonicity (vexity x)
+    --   monotonicity = case (sign x) of
+    --     Positive -> Increasing
+    --     Negative -> Decreasing
+    --     otherwise -> Nonmonotone
+    --   prog = (ConicSet [] [] kones) <++> (cones x)
+    --   (m,n) = (rows x, cols x)
+    --   newVar = Var ("t"++s) (m, n)
+    --   kones = [SOCelem [newVar, var x]]
 
 
   -- norm(x) = ||x||_2
-  scoop_norm :: Expr -> String -> Expr
-  scoop_norm (None s) _ = None s
-  scoop_norm x s = expression newVar curvature Positive prog
-    where
-      curvature = applyDCP Convex monotonicity (vexity x)
-      monotonicity = case (sign x) of
-        Positive -> Increasing
-        Negative -> Decreasing
-        otherwise -> Nonmonotone
-      prog = (ConicSet [] [] kones) <++> (cones x)
-      newVar = Var ("t"++s) (1, 1)
-      kones = [SOC [newVar, var x]]
+  scoop_norm :: Expr -> Rewriter Expr
+  scoop_norm x = do
+    let v = case (sign x) of 
+              Positive -> Convex <&> increasing x
+              Negative -> Convex <&> decreasing x
+              otherwise -> Convex <&> nonmonotone x
+      
+    t <- newVar
+    
+    addLine $ concat ["norm(", name x, ") <= ", t]
+    
+    return $ Expr t v Positive
 
   -- norm_inf(x) = ||x||_\infty
-  scoop_norm_inf x s = scoop_max (scoop_abs x (s++"s0")) s
+  scoop_norm_inf x = do
+    t <- scoop_abs x
+    scoop_max t
 
   -- norm1(x) = ||x||_1
-  scoop_norm1 x s = scoop_sum (scoop_abs x (s++"s0")) s
+  scoop_norm1 x = do
+    t <- scoop_abs x
+    scoop_sum t
 
   -- sqrt(x) = geo_mean(x,1)
-  scoop_sqrt :: Expr -> String -> Expr
-  scoop_sqrt (None s) _ = None s
-  scoop_sqrt x s = expression newVar curvature Positive prog
-    where
-      curvature = applyDCP Concave Increasing (vexity x)
-      prog = (ConicSet matA vecB kones) <++> (cones x)
-      (m,n) = (rows x, cols x)
-      newVar = Var ("t"++s) (m,n)
-      z0 = Var (name newVar ++ "z0") (m,n)
-      z1 = Var (name newVar ++ "z1") (m,n)
-      matA = [Row [(Eye m 0.5, var x), (Eye m (-1), z0)],
-              Row [(Eye m (-0.5), var x), (Eye m (-1), z1)]]
-      vecB = [Ones m (-0.5), Ones m (-0.5)]
-      kones = [SOCelem [z0,z1,newVar]]
+  scoop_sqrt :: Expr -> Rewriter Expr
+  scoop_sqrt x = do
+    let v = Concave <&> increasing x
+    t <- newVar
+    z0 <- newVar
+    z1 <- newVar
+    
+    addLine $ concat ["0.5*", name x, " - ", z0, " == -0.5"]
+    addLine $ concat ["-0.5*", name x, " - ", z1, " == -0.5"]
+    addLine $ concat ["norm(", z0, ", ", z1, ") <= ", t]
+
+    return $ Expr t v Positive
       
   -- geo_mean(x,y) = sqrt(x*y)
-  scoop_geo_mean :: Expr -> Expr -> String -> Expr
-  scoop_geo_mean (None s) _ _ = None s
-  scoop_geo_mean _ (None s) _ = None s
-  scoop_geo_mean x y s
-    | isVector x && isVector y && compatible = expression newVar curvature Positive prog
-    | otherwise = none $ "geo_mean: " ++ (name x) ++ " and " ++ (name y) ++ " are not of compatible dimensions"
-    where
-      curvature = applyDCP c1 Increasing (vexity y)
-      c1 = applyDCP Concave Increasing (vexity x)
-      compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
-      prog = (ConicSet matA vecB kones) <++> (cones x) <++> (cones y)
-      (m,n) 
-        | isScalar x = (rows y, cols y)
-        | otherwise = (rows x, cols x)
-      newVar = Var ("t"++s) (m,n)
-      z0 = Var (name newVar ++ "z0") (m,n)
-      z1 = Var (name newVar ++ "z1") (m,n)
-      matA
-        | isScalar x = [Row [(Ones m 0.5, var x), (Eye m 0.5, var y), (Eye m (-1), z0)],
-                        Row [(Ones m (-0.5), var x), (Eye m 0.5, var y), (Eye m (-1), z1)]]
-        | isScalar y = [Row [(Eye m 0.5, var x), (Ones m 0.5, var y), (Eye m (-1), z0)],
-                        Row [(Eye m (-0.5), var x), (Ones m 0.5, var y), (Eye m (-1), z1)]]
-        | otherwise = [Row [(Eye m 0.5, var x), (Eye m 0.5, var y), (Eye m (-1), z0)],
-                       Row [(Eye m (-0.5), var x), (Eye m 0.5, var y), (Eye m (-1), z1)]]
-      vecB = [Ones m 0, Ones m 0]
-      kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
+  scoop_geo_mean :: Expr -> Expr -> Rewriter Expr
+  scoop_geo_mean x y = do
+    let v = Concave <&> increasing x <&> increasing y
+    
+    t <- newVar
+    z0 <- newVar
+    z1 <- newVar
+    
+    addLine $ concat ["0.5*", name x, " + 0.5*", name y, " - ", z0, " == 0"]
+    addLine $ concat ["-0.5*", name x, " + 0.5*", name y, " - ", z1, " == 0"]
+    addLine $ concat ["norm(", z0, ", ", z1, ") <= ", t]
+    addLine $ (name y) ++ " <= 0"
+    
+    return $ Expr t v Positive
+    
+    -- | isVector x && isVector y && compatible = expression newVar curvature Positive prog
+    -- | otherwise = none $ "geo_mean: " ++ (name x) ++ " and " ++ (name y) ++ " are not of compatible dimensions"
+    -- where
+    --   curvature = applyDCP c1 Increasing (vexity y)
+    --   c1 = applyDCP Concave Increasing (vexity x)
+    --   compatible = (cols x == cols y) || (cols x == 1) || (cols y == 1) 
+    --   prog = (ConicSet matA vecB kones) <++> (cones x) <++> (cones y)
+    --   (m,n) 
+    --     | isScalar x = (rows y, cols y)
+    --     | otherwise = (rows x, cols x)
+    --   newVar = Var ("t"++s) (m,n)
+    --   z0 = Var (name newVar ++ "z0") (m,n)
+    --   z1 = Var (name newVar ++ "z1") (m,n)
+    --   matA
+    --     | isScalar x = [Row [(Ones m 0.5, var x), (Eye m 0.5, var y), (Eye m (-1), z0)],
+    --                     Row [(Ones m (-0.5), var x), (Eye m 0.5, var y), (Eye m (-1), z1)]]
+    --     | isScalar y = [Row [(Eye m 0.5, var x), (Ones m 0.5, var y), (Eye m (-1), z0)],
+    --                     Row [(Eye m (-0.5), var x), (Ones m 0.5, var y), (Eye m (-1), z1)]]
+    --     | otherwise = [Row [(Eye m 0.5, var x), (Eye m 0.5, var y), (Eye m (-1), z0)],
+    --                    Row [(Eye m (-0.5), var x), (Eye m 0.5, var y), (Eye m (-1), z1)]]
+    --   vecB = [Ones m 0, Ones m 0]
+    --   kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
 
+{--
   -- pow_rat (x, p,q) = x^(p/q) for q <= p <= 4
   scoop_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
   scoop_pow_rat x 4 3 s = result -- also tacks on constraint that x >= 0

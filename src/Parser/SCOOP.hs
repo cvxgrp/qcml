@@ -82,7 +82,15 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
      ("pos", unaryFunction "pos" scoop_pos),
      ("neg", unaryFunction "neg" scoop_neg),
      ("max", unaryFunction "max" scoop_max),
-     ("min", unaryFunction "min" scoop_min)]
+     ("min", unaryFunction "min" scoop_min),
+     ("sum", unaryFunction "sum" scoop_sum),
+     ("abs", unaryFunction "abs" scoop_abs),
+     ("norm2", unaryFunction "norm2" scoop_norm),
+     ("norm", unaryFunction "norm" scoop_norm),
+     ("norm_inf", unaryFunction "norm_inf" scoop_norm_inf),
+     ("norm1", unaryFunction "norm1" scoop_norm1),
+     ("sqrt", unaryFunction "sqrt" scoop_sqrt),
+     ("geo_mean", binaryFunction "geo_mean" scoop_geo_mean)]
 
   symbolTable = ScoopState Map.empty Map.empty Set.empty
   type ScoopParser a = GenParser Char ScoopState a
@@ -311,10 +319,18 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
   --  return result 
   --} <?> "constraints"
   
-  objFunc :: E.Curvature -> ScoopParser String --E.Expr
+  objFunc :: E.Curvature -> ScoopParser (Rewriter E.Symbol) --E.Expr
   objFunc v = do {
-    obj <- identifier; -- expr;
-    return obj
+    obj <- expr;
+    return (do {
+      sym <- obj;
+      case (E.vexity sym, v) of
+         (E.Affine, _) -> return sym
+         (_,E.Affine) -> return sym -- or 0?
+         (E.Convex, E.Convex) -> return sym
+         (E.Concave, E.Concave) -> return sym
+         _ -> fail $ (show (E.vexity sym) ++ " objective does not agree with sense: " ++ show v)
+    })
     --case(E.vexity obj, v) of
     --  (E.Affine, _) -> return obj
     --  (_,E.Affine) -> return obj -- or 0?
@@ -346,7 +362,10 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
       obj <- objFunc probSense;
       optionMaybe (reserved "subject to");
 
-      return $ addLine "minimize fakeObj"
+      case (probSense) of
+        E.Convex -> return (do { sym <- obj; addLine ("minimize " ++ E.name sym); })
+        E.Concave -> return (do { sym <- obj; addLine ("maximize " ++ E.name sym); })
+        E.Affine -> return (do { sym <- obj; addLine ("find 0"); })
       -- cones <- optionMaybe constraints;
       
       -- (we don't check that main objective is scalar)
