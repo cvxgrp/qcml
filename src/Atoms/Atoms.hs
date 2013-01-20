@@ -36,6 +36,7 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
   scoop_max, scoop_min,
   scoop_sum, scoop_abs, scoop_norm, scoop_norm1, scoop_norm_inf,
   scoop_sqrt, scoop_geo_mean,
+  scoop_pow_rat,
   module Atoms.Common) where
   import Expression.Expression
   import Atoms.Common
@@ -436,41 +437,65 @@ module Atoms.Atoms(primitiveAdd, primitiveMinus, primitiveNegate, primitiveMulti
     --   vecB = [Ones m 0, Ones m 0]
     --   kones = [SOCelem [z0, z1, newVar], SOCelem [var y]]
 
-{--
+
   -- pow_rat (x, p,q) = x^(p/q) for q <= p <= 4
-  scoop_pow_rat :: Expr -> Integer -> Integer -> String -> Expr
-  scoop_pow_rat x 4 3 s = result -- also tacks on constraint that x >= 0
-    where curvature = applyDCP Convex Increasing (vexity x)
-          newVar = Var ("t"++s) (rows x, cols x)
-          result = case (scoop_geq (scoop_pow_rat (Variable newVar) 3 4 (s++"s0")) x (s++"s1")) of
-            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
-            Nothing -> none $ "unknown x^(4/3) error?"
-  scoop_pow_rat x 4 2 s = scoop_square x s
-  scoop_pow_rat x 4 1 s = scoop_square (scoop_square x s) (s++"s0")
-  scoop_pow_rat x 3 2 s = scoop_quad_over_lin x (scoop_sqrt x s) (s++"s0")
-  scoop_pow_rat x 3 1 s = scoop_quad_over_lin (scoop_square x s) x (s++"s0")
-  scoop_pow_rat x 2 1 s = scoop_square x s
-  scoop_pow_rat x 1 2 s = scoop_sqrt x s
-  scoop_pow_rat x 1 3 s = result
-    where curvature = applyDCP Concave Increasing (vexity x)
-          newVar = Var ("t"++s) (rows x, cols x)
-          result = case (scoop_leq (scoop_pow_rat (Variable newVar) 3 1 (s++"s0")) x (s++"s1")) of
-            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
-            Nothing -> none $ "unknown x^(1/3) error?"
-  scoop_pow_rat x 2 3 s = result
-    where curvature = applyDCP Concave Increasing (vexity x)
-          newVar = Var ("t"++s) (rows x, cols x)
-          result = case (scoop_leq (scoop_pow_rat (Variable newVar) 3 2 (s++"s0")) x (s++"s1")) of
-            Just kone -> expression newVar curvature Positive (kone <++> (ConicSet [] [] [SOCelem [var x]]))
-            Nothing -> none $ "unknown x^(2/3) error?"
-  scoop_pow_rat x 1 4 s = scoop_sqrt (scoop_sqrt x s) (s++"s0")
-  scoop_pow_rat x 2 4 s = scoop_sqrt x s
-  scoop_pow_rat x 3 4 s = scoop_geo_mean x (scoop_sqrt x s) (s++"s0")
-  scoop_pow_rat x p q _ 
-    | p == q = x
-    | otherwise = None $ "pow_rat: not implemented for p = " ++ show p ++ " and q = " ++ show q
+  scoop_pow_rat :: Expr -> Integer -> Integer -> Rewriter Expr
+  scoop_pow_rat x 4 3 = do
+    let v = Convex <&> increasing x
+    
+    t <- newVar
+    let y = Expr t v Positive
+    e <- scoop_pow_rat y 3 4
+    addLine $ concat [name x, " >= 0"]
+    addLine $ concat [name e, " - ", name x, " >= 0"]
+    
+    return y
+  scoop_pow_rat x 4 2 = scoop_square x
+  scoop_pow_rat x 4 1 = do
+    e <- scoop_square x
+    scoop_square e
+  scoop_pow_rat x 3 2 = do
+    e <- scoop_sqrt x
+    scoop_quad_over_lin x e
+  scoop_pow_rat x 3 1 = do
+    e <- scoop_square x
+    scoop_quad_over_lin e x
+  scoop_pow_rat x 2 1 = scoop_square x
+  scoop_pow_rat x 1 2 = scoop_sqrt x
+  scoop_pow_rat x 1 3 = do
+    let v = Concave <&> increasing x
+    
+    t <- newVar
+    let y = Expr t v Positive
+    e <- scoop_pow_rat y 3 1
+    addLine $ concat [name x, " >= 0"]
+    addLine $ concat [name x, " - ", name e, " >= 0"]
+    
+    return y
+
+  scoop_pow_rat x 2 3 = do
+    let v = Concave <&> increasing x
+    
+    t <- newVar
+    let y = Expr t v Positive
+    
+    e <- scoop_pow_rat y 3 2
+    addLine $ concat [name x, " >= 0"]
+    addLine $ concat [name x, " - ", name e, " >= 0"]
+    
+    return y
+  scoop_pow_rat x 1 4 = do
+    e <- scoop_sqrt x
+    scoop_sqrt e
+  scoop_pow_rat x 2 4 = scoop_sqrt x
+  scoop_pow_rat x 3 4 = do
+    e <- scoop_sqrt x
+    scoop_geo_mean x e
+  scoop_pow_rat x p q
+    | p == q = return x
+    | otherwise = fail $ "pow_rat: not implemented for p = " ++ show p ++ " and q = " ++ show q
 
   --   -- sum_largest(x,k) <-- also not implemented (uses LP dual)
   --   
 
---}
+

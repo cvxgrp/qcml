@@ -90,7 +90,8 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
      ("norm_inf", unaryFunction "norm_inf" scoop_norm_inf),
      ("norm1", unaryFunction "norm1" scoop_norm1),
      ("sqrt", unaryFunction "sqrt" scoop_sqrt),
-     ("geo_mean", binaryFunction "geo_mean" scoop_geo_mean)]
+     ("geo_mean", binaryFunction "geo_mean" scoop_geo_mean),
+     ("pow_rat", powRat)]
 
   symbolTable = ScoopState Map.empty Map.empty Set.empty
   type ScoopParser a = GenParser Char ScoopState a
@@ -555,6 +556,24 @@ module Parser.SCOOP (cvxProg, ScoopParser, lexer, symbolTable,
     else
       return $ binApply f (args!!0) (args!!1)
   }
+  
+  powRat :: ScoopParser (Rewriter E.Symbol)
+  powRat = do {
+    reserved "pow_rat";
+    (arg, p, q) <- parens pow_rat_args;
+    
+    return (do { sym <- arg; x <- express sym; e <- scoop_pow_rat x p q; return (E.ESym e) })
+  }
+  
+  pow_rat_args :: ScoopParser (Rewriter E.Symbol, Integer, Integer)
+  pow_rat_args = do {
+    e <- expr; comma;
+    p <- natural; comma;
+    q <- natural;
+    return (e,p,q)
+  } <?> "pow_rat args"
+
+  
   --args :: String -> Int -> ScoopParser [E.Expr]
   --args s n = do {
   --  arguments <- sepBy expr comma;
