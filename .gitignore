@@ -12,7 +12,7 @@
 *.prob~
 *.toc
 *.out
-src/SCOOP
+*.pyc
 
 # generated folders under TestProblems
 src/TestProblems/*/
