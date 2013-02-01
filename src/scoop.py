@@ -28,13 +28,21 @@ if __name__ == '__main__':
      "variable t scalar",
      "variable y vector",
      "parameter z scalar",
-     "minimize norm(A*x - b)",
+     "minimize -norm(A*x - b,abs(4*x+b))",
      "subject to",
-     "norm(x) <= 3",
-     "a >= 0",
-     "abs(x)+3*x <= t + 3",
-     "sqrt(3*x-y) >= abs(z)",
-     "geo_mean(3,1) == sqrt(3*2-b)"])
+     "  norm(x,y,z) + -5 <= A*x - -3"
+     "#norm(x) <= -3",
+     "#a >= 0",
+     "#abs(x)+3*x <= t -3",
+     "#sqrt(3*x-y) >= abs(z)",
+     "#geo_mean(3,1) == sqrt(3*2-b)"])
+
+    # f = p.generate()
+    # 
+    # g = p.deliteGenerate(Adim=(),,)
+    # 
+    # f(A,b,a,z)
+    # g(A,b,a,z)
     
     print p.symtable
     

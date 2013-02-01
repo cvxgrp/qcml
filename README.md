@@ -1,53 +1,43 @@
 Second-order Cone Optimization Parser (SCOOP)
 =============================================
 
-This project is a modular convex optimization framework for solving *second-order
-cone* optimization problems (SOCP). It consists of a parser for a simple front-end 
-language, a canonicalizer (implemented in Haskell), and various code generators (also
-written in Haskell).
+This project is a modular convex optimization framework for solving
+*second-order cone* optimization problems (SOCP). It consists of a parser and
+a separate code generator. The parser parses a simple front-end language that
+uses term rewriting to canonicalize optimization problems. Its output is in
+the same language as the input except it is guaranteed to be grammatically
+correct and adhere to the disciplined-convex programming (DCP) ruleset. The code generator can be used to emit source-code as a text file or as part of the host language (Python). This second feature is typically only available in interpreted languages. The code generator can be written to target different languages (compiled or interpreted).
 
-The components are currently tightly coupled inside SCOOP, but the eventual hope
-is that the canonicalizer and code generator can be written in a low-level language
-such as C, which can then be embedded in other programming languages, giving rise to
-things such as
+Since the parser is a Python API written to parse strings, it is not too far-fetched to imagine that, in the future, the parser might be written in C with hooks to other languages. This will allow other languages to be used as a sort of templating language for specifying convex optimization problems. Each line is passed along (through the API) to the parser. This is what currently occurs inside the Python implementation.
 
-* ruby SCOOP
-* python SCOOP
-* C++ SCOOP
-* js SCOOP
-* matlab SCOOP / a la CVX
+Parameter dimensions and sparsity patterns are assumed to be unknown *until* runtime. That is, after the code has been parsed and a solver generated, you will not know that your parameters have the wrong dimensions or sparse storage until you attempt to run the program. This is by design.
 
-and so on. SCOOP will be simultaneously a library for *modeling* convex optimization 
-problems (different SCOOP flavors will provide different modeling interfaces, within
-SCOOP capabilities) and also a library for *generating* low-level (usually C) source
-for solving SOCPs.
+Prerequisites
+=============
+This project requires:
 
-By separating the front end DSL, the canonicalizer, and the code generator, the hope
-is that we can easily support convex optimization in multiple languages and generate
-code in different contexts for different target architectures.
+* Python 2.7.2+ (no Python 3 support yet)
 
-The biggest concern I have at hand is the question of when data is known. Obviously,
-in an embedded DSL (like CVX), you just take everything and parse it. But for code
-generation, it's essential to know which things are "right-hand sides" and change
-with every "iteration."
+Optionally, depending on which features of the Python API you wish to use, you may also need:
 
-The question of when the sparsity pattern is known also affects our design. I don't
-think there's a way to handle runtime sparsity elegantly other than to do block
-sparse matrix copies.
+* `CVXOPT`
 
-I'll probably supply two modes: if you constrain the sparsity pattern (i.e., give it
-to me at codegen time), I'll generate static index maps. If you leave it open, I'll 
-generate block sparse matrix copies. (This is only for codegen, obviously.) The same
-alternative exists with the dimensions of the problem.
+Finally, depending on the type of code you generate, you may also need:
 
-If dimensions and sparsity patterns aren't known until runtime (like, inside the
-target source), then we have no choice by to do things "dynamically". (I tried to
-use some LUA tricks, but it all amounts to the same thing anyway.)
+* Matlab
+* `CVX`
+* `ECOS`
+<!-- * `gcc` (or similar compiler)
+* CUDA -->
 
-At the moment, the solver has a distinct "break" from the canonicalizer, which is 
-by design. Not sure how to get the language distinct from the "library" though...
+Usage modes
+===========
+The source code can be used in two modes: as an API for a (weakly-)embedded domain specific language in Python or as a stand-alone tool for parsing and generating source code for convex optimization.
 
-Old notes
+The parser is designed to parse the problem line by line. It stores a problem in an intermediate Python representation, but prints out a problem.
+
+
+<!-- Old notes
 =========
 
 This project contains a front end for the *embedded conic solver* (`ECOS`) to
@@ -285,4 +275,4 @@ Assuming the example text is saved to a file called `example.prob`, running `./e
     
 This file can be run inside Matlab and assumes that the parameters named `A`,
 `b`, and `lambda` exist in the namespace. It doesn't check if `lambda` is
-actually positive.
+actually positive. -->

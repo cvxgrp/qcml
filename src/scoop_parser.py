@@ -1,5 +1,5 @@
 from expression import Variable, Parameter, Atom
-from scoop_tokens import scanner
+from scoop_tokens import scanner, precedence
 from collections import deque
 from profiler import profile, print_prof_data  
 
@@ -175,45 +175,75 @@ class ScoopParser(object):
         s = self.line
         rpn_stack = []
         op_stack = []
+        argcount_stack = []
 
+        last_tok = ""
         while toks:
             # basic Shunting-yard algorithm from wikipedia
+            # modified to handle variable args
             tok, val = toks.popleft()
-
-            if tok is "CONSTANT" or tok is "ONES" or \
-               tok is "ZEROS" or (tok is "IDENTIFIER" and val in self.symtable):
+            
+            # pre-process for unary operators
+            # idea taken from
+            # http://en.literateprograms.org/Shunting_yard_algorithm_%28Python%29#Operators
+            # unary operator is the first token or any operator preceeded by 
+            # another operator
+            if tok is "MINUS_OP" and precedence(last_tok) >= 0:
+                tok = "UMINUS"
+                if last_tok is "PLUS_OP":
+                    op_stack.pop()
+                    op_stack.append(("MINUS_OP", "-"))
+                    continue
+                if last_tok is "MINUS_OP":
+                    op_stack.pop()
+                    op_stack.append(("PLUS_OP","+")) # x - (-y) = x + y
+                    continue
+                if last_tok is "UMINUS":
+                    op_stack.pop()
+                    continue # -(-x) = x
+            if tok is "PLUS_OP" and precedence(last_tok) >= 0:
+                # this is a unary plus, skip it entirely
+                continue
+                
+            last_tok = tok
+            
+            if tok is "CONSTANT" or tok is "ONES" or tok is "ZEROS":
                 rpn_stack.append((tok,val))
+            elif tok is "IDENTIFIER" and val in self.symtable:
+                paramOrVariable = self.symtable[val]
+                rpn_stack.append((paramOrVariable.__class__.__name__,(val,paramOrVariable)))
             elif is_function(tok,val):
+                # functions have highest precedence
                 op_stack.append((tok,val))
+                argcount_stack.append(0)
             elif tok is "IDENTIFIER":
                 raise SyntaxError("\"%(s)s\"\n\tUnknown identifier \"%(val)s\"." % locals())
             elif tok is "COMMA":
+                argcount_stack[-1] += 1
                 op = ""
                 while op is not "LPAREN":
                     if op_stack:
                         op,sym = op_stack[-1]   # peek at top
-                        if op is not "LPAREN": 
-                            rpn_stack.append( (op,sym) )
+                        if op is not "LPAREN":
+                            push_rpn(rpn_stack, argcount_stack, op,sym)
                             op_stack.pop()
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced separator or mismatched parenthesis in function %(sym)s." % locals())
-            elif tok is "MULT_OP":
-                # multiply has the highest precedence, so it unconditionally
-                # gets pushed
-                op_stack.append( (tok,val) )
-            elif tok is "PLUS_OP" or tok is "MINUS_OP":
+            elif tok is "UMINUS" or tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
                 if op_stack:
                     op,sym = op_stack[-1]   # peek at top
-                    # +,- have the same precedence and are left-associative
-                    # * has the higher precedence, so it must get popped
-                    # all functions have higher precedence
-                    while op is "MULT_OP" or op is "MINUS_OP" or op is "PLUS_OP" or is_function(op,sym):
+                    # pop ops with higher precedence
+                    while precedence(tok) < precedence(op) or is_function(op,sym):
                         op,sym = op_stack.pop()
-                        rpn_stack.append( (op,sym) )
-                        op,sym = op_stack[-1]   # peek at top
-                    
-                op_stack.append( (tok, val) )
+                        push_rpn(rpn_stack, argcount_stack, op,sym)
+                        if op_stack:
+                            op,sym = op_stack[-1]   # peek at top
+                        else:
+                            raise SyntaxError("\"%(s)s\"\n\tInvalid operator %(tok)s application; stuck on %(sym)s." % locals())
                 
+                op_stack.append( (tok, val) )
+            # elif tok is "PLUS_OP" or tok is "MINUS_OP":
+
             elif tok is "EQ" or tok is "LEQ" or tok is "GEQ":
                 # boolean operators have the lowest precedence
                 # so pop everything off, until we hit BOOL_OP
@@ -221,7 +251,7 @@ class ScoopParser(object):
                 while op is not "BOOL_OP":
                     if op_stack:
                         op,sym = op_stack.pop()
-                        if op is not "BOOL_OP": rpn_stack.append( (op,sym) )
+                        if op is not "BOOL_OP": push_rpn(rpn_stack, argcount_stack, op,sym)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tBoolean expression where none expected." % locals())
                 op_stack.append( (tok, val) )
@@ -234,12 +264,12 @@ class ScoopParser(object):
                 while op is not "LPAREN":
                     if op_stack: 
                         op,sym = op_stack.pop()
-                        if op is not "LPAREN": rpn_stack.append( (op,sym) )
+                        if op is not "LPAREN": push_rpn(rpn_stack, argcount_stack, op,sym)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tCould not find matching left parenthesis." % locals())
             else:
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected %(tok)s with value %(val)s." % locals())
-                
+            
         while op_stack:
             op,sym = op_stack.pop()
             if op is "LPAREN":
@@ -247,9 +277,19 @@ class ScoopParser(object):
             if op is "BOOL_OP":
                 raise SyntaxError("\"%(s)s\"\n\tExpected to find boolean constraint." % locals())
             
-            rpn_stack.append( (op,sym) )
-    
+            push_rpn(rpn_stack, argcount_stack, op,sym)
+
+        if argcount_stack:
+            raise Exception("Unknown error. Variable argument functions failed to be properly parsed")
+            
         return rpn_stack
 
 def is_function(tok,val):
     return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in Atom.lookup))
+
+def push_rpn(stack,argcount,op,sym):
+    if is_function(op,sym):
+        a = argcount.pop()
+        stack.append((op, sym + str(a+1)))
+    else:
+        stack.append((op,sym))

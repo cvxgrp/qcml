@@ -38,3 +38,10 @@ scanner=re.Scanner([
     (r"\s+",                    None), # None == skip token.
     (r".",                      lambda scanner,token:unrecognized_token(token))
 ])
+
+# "operator" precedence
+op_prec = {'ABS':4, 'NORM': 4, 'UMINUS':2, 'MULT_OP':3, 'PLUS_OP':1, 'MINUS_OP':1, 'EQ':0, 'GEQ':0, 'LEQ':0, \
+            '':0, 'LPAREN':0}   # these last two are to help us get unary minus and plus
+
+def precedence(tok):
+    return op_prec.get(tok, -1)
