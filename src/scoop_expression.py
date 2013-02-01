@@ -22,37 +22,38 @@ class Operand(object):
     vexity = NONCONVEX
     sign = UNKNOWN
     shape = SCALAR
+    name = ""
     
     sign_lookup = {'POSITIVE': POSITIVE, 'NEGATIVE': NEGATIVE, 'UNKNOWN': UNKNOWN}
     shape_lookup = {'SCALAR': SCALAR, 'VECTOR': VECTOR, 'MATRIX': MATRIX}
     
-    def __init__(self, vexity, sign, shape):
+    shape_names = shape_lookup.keys()
+    sign_names = sign_lookup.keys()
+    
+    def __init__(self, vexity, sign, shape, name):
         self.vexity = vexity
         self.sign = sign
         self.shape = shape
-
-class Operation(object):
-    # these can be convex, concave, affine
-    # argument "decorators"? can be increasing, decreasing, nonmonotone
-    vexity = ""
-    numargs = 0
+        self.name = name
 
 class Variable(Operand):
-    def __init__(self, shape):
-        super(Variable, self).__init__(AFFINE, UNKNOWN, self.shape_lookup[shape])
+    def __init__(self, name, shape):
+        super(Variable, self).__init__(AFFINE, UNKNOWN, self.shape_lookup[shape], name)
     
     def __repr__(self):
-        return str(self.shape) + ' VARIABLE' 
+        return self.shape_names[self.shape] + ' VARIABLE ' + str(self.name) 
     
     __str__ = __repr__  # delete later
         
 class Parameter(Operand):
-    def __init__(self, shape, sign):
-        super(Parameter, self).__init__(AFFINE, self.sign_lookup[sign], self.shape_lookup[shape])
+    def __init__(self, name, shape, sign):
+        super(Parameter, self).__init__(AFFINE, self.sign_lookup[sign], self.shape_lookup[shape], name)
         
     
     def __repr__(self):
-        return str(self.sign) + ' ' + str(self.shape) + ' PARAMETER' 
+        return self.sign_names[self.sign] + ' ' \
+            + self.shape_names[self.shape] + \
+             ' PARAMETER ' + str(self.name) 
     
     __str__ = __repr__ # delete later
         
@@ -65,7 +66,7 @@ class Constant(Operand):
             sign = POSITIVE
         else:
             sign = NEGATIVE
-        super(Constant, self).__init__(AFFINE, sign, SCALAR)
+        super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value))
         
     def __repr__(self):
         return str(self.value)
@@ -74,7 +75,8 @@ class Constant(Operand):
 
 class Expression(Operand):
     def __init__(self, vexity):
-        super(Expression, self).__init__(vexity, UNKNOWN, SCALAR)
+        super(Expression, self).__init__(vexity, UNKNOWN, SCALAR, "")
+
 
 class Atom(object):
     lookup = {'sqrt': 1, 'geo_mean': 1}
@@ -83,19 +85,22 @@ class Atom(object):
 def convex(fn,*args):
     def wrap(*args):
         e = fn(*args)
-        return (e | CONVEX)
+        e.vexity |= CONVEX
+        return e
     return wrap
 
 def concave(fn,*args):
     def wrap(*args):
         e = fn(*args)
-        return (e | CONCAVE)
+        e.vexity |= CONCAVE
+        return e.vexity
     return wrap
 
 def affine(fn,*args):
     def wrap(*args):
         e = fn(*args)
-        return (e | AFFINE)
+        e.vexity |= AFFINE
+        return e
     return wrap
 
 # annotations for monotonicity
@@ -111,13 +116,6 @@ def nonmonotone(op):
     if op.vexity is AFFINE: return AFFINE
     else: return NONCONVEX
 
-# some atoms
-@affine
-def op_add(x,y):
-    v = increasing(x) | increasing(y)
-    
-    # what does it do?
-    
-    return Expression(v)
+
         
     

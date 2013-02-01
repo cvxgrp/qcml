@@ -1,5 +1,4 @@
-{--
-
+"""
 Copyright (c) 2012-2013, Eric Chu (eytchu@gmail.com)
 All rights reserved.
 
@@ -27,42 +26,51 @@ POSSIBILITY OF SUCH DAMAGE.
 The views and conclusions contained in the software and documentation are
 those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
+"""
 
---}
+from scoop import Scoop
+from profiler import profile, print_prof_data  
 
-module Scratch where
-  import Atoms.Atoms
-  import Expression.Expression
+# just a driver for the problems
 
-  import CodeGenerator.CVX
-  import CodeGenerator.CVXSOCP
-  import CodeGenerator.ECOS
+# if the lang were embedded in python, could do some crazy stuff
+# problem is getting variable names from the symbol table
+if __name__ == '__main__':
+    print "hello"
+    p = Scoop()
+    
+    # i can parse scoop line by line
+    # each "file" is just a code block, within the block i just require
+    # that you had the thing defined before
+    
+    # here's an example of how you could embed this inside python with 
+    # strings. kind of cool
+    map (p.run, 
+    ["# this entire line is a comment!",
+     "variable x vector # hello, this is way too cool blah",
+     "variable _x vector",
+     "parameter A matrix positive",
+     "parameter b vector",
+     "parameter a scalar",
+     "variable t scalar",
+     "variable y vector",
+     "parameter z scalar",
+     "minimize -norm(A*x - b,abs(4*x+b))",
+     "subject to",
+     "  norm(x,y,z) + -5 <= A*x - -3"
+     "#norm(x) <= -3",
+     "#a >= 0",
+     "#abs(x)+3*x <= t -3",
+     "#sqrt(3*x-y) >= abs(z)",
+     "#geo_mean(3,1) == sqrt(3*2-b)"])
 
-  -- for monadic atoms (will allow us to produce very clean Haskell code)
-  -- won't be easy to translate into C (must have good documentation / explanation)
-  import Control.Monad.State
-
-
-
-  x = variable "x" (5,1)
-  a = parameter "A" Positive (3,5)
-  b = parameter "b" Unknown (3,1)
-  d = parameter "s" Positive (1,1)
-
-  -- could really monad it up to make it look imperative *and* almost embedded
-  v = scoop_sum (scoop_square (scoop_minus (scoop_mult a x "1") b "3") "4") "5"
-
-  -- let's make parameters, variables, expressions part of a typeclass
-
-
-  incr :: State Int Int
-  incr = do
-    s <- get
-    put (s+1)
-    get
-
-  mscoop_sum :: [Expr] -> State Int Expr
-  mscoop_sum x = do
-    s <- incr
-    return (scoop_sum x (show s))
-  --mscoop_sum (State a x) = State (scoop_sum a (show x)) (x+1)
+    # f = p.generate()
+    # 
+    # g = p.deliteGenerate(Adim=(),,)
+    # 
+    # f(A,b,a,z)
+    # g(A,b,a,z)
+    
+    print p.symtable
+    
+    print_prof_data()
