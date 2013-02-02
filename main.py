@@ -28,8 +28,8 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop import Scoop
-from profiler import profile, print_prof_data  
+#from scoop import Scoop, print_prof_data
+from scoop import Scoop, print_prof_data
 
 # just a driver for the problems
 

@@ -1,18 +1,9 @@
-*.aux
-*.bbl
-*.blg
-*.dvi
-*.log
-*.pdf
-*.hi
-*.o
-*.ps
-*.synctex.gz
 *.m~
 *.prob~
-*.toc
-*.out
 *.pyc
+
+# python build folders
+src/build/*/
 
 # generated folders under TestProblems
 src/TestProblems/*/

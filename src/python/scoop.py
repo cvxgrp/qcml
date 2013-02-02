@@ -42,15 +42,16 @@ PRE_OBJ, OBJ, POST_OBJ = range(3)
 class Scoop(object): 
     """A simple parser for the SCOOP language""" 
     
-    # dictionary for symbol table (private?)
-    symtable = {}
-    # parser STATE (private?)
-    state = PRE_OBJ
-    # current line (private?)
-    line = ""
+    def __init__(self):
+        # dictionary for symbol table (private?)
+        self.symtable = {}
+        # parser STATE (private?)
+        self.state = PRE_OBJ
+        # current line (private?)
+        self.line = ""
     
-    # (stateful) object to evaluate expressions
-    rpn_eval = Evaluator(symtable)  # symtable is passed by reference
+        # (stateful) object to evaluate expressions
+        self.rpn_eval = Evaluator(self.symtable)  # symtable is passed by reference
     
     def reset_state(self):  # private
         if self.state is OBJ:
