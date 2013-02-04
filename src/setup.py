@@ -7,7 +7,10 @@ setup(
     version='0.0.1',
     author='Eric Chu',
     author_email='eytchu@gmail.com',
-    packages=['scoop', 'scoop.codegen', 'scoop.atoms'], # will probably need to call it something else
+    packages=[  'scoop', 
+                'scoop.codegen', 
+                'scoop.atoms', 
+                'scoop.ir'  ],
     package_dir={'scoop': 'python'},
     #scripts=['bin/stowe-towels.py','bin/wash-towels.py'],
     url='http://github.com/cvxgrp/scoop',

@@ -152,6 +152,7 @@ class Scoop(object):
             raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR, SCALAR, or MATRIX shape, but got %(tmp)s instead." % locals())
         
         sign = "UNKNOWN"
+        # optionally parse sign
         if toks:
             sign, tmp = toks.popleft()
             if sign is not "POSITIVE" and sign is not "NEGATIVE":
@@ -187,9 +188,9 @@ class Scoop(object):
         
     def parse_constraint(self,toks):
         """expr (EQ|GEQ|LEQ) expr"""
+        self.reset_state()     # reset the parser state
         # push a special token on the top that only gets popped when we
         # meet an (EQ|GEQ|LEQ)
-        self.reset_state()     # reset the parser state
         toks.appendleft(("BOOL_OP", ""))
         expr = self.parse_expr(toks)    # expr is an RPN stack, this also checks DCP
         # then evaluate the expression
@@ -240,14 +241,17 @@ class Scoop(object):
             # another operator
             if tok is "MINUS_OP" and precedence(last_tok) >= 0:
                 tok = "UMINUS"
+                # x + (-y)
                 if last_tok is "PLUS_OP":
                     op_stack.pop()
                     op_stack.append(("MINUS_OP", "-"))
                     continue
+                # x - (-y)
                 if last_tok is "MINUS_OP":
                     op_stack.pop()
                     op_stack.append(("PLUS_OP","+")) # x - (-y) = x + y
                     continue
+                # -(-y)
                 if last_tok is "UMINUS":
                     op_stack.pop()
                     continue # -(-x) = x
