@@ -51,7 +51,7 @@ class Scoop(object):
         self.line = ""
     
         # (stateful) object to evaluate expressions
-        self.rpn_eval = Evaluator(self.symtable)  # symtable is passed by reference
+        self.rpn_eval = Evaluator()  # symtable is passed by reference
     
     def reset_state(self):  # private
         if self.state is OBJ:
@@ -131,8 +131,9 @@ class Scoop(object):
         if toks:
             t, tmp = toks.popleft()
             raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for variables with %(t)s token %(tmp)s." % locals())
-                
-        self.symtable[v] = Variable('_' + v,shape)  # mangle the variable name
+        
+        # mangle the variable name
+        self.symtable[v] = Variable('_' + v,Variable.shape_lookup[shape])  
         
     
     def parse_parameter(self,toks):
@@ -162,8 +163,9 @@ class Scoop(object):
             if toks:
                 t, tmp = toks.popleft()
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for parameters with %(t)s token %(tmp)s." % locals())
-                
-        self.symtable[v] = Parameter('_' + v, shape, sign) # mangle parameter name
+        
+        # mangle parameter name
+        self.symtable[v] = Parameter('_' + v, Parameter.shape_lookup[shape], Parameter.sign_lookup[sign]) 
         
     
     def parse_subject_to(self,toks):

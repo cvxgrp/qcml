@@ -29,7 +29,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 #from scoop import Scoop, print_prof_data
-from scoop import Scoop, Variable, print_prof_data, Dimension
+from scoop import Scoop, Variable, Parameter, print_prof_data, Row, Col, Dimension, Evaluator, UNKNOWN, SCALAR, VECTOR, MATRIX
 
 # just a driver for the problems
 
@@ -75,13 +75,22 @@ if __name__ == '__main__':
     
     print_prof_data()
     
-    a = Variable('y', "SCALAR")
-    b = Variable('z', "VECTOR")
+    k = Evaluator()
+    c = Parameter('a', MATRIX, UNKNOWN)
+    a = Variable('y', SCALAR)
+    b = Variable('z', VECTOR)
     
-    y = Dimension(b)
-    Dimension.equivalence = {'y': y}
+    t = Dimension(None)
+    equivalence = {'y': t, 'x': t}
+    print equivalence['y'].dim
+    print equivalence['x'].dim
     
-    x = Dimension(a) # basically, want this to reference y
+    t.dim = Col(c)
     
-    print x
-    print y
+    print equivalence['y'].dim
+    print equivalence['x'].dim
+    
+    print k.add(a,b)
+    print k.affine
+    
+    

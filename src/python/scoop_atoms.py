@@ -28,24 +28,33 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import SCALAR, VECTOR, MATRIX
+from scoop_expression import SCALAR, VECTOR, MATRIX, Variable
 
 # this is just a scaffolding for atoms
 class Evaluator(object):
     # counter for new variables introduced (private?)
-    varcount = 0
-    symtable = {} # i don't actually need a symtable...
+    # varcount = 0
+     
+    # symtable = {} # i don't actually need a symtable...
     
-    def __init__(self,table):
-        self.symtable = table
+    def __init__(self):
+        # self.symtable = table
+        self.varlist = {}       # dict of variables used
+        self.paramlist = {}     # dict of parameters used
+        self.dimensions = {}    # dict for variable lengths
+        self.varcount = 0
+        self.affine = []
+        self.cones = []
     
     def hello(self):
-        print self.symtable
+        pass #print self.symtable
     
     def new_var(self,shape):
         name = 't' + str(self.varcount)
         self.varcount += 1
-        return Variable(name, shape)
+        v = Variable(name, shape)
+        self.varlist[name] = (v)
+        return v
 
 class Row(object):
     pass

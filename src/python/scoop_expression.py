@@ -69,7 +69,7 @@ class Operand(object):
 
 class Variable(Operand):
     def __init__(self, name, shape):
-        super(Variable, self).__init__(AFFINE, UNKNOWN, self.shape_lookup[shape], name)
+        super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name)
     
     def __repr__(self):
         return self.shape_names[self.shape] + ' VARIABLE ' + str(self.name) 
@@ -78,7 +78,7 @@ class Variable(Operand):
         
 class Parameter(Operand):
     def __init__(self, name, shape, sign):
-        super(Parameter, self).__init__(AFFINE, self.sign_lookup[sign], self.shape_lookup[shape], name)
+        super(Parameter, self).__init__(AFFINE, sign, shape, name)
         
     
     def __repr__(self):
@@ -105,8 +105,13 @@ class Constant(Operand):
     __str__ = __repr__
 
 class Expression(Operand):
-    def __init__(self, vexity, sign, shape):
-        super(Expression, self).__init__(vexity, sign, shape, "")
+    def __init__(self, name, vexity, sign, shape):
+        super(Expression, self).__init__(vexity, sign, shape, name)
+    
+    def __repr__(self):
+        return self.name
+    
+    __str__ = __repr__
 
 
 class Atom(object):

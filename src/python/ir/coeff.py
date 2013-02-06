@@ -28,24 +28,39 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-# equivalence will be an external object
 
-# abstract dimension object
-class Dimension(object):
-    # all Dimension objects have the same equivalence relation
-    # to ensure this, only set this list via Dimension.equivalence
-    equivalence = {}    
-
-    def __init__(self, dim = None):
-        self.dim = dim
+# container for coefficient object
+class Coeff(object): 
+    def __init__(self, coeff = None):
+        self.coeff = coeff
         
 
-class Row(object):
-    """Abstract representation of a row of a parameter"""
-    def __init__(self, parameter):
-        self.name = parameter.name
+# code generators just need to know how to generate these objects
+# Matrix, Eye
+class Matrix(object):
+    """Abstract representation of a matrix parameter coefficient"""
+    def __init__(self, parameter, transposed=False):
+        self.name = parameter.name #[1:]  # removes leading _ used for mangling
+        self.transposed = transposed
+        
+    def __repr__(self):
+        return "%s" % self.name[1:] # removes leading _ used for mangling
+
+
+class Eye(object):
+    """Abstract representation of an identity matrix, alpha*I"""
+    def __init__(self, n, alpha = 1.0):
+        self.n = n
+        self.alpha = alpha
+
+    def __repr__(self):
+        return "%f * I(%s,%s)" % (self.alpha, self.n, self.n)
+        
+class Zero(object):
+    """Abstract representation of a zero"""
+    def __init__(self, n):
+        self.n = n
     
-class Col(object):
-    """Abstract representation of a column of a parameter"""
-    def __init__(self, parameter):
-        self.name = parameter.name
+    def __repr__(self):
+        return "0(%s)" % self.n
+    
