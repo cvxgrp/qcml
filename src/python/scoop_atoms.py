@@ -28,7 +28,9 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import SCALAR, VECTOR, MATRIX, Variable
+from scoop_expression import SCALAR, VECTOR, MATRIX, Variable, Expression, Parameter, Constant
+from ir.dimension import DimSet, Row, Col
+from ir.coeff import Vector, Eye, Ones
 
 # this is just a scaffolding for atoms
 class Evaluator(object):
@@ -39,9 +41,12 @@ class Evaluator(object):
     
     def __init__(self):
         # self.symtable = table
-        self.varlist = {}       # dict of variables used
-        self.paramlist = {}     # dict of parameters used
-        self.dimensions = {}    # dict for variable lengths
+        self.tmplist = {}           # dict of temp variables
+        self.varlist = {}           # dict of variables used, outputs of solver
+        self.paramlist = {}         # dict of parameters used, inputs of solver
+        # i only keep the above 3 lists so i can "print" the problem
+        self.dimensions = DimSet()  # keeps track of equivalence relation between variable lengths
+        self.equiv = {}             # gives variable name and its concrete dimension (used in preprocessing)
         self.varcount = 0
         self.affine = []
         self.cones = []
@@ -50,49 +55,41 @@ class Evaluator(object):
         pass #print self.symtable
     
     def new_var(self,shape):
+        """Creates a new, temporary variable"""
         name = 't' + str(self.varcount)
         self.varcount += 1
         v = Variable(name, shape)
-        self.varlist[name] = (v)
+        self.tmplist[name] = v
         return v
-
-class Row(object):
-    pass
-    
-class Cone(object):
-
-    def __init__(self, t, *args):
-        # args are tuples of Variable
-        # cone is (t, *args) \in SOC
-        # if t is scalar, then this is *one* cone
-        # if t is a vector, then these are multiple cones
-        if t.shape is SCALAR:
-            self.is_multi_cone = False 
-        else:
-            self.is_multi_cone = True
         
-        self.t = t
-        
-        # if there are no remaining args, it's an LP cone
-        if args:
-            self.is_LP_cone = False
-            self.cone_variables = args
+    def expand(self, x):
+        """Expands parameters and constants"""
+        if isinstance(x,Variable):
+            # add to varlist
+            self.varlist[x.name] = x
+            return x
+        elif isinstance(x,Expression):
+            return x
         else:
-            self.is_LP_cone = True
-            self.cone_variables = ()
-    
-    def __repr__(self):
-        if self.is_LP_cone:
-            return self.t.name + ' >= 0'
-        elif self.is_multi_cone:
-            return 'norm(' + ', '.join(map(lambda x:x.name, self.cone_variables)) + ') <= ' + self.t.name
-        else:
-            return 'norm([' + '; '.join(map(lambda x:x.name, self.cone_variables)) + ']) <= ' + self.t.name
+            if x.shape is MATRIX:
+                raise Exception("Cannot expand %s since it is a matrix." % x.name)
+                
+            v = self.new_var(x.shape)
+            m = v.name
+                
+            if isinstance(x,Constant):
+                row = [(Eye(1),v), (Ones(1,x.value),)]
+            elif isinstance(x,Parameter):
+                row = [(Eye(m),v), (Vector(x),)]
+                self.paramlist[x.name] = x
+                self.equiv[v.name] = Row(x)
+            else:
+                raise Exception("Attempted to expand an unknown type.")
             
-    def to_affine(self):
-        """Converts the cone constraint into a row of an affine equality constraint"""
-        # what about cone struct?
-        pass
+            self.affine.append( row )
+            return v
+
+
 
 # (Coeff, Variable)? (Coeff,)
 
@@ -128,6 +125,8 @@ class Cone(object):
 # [VARIABLE, ABS, VARIABLE, LEQ] -- "variable len" # of (SOC 2)
 # [VARIABLE, NORM, SCALAR VARIABLE, LEQ] -- "1" # of (SOC VARLEN + 1)
 # [VARIABLE, ..., NORM, VARIABLE, LEQ] -- "variable len" # of (SOC # args + 1)
+# affine EQ... (how to check this?)
+#
 # so the usual EYE is
 # EYE(start=0,stride=1) generates -> [1 0; 0 1]
 # EYE(start=0,stride=2) generates -> [1 0; 0 0; 0 1; 0 0], but

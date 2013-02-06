@@ -7,16 +7,16 @@ import Variable, Parameter, Constant, Expression, \
 from scoop.ir.coeff import Coeff, Matrix, Eye, Zero, Ones
 import operator
 
-@fold_with(operator.add)
+@fold_with(operator.sub)
 @expand_all_args
 @affine
-def op_add(self,x,y):
+def op_minus(self,x,y):
     # vexity from monotonicity
-    vex = increasing(x) | increasing(y)
+    vex = increasing(x) | decreasing(y)
     # signs from args (uses dictionary)
     sign = {
-        (POSITIVE,POSITIVE): POSITIVE, 
-        (NEGATIVE,NEGATIVE): NEGATIVE
+        (POSITIVE,NEGATIVE): POSITIVE, 
+        (NEGATIVE,POSITIVE): NEGATIVE
     }.get((x.sign, y.sign), UNKNOWN)
     
     # figure out the shape
@@ -38,9 +38,9 @@ def op_add(self,x,y):
         row.append( (Eye(m), x) )
         self.dimensions.equate(v.name, x.name)
     if y.shape is SCALAR:
-        row.append( (Ones(m), y) )
+        row.append( (Ones(m, -1), y) )
     else:
-        row.append( (Eye(m), y) )
+        row.append( (Eye(m, -1), y) )
         self.dimensions.equate(v.name, y.name)
     
     row += [ (Eye(m,-1), v), (Zero(m),)]
@@ -48,18 +48,19 @@ def op_add(self,x,y):
     # add row to IR        
     self.affine.append( row )
     
-    return Expression(v.name, "%s + %s" % (x.description, y.description), vex,sign,shape)
+    return Expression(v.name, "%s - (%s)" % (x.description, y.description), vex,sign,shape)
     
-    # primitiveAdd :: Expr -> Expr -> Rewriter Expr
-    # primitiveAdd x y = do
-    #   t <- newVar
-    # 
-    #   let v = Affine <&> increasing x <&> increasing y
-    #   let s = case (sign x, sign y) of
-    #             (Positive, Positive) -> Positive
-    #             (Negative, Negative) -> Negative
-    #             otherwise -> Unknown
-    #   -- definition of plus
-    #   addLine $ concat [t, " == ", (name x), " + ", (name y)]
-    #   return $ Expr t v s
+  # primitiveMinus :: Expr -> Expr -> Rewriter Expr
+  # primitiveMinus x y = do
+  #   t <- newVar
+  # 
+  #   let v = Affine <&> increasing x <&> decreasing y
+  #   let s = case (sign x, sign y) of
+  #             (Positive, Negative) -> Positive
+  #             (Negative, Positive) -> Negative
+  #             otherwise -> Unknown
+  #   -- definition of plus
+  #   addLine $ concat [t, " == ", (name x), " - ", (name y)]
+  #   return $ Expr t v s
+
 

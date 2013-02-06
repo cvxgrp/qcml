@@ -57,15 +57,18 @@ class Operand(object):
     
     sign_lookup = {'POSITIVE': POSITIVE, 'NEGATIVE': NEGATIVE, 'UNKNOWN': UNKNOWN}
     shape_lookup = {'SCALAR': SCALAR, 'VECTOR': VECTOR, 'MATRIX': MATRIX}
+    vexity_lookup = {'AFFINE': AFFINE, 'CONVEX': CONVEX, 'CONCAVE': CONCAVE, 'NONCONVEX': NONCONVEX}
     
     shape_names = shape_lookup.keys()
     sign_names = sign_lookup.keys()
+    vexity_names = vexity_lookup.keys()
     
     def __init__(self, vexity, sign, shape, name):
         self.vexity = vexity
         self.sign = sign
         self.shape = shape
         self.name = name
+        self.description = name
 
 class Variable(Operand):
     def __init__(self, name, shape):
@@ -105,11 +108,16 @@ class Constant(Operand):
     __str__ = __repr__
 
 class Expression(Operand):
-    def __init__(self, name, vexity, sign, shape):
+    def __init__(self, name, description, vexity, sign, shape):
         super(Expression, self).__init__(vexity, sign, shape, name)
+        self.description = description
     
     def __repr__(self):
         return self.name
+    
+    def helpstring(self):
+        """Tells us what expression the variable name is equivalent to"""
+        return self.name + ' = ' + self.description
     
     __str__ = __repr__
 
@@ -138,6 +146,37 @@ def affine(fn,*args):
         e.vexity |= AFFINE
         return e
     return wrap
+
+# bitwise masks (AFFINE|CONVEX) = CONVEX, etc.
+def iscvx(e):
+    return (e.vexity | CONVEX) is CONVEX
+def isccv(e):
+    return (e.vexity | CONCAVE) is CONCAVE
+def isaff(e):
+    return e.vexity is AFFINE
+
+def expand_all_args(fn, *args):
+    """Ensures all args are variables"""
+    def wrap(*args):
+        evaluator = args[0]
+        expanded_args = map (evaluator.expand, args[1:])
+        e = fn(evaluator, *expanded_args)
+        return e
+    return wrap
+
+    
+def fold_with(f):
+    """To help with constant folding"""
+    def wrapper(fn, *args):
+        def wrap(*args):
+            if (all(isinstance(e, Constant) for e in args[1:])):
+                arg_vals = map (lambda e: e.value, args[1:])
+                e = Constant( f(*arg_vals) )
+            else:
+                e = fn(*args)
+            return e
+        return wrap
+    return wrapper
 
 # annotations for monotonicity
 def increasing(op):

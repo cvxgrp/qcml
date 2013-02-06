@@ -27,8 +27,38 @@ The views and conclusions contained in the software and documentation are
 those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
+from sets import Set
 
 # equivalence will be an external object
+class DimSet(object):
+    def __init__(self):
+        self.equiv = {}
+    
+    # creates a dictionary of sets
+    # self.equiv['x'] gives the set of all variables equivalent to x's length
+    def equate(self, *args):
+        s = Set()
+        # append all the equivalent sets
+        for arg in args:
+            s |= self.equiv.get( arg, Set() ) 
+        s |= ( Set(args) )
+        
+        # set all the old ones to the new set
+        for arg in s:
+            self.equiv[arg] = s
+    
+    # def define(self, name, val):
+    #     (s,v) = self.equiv.get( name, (Set([name]), None) )
+    #     if v:
+    #         print "two vals should be equal!"
+    #     for elem in s:
+    #         self.equiv[elem] = (s, val)
+            
+    
+    def __repr__(self):
+        return str(self.equiv)
+    
+    __str__ = __repr__
 
 # abstract dimension object
 class Dimension(object):
@@ -49,3 +79,39 @@ class Col(object):
     """Abstract representation of a column of a parameter"""
     def __init__(self, parameter):
         self.name = parameter.name
+        
+
+class Cone(object):
+
+    def __init__(self, t, *args):
+        # args are tuples of Variable
+        # cone is (t, *args) \in SOC
+        # if t is scalar, then this is *one* cone
+        # if t is a vector, then these are multiple cones
+        if t.shape is SCALAR:
+            self.is_multi_cone = False 
+        else:
+            self.is_multi_cone = True
+        
+        self.t = t
+        
+        # if there are no remaining args, it's an LP cone
+        if args:
+            self.is_LP_cone = False
+            self.cone_variables = args
+        else:
+            self.is_LP_cone = True
+            self.cone_variables = ()
+    
+    def __repr__(self):
+        if self.is_LP_cone:
+            return self.t.name + ' >= 0'
+        elif self.is_multi_cone:
+            return 'norm(' + ', '.join(map(lambda x:x.name, self.cone_variables)) + ') <= ' + self.t.name
+        else:
+            return 'norm([' + '; '.join(map(lambda x:x.name, self.cone_variables)) + ']) <= ' + self.t.name
+            
+    def to_affine(self):
+        """Converts the cone constraint into a row of an affine equality constraint"""
+        # what about cone struct?
+        pass

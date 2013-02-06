@@ -28,7 +28,8 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import Variable, Parameter, Atom, Expression
+from scoop_expression import Operand, Variable, Parameter, Atom, Expression, \
+    SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
 from scoop_atoms import Evaluator
 from scoop_tokens import scanner, precedence
 from collections import deque
@@ -39,8 +40,17 @@ from profiler import profile, print_prof_data
 # *after* that line
 PRE_OBJ, OBJ, POST_OBJ = range(3)  
 
+# check for agreement of objective vexity with argument
+check = \
+    {
+        "MINIMIZE": iscvx,
+        "MAXIMIZE": isccv,
+        "FIND": isaff
+    }
+    
 class Scoop(object): 
     """A simple parser for the SCOOP language""" 
+    
     
     def __init__(self):
         # dictionary for symbol table (private?)
@@ -52,6 +62,19 @@ class Scoop(object):
     
         # (stateful) object to evaluate expressions
         self.rpn_eval = Evaluator()  # symtable is passed by reference
+        
+        # initialize your scanner, create a new one using current rpn evaluator
+        self.scanner = scanner(self.rpn_eval)
+        
+        # lookup table for tokens and their corresponding operators
+        # TODO: decouple ops from instance? (lose ability to build IR)
+        # self.tok_op = \
+        #     {
+        #         "MINUS_OP": self.rpn_eval.sub,
+        #         "PLUS_OP": self.rpn_eval.add,
+        #         "MULT_OP": self.rpn_eval.mul,
+        #         "UMINUS": self.rpn_eval.neg
+        #     }
     
     def reset_state(self):  # private
         if self.state is OBJ:
@@ -65,7 +88,7 @@ class Scoop(object):
     
     def lex(self, s):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
-        return scanner.scan(s)
+        return self.scanner.scan(s)
     
     def parse(self,toks):
         """Parses the tokenized list. Could use LR parsing, but SCOOP is simple
@@ -104,7 +127,7 @@ class Scoop(object):
         if result:
             if not remainder:
                 self.parse(deque(result))
-                self.rpn_eval.hello()
+                #self.rpn_eval.hello()
                 #self.display(result)
                 # print '\n'
             else:
@@ -178,15 +201,24 @@ class Scoop(object):
 
     def parse_objective(self,toks):
         """(MINIMIZE|MAXIMIZE|FIND) expr"""
-        toks.popleft()
+        (tok, val) = toks.popleft()
         if self.state is PRE_OBJ:
             self.state = OBJ
         else:
             raise Exception("Cannot have multiple objectives per SCOOP problem.")
         expr = self.parse_expr(toks)    # expr is an RPN stack, this also checks DCP
-        # then evaluate the expression
-        # eval(expr)
-        print expr
+        # evaluate the expression
+        obj = eval_rpn(expr)
+        # we expand the objective, which inserts it into our underlying 
+        # problem IR. this is done in case obj is just a single variable
+        obj = self.rpn_eval.expand( obj )
+        if obj:                
+            if obj.shape is not SCALAR:
+                raise Exception("Objective function %s should be scalar." % obj.description)
+            if not check[tok](obj):
+                raise Exception("Objective vexity %s does not agree with %s" % (Operand.vexity_names[obj.vexity], tok))
+        else:
+            raise Exception("No objective specified.")
         
     def parse_constraint(self,toks):
         """expr (EQ|GEQ|LEQ) expr"""
@@ -243,31 +275,34 @@ class Scoop(object):
             # another operator
             if tok is "MINUS_OP" and precedence(last_tok) >= 0:
                 tok = "UMINUS"
-                # x + (-y)
+                # x + (-y) = x - y
                 if last_tok is "PLUS_OP":
                     op_stack.pop()
-                    op_stack.append(("MINUS_OP", "-"))
+                    op_stack.append(("MINUS_OP", self.rpn_eval.sub))
                     continue
-                # x - (-y)
+                # x - (-y) = x + y
                 if last_tok is "MINUS_OP":
                     op_stack.pop()
-                    op_stack.append(("PLUS_OP","+")) # x - (-y) = x + y
+                    op_stack.append(("PLUS_OP",self.rpn_eval.add)) 
                     continue
-                # -(-y)
+                # -(-y) = y
                 if last_tok is "UMINUS":
                     op_stack.pop()
                     continue # -(-x) = x
+                # set uminus action
+                val = self.rpn_eval.neg
             if tok is "PLUS_OP" and precedence(last_tok) >= 0:
                 # this is a unary plus, skip it entirely
                 continue
-                
+            
+            # keep track of old token
             last_tok = tok
             
             if tok is "CONSTANT" or tok is "ONES" or tok is "ZEROS":
                 rpn_stack.append((tok,val))
             elif tok is "IDENTIFIER" and val in self.symtable:
                 paramOrVariable = self.symtable[val]
-                rpn_stack.append((paramOrVariable.__class__.__name__,(val,paramOrVariable)))
+                rpn_stack.append( (tok,paramOrVariable) )
             elif is_function(tok,val):
                 # functions have highest precedence
                 op_stack.append((tok,val))
@@ -289,13 +324,13 @@ class Scoop(object):
                 if op_stack:
                     op,sym = op_stack[-1]   # peek at top
                     # pop ops with higher precedence
-                    while precedence(tok) < precedence(op) or is_function(op,sym):
+                    while op_stack and (precedence(tok) < precedence(op) or is_function(op,sym)):
                         op,sym = op_stack.pop()
                         push_rpn(rpn_stack, argcount_stack, op,sym)
                         if op_stack:
                             op,sym = op_stack[-1]   # peek at top
-                        else:
-                            raise SyntaxError("\"%(s)s\"\n\tInvalid operator %(tok)s application; stuck on %(sym)s." % locals())
+                        #else:
+                        #    raise SyntaxError("\"%(s)s\"\n\tInvalid operator %(tok)s application; stuck on %(op)s." % locals())
                 
                 op_stack.append( (tok, val) )
             # elif tok is "PLUS_OP" or tok is "MINUS_OP":
@@ -348,6 +383,32 @@ def is_function(tok,val):
 def push_rpn(stack,argcount,op,sym):
     if is_function(op,sym):
         a = argcount.pop()
-        stack.append((op, sym + str(a+1)))
+        stack.append( (op, (sym, a+1)) )
     else:
         stack.append((op,sym))
+
+def eval_rpn(stack):
+    operand_stack = []
+    for (tok, op) in stack:
+        print map(lambda e: e.description, operand_stack)
+        if isinstance(op, Operand):
+            operand_stack.append(op)
+        elif tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
+            rhs = operand_stack.pop()
+            lhs = operand_stack.pop()
+            operand_stack.append(op(lhs, rhs))
+        elif tok is "UMINUS":
+            arg = operand_stack.pop()
+            operand_stack.append(op(arg))
+        else:
+            raise Exception("%s %s is not yet implemented." % (tok, op))
+    
+    print map(lambda e: e.description, operand_stack)
+    if len(operand_stack) > 1:
+        raise Exception("Error evaluating rpn stack: %s. Completed with %s leftover." %  (stack, operand_stack))
+    else:
+        if operand_stack:
+            return operand_stack[0]
+        else:
+            return None
+    

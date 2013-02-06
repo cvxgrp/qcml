@@ -29,8 +29,9 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 #from scoop import Scoop, print_prof_data
-from scoop import Scoop, Variable, Parameter, print_prof_data, Row, Col, Dimension, Evaluator, UNKNOWN, SCALAR, VECTOR, MATRIX
-
+from scoop import Scoop, Variable, Parameter, Constant, print_prof_data, \
+    Evaluator, UNKNOWN, SCALAR, VECTOR, MATRIX
+from sets import Set
 # just a driver for the problems
 
 # if the lang were embedded in python, could do some crazy stuff
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     # strings. kind of cool
     map (p.run, 
     ["# this entire line is a comment!",
-     "variable x vector # hello, this is way too cool blah",
+     "variable x scalar # hello, this is way too cool blah",
      "variable _x vector",
      "parameter A matrix positive",
      "parameter b vector",
@@ -55,9 +56,9 @@ if __name__ == '__main__':
      "variable t scalar",
      "variable y vector",
      "parameter z scalar",
-     "minimize -norm(A*x - b,abs(4*x+b))",
-     "subject to",
-     "  norm(x,y,z) + -5 <= A*x - -3"
+     "minimize -4.0*x",
+     "#subject to",
+     "#  norm(x,y,z) + -5 <= A*x - -3"
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",
@@ -75,22 +76,31 @@ if __name__ == '__main__':
     
     print_prof_data()
     
-    k = Evaluator()
-    c = Parameter('a', MATRIX, UNKNOWN)
-    a = Variable('y', SCALAR)
-    b = Variable('z', VECTOR)
+    # k = Evaluator()
+    #     c = Parameter('a', VECTOR, UNKNOWN)
+    #     a = Variable('y', SCALAR)
+    #     b = Variable('z', VECTOR)
     
-    t = Dimension(None)
-    equivalence = {'y': t, 'x': t}
-    print equivalence['y'].dim
-    print equivalence['x'].dim
+    # x = Constant(3.0)
+    # y = Constant(6.0)
+    # 
+    # r = k.add(x,y)
+    # 
+    # v = k.add(a,b)
+    # h = k.sub(v,r)
+    # f = k.mul(c,a)
+    # print v.helpstring()
+    # print h.helpstring()
+    # print f.helpstring()
+    # print k.add(c,v).helpstring()
+    print p.rpn_eval.affine
     
-    t.dim = Col(c)
+    print p.rpn_eval.varlist
+    print p.rpn_eval.tmplist
+    print p.rpn_eval.paramlist
     
-    print equivalence['y'].dim
-    print equivalence['x'].dim
+    print p.rpn_eval.equiv
+    print p.rpn_eval.dimensions
     
-    print k.add(a,b)
-    print k.affine
     
     
