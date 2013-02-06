@@ -31,6 +31,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 from scoop_expression import Operand, Variable, Parameter, Atom, Expression, \
     SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
 from scoop_atoms import Evaluator
+from macro import MacroExpander, is_function
+
 from scoop_tokens import scanner, precedence
 from collections import deque
 from profiler import profile, print_prof_data  
@@ -63,9 +65,11 @@ class Scoop(object):
         # (stateful) object to evaluate expressions
         self.rpn_eval = Evaluator()  # symtable is passed by reference
         
+        self.expander = MacroExpander()
+        
         # initialize your scanner, create a new one using current rpn evaluator
         self.scanner = scanner(self.rpn_eval)
-        
+                
         # lookup table for tokens and their corresponding operators
         # TODO: decouple ops from instance? (lose ability to build IR)
         # self.tok_op = \
@@ -207,18 +211,26 @@ class Scoop(object):
         else:
             raise Exception("Cannot have multiple objectives per SCOOP problem.")
         expr = self.parse_expr(toks)    # expr is an RPN stack, this also checks DCP
-        # evaluate the expression
-        obj = eval_rpn(expr)
-        # we expand the objective, which inserts it into our underlying 
-        # problem IR. this is done in case obj is just a single variable
-        obj = self.rpn_eval.expand( obj )
-        if obj:                
-            if obj.shape is not SCALAR:
-                raise Exception("Objective function %s should be scalar." % obj.description)
-            if not check[tok](obj):
-                raise Exception("Objective vexity %s does not agree with %s" % (Operand.vexity_names[obj.vexity], tok))
-        else:
-            raise Exception("No objective specified.")
+        
+        # perform macro expansion on the RPN
+        stack_of_rpns = self.expander.expand( expr )
+        print self.expander.lines
+        
+        # stack_of_rpns.pop() -- at the top, it's a linear functional
+        # you keep popping and chaining DCP rules to the inequalities
+        
+        # # evaluate the expression
+        # obj = eval_rpn(expr)
+        # # we expand the objective, which inserts it into our underlying 
+        # # problem IR. this is done in case obj is just a single variable
+        # obj = self.rpn_eval.expand( obj )
+        # if obj:                
+        #     if obj.shape is not SCALAR:
+        #         raise Exception("Objective function %s should be scalar." % obj.description)
+        #     if not check[tok](obj):
+        #         raise Exception("Objective vexity %s does not agree with %s" % (Operand.vexity_names[obj.vexity], tok))
+        # else:
+        #     raise Exception("No objective specified.")
         
     def parse_constraint(self,toks):
         """expr (EQ|GEQ|LEQ) expr"""
@@ -299,40 +311,42 @@ class Scoop(object):
             last_tok = tok
             
             if tok is "CONSTANT" or tok is "ONES" or tok is "ZEROS":
-                rpn_stack.append((tok,val))
+                rpn_stack.append((tok,val,0))
             elif tok is "IDENTIFIER" and val in self.symtable:
                 paramOrVariable = self.symtable[val]
-                rpn_stack.append( (tok,paramOrVariable) )
+                rpn_stack.append( (tok,paramOrVariable,0) )
             elif is_function(tok,val):
                 # functions have highest precedence
-                op_stack.append((tok,val))
+                op_stack.append((tok,val,0))
                 argcount_stack.append(0)
             elif tok is "IDENTIFIER":
                 raise SyntaxError("\"%(s)s\"\n\tUnknown identifier \"%(val)s\"." % locals())
             elif tok is "COMMA":
-                argcount_stack[-1] += 1
                 op = ""
-                while op is not "LPAREN":
+                while op is not "LPAREN":                    
                     if op_stack:
-                        op,sym = op_stack[-1]   # peek at top
+                        op,sym,arg = op_stack[-1]   # peek at top
                         if op is not "LPAREN":
-                            push_rpn(rpn_stack, argcount_stack, op,sym)
+                            push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                             op_stack.pop()
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced separator or mismatched parenthesis in function %(sym)s." % locals())
+                argcount_stack[-1] += 1
+            
             elif tok is "UMINUS" or tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
                 if op_stack:
-                    op,sym = op_stack[-1]   # peek at top
+                    op,sym,arg = op_stack[-1]   # peek at top
                     # pop ops with higher precedence
                     while op_stack and (precedence(tok) < precedence(op) or is_function(op,sym)):
-                        op,sym = op_stack.pop()
-                        push_rpn(rpn_stack, argcount_stack, op,sym)
+                        op,sym,arg = op_stack.pop()
+                        push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                         if op_stack:
-                            op,sym = op_stack[-1]   # peek at top
+                            op,sym,arg = op_stack[-1]   # peek at top
                         #else:
                         #    raise SyntaxError("\"%(s)s\"\n\tInvalid operator %(tok)s application; stuck on %(op)s." % locals())
-                
-                op_stack.append( (tok, val) )
+                if tok is "UMINUS": nargs = 1
+                else: nargs = 2
+                op_stack.append( (tok, val, nargs) )
             # elif tok is "PLUS_OP" or tok is "MINUS_OP":
 
             elif tok is "EQ" or tok is "LEQ" or tok is "GEQ":
@@ -341,34 +355,34 @@ class Scoop(object):
                 op = ""
                 while op is not "BOOL_OP":
                     if op_stack:
-                        op,sym = op_stack.pop()
-                        if op is not "BOOL_OP": push_rpn(rpn_stack, argcount_stack, op,sym)
+                        op,sym,arg = op_stack.pop()
+                        if op is not "BOOL_OP": push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tBoolean expression where none expected." % locals())
-                op_stack.append( (tok, val) )
+                op_stack.append( (tok, val, 2) )
 
             elif tok is "LPAREN" or tok is "BOOL_OP":
-                op_stack.append((tok,val))
+                op_stack.append((tok,val,0))
             elif tok is "RPAREN":
                 op = ""
 
                 while op is not "LPAREN":
                     if op_stack: 
-                        op,sym = op_stack.pop()
-                        if op is not "LPAREN": push_rpn(rpn_stack, argcount_stack, op,sym)
+                        op,sym,arg = op_stack.pop()
+                        if op is not "LPAREN": push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tCould not find matching left parenthesis." % locals())
             else:
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected %(tok)s with value %(val)s." % locals())
             
         while op_stack:
-            op,sym = op_stack.pop()
+            op,sym,arg = op_stack.pop()
             if op is "LPAREN":
                 raise SyntaxError("\"%(s)s\"\n\tCould not find matching right parenthesis." % locals())
             if op is "BOOL_OP":
                 raise SyntaxError("\"%(s)s\"\n\tExpected to find boolean constraint." % locals())
             
-            push_rpn(rpn_stack, argcount_stack, op,sym)
+            push_rpn(rpn_stack, argcount_stack, op,sym,arg)
 
         if argcount_stack:
             raise Exception("Unknown error. Variable argument functions failed to be properly parsed")
@@ -377,19 +391,16 @@ class Scoop(object):
         # operands are Variables, Params, or Constants
         return rpn_stack
 
-def is_function(tok,val):
-    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in Atom.lookup))
-
-def push_rpn(stack,argcount,op,sym):
+def push_rpn(stack,argcount,op,sym,arg):
     if is_function(op,sym):
         a = argcount.pop()
-        stack.append( (op, (sym, a+1)) )
+        stack.append( (op, sym, a+1) )
     else:
-        stack.append((op,sym))
+        stack.append( (op,sym,arg) )
 
 def eval_rpn(stack):
     operand_stack = []
-    for (tok, op) in stack:
+    for (tok, op, nargs) in stack:
         print map(lambda e: e.description, operand_stack)
         if isinstance(op, Operand):
             operand_stack.append(op)
@@ -411,4 +422,3 @@ def eval_rpn(stack):
             return operand_stack[0]
         else:
             return None
-    

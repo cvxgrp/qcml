@@ -36,6 +36,24 @@ The source code can be used in two modes: as an API for a (weakly-)embedded doma
 
 The parser is designed to parse the problem line by line. It stores a problem in an intermediate Python representation, but prints out a problem.
 
+Atomic expressions
+==================
+I'd like the parser to be idempotent with respect to constraints that look like
+* aff = 0
+* aff in K
+
+Scientific computing mode
+=========================
+Parse tree only produces a list of linear functions. These are repeatedly evaluated in the solver.
+
+Parse tree
+==========
+Produces AST that only involves affine functions.
+
+Atoms
+=====
+Atoms are defined as macros in our language and are automatically expanded when encountered!
+
 
 <!-- Old notes
 =========

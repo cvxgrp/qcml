@@ -27,7 +27,6 @@ The views and conclusions contained in the software and documentation are
 those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
-from sets import Set
 
 # equivalence will be an external object
 class DimSet(object):
@@ -40,8 +39,8 @@ class DimSet(object):
         s = Set()
         # append all the equivalent sets
         for arg in args:
-            s |= self.equiv.get( arg, Set() ) 
-        s |= ( Set(args) )
+            s |= self.equiv.get( arg, set() ) 
+        s |= ( set(args) )
         
         # set all the old ones to the new set
         for arg in s:

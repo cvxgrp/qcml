@@ -1,4 +1,4 @@
-from scoop import Scoop
+from scoop_parser import Scoop
 from profiler import print_prof_data
 
 # temporarily expose this

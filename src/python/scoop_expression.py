@@ -123,7 +123,7 @@ class Expression(Operand):
 
 
 class Atom(object):
-    lookup = {'sqrt': 1, 'geo_mean': 1}
+    lookup = {'sqrt': 1, 'geo_mean': 1, 'square': 1}
     
 # convex, concave, affine decorators
 def convex(fn,*args):

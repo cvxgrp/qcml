@@ -31,7 +31,6 @@ policies, either expressed or implied, of the FreeBSD Project.
 #from scoop import Scoop, print_prof_data
 from scoop import Scoop, Variable, Parameter, Constant, print_prof_data, \
     Evaluator, UNKNOWN, SCALAR, VECTOR, MATRIX
-from sets import Set
 # just a driver for the problems
 
 # if the lang were embedded in python, could do some crazy stuff
@@ -56,7 +55,7 @@ if __name__ == '__main__':
      "variable t scalar",
      "variable y vector",
      "parameter z scalar",
-     "minimize -4.0*x",
+     "minimize square(4.0*x + sqrt(3*y), 5)",
      "#subject to",
      "#  norm(x,y,z) + -5 <= A*x - -3"
      "#norm(x) <= -3",
