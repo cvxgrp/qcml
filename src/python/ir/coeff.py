@@ -28,7 +28,6 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-
 # container for coefficient object
 class Coeff(object): 
     pass
@@ -38,15 +37,17 @@ class Coeff(object):
 # Matrix, Eye
 class Matrix(Coeff):
     """Abstract representation of a matrix parameter coefficient"""
+        
     def __init__(self, parameter, transposed=False):
         self.name = parameter.name #[1:]  # removes leading _ used for mangling
-        self.transposed = transposed
+        self.transposed = transposed        
         
     def __repr__(self):
         return "Matrix %s" % self.name #[1:] # removes leading _ used for mangling
 
 class Vector(Coeff):
     """Abstract representation of a vector parameter coefficient"""
+        
     def __init__(self, parameter, transposed=False):
         self.name = parameter.name #[1:]  # removes leading _ used for mangling
         self.transposed = transposed
@@ -56,36 +57,52 @@ class Vector(Coeff):
 
 class Scalar(Coeff):
     """Abstract representation of a scalar parameter coefficient"""
+        
     def __init__(self, parameter):
         self.name = parameter.name #[1:]
-        
+          
     def __repr__(self):
         return "Scalar %s" % self.name #[1:] # removes leading _ used for mangling
 
 
 class Eye(Coeff):
     """Abstract representation of an identity matrix, alpha*I"""
+        
     def __init__(self, n, alpha = 1.0):
         self.n = n
         self.alpha = alpha
+        
 
     def __repr__(self):
         return "%s * I(%s,%s)" % (str(self.alpha), self.n, self.n)
         
 class Zero(Coeff):
     """Abstract representation of a zero"""
+        
     def __init__(self, n):
-        self.n = n
+        self.n = n        
     
     def __repr__(self):
         return "0(%s)" % self.n
 
 class Ones(Coeff):
     """Abstract representation of a ones vector, alpha*ones"""
+    
     def __init__(self, n, alpha = 1.0):
         self.n = n
         self.alpha = alpha
-
+        
     def __repr__(self):
         return "%s * ones(%s)" % (str(self.alpha), self.n)
-    
+
+
+# hash using test_dict[a.__class__]
+test_dict = {
+    Coeff: "I'm a coeff",
+    Matrix: "I'm a matrix",
+    Vector: "I'm a vector",
+    Scalar: "I'm a scalar",
+    Eye: "I'm identity",
+    Zero: "I'm zero!",
+    Ones: "I'm all ones"
+}
