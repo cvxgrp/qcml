@@ -31,10 +31,18 @@ policies, either expressed or implied, of the FreeBSD Project.
 import re
 import expression as e
 import operator
+from atoms import macros
 
 def unrecognized_token(s):
     raise Exception("The string \'%(s)s\' cannot be tokenized." % locals())
-
+    
+def macro_or_identifier(token):
+    f = macros.get(token, None)
+    if f:
+        return ("MACRO", f)
+    else:
+        return ("IDENTIFIER", token)
+        
 # this is the tokenizer for basic SOCP problems
 scanner = re.Scanner([
         (r"#.*",                    None ), # gobble comments
@@ -61,9 +69,9 @@ scanner = re.Scanner([
         (r"norm",                   lambda scanner,token:("NORM", token) ),
         (r"\(",                     lambda scanner,token:("LPAREN", token) ),
         (r"\)",                     lambda scanner,token:("RPAREN", token) ),
-        (r"[a-zA-Z_\d]+",  	        lambda scanner,token:("IDENTIFIER", token) ),
+        (r"[a-zA-Z_\d]+",  	        lambda scanner,token:macro_or_identifier(token) ),
         (r"\+",                     lambda scanner,token:("PLUS_OP", operator.add) ),
-        (r"\-",                     lambda scanner,token:("MINUS_OP", operator.sub) ),
+        (r"\-",                     lambda scanner,token:("UMINUS", operator.neg) ),
         (r"\*",                     lambda scanner,token:("MULT_OP", operator.mul) ),
         (r",",                      lambda scanner,token:("COMMA", token) ),
         (r"\s+",                    None), # None == skip token.
@@ -72,7 +80,11 @@ scanner = re.Scanner([
 
 # "operator" precedence
 op_prec = {'ABS':4, 'NORM': 4, 'UMINUS':2, 'MULT_OP':3, 'PLUS_OP':1, 'MINUS_OP':1, 'EQ':0, 'GEQ':0, 'LEQ':0, \
-            '':0, 'LPAREN':0}   # these last two are to help us get unary minus and plus
+            '':0, 'LPAREN':0}   # these last three are to help us get unary minus and plus
 
 def precedence(tok):
-    return op_prec.get(tok, -1)
+    if tok is "MACRO":
+        return 4
+    else:
+        return op_prec.get(tok, -1)
+

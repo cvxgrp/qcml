@@ -76,15 +76,16 @@ class Shape(object):
         )
         return Shape(f())
     
-    def __sub__(self, other):
-        lhs = self.shape_str
-        rhs = other.shape_str
-        
-        f = self.add_lookup.get( 
-            (lhs, rhs), 
-            error_msg("No subtraction operator implemented for '%s - %s'." % (lhs,rhs)) 
-        )
-        return Shape(f())
+    __sub__ = None
+    # def __sub__(self, other):
+    #     lhs = self.shape_str
+    #     rhs = other.shape_str
+    #     
+    #     f = self.add_lookup.get( 
+    #         (lhs, rhs), 
+    #         error_msg("No subtraction operator implemented for '%s - %s'." % (lhs,rhs)) 
+    #     )
+    #     return Shape(f())
        
     def __mul__(self, other):
         lhs = self.shape_str
@@ -141,12 +142,13 @@ class Sign(object):
         sign = self.add_lookup.get( (lhs, rhs), 'UNKNOWN' )
         return Sign(sign)
     
-    def __sub__(self, other):
-        lhs = self.sign_str
-        rhs = self.negate[other.sign_str]
-        
-        sign = self.add_lookup.get( (lhs, rhs), 'UNKNOWN' )
-        return Sign(sign)
+    __sub__ = None
+    # def __sub__(self, other):
+    #     lhs = self.sign_str
+    #     rhs = self.negate[other.sign_str]
+    #     
+    #     sign = self.add_lookup.get( (lhs, rhs), 'UNKNOWN' )
+    #     return Sign(sign)
        
     def __mul__(self, other):
         lhs = self.sign_str
@@ -320,26 +322,27 @@ class Expression(object):
         if isconstant: result.value = value
         return result
     
-    def __sub__(self, other):
-        vexity = self.vexity | self.negate[other.vexity]
-        sign = self.sign - other.sign
-        shape = self.shape - other.shape
-        if self.kind is other.kind:
-            kind = self.kind
-        else:
-            kind = 'ARGUMENT'
-        
-        isconstant = False
-        if hasattr(self, 'value') and hasattr(other, 'value'):
-            value = self.value - other.value
-            name = str(value)
-            isconstant = True
-        else:
-            name = self.name + ' - (' + other.name + ')'
-        
-        result = Expression(vexity, sign, shape, name, kind)
-        if isconstant: result.value = value
-        return result
+    __sub__ = None
+    # def __sub__(self, other):
+    #     vexity = self.vexity | self.negate[other.vexity]
+    #     sign = self.sign - other.sign
+    #     shape = self.shape - other.shape
+    #     if self.kind is other.kind:
+    #         kind = self.kind
+    #     else:
+    #         kind = 'ARGUMENT'
+    #     
+    #     isconstant = False
+    #     if hasattr(self, 'value') and hasattr(other, 'value'):
+    #         value = self.value - other.value
+    #         name = str(value)
+    #         isconstant = True
+    #     else:
+    #         name = self.name + ' - (' + other.name + ')'
+    #     
+    #     result = Expression(vexity, sign, shape, name, kind)
+    #     if isconstant: result.value = value
+    #     return result
 
     def __mul__(self, other):
         # expressions are always affine expressions

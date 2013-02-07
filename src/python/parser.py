@@ -347,6 +347,7 @@ class Scoop(object):
         else: expected_bools = 0
 
         last_tok = ""
+        last_val = ""
         while toks:
             # basic Shunting-yard algorithm from wikipedia
             # modified to handle variable args
@@ -355,33 +356,41 @@ class Scoop(object):
             # pre-process for unary operators
             # idea taken from
             # http://en.literateprograms.org/Shunting_yard_algorithm_%28Python%29#Operators
-            # unary operator is the first token or any operator preceeded by 
-            # another operator
-            if tok is "MINUS_OP" and precedence(last_tok) >= 0:
-                # set uminus action
-                tok = "UMINUS"
-                val = operator.neg
-                
-                # x + (-y) = x - y
-                if last_tok is "PLUS_OP":
-                    op_stack.pop()
-                    op_stack.append(("MINUS_OP", operator.sub, 2))
-                    continue
-                # x - (-y) = x + y
-                if last_tok is "MINUS_OP":
-                    op_stack.pop()
-                    op_stack.append(("PLUS_OP",operator.add, 2)) 
-                    continue
-                # -(-y) = y
-                if last_tok is "UMINUS":
-                    op_stack.pop()
-                    continue # -(-x) = x
+            # # minus occurs when uminus appears after identifiers
+            # if tok is "UMINUS" and precedence(last_tok, last_val) < 0:
+            #     # set uminus action
+            #     tok = "UMINUS"
+            #     val = operator.neg
+            #     
+            #     # x + (-y) = x - y
+            #     if last_tok is "PLUS_OP":
+            #         op_stack.pop()
+            #         op_stack.append(("MINUS_OP", operator.sub, 2))
+            #         continue
+            #     # x - (-y) = x + y
+            #     if last_tok is "MINUS_OP":
+            #         op_stack.pop()
+            #         op_stack.append(("PLUS_OP",operator.add, 2)) 
+            #         continue
+            #     # -(-y) = y
+            #     if last_tok is "UMINUS":
+            #         op_stack.pop()
+            #         continue # -(-x) = x
+            
             if tok is "PLUS_OP" and precedence(last_tok) >= 0:
                 # this is a unary plus, skip it entirely
                 continue
+                
+            # if "-" follows anything that isn't another operation, then 
+            # insert a plus operation
+            if tok is "UMINUS" and precedence(last_tok) < 0:
+                toks.appendleft(("UMINUS",operator.neg))
+                tok = "PLUS_OP"
+                val = operator.add
             
             # keep track of old token
             last_tok = tok
+            
             # identifier name
             identifier_name = val
             if tok is "IDENTIFIER" and mangle:
@@ -397,7 +406,7 @@ class Scoop(object):
                 if mangle:
                     self.used_syms[identifier_name] = repr(paramOrVariable)
                 rpn_stack.append( (tok,paramOrVariable,0) )
-            elif is_function(tok,val):
+            elif is_function(tok):
                 # functions have highest precedence
                 op_stack.append((tok,val,0))
                 argcount_stack.append(0)
@@ -415,11 +424,14 @@ class Scoop(object):
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced separator or mismatched parenthesis in function %(sym)s." % locals())
                 argcount_stack[-1] += 1
             
-            elif tok is "UMINUS" or tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
+            elif tok is "UMINUS" or tok is "MULT_OP" or tok is "PLUS_OP": 
+                # or tok is "MINUS_OP":
                 if op_stack:
                     op,sym,arg = op_stack[-1]   # peek at top
+                    print (tok, op)
+                    
                     # pop ops with higher precedence
-                    while op_stack and (precedence(tok) < precedence(op) or is_function(op,sym)):
+                    while op_stack and (precedence(tok) < precedence(op)):
                         op,sym,arg = op_stack.pop()
                         push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                         if op_stack:
@@ -472,10 +484,11 @@ class Scoop(object):
         
         # operators / functions are (# args, func)
         # operands are Variables, Params, or Constants
+        print rpn_stack
         return rpn_stack
 
 def push_rpn(stack,argcount,op,sym,arg):
-    if is_function(op,sym):
+    if is_function(op):
         a = argcount.pop()
         stack.append( (op, sym, a+1) )
     else:

@@ -30,7 +30,6 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
     Variable, Expression, Parameter, Constant, Constraint
-from atoms import macros
 import operator
 
 # this is just a scaffolding for atoms
@@ -63,7 +62,7 @@ class MacroExpander(object):
         operand_stack = []
         constraint_stack = []
         new_lines = []
-        
+                
         def gobble(nargs):
             """Gobble args from RPN stack"""
             args = []
@@ -75,21 +74,21 @@ class MacroExpander(object):
         for (tok, op, nargs) in stack:
             if isinstance(op, Expression):
                 operand_stack.append(op)
-            elif is_function(tok, op):
+            elif tok is "MACRO":
                 args = gobble(nargs)
             
-                if tok is not "NORM":                    
-                    f = macros[op](self)
+                f = op(self)    # need to pass macro env over
+                print f
+                lines, var = f(*args)    # will fail with multiargs (that's OK for now)
+                print lines, var
+                new_lines += lines
+                operand_stack.append( var )
+            elif tok is "NORM" or tok is "ABS":
+                args = gobble(nargs)
                 
-                    lines, var = f(*args)    # will fail with multiargs (that's OK for now)
-                    new_lines += lines
-                
-                    operand_stack.append( var )
-                else:
-                    arglist = ', '.join( map(lambda e: e.name, args))
-                    result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
-                    operand_stack.append( result )
-                    
+                arglist = ', '.join( map(lambda e: e.name, args))
+                result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
+                operand_stack.append( result )
             else:
                 args = gobble(nargs)
                 result = op(*args)
@@ -105,9 +104,9 @@ class MacroExpander(object):
             return (operand_stack, new_lines)
         
 
-
-def is_function(tok,val):
-    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in macros))
+# TODO: needs to be moved... and renamed... to isfunction
+def is_function(tok):
+    return (tok is "NORM" or tok is "ABS" or tok is "MACRO")
 
 
 
