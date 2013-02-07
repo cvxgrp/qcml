@@ -44,7 +44,7 @@ from datetime import datetime
 # state to keep track of whether we are parsing *before* a MINIMIZE,
 # MAXIMIZE, or FIND keyword; *on* the line that has that keyword; or
 # *after* that line
-PRE_OBJ, OBJ, POST_OBJ = range(3)  
+PRE_OBJ, OBJ, POST_OBJ, CONSTR = range(4)  
 
 # check for agreement of objective vexity with argument
 check = \
@@ -250,7 +250,12 @@ class Scoop(object):
         
             if(expand_macros):
                 # perform macro expansion on the RPN
-                (obj, new_lines) = self.expander.expand( expr )
+                (obj_stack, new_lines) = self.expander.expand( expr )
+                if not obj_stack:   # should never happen
+                    raise Exception("No objective parsed.")
+                obj = obj_stack.pop()
+                if obj_stack:       # should never happen
+                    raise Exception("Unparsed operands.")
                 
                 if obj.shape != SCALAR:
                     raise Exception("\"%s\"\n\tObjective function %s should be scalar." % (self.line, obj.name))
@@ -280,11 +285,10 @@ class Scoop(object):
     def parse_constraint(self,mangle, expand_macros):
         def parse_constraint_wrap(toks):
             """expr (EQ|GEQ|LEQ) expr"""
-            self.reset_state()     # reset the parser state
-            # push a special token on the top that only gets popped when we
-            # meet an (EQ|GEQ|LEQ)
-            toks.appendleft(("BOOL_OP", ""))
-            expr = self.parse_expr(mangle, toks)    # expr is an RPN stack, this also checks DCP
+            self.reset_state()                     # reset the parser state
+            # start parsing booleans
+            # expr is an RPN stack, this also checks DCP
+            expr = self.parse_expr(mangle, toks, parse_constr = True)    
             if not expr:
                 raise Exception("Unknown constraint error.")
                 
@@ -294,9 +298,9 @@ class Scoop(object):
                 # add the constraint
                 new_lines += [
                     "",
-                    "# \"%s\"" % self.line,
-                    str(constraint)
-                ]
+                    "# \"%s\"" % self.line 
+                ] + map(str, constraint)
+                
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros
@@ -309,7 +313,7 @@ class Scoop(object):
                 #print "finished?"            
         return parse_constraint_wrap
     
-    def parse_expr(self,mangle,toks):
+    def parse_expr(self,mangle,toks,parse_constr = False):
         """ term = CONSTANT 
                  | variable-IDENTIFIER 
                  | parameter-IDENTIFIER 
@@ -339,6 +343,8 @@ class Scoop(object):
         rpn_stack = []
         op_stack = []
         argcount_stack = []
+        if parse_constr: expected_bools = 1 
+        else: expected_bools = 0
 
         last_tok = ""
         while toks:
@@ -426,16 +432,17 @@ class Scoop(object):
             # elif tok is "PLUS_OP" or tok is "MINUS_OP":
 
             elif tok is "EQ" or tok is "LEQ" or tok is "GEQ":
+                if not parse_constr:
+                    raise SyntaxError("\"%(s)s\"\n\tBoolean expression where none expected." % locals())
                 # boolean operators have the lowest precedence
-                # so pop everything off, until we hit BOOL_OP
+                # so pop everything off
                 op = ""
-                while op is not "BOOL_OP":
-                    if op_stack:
-                        op,sym,arg = op_stack.pop()
-                        if op is not "BOOL_OP": push_rpn(rpn_stack, argcount_stack, op,sym,arg)
-                    else:
-                        raise SyntaxError("\"%(s)s\"\n\tBoolean expression where none expected." % locals())
+                while op_stack:
+                    op,sym,arg = op_stack.pop()
+                    push_rpn(rpn_stack, argcount_stack, op,sym,arg)
+
                 op_stack.append( (tok, val, 2) )
+                expected_bools -= 1
 
             elif tok is "LPAREN" or tok is "BOOL_OP":
                 op_stack.append((tok,val,0))
@@ -455,7 +462,7 @@ class Scoop(object):
             op,sym,arg = op_stack.pop()
             if op is "LPAREN":
                 raise SyntaxError("\"%(s)s\"\n\tCould not find matching right parenthesis." % locals())
-            if op is "BOOL_OP":
+            if expected_bools > 0:
                 raise SyntaxError("\"%(s)s\"\n\tExpected to find boolean constraint." % locals())
             
             push_rpn(rpn_stack, argcount_stack, op,sym,arg)

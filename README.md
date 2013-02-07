@@ -2,197 +2,186 @@ Second-order Cone Optimization Parser (SCOOP)
 =============================================
 
 This project is a modular convex optimization framework for solving
-*second-order cone* optimization problems (SOCP). It consists of a parser and
-a separate code generator. The parser parses a simple front-end language that
-uses term rewriting to canonicalize optimization problems. Its output is in
-the same language as the input except it is guaranteed to be grammatically
-correct and adhere to the disciplined-convex programming (DCP) ruleset. The code generator can be used to emit source-code as a text file or as part of the host language (Python). This second feature is typically only available in interpreted languages. The code generator can be written to target different languages (compiled or interpreted).
+*second-order cone* optimization problems (SOCP). It separates the parsing
+and canonicalization phase from the generation and solve phase. This allows
+the use of a unified (domain-specific) language in the front end to target
+different use cases.
 
-Since the parser is a Python API written to parse strings, it is not too far-fetched to imagine that, in the future, the parser might be written in C with hooks to other languages. This will allow other languages to be used as a sort of templating language for specifying convex optimization problems. Each line is passed along (through the API) to the parser. This is what currently occurs inside the Python implementation.
+(XXX: a term rewriting / macro expansion language)
 
-Parameter dimensions and sparsity patterns are assumed to be unknown *until* runtime. That is, after the code has been parsed and a solver generated, you will not know that your parameters have the wrong dimensions or sparse storage until you attempt to run the program. This is by design.
+Parsing and canonicalization
+----------------------------
+The parser/canonicalizer canoncializes SOCP-representable *convex*
+optimization problems into standard form:
+
+    minimize c'*x
+    subject to
+      G*x + s == h
+      A*x == b
+      s in Q
+      
+where `Q` is a product cone of second-order cones (i.e., `Q = { (t,y) | ||y||
+<= t }`), and `x`, `s` are the optimization variables. The
+parser/canonicalizer guarantees that all problems will adhere to the
+disciplined convex programming (DCP) ruleset and that the problem has the form
+
+    minimize aff
+    subject to
+      aff == 0
+      norm(aff) <= aff
+
+where `aff` is any affine expression. This can also be a maximization or
+feasibility problem. If a problem is entered directly in this form, the
+parser/canonicalizer will not modify it; in other words, the
+parser/canonicalizer is *idempotent* with respect to SOCPs.
+
+Generation and solve
+--------------------
+The generator/solver can be used in prototyping or deployment mode. In
+prototyping mode (or solve mode), a *function* is generated which, when
+supplied with the problem parameters, will call an interior-point solver to
+solve the problem. In deployment mode (or code generation mode), *source
+code* (in a target language) is generated which solves a particular problem
+instance with fixed dimensions.
+
+In prototyping mode, the dimensions and the problem data may change with each invocation of the generated function. In deployment mode, problem dimensions are fixed, but problem data is allowed to change.
+
+Use as embedded language
+------------------------
+Although SCOOP's original intent was to be used to parse files with problems specified in SCOOP's language, its Python API has been exposed for use in Python. It operates similarly to a safe `eval` in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking SCOOP to generate a solver in a more efficient langauge, such as in C or CUDA.
+
+Example
+=======
+As an example, consider the Lasso problem,
+
+    # this entire line is a comment!
+    variable x vector
+    parameter A matrix
+    parameter lambda scalar positive
+    
+    minimize sum(square(A*x - 4)) + lambda*norm(x)
+    
+Note that variables and parameters are abstract, their shape is denoted only
+by a shape (`scalar`, `vector`, or `matrix`). SCOOP canonicalizes this
+problem to an SOCP.
+
+Inside Python, the code might look like
+
+    from scoop import Scoop, \
+
+    if __name__ == '__main__':
+        p = Scoop()
+  
+        map (p.run, 
+        ["# this entire line is a comment!",
+         "variable x vector",
+         "parameter A matrix",
+         "parameter lambda scalar positive",
+         ""
+         "minimize sum(square(A*x - 4)) + lambda*norm(x)"])
+    
+        print p
+
+Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following two lines will create a solver function `f` and call the solver, with the parameter arguments supplied.
+        
+    f = p.generate()
+    f(A = spmatrix, lambda = 0.01)
+
+Parameter dimensions and sparsity patterns are assumed to be unknown *until* the generated function is run. That is, after the code has been parsed and a function generated, the user will not be able to know that parameters have the wrong dimensions or storage format until attempting to run the function. This is by design.
+
+Once the user feels that the model is sufficient and wishes to scale to a problem with more data, the following line might conceivably generate source code to solve a problem instance (with fixed dimensions and sparsity pattern).
+
+    p.generateC(x = 1e6, A = sparsity_pattern)
+
+The argument corresponding to the variable name gives the length of the vector, and an exemplar for the sparsity pattern of parameters may be provided in lieu of its dimensions.
+
+Note that SCOOP is stateful, so one could use Python as a templating language and declare multiple variables
+
+    for i in range(n):
+      p.run("variable x%d scalar" % i)
 
 Prerequisites
 =============
 This project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
+* [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
 
-Optionally, depending on which features of the Python API you wish to use, you may also need:
-
-* `CVXOPT`
-
-Finally, depending on the type of code you generate, you may also need:
+Depending on the type of code you generate, you may also need:
 
 * Matlab
-* `CVX`
-* `ECOS`
-<!-- * `gcc` (or similar compiler)
+* [CVX](http://cvxr.com)
+<!--* `ECOS`
+* `gcc` (or similar compiler)
 * CUDA -->
 
-Usage modes
-===========
-The source code can be used in two modes: as an API for a (weakly-)embedded domain specific language in Python or as a stand-alone tool for parsing and generating source code for convex optimization.
-
-The parser is designed to parse the problem line by line. It stores a problem in an intermediate Python representation, but prints out a problem.
-
-Atomic expressions
-==================
-I'd like the parser to be idempotent with respect to constraints that look like
-* aff = 0
-* aff in K
-
-Scientific computing mode
+<!-- Scientific computing mode
 =========================
-Parse tree only produces a list of linear functions. These are repeatedly evaluated in the solver.
+Parse tree only produces a list of linear functions. These are repeatedly evaluated in the solver. -->
 
-Parse tree
-==========
-Produces AST that only involves affine functions.
+Operators and atoms
+===================
+SCOOP provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as *macros*. Whenever the parser encounters an atom, it simply expands its definition.
 
-Atoms
-=====
-Atoms are defined as macros in our language and are automatically expanded when encountered!
+Operators
+---------
+The standard linear operators are:
 
-
-<!-- Old notes
-=========
-
-This project contains a front end for the *embedded conic solver* (`ECOS`) to
-solve SOCPs. In `ECOS`, a second-order cone
-problem is
-
-    minimize c'*x
-    subject to
-      G*x + s == h
-      A*x == b
-      s In K
-
-where `K` is a symmetric product cone of linear and second-order cones.
-
-The front end provides an input language (and accompanying syntax) used to
-enter problems in text files. The front end is called with the text file
-supplied as argument to "compile" the code in to four different targets:
-
-* `CVX` -- This converts the problem in to an SOCP (with new variables) and
-  outputs a CVX problem with only equality constraints and cone constraints.
-  The equality constraints are given literally in terms of the variable names
-  (i.e., they are not stuffed in to matrices).
-
-* `CVX` cone solver -- This converts the equality constraints in to matrices
-  and bundles all the new variables in to a single vector optimization
-  variable. The CVX problem solved is
-        
-        minimize c'*x
-        subject to
-          A*x == b
-          x In K
-          
-  where the cone `K` is entered literally (i.e., `norm([x(2),x(3)]) <= x(1)`).
-
-* `conelp` -- This performs the needed matrix stuffing and outputs the data
-  `A`, `b`, `G`, and `h` and calls the `conelp` solver in Matlab.
-
-* `ECOS` -- This uses the same matrix stuffing and produces a call to
-  the `ECOS` solver in Matlab.
-
-Directory structure
--------------------
-This project is divided in to the following folders:
-
-* `src` -- Haskell source for the code generator
-* `doc` -- Latex documentation for the code generator
-* `matlab` -- Matlab test functions
-
-Dependencies
-------------
-This project requires:
-
-* Haskell -- The front end is written in [Haskell](http://www.haskell.org) and
-  requires a Haskell installation to compile. We've tested it with the GHC 
-  compiler. You're on your own with a different Haskell implementation.
-  * Parsec -- This is a Haskell library that powers the parser. It should come 
-    installed with Haskell/GHC.
-  * HUnit -- This is a unit testing library that we (minimally) use. It should 
-    also come installed with Haskell/GHC.
-* `ECOS` -- The generated code calls the `ECOS` solver. Although the
-  code generator can be used to produce calls to `CVX`, this is less
-  interesting.
-* Matlab -- Matlab is used for testing the generated problems.
-
-Currently, Matlab is a required dependency since the code generator does not
-actually emit source code; instead, the code generator will produce lines of
-Matlab code and calls the `ECOS` solver. This is for testing purposes mostly
-while we iron out the implementation.
-
-Optional dependencies are:
-
-* `CVX` -- Calls to `CVX` are made to verify results. More information on
-  `CVX` can be found [here](http://cvxr.com).
-
-Installation
-------------
-To install the ECOS front end, ensure that Haskell is installed and run the
-following lines of code
-
-    cd src
-    make
-
-This will produce three binaries: `main`, `test`, and `efe`. At the
-moment, only `efe` does anything. The other two binaries are in various
-states of neglect. The `efe` binary takes a text file as input and
-outputs the CVX representation of the problem (if the problem is DCP
-compliant).
-
-
-EFE
----
-The `efe` binary takes as input a path to a text file that specifies an
-optimization problem using the front end language. The target output can be
-toggled with a command line option
-
-* `cvx` -- cvx output
-* `cvxsocp` -- cvx socp output
-* `conelp` -- conelp matlab output
-* `ecos` -- ecos / paris matlab output.
-
-Running `efe` without any arguments will produce a list of options. It writes
-the generated code to `stdout`.
-
-ECOS tester
------------
-Under the `matlab` folder, a test driver called `ecos_tester` runs a suite of
-problem tests. It compares the results to expected `CVX` results.
-
-Some tests may fail because `ECOS` is not a high precision solver.
-
-Available atoms
----------------
-* infix atoms
+* infix operators
   * `+`
   * `-`
-  * `*`, rhs *must* be a parameter
-* prefix atoms
+  * `*`, lhs *must* be a parameter
+* prefix operators
   * `-`, unary minus / negate
+* vector operators (map vectors to scalars)
+  * `sum(x)`
+  
+The operators used for constructing second-order cones are:
+
+* scalar operators (map scalars to scalars)
+  * `abs(x)`
+* vector operators (map vectors to scalars)
+  * `norm(x)`
+  * `norm2(x)`, equivalent to `norm(x)`
+
+Atoms
+-----
+The atoms we provide are:
+
 * scalar atoms (map scalars to scalars)
   * `pos(x)`, defined as `max([x; 0])`
   * `neg(x)`, defined as `max([-x; 0])`
   * `square(x)`
   * `inv_pos(x)`
-  * `abs(x)`
   * `geo_mean(x,y)`
   * `sqrt(x)`
 * vector atoms (map vectors to scalars)
-  * `sum(x)`
   * `max(x)`
   * `min(x)`
   * `quad_over_lin(x,y)`, second argument must be scalar
-  * `norm(x)`
-  * `norm2(x)`, equivalent to `norm(x)`
   * `norm1(x)`
   * `norm_inf(x)`
 
-Syntax
+Roadmap
+=======
+In no particular order, the future of this project...
+
+* implement the list of operators / Atoms
+* CUDA and GPU support for large-scale solvers
+* C code generation
+* CVX code generation for verificaton
+* test cases
+* example suite
+* user guide
+* a solver based on scientific computing (just walks parse trees)
+* hook up to CVXOPT
+* a lex/yacc C API?
+
+
+
+
+
+<!-- Syntax
 ------
 The input language follows a syntax similar to CVXGEN. If you are familiar
 with imperative languages, then it shouldn't be too unfamiliar. Dimensions,

@@ -210,30 +210,47 @@ def build_eq(x,y):
 def build_leq(x,y):
     return "%s - (%s) >= 0" % (y.name, x.name)
 def build_geq(x,y):
-  return "%s - (%s) >= 0" % (x.name, y.name)  
+  return "%s - (%s) >= 0" % (x.name, y.name)
     
 # constraint class
 class Constraint(object):
     valid_constraints = set(['EQ', 'LEQ', 'GEQ'])
     constraints = {
-        'EQ': (check_eq, build_eq),
-        'LEQ': (check_leq, build_leq),
-        'GEQ': (check_geq, build_geq)
+        'EQ': (check_eq, build_eq, '=='),
+        'LEQ': (check_leq, build_leq, '<='),
+        'GEQ': (check_geq, build_geq, '>=')
     }
     
     def __init__(self, lhs, rhs, kind):
         """Creates a constraint object, but also checks DCP"""
         if kind in self.valid_constraints:
-            check, build = self.constraints[kind]
+            check, build, sym = self.constraints[kind]
             if check(lhs,rhs):
                 self.lhs = lhs
                 self.rhs = rhs
                 self.kind = kind
+                self.sym = sym
                 self.name = build(lhs,rhs)
             else:
                 raise Exception("Cannot have '%s %s %s'" % (lhs.vexity, sym, rhs.vexity))
         else:
-            raise Exception("Unknown constraint type %s." % kind)  
+            raise Exception("Unknown constraint type %s." % kind)
+            
+    # when comparing constriants to something else, that's likely the case 
+    # that something like l <= x <= u has occurred
+    def __le__(self,other):
+        if self.kind is 'LEQ':
+            return Constraint(self.rhs, other, 'LEQ')
+        else:
+            raise Exception("Cannot have constraints of the form 'x %s y <= z" % (self.sym))
+    def __ge__(self,other):
+        if self.kind is 'GEQ':
+            return Constraint(self.rhs, other, 'GEQ')
+        else:
+            raise Exception("Cannot have constraints of the form 'x %s y >= z" % (self.sym))
+            
+    def __eq__(self,other):
+        raise Exception("Cannot chain equality constraints.")
     
     def __repr__(self):
         return "Constraint(%s, %s, '%s')" % (self.lhs, self.rhs, self.kind)

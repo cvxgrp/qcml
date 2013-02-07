@@ -29,7 +29,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
-    Variable, Expression, Parameter, Constant
+    Variable, Expression, Parameter, Constant, Constraint
 from atoms import macros
 import operator
 
@@ -61,6 +61,7 @@ class MacroExpander(object):
     def expand(self, stack):
         """Expand any macros to a set of new SCOOP lines."""
         operand_stack = []
+        constraint_stack = []
         new_lines = []
         
         def gobble(nargs):
@@ -91,14 +92,18 @@ class MacroExpander(object):
                     
             else:
                 args = gobble(nargs)
-                operand_stack.append( op(*args) )
+                result = op(*args)
+                
+                if isinstance(result, Constraint):
+                    constraint_stack.append( result )
+                operand_stack.append( result )
         
-        # the operand stack should only contain one element at this point
-        expr = operand_stack.pop()
-        # TODO remove this check
-        if operand_stack:
-            raise Exception("Didn't finish evaluating all operands.")
-        return (expr, new_lines)
+        # if there are any constraints, we return the constraint stack instead
+        if constraint_stack: 
+            return (constraint_stack, new_lines)
+        else:
+            return (operand_stack, new_lines)
+        
 
 
 def is_function(tok,val):
