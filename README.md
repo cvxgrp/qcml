@@ -67,8 +67,7 @@ problem to an SOCP.
 
 Inside Python, the code might look like
 
-    from scoop import Scoop, \
-
+    from scoop import Scoop
     if __name__ == '__main__':
         p = Scoop()
   
