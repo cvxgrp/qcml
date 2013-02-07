@@ -71,11 +71,15 @@ class Scoop(object):
         # equivalent problem (using only SOCP atoms)
         self.used_syms = {}
         self.equivalent = []
+        
+        # dictionary for macro expansions
+        self.equiv_macros = {}
     
         # (stateful) object to evaluate expressions
         # self.rpn_eval = Evaluator()  # symtable is passed by reference
         
-        self.expander = MacroExpander()
+        # equiv_macros is passed by reference
+        self.expander = MacroExpander(self.equiv_macros)
         
         # # initialize your scanner, create a new one using current rpn evaluator
         # self.scanner = scanner(self.rpn_eval)

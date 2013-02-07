@@ -40,9 +40,10 @@ class MacroExpander(object):
      
     # symtable = {} # i don't actually need a symtable...
     
-    def __init__(self):
+    def __init__(self, table):
         # self.symtable = table
         self.varcount = 0
+        self.lookup = table
 
     def __repr__(self):
         return '\n'.join(self.lines)
@@ -76,10 +77,8 @@ class MacroExpander(object):
             elif is_function(tok, op):
                 args = gobble(nargs)
             
-                if tok is not "NORM":
-                    t = self.create_varname()
-                    
-                    f = macros[op](t)
+                if tok is not "NORM":                    
+                    f = macros[op](self)
                 
                     lines, var = f(*args)    # will fail with multiargs (that's OK for now)
                     new_lines += lines

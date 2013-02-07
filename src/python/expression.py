@@ -363,7 +363,7 @@ class Expression(object):
         self.vexity = self.negate[self.vexity]
         self.sign = -self.sign
         self.shape = -self.shape
-        self.name = '-(' + name + ')'
+        self.name = '-(' + self.name + ')'
         if hasattr(self, 'value'):
             self.value = -self.value
             self.name = str(self.value)        
