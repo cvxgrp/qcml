@@ -28,16 +28,10 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, Variable, Expression, Parameter, Constant
-from atoms import atoms
+from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
+    Variable, Expression, Parameter, Constant
+from atoms import macros
 import operator
-
-tok_action = {
-    "UMINUS": operator.neg,
-    "PLUS_OP": operator.add,
-    "MINUS_OP": operator.sub,
-    "MULT_OP": operator.mul
-}
 
 # this is just a scaffolding for atoms
 class MacroExpander(object):
@@ -48,7 +42,6 @@ class MacroExpander(object):
     
     def __init__(self):
         # self.symtable = table
-        self.lines = []     # additional scoop lines to execute
         self.varcount = 0
 
     def __repr__(self):
@@ -65,9 +58,9 @@ class MacroExpander(object):
     # aff = 0
     # aff \in K
     def expand(self, stack):
-        stack_of_rpns =[]
+        """Expand any macros to a set of new SCOOP lines."""
         operand_stack = []
-        mono_stack = []
+        new_lines = []
         
         def gobble(nargs):
             """Gobble args from RPN stack"""
@@ -83,52 +76,34 @@ class MacroExpander(object):
             elif is_function(tok, op):
                 args = gobble(nargs)
             
-
-                t = self.create_varname()
-                f = atoms[op](t)
+                if tok is not "NORM":
+                    t = self.create_varname()
+                    
+                    f = macros[op](t)
                 
-                lines, var, mono = f(*args)    # will fail with multiargs (that's OK for now)
-                self.lines += lines
-                mono_stack.append(mono)
+                    lines, var = f(*args)    # will fail with multiargs (that's OK for now)
+                    new_lines += lines
                 
-                # shape_stack.append( var.shape )    # get these from the func
-                # sign_stack.append( lhs.sign )    # get these from the func
-                
-                operand_stack.append( var )
-                
-                # append a partial RPN stack (last op isn't yet determined)
-                # args.append( ("IDENTIFIER", v, 0) )
-                # well, this would just be "undetermined" rpns
-                # at this stage, we don't know which way to relax the signs yet
-                # stack_of_rpns.append([lhs, rhs])  
+                    operand_stack.append( var )
+                else:
+                    arglist = ', '.join( map(lambda e: e.name, args))
+                    result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
+                    operand_stack.append( result )
+                    
             else:
                 args = gobble(nargs)
-                f = tok_action[tok] # only linear operators left here
-
-                #args.append( (tok, op, nargs) )
-                operand_stack.append( f(*args) )
-            
-            # if is_function(tok, op):
-            #     # args = []
-            #     # for _ in range(nargs):
-            #     #     args.append(current_rpn.pop())
-            #     
-            #     current_rpn.append( (tok, op, nargs) )
-            #     stack_of_rpns.append(current_rpn)
-            #     current_rpn = []
-            #     print "MACRO EXPAND! %s" % op
-            # else:
-            #     current_rpn.append( (tok, op, nargs) )
-    
-        print stack_of_rpns
-        print operand_stack
-        return ""
-        # if current_rpn: stack_of_rpns.append(current_rpn)
-        # return stack_of_rpns
+                operand_stack.append( op(*args) )
+        
+        # the operand stack should only contain one element at this point
+        expr = operand_stack.pop()
+        # TODO remove this check
+        if operand_stack:
+            raise Exception("Didn't finish evaluating all operands.")
+        return (expr, new_lines)
 
 
 def is_function(tok,val):
-    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in atoms))
+    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in macros))
 
 
 

@@ -16,7 +16,7 @@ Evaluator.mul = MethodType(op_mult, None, Evaluator)
 Evaluator.neg = MethodType(op_neg, None, Evaluator)
 
 # build dictionary of methods (matching with identifiers)
-atoms = \
+macros = \
     {
         'square': scoop_square
     }

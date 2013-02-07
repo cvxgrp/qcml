@@ -38,7 +38,6 @@ from scoop import Scoop, \
 # if the lang were embedded in python, could do some crazy stuff
 # problem is getting variable names from the symbol table
 if __name__ == '__main__':
-    print "hello"
     p = Scoop()
     
     # i can parse scoop line by line
@@ -55,11 +54,12 @@ if __name__ == '__main__':
      "parameter b vector",
      "parameter a scalar",
      "variable t scalar",
-     "variable y vector",
+     "variable y scalar",
+     "variable t0 scalar",
      "parameter z scalar",
-     "minimize square(4.0*x - square(3*y))",
-     "#subject to",
-     "#  norm(x,y,z) + -5 <= A*x - -3"
+     "",
+     "minimize square(4.0 + square(3)) + x",
+     "  square(x) + -5 <= A*_x - -3",
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",
@@ -79,9 +79,37 @@ if __name__ == '__main__':
     # f(A,b,a,z)
     # g(A,b,a,z)
     
-    print p.symtable
+    print p
     
-    print_prof_data()
+    # idemp = """
+    # variable __x vector
+    # parameter _A matrix positive
+    # variable _x scalar
+    # 
+    # # 't0' replaces 'square(3.0)'
+    # variable t0 scalar
+    # norm(0.5 - 0.5*t0, 3.0) <= 0.5 + 0.5*t0
+    # 
+    # # 't1' replaces 'square(4.0 + t0)'
+    # variable t1 scalar
+    # norm(0.5 - 0.5*t1, 4.0 + t0) <= 0.5 + 0.5*t1
+    # 
+    # # "minimize square(4.0 + square(3)) + x"
+    # minimize t1 + _x
+    # 
+    # # 't2' replaces 'square(_x)'
+    # variable t2 scalar
+    # norm(0.5 - 0.5*t2, _x) <= 0.5 + 0.5*t2
+    # 
+    # # "square(x) + -5 <= A*_x - -3"
+    # _A * (__x) + 3.0 - (t2 - (5.0)) >= 0
+    # """
+    # 
+    # p2 = Scoop()
+    # map(p2.run, idemp.split('\n'))
+    # 
+    # print p2
+    # print_prof_data()
     
     # k = Evaluator()
     #     c = Parameter('a', VECTOR, UNKNOWN)

@@ -35,7 +35,11 @@ from macro import MacroExpander, is_function
 
 from tokens import scanner, precedence
 from collections import deque
-from profiler import profile, print_prof_data  
+from profiler import profile, print_prof_data
+
+import operator
+import re
+from datetime import datetime
 
 # state to keep track of whether we are parsing *before* a MINIMIZE,
 # MAXIMIZE, or FIND keyword; *on* the line that has that keyword; or
@@ -49,7 +53,9 @@ check = \
         "MAXIMIZE": isccv,
         "FIND": isaff
     }
-    
+
+comments = re.compile("#.*")
+
 class Scoop(object): 
     """A simple parser for the SCOOP language""" 
     
@@ -61,9 +67,13 @@ class Scoop(object):
         self.state = PRE_OBJ
         # current line (private?)
         self.line = ""
+        
+        # equivalent problem (using only SOCP atoms)
+        self.used_syms = {}
+        self.equivalent = []
     
         # (stateful) object to evaluate expressions
-        self.rpn_eval = Evaluator()  # symtable is passed by reference
+        # self.rpn_eval = Evaluator()  # symtable is passed by reference
         
         self.expander = MacroExpander()
         
@@ -79,6 +89,17 @@ class Scoop(object):
         #         "MULT_OP": self.rpn_eval.mul,
         #         "UMINUS": self.rpn_eval.neg
         #     }
+        
+    def __repr__(self):
+        lines = [
+            "# Canonicalized SOCP. Converted on %s." % datetime.now().ctime(),
+            "#",
+            "# Expressions in double quotes show identifiers before name-mangling.",
+            "# Name-mangling adds an underscore ('_') to all names.",
+            ""
+        ]
+        lines += self.used_syms.values() + self.equivalent
+        return '\n'.join(lines)
     
     def reset_state(self):  # private
         if self.state is OBJ:
@@ -94,7 +115,7 @@ class Scoop(object):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
         return scanner.scan(s)
     
-    def parse(self,toks,mangle):
+    def parse(self,toks,mangle,expand_macros):
         """Parses the tokenized list. Could use LR parsing, but SCOOP is simple
         enough that expressions are parsed with a shunting-yard algorithm.
         Everything else is just simple keywords.
@@ -108,29 +129,30 @@ class Scoop(object):
         #    constraints
         actions = { 
             'VARIABLE': self.parse_variable(mangle), 
-            'PARAMETER': self.parse_parameter,
+            'PARAMETER': self.parse_parameter(mangle),
             'SUBJECT_TO': self.parse_subject_to,
-            'MINIMIZE': self.parse_objective,
-            'MAXIMIZE': self.parse_objective,
-            'FIND': self.parse_objective
+            'MINIMIZE': self.parse_objective(mangle, expand_macros),
+            'MAXIMIZE': self.parse_objective(mangle, expand_macros),
+            'FIND': self.parse_objective(mangle, expand_macros)
         }
         
         # if not one of four listed actions, the default is to attempt to
         # parse a constraint
-        actions.get(toks[0][0], lambda x: self.parse_constraint(x))(toks)
+        actions.get(toks[0][0], self.parse_constraint(mangle, expand_macros))(toks)
         # print ' '.join( map(lambda x:str(x[0]), toks) )
         
         
     def display(self,toks):
         print ' '.join( map(lambda x:str(x[1]), toks) )
    
+    # come up with a new name?
     @profile
-    def run(self,s,mangle=True):
-        self.line = s
+    def run(self,s,mangle=True,expand_macros=True):
+        self.line = re.sub(comments, "", s.lstrip())
         result, remainder = self.lex(s)
         if result:
             if not remainder:
-                self.parse(deque(result), mangle)
+                self.parse(deque(result), mangle, expand_macros)
                 #self.rpn_eval.hello()
                 #self.display(result)
                 # print '\n'
@@ -146,6 +168,9 @@ class Scoop(object):
             toks.popleft()  # already matched variable keyword
         
             t, v = toks.popleft()
+            # mangle the variable name
+            if mangle: v = '_' + v
+            
             if t is not "IDENTIFIER":
                 raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
             elif v in self.symtable:
@@ -160,45 +185,44 @@ class Scoop(object):
                 t, tmp = toks.popleft()
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for variables with %(t)s token %(tmp)s." % locals())
         
-            # mangle the variable name
-            if mangle:
-                self.symtable[v] = Variable('_' + v,Shape(shape))
-            else:
-                self.symtable[v] = Variable(v,Shape(shape))
+            self.symtable[v] = Variable(v,Shape(shape))
         return parse_variable_wrap 
         
     
-    def parse_parameter(self,toks):
-        """parameter IDENTIFIER VECTOR|SCALAR (POSITIVE|NEGATIVE)"""
-        self.reset_state()     # reset the parser state
-        s = self.line
-        toks.popleft()  # already matched parameter keyword
+    def parse_parameter(self,mangle):
+        def parse_parameter_wrap(toks):
+            """parameter IDENTIFIER VECTOR|SCALAR (POSITIVE|NEGATIVE)"""
+            self.reset_state()     # reset the parser state
+            s = self.line
+            toks.popleft()  # already matched parameter keyword
         
-        t, v = toks.popleft()
-        if t is not "IDENTIFIER":
-            raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
-        elif v in self.symtable:
-            raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
+            t, v = toks.popleft()
+            # mangle parameter name
+            if mangle: v = '_' + v
             
-        shape, tmp  = toks.popleft()
-        if shape is not "VECTOR" and shape is not "SCALAR" and shape is not "MATRIX":
-            raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR, SCALAR, or MATRIX shape, but got %(tmp)s instead." % locals())
+            if t is not "IDENTIFIER":
+                raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
+            elif v in self.symtable:
+                raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
+            
+            shape, tmp  = toks.popleft()
+            if shape is not "VECTOR" and shape is not "SCALAR" and shape is not "MATRIX":
+                raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR, SCALAR, or MATRIX shape, but got %(tmp)s instead." % locals())
         
-        sign = "UNKNOWN"
-        # optionally parse sign
-        if toks:
-            sign, tmp = toks.popleft()
-            if sign is not "POSITIVE" and sign is not "NEGATIVE":
-                raise SyntaxError("\"%(s)s\"\n\tExpected a POSITIVE or NEGATIVE sign, but got %(tmp)s instead." % locals())
-                            
-            # if any remaining
+            sign = "UNKNOWN"
+            # optionally parse sign
             if toks:
-                t, tmp = toks.popleft()
-                raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for parameters with %(t)s token %(tmp)s." % locals())
+                sign, tmp = toks.popleft()
+                if sign is not "POSITIVE" and sign is not "NEGATIVE":
+                    raise SyntaxError("\"%(s)s\"\n\tExpected a POSITIVE or NEGATIVE sign, but got %(tmp)s instead." % locals())
+                            
+                # if any remaining
+                if toks:
+                    t, tmp = toks.popleft()
+                    raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for parameters with %(t)s token %(tmp)s." % locals())
         
-        # mangle parameter name
-        self.symtable[v] = Parameter('_' + v, Shape(shape), Sign(sign)) 
-        
+            self.symtable[v] = Parameter(v, Shape(shape), Sign(sign)) 
+        return parse_parameter_wrap
     
     def parse_subject_to(self,toks):
         """(MINIMIZE|MAXIMIZE|FIND) ... [SUBJECT_TO]"""
@@ -208,47 +232,80 @@ class Scoop(object):
         else:
             raise Exception("Cannot use optional \"subject to\" keyword without corresponding minimize, maximize, or find.")
 
-    def parse_objective(self,toks):
-        """(MINIMIZE|MAXIMIZE|FIND) expr"""
-        (tok, val) = toks.popleft()
-        if self.state is PRE_OBJ:
-            self.state = OBJ
-        else:
-            raise Exception("Cannot have multiple objectives per SCOOP problem.")
-        expr = self.parse_expr(toks)    # expr is an RPN stack, this also checks DCP
+    def parse_objective(self,mangle,expand_macros):
+        def parse_objective_wrap(toks):
+            """(MINIMIZE|MAXIMIZE|FIND) expr"""
+            (tok, val) = toks.popleft()
+
+            if self.state is not PRE_OBJ:
+                raise Exception("Cannot have multiple objectives per SCOOP problem.")
+            expr = self.parse_expr(mangle, toks)    # expr is an RPN stack, this also checks DCP
         
-        # perform macro expansion on the RPN
-        stack_of_rpns = self.expander.expand( expr )
-        print self.expander.lines
+            if not expr:
+                raise Exception("No objective specified.")
         
-        # stack_of_rpns.pop() -- at the top, it's a linear functional
-        # you keep popping and chaining DCP rules to the inequalities
+            if(expand_macros):
+                # perform macro expansion on the RPN
+                (obj, new_lines) = self.expander.expand( expr )
+                
+                if obj.shape != SCALAR:
+                    raise Exception("\"%s\"\n\tObjective function %s should be scalar." % (self.line, obj.name))
+                if not check[tok](obj):
+                    raise Exception(
+                        "\"%s\"\n\tObjective vexity %s does not agree with %s" % 
+                        (self.line, Expression.vexity_names[obj.vexity], tok)
+                    )
+                # add the objective
+                new_lines += [
+                    "",
+                    "# \"%s\"" % self.line,
+                    "%s %s" % (val, obj.name)
+                ]
+                
+                # re-parse the new lines, but don't mangle variable names or
+                # expand macros
+                map(lambda x: self.run(x, mangle=False,expand_macros=False), new_lines)
+                
+                self.equivalent += new_lines
+            else:
+                # now we only need to parse affine expressions and cone expressions
+                # set the state to "we just parsed the objective"
+                self.state = OBJ
+        return parse_objective_wrap
         
-        # # evaluate the expression
-        # obj = eval_rpn(expr)
-        # # we expand the objective, which inserts it into our underlying 
-        # # problem IR. this is done in case obj is just a single variable
-        # obj = self.rpn_eval.expand( obj )
-        # if obj:                
-        #     if obj.shape is not SCALAR:
-        #         raise Exception("Objective function %s should be scalar." % obj.description)
-        #     if not check[tok](obj):
-        #         raise Exception("Objective vexity %s does not agree with %s" % (Operand.vexity_names[obj.vexity], tok))
-        # else:
-        #     raise Exception("No objective specified.")
-        
-    def parse_constraint(self,toks):
-        """expr (EQ|GEQ|LEQ) expr"""
-        self.reset_state()     # reset the parser state
-        # push a special token on the top that only gets popped when we
-        # meet an (EQ|GEQ|LEQ)
-        toks.appendleft(("BOOL_OP", ""))
-        expr = self.parse_expr(toks)    # expr is an RPN stack, this also checks DCP
-        # then evaluate the expression
-        # eval(expr)
-        print expr
+    def parse_constraint(self,mangle, expand_macros):
+        def parse_constraint_wrap(toks):
+            """expr (EQ|GEQ|LEQ) expr"""
+            self.reset_state()     # reset the parser state
+            # push a special token on the top that only gets popped when we
+            # meet an (EQ|GEQ|LEQ)
+            toks.appendleft(("BOOL_OP", ""))
+            expr = self.parse_expr(mangle, toks)    # expr is an RPN stack, this also checks DCP
+            if not expr:
+                raise Exception("Unknown constraint error.")
+                
+            if(expand_macros):
+                # perform macro expansion on the RPN
+                (constraint, new_lines) = self.expander.expand( expr )
+                # add the constraint
+                new_lines += [
+                    "",
+                    "# \"%s\"" % self.line,
+                    str(constraint)
+                ]
+                
+                # re-parse the new lines, but don't mangle variable names or
+                # expand macros
+                map(lambda x: self.run(x, mangle=False,expand_macros=False), new_lines)
+                
+                self.equivalent += new_lines
+                
+            #else:
+                # now we only need to parse affine expressions and cone expressions
+                #print "finished?"            
+        return parse_constraint_wrap
     
-    def parse_expr(self,toks):
+    def parse_expr(self,mangle,toks):
         """ term = CONSTANT 
                  | variable-IDENTIFIER 
                  | parameter-IDENTIFIER 
@@ -291,34 +348,44 @@ class Scoop(object):
             # unary operator is the first token or any operator preceeded by 
             # another operator
             if tok is "MINUS_OP" and precedence(last_tok) >= 0:
+                # set uminus action
                 tok = "UMINUS"
+                val = operator.neg
+                
                 # x + (-y) = x - y
                 if last_tok is "PLUS_OP":
                     op_stack.pop()
-                    op_stack.append(("MINUS_OP", self.rpn_eval.sub, 2))
+                    op_stack.append(("MINUS_OP", operator.sub, 2))
                     continue
                 # x - (-y) = x + y
                 if last_tok is "MINUS_OP":
                     op_stack.pop()
-                    op_stack.append(("PLUS_OP",self.rpn_eval.add, 2)) 
+                    op_stack.append(("PLUS_OP",operator.add, 2)) 
                     continue
                 # -(-y) = y
                 if last_tok is "UMINUS":
                     op_stack.pop()
                     continue # -(-x) = x
-                # set uminus action
-                val = self.rpn_eval.neg
             if tok is "PLUS_OP" and precedence(last_tok) >= 0:
                 # this is a unary plus, skip it entirely
                 continue
             
             # keep track of old token
             last_tok = tok
+            # identifier name
+            identifier_name = val
+            if tok is "IDENTIFIER" and mangle:
+                identifier_name = '_' + val
             
             if tok is "CONSTANT" or tok is "ONES" or tok is "ZEROS":
                 rpn_stack.append((tok,val,0))
-            elif tok is "IDENTIFIER" and val in self.symtable:
-                paramOrVariable = self.symtable[val]
+            elif tok is "IDENTIFIER" and identifier_name in self.symtable:
+                paramOrVariable = self.symtable[identifier_name]
+                # TODO: usually, when mangling, that's the first pass, so I
+                # just want to look at the variables touched on the first
+                # pass. this assumes that "mangle == first_pass".
+                if mangle:
+                    self.used_syms[identifier_name] = repr(paramOrVariable)
                 rpn_stack.append( (tok,paramOrVariable,0) )
             elif is_function(tok,val):
                 # functions have highest precedence

@@ -62,6 +62,9 @@ class Shape(object):
         
     def __repr__(self):
         return "Shape('%s')" % self.shape_str
+    
+    def __str__(self):
+        return self.shape_str
         
     def __add__(self, other):
         lhs = self.shape_str
@@ -95,6 +98,12 @@ class Shape(object):
         
     def __neg__(self):
         return self
+    
+    def __eq__(self,other):
+        return self.shape_str is other.shape_str
+    
+    def __ne__(self,other):
+        return self.shape_str is not other.shape_str
         
 class Sign(object):
     signs = set(['POSITIVE', 'NEGATIVE', 'UNKNOWN'])
@@ -121,6 +130,9 @@ class Sign(object):
         
     def __repr__(self):
         return "Sign('%s')" % self.sign_str
+    
+    def __str__(self):
+        return self.sign_str
         
     def __add__(self, other):
         lhs = self.sign_str
@@ -146,6 +158,12 @@ class Sign(object):
     def __neg__(self):
         self.sign_str = self.negate[self.sign_str]
         return self
+        
+    def __eq__(self,other):
+        return self.sign_str is other.sign_str
+    
+    def __ne__(self,other):
+        return self.sign_str is not other.sign_str
 
 # the ordering here matters. we use a bitwise OR to accomplish vexity
 # inference. 
@@ -165,11 +183,63 @@ SCALAR = Shape('SCALAR')
 VECTOR = Shape('VECTOR')
 MATRIX = Shape('MATRIX')
 
+# bitwise masks (AFFINE|CONVEX) = CONVEX, etc.
+def iscvx(e):
+    return (e.vexity | CONVEX) is CONVEX
+def isccv(e):
+    return (e.vexity | CONCAVE) is CONCAVE
+def isaff(e):
+    return e.vexity is AFFINE
+
 def ispositive(x):
     return x.sign.sign_str is 'POSITIVE'
-
 def isnegative(x):
     return x.sign.sign_str is 'NEGATIVE'
+def isunknown(x):
+    return x.sign.sign_str is 'UNKNOWN'
+
+def check_eq(x,y):
+    return isaff(x) and isaff(y)
+def check_leq(x,y):
+    return iscvx(x) and isccv(y)
+def check_geq(x,y):
+    return isccv(x) and iscvx(y)
+
+def build_eq(x,y):
+    return "%s - (%s) == 0" % (x.name, y.name)
+def build_leq(x,y):
+    return "%s - (%s) >= 0" % (y.name, x.name)
+def build_geq(x,y):
+  return "%s - (%s) >= 0" % (x.name, y.name)  
+    
+# constraint class
+class Constraint(object):
+    valid_constraints = set(['EQ', 'LEQ', 'GEQ'])
+    constraints = {
+        'EQ': (check_eq, build_eq),
+        'LEQ': (check_leq, build_leq),
+        'GEQ': (check_geq, build_geq)
+    }
+    
+    def __init__(self, lhs, rhs, kind):
+        """Creates a constraint object, but also checks DCP"""
+        if kind in self.valid_constraints:
+            check, build = self.constraints[kind]
+            if check(lhs,rhs):
+                self.lhs = lhs
+                self.rhs = rhs
+                self.kind = kind
+                self.name = build(lhs,rhs)
+            else:
+                raise Exception("Cannot have '%s %s %s'" % (lhs.vexity, sym, rhs.vexity))
+        else:
+            raise Exception("Unknown constraint type %s." % kind)  
+    
+    def __repr__(self):
+        return "Constraint(%s, %s, '%s')" % (self.lhs, self.rhs, self.kind)
+    
+    def __str__(self):
+        return self.name
 
 # Expression evaluator goes here....
 class Expression(object):
@@ -196,7 +266,7 @@ class Expression(object):
     valid_kinds = set(['COEFF', 'ARGUMENT'])
     
     vexity_lookup = {'AFFINE': AFFINE, 'CONVEX': CONVEX, 'CONCAVE': CONCAVE, 'NONCONVEX': NONCONVEX}
-    vexity_names = vexity_lookup.keys()
+    vexity_names = ['AFFINE', 'CONVEX', 'CONCAVE', 'NONCONVEX']
     
     negate = {AFFINE: AFFINE, CONVEX: CONCAVE, CONCAVE: CONVEX, NONCONVEX: NONCONVEX}
     
@@ -299,6 +369,19 @@ class Expression(object):
             self.name = str(self.value)        
         return self
     
+    def __le__(self,other):
+        return Constraint(self,other, 'LEQ')
+    
+    def __ge__(self,other):
+        return Constraint(self,other, 'GEQ')
+    
+    def __eq__(self,other):
+        return Constraint(self,other, 'EQ')
+        
+    __lt__ = None
+    __gt__ = None
+    __ne__ = None
+    
     def __repr__(self):
         return "Expression(%s, %s, %s, %s, %s)" % (self.vexity, self.sign, self.shape, self.name, self.kind)
     
@@ -310,7 +393,7 @@ class Variable(Expression):
         super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name, 'ARGUMENT')
     
     def __repr__(self):
-        return "%s VARIABLE %s" % ( str(self.shape), str(self.name) )
+        return "variable %s %s" % ( str(self.name), str.lower(str(self.shape)) )
     
     def __str__(self):
         return self.name
@@ -320,7 +403,10 @@ class Parameter(Expression):
         super(Parameter, self).__init__(AFFINE, sign, shape, name, 'COEFF')
         
     def __repr__(self):
-        return "%s %s PARAMETER %s" % ( str(self.sign), str(self.shape), str(self.name) )
+        if isunknown(self):
+            return "parameter %s %s" % ( str(self.name), str.lower(str(self.shape)) )
+        else:
+            return "parameter %s %s %s" % ( str(self.name), str.lower(str(self.shape)), str.lower(str(self.sign)) )
     
     def __str__(self):
         return self.name
@@ -340,6 +426,7 @@ class Constant(Expression):
         return str(self.value)
     
     __str__ = __repr__
+
     
 # convex, concave, affine decorators
 def convex(fn,*args):
@@ -363,13 +450,7 @@ def affine(fn,*args):
         return e
     return wrap
 
-# bitwise masks (AFFINE|CONVEX) = CONVEX, etc.
-def iscvx(e):
-    return (e.vexity | CONVEX) is CONVEX
-def isccv(e):
-    return (e.vexity | CONCAVE) is CONCAVE
-def isaff(e):
-    return e.vexity is AFFINE
+
 
 def expand_all_args(fn, *args):
     """Ensures all args are variables"""
