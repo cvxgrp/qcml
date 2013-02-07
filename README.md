@@ -110,7 +110,8 @@ Depending on the type of code you generate, you may also need:
 
 * Matlab
 * [CVX](http://cvxr.com)
-<!--* `ECOS`
+
+<!-- * `ECOS`
 * `gcc` (or similar compiler)
 * CUDA -->
 
