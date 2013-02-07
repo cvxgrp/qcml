@@ -1,4 +1,4 @@
-from scoop.scoop_expression \
+from scoop.expression \
 import Variable, Parameter, Constant, Expression, \
     convex, concave, affine, increasing, decreasing, nonmonotone, \
     fold_with, expand_all_args,\

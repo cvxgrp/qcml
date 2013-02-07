@@ -28,12 +28,12 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import Operand, Variable, Parameter, Atom, Expression, \
-    SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
+from expression import Variable, Parameter, Expression, \
+    Shape, Sign, SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
 from scoop_atoms import Evaluator
 from macro import MacroExpander, is_function
 
-from scoop_tokens import scanner, precedence
+from tokens import scanner, precedence
 from collections import deque
 from profiler import profile, print_prof_data  
 
@@ -67,8 +67,8 @@ class Scoop(object):
         
         self.expander = MacroExpander()
         
-        # initialize your scanner, create a new one using current rpn evaluator
-        self.scanner = scanner(self.rpn_eval)
+        # # initialize your scanner, create a new one using current rpn evaluator
+        # self.scanner = scanner(self.rpn_eval)
                 
         # lookup table for tokens and their corresponding operators
         # TODO: decouple ops from instance? (lose ability to build IR)
@@ -92,9 +92,9 @@ class Scoop(object):
     
     def lex(self, s):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
-        return self.scanner.scan(s)
+        return scanner.scan(s)
     
-    def parse(self,toks):
+    def parse(self,toks,mangle):
         """Parses the tokenized list. Could use LR parsing, but SCOOP is simple
         enough that expressions are parsed with a shunting-yard algorithm.
         Everything else is just simple keywords.
@@ -107,7 +107,7 @@ class Scoop(object):
         #      ("subject to")
         #    constraints
         actions = { 
-            'VARIABLE': self.parse_variable, 
+            'VARIABLE': self.parse_variable(mangle), 
             'PARAMETER': self.parse_parameter,
             'SUBJECT_TO': self.parse_subject_to,
             'MINIMIZE': self.parse_objective,
@@ -125,12 +125,12 @@ class Scoop(object):
         print ' '.join( map(lambda x:str(x[1]), toks) )
    
     @profile
-    def run(self,s):
+    def run(self,s,mangle=True):
         self.line = s
         result, remainder = self.lex(s)
         if result:
             if not remainder:
-                self.parse(deque(result))
+                self.parse(deque(result), mangle)
                 #self.rpn_eval.hello()
                 #self.display(result)
                 # print '\n'
@@ -138,29 +138,34 @@ class Scoop(object):
                 raise Exception("Unknown parse error.")
     
     # parsing functions to follow
-    def parse_variable(self,toks):
-        """variable IDENTIFIER VECTOR|SCALAR"""
-        self.reset_state()     # reset the parser state
-        s = self.line
-        toks.popleft()  # already matched variable keyword
+    def parse_variable(self,mangle):
+        def parse_variable_wrap(toks):
+            """variable IDENTIFIER VECTOR|SCALAR"""
+            self.reset_state()     # reset the parser state
+            s = self.line
+            toks.popleft()  # already matched variable keyword
         
-        t, v = toks.popleft()
-        if t is not "IDENTIFIER":
-            raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
-        elif v in self.symtable:
-            raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
+            t, v = toks.popleft()
+            if t is not "IDENTIFIER":
+                raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
+            elif v in self.symtable:
+                raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
             
-        shape, tmp  = toks.popleft()
-        if shape is not "VECTOR" and shape is not "SCALAR":
-            raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR or SCALAR shape, but got %(tmp)s instead." % locals())
+            shape, tmp  = toks.popleft()
+            if shape is not "VECTOR" and shape is not "SCALAR":
+                raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR or SCALAR shape, but got %(tmp)s instead." % locals())
         
-        # if any remaining
-        if toks:
-            t, tmp = toks.popleft()
-            raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for variables with %(t)s token %(tmp)s." % locals())
+            # if any remaining
+            if toks:
+                t, tmp = toks.popleft()
+                raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for variables with %(t)s token %(tmp)s." % locals())
         
-        # mangle the variable name
-        self.symtable[v] = Variable('_' + v,Variable.shape_lookup[shape])  
+            # mangle the variable name
+            if mangle:
+                self.symtable[v] = Variable('_' + v,Shape(shape))
+            else:
+                self.symtable[v] = Variable(v,Shape(shape))
+        return parse_variable_wrap 
         
     
     def parse_parameter(self,toks):
@@ -192,7 +197,7 @@ class Scoop(object):
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for parameters with %(t)s token %(tmp)s." % locals())
         
         # mangle parameter name
-        self.symtable[v] = Parameter('_' + v, Parameter.shape_lookup[shape], Parameter.sign_lookup[sign]) 
+        self.symtable[v] = Parameter('_' + v, Shape(shape), Sign(sign)) 
         
     
     def parse_subject_to(self,toks):
@@ -290,12 +295,12 @@ class Scoop(object):
                 # x + (-y) = x - y
                 if last_tok is "PLUS_OP":
                     op_stack.pop()
-                    op_stack.append(("MINUS_OP", self.rpn_eval.sub))
+                    op_stack.append(("MINUS_OP", self.rpn_eval.sub, 2))
                     continue
                 # x - (-y) = x + y
                 if last_tok is "MINUS_OP":
                     op_stack.pop()
-                    op_stack.append(("PLUS_OP",self.rpn_eval.add)) 
+                    op_stack.append(("PLUS_OP",self.rpn_eval.add, 2)) 
                     continue
                 # -(-y) = y
                 if last_tok is "UMINUS":
@@ -402,7 +407,7 @@ def eval_rpn(stack):
     operand_stack = []
     for (tok, op, nargs) in stack:
         print map(lambda e: e.description, operand_stack)
-        if isinstance(op, Operand):
+        if isinstance(op, Expression):
             operand_stack.append(op)
         elif tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
             rhs = operand_stack.pop()

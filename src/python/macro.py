@@ -28,7 +28,16 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import Atom, SCALAR, VECTOR, MATRIX, Operand, Variable, Expression, Parameter, Constant
+from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, Variable, Expression, Parameter, Constant
+from atoms import atoms
+import operator
+
+tok_action = {
+    "UMINUS": operator.neg,
+    "PLUS_OP": operator.add,
+    "MINUS_OP": operator.sub,
+    "MULT_OP": operator.mul
+}
 
 # this is just a scaffolding for atoms
 class MacroExpander(object):
@@ -45,14 +54,11 @@ class MacroExpander(object):
     def __repr__(self):
         return '\n'.join(self.lines)
     
-    def new_var(self,shape):
-        """Creates a new, temporary variable"""
+    def create_varname(self):
+        """Creates a new, temporary variable name"""
         name = 't' + str(self.varcount)
         self.varcount += 1
-        v = Variable(name, shape)
-        
-        self.lines.append( "variable %s %s" % (name, str.lower(Variable.shape_names[shape])) )
-        return v
+        return name
     
     # this does macro expansion / rewriting
     # once this is done, the AST (stored in RPN) for the problem is always
@@ -61,37 +67,46 @@ class MacroExpander(object):
     def expand(self, stack):
         stack_of_rpns =[]
         operand_stack = []
-        shape_stack = []
-        sign_stack = []
+        mono_stack = []
         
         def gobble(nargs):
             """Gobble args from RPN stack"""
             args = []
             for _ in range(nargs):
-                operand = operand_stack.pop()
-                if isinstance(operand, list):
-                    args += operand
-                else:
-                    args.append(operand)
+                args.append(operand_stack.pop())
+            args.reverse() # RPN is reversed, so this flips it back
             return args
     
         for (tok, op, nargs) in stack:
-            if isinstance(op, Operand):
+            if isinstance(op, Expression):
                 operand_stack.append(op)
             elif is_function(tok, op):
                 args = gobble(nargs)
+            
+
+                t = self.create_varname()
+                f = atoms[op](t)
                 
-                print args
-                print 72*"="
-            
-                v = self.new_var(SCALAR)
-            
-                operand_stack.append( ("IDENTIFIER", v, 0) )
+                lines, var, mono = f(*args)    # will fail with multiargs (that's OK for now)
+                self.lines += lines
+                mono_stack.append(mono)
+                
+                # shape_stack.append( var.shape )    # get these from the func
+                # sign_stack.append( lhs.sign )    # get these from the func
+                
+                operand_stack.append( var )
+                
+                # append a partial RPN stack (last op isn't yet determined)
+                # args.append( ("IDENTIFIER", v, 0) )
+                # well, this would just be "undetermined" rpns
+                # at this stage, we don't know which way to relax the signs yet
+                # stack_of_rpns.append([lhs, rhs])  
             else:
                 args = gobble(nargs)
+                f = tok_action[tok] # only linear operators left here
 
-                args.append( (tok, op, nargs) ) 
-                operand_stack.append( args )
+                #args.append( (tok, op, nargs) )
+                operand_stack.append( f(*args) )
             
             # if is_function(tok, op):
             #     # args = []
@@ -105,13 +120,15 @@ class MacroExpander(object):
             # else:
             #     current_rpn.append( (tok, op, nargs) )
     
+        print stack_of_rpns
+        print operand_stack
         return ""
         # if current_rpn: stack_of_rpns.append(current_rpn)
         # return stack_of_rpns
 
 
 def is_function(tok,val):
-    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in Atom.lookup))
+    return (tok is "NORM" or tok is "ABS" or (tok is "IDENTIFIER" and val in atoms))
 
 
 

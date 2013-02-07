@@ -28,7 +28,7 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from scoop_expression import SCALAR, VECTOR, MATRIX, Variable, Expression, Parameter, Constant
+from expression import SCALAR, VECTOR, MATRIX, Variable, Expression, Parameter, Constant
 from ir.dimension import DimSet, Row, Col
 from ir.coeff import Vector, Eye, Ones
 

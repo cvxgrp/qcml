@@ -29,14 +29,13 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 import re
-import scoop_expression as e
+import expression as e
 
 def unrecognized_token(s):
     raise Exception("The string \'%(s)s\' cannot be tokenized." % locals())
 
 # this is the tokenizer for basic SOCP problems
-def scanner(rpn_eval):
-    return re.Scanner([
+scanner = re.Scanner([
         (r"#.*",                    None ), # gobble comments
         (r"variable ",              lambda scanner,token:("VARIABLE", token) ),
         (r"parameter ",             lambda scanner,token:("PARAMETER", token) ),
@@ -62,9 +61,9 @@ def scanner(rpn_eval):
         (r"\(",                     lambda scanner,token:("LPAREN", token) ),
         (r"\)",                     lambda scanner,token:("RPAREN", token) ),
         (r"[a-zA-Z_\d]+",  	        lambda scanner,token:("IDENTIFIER", token) ),
-        (r"\+",                     lambda scanner,token:("PLUS_OP", rpn_eval.add) ),
-        (r"\-",                     lambda scanner,token:("MINUS_OP", rpn_eval.sub) ),
-        (r"\*",                     lambda scanner,token:("MULT_OP", rpn_eval.mul) ),
+        (r"\+",                     lambda scanner,token:("PLUS_OP", token) ),
+        (r"\-",                     lambda scanner,token:("MINUS_OP", token) ),
+        (r"\*",                     lambda scanner,token:("MULT_OP", token) ),
         (r",",                      lambda scanner,token:("COMMA", token) ),
         (r"\s+",                    None), # None == skip token.
         (r".",                      lambda scanner,token:unrecognized_token(token))
