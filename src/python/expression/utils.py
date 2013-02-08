@@ -1,9 +1,9 @@
 import expression as expr
 
 # utility functions for handling error messages
-def error_msg(s):
+def error_msg(T, s):
     def err():
-        raise Exception(s)
+        raise T(s)
     return err
 
 def id_wrapper(s):

@@ -35,7 +35,7 @@ class Shape(object):
         
         f = self.add_lookup.get( 
             (lhs, rhs), 
-            error_msg("'%s + %s' combination is disallowed." % (lhs,rhs)) 
+            error_msg(TypeError, "'%s + %s' combination is disallowed." % (lhs,rhs)) 
         )
         return Shape(f())
     
@@ -56,7 +56,7 @@ class Shape(object):
         
         f = self.mul_lookup.get( 
             (lhs, rhs), 
-            error_msg("No multiply operator implemented for '%s * %s'." % (lhs,rhs)) 
+            error_msg(TypeError, "No multiply operator implemented for '%s * %s'." % (lhs,rhs)) 
         )
         return Shape(f())
         
@@ -64,10 +64,10 @@ class Shape(object):
         return self
     
     def __eq__(self,other):
-        return self.shape_str is other.shape_str
+        return self.shape_str == other.shape_str
     
     def __ne__(self,other):
-        return self.shape_str is not other.shape_str
+        return self.shape_str != other.shape_str
 
 # these are mutable globals, so be careful!
 SCALAR = Shape('SCALAR')

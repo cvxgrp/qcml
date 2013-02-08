@@ -38,46 +38,44 @@ def unrecognized_token(s):
         
 def macro_or_identifier(mangle, token):
     f = macros.get(token, None)
-    if f: return ("MACRO", f)
-    elif mangle: return ("IDENTIFIER", '_' + token)
-    else: return ("IDENTIFIER", token)
+    if f: return ('MACRO', f)
+    elif mangle: return ('IDENTIFIER', '_' + token)
+    else: return ('IDENTIFIER', token)
 
 # this is the tokenizer for basic SOCP problems
 def create_scanner(mangle):
     return re.Scanner([
         (r"#.*",                    None ), # gobble comments
-        (r"variable(?=\s+)",        lambda scanner,token:("VARIABLE", token) ),
-        (r"parameter(?=\s+)",       lambda scanner,token:("PARAMETER", token) ),
-        (r"vector",                 lambda scanner,token:("VECTOR", token) ),
-        (r"scalar",                 lambda scanner,token:("SCALAR", token) ),
-        (r"matrix",                 lambda scanner,token:("MATRIX", token) ),
-        (r"positive|nonnegative",   lambda scanner,token:("POSITIVE", token) ),
-        (r"negative|nonpositive",   lambda scanner,token:("NEGATIVE", token) ),
-        (r"minimize(?=\s+)",        lambda scanner,token:("MINIMIZE", token) ),
-        (r"maximize(?=\s+)",        lambda scanner,token:("MAXIMIZE", token) ),
-        (r"find(?=\s+)",            lambda scanner,token:("FIND", token) ),
-        (r"subject to",             lambda scanner,token:("SUBJECT_TO", token) ),
-        (r"==",                     lambda scanner,token:("EQ", operator.eq) ),
-        (r"<=",                     lambda scanner,token:("LEQ", operator.le) ),
-        (r">=",                     lambda scanner,token:("GEQ", operator.ge) ),
-        (r"\d+\.\d*",               lambda scanner,token:("CONSTANT", e.Constant(float(token))) ),
-        (r"\d+",                    lambda scanner,token:("CONSTANT", e.Constant(float(token))) ),
-        (r"0+|0+\.0*",              lambda scanner,token:("ZEROS", e.Constant(0.0)) ),
-        (r"ones",                   lambda scanner,token:("ONES", e.Constant(1.0)) ),
+        (r"variable(?=\s+)",        lambda scanner,token:('VARIABLE', token) ),
+        (r"parameter(?=\s+)",       lambda scanner,token:('PARAMETER', token) ),
+        (r"vector",                 lambda scanner,token:('VECTOR', token) ),
+        (r"scalar",                 lambda scanner,token:('SCALAR', token) ),
+        (r"matrix",                 lambda scanner,token:('MATRIX', token) ),
+        (r"positive|nonnegative",   lambda scanner,token:('POSITIVE', token) ),
+        (r"negative|nonpositive",   lambda scanner,token:('NEGATIVE', token) ),
+        (r"minimize(?=\s+)",        lambda scanner,token:('MINIMIZE', token) ),
+        (r"maximize(?=\s+)",        lambda scanner,token:('MAXIMIZE', token) ),
+        (r"find(?=\s+)",            lambda scanner,token:('FIND', token) ),
+        (r"subject to",             lambda scanner,token:('SUBJECT_TO', token) ),
+        (r"==",                     lambda scanner,token:('EQ', operator.eq) ),
+        (r"<=",                     lambda scanner,token:('LEQ', operator.le) ),
+        (r">=",                     lambda scanner,token:('GEQ', operator.ge) ),
+        (r"\d+\.\d*|\d+",           lambda scanner,token:('CONSTANT', e.Constant(float(token))) ),
         # abs and norm are built in for the second-order cones
-        (r"abs(?=\()",              lambda scanner,token:("ABS", abs_) ),
-        (r"norm2(?=\()|norm(?=\()", lambda scanner,token:("NORM", norm) ),
-        (r"sum(?=\()",              lambda scanner,token:("SUM", sum_) ),
-        (r"\(",                     lambda scanner,token:("LPAREN", token) ),
-        (r"\)",                     lambda scanner,token:("RPAREN", token) ),
-        (r"\[",                     lambda scanner,token:("LBRACE", token) ),
-        (r"\]",                     lambda scanner,token:("RBRACE", token) ),
+        # (r"abs(?=\s*\()",           lambda scanner,token:("ABS", abs_) ),
+        # (r"norm2(?=\s*\()|norm(?=\s*\()", 
+        #                             lambda scanner,token:("NORM", norm) ),
+        # (r"sum(?=\s*\()",           lambda scanner,token:("SUM", sum_) ),
+        (r"\(",                     lambda scanner,token:('LPAREN', token) ),
+        (r"\)",                     lambda scanner,token:('RPAREN', token) ),
+        (r"\[",                     lambda scanner,token:('LBRACE', token) ),
+        (r"\]",                     lambda scanner,token:('RBRACE', token) ),
         (r"[a-zA-Z_\d]+",  	        lambda scanner,token:macro_or_identifier(mangle, token) ),
-        (r"\+",                     lambda scanner,token:("PLUS_OP", operator.add) ),
-        (r"\-",                     lambda scanner,token:("UMINUS", operator.neg) ),
-        (r"\*",                     lambda scanner,token:("MULT_OP", operator.mul) ),
-        (r",",                      lambda scanner,token:("COMMA", token) ),
-        (r";",                      lambda scanner,token:("SEMI", token) ),
+        (r"\+",                     lambda scanner,token:('PLUS_OP', operator.add) ),
+        (r"\-",                     lambda scanner,token:('UMINUS', operator.neg) ),
+        (r"\*",                     lambda scanner,token:('MULT_OP', operator.mul) ),
+        (r",",                      lambda scanner,token:('COMMA', token) ),
+        (r";",                      lambda scanner,token:('SEMI', token) ),
         (r"\s+",                    None), # None == skip token.
         (r".",                      lambda scanner,token:unrecognized_token(token))
     ])
@@ -86,13 +84,10 @@ scanner_mangled = create_scanner(True)
 scanner_unmangled = create_scanner(False)
 
 # "operator" precedence
-op_prec = { 'ABS':4, 'NORM': 4, 'SUM': 4, 'MULT_OP':3,  'UMINUS':2, \
+op_prec = { 'MACRO': 4, 'MULT_OP':3,  'UMINUS':2, \
             'PLUS_OP':1, 'MINUS_OP':1, 'EQ':0, 'GEQ':0, 'LEQ':0, \
             '':0, 'LPAREN':0, 'LBRACE':0}   # these last three are to help us get unary minus and plus
 
 def precedence(tok):
-    if tok is "MACRO":
-        return 4
-    else:
-        return op_prec.get(tok, -1)
+    return op_prec.get(tok, -1)
 

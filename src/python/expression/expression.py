@@ -148,7 +148,7 @@ class Expression(object):
         shape = self.shape * other.shape
         f = self.mul_lookup.get(
             (self.kind,other.kind),
-            error_msg("Cannot multiply (%s) with (%s)." % (self.name, other.name))
+            error_msg(TypeError,"Cannot multiply (%s) with (%s)." % (self.name, other.name))
         )
         kind = f()
         

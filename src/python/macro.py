@@ -85,9 +85,9 @@ class MacroExpander(object):
             return args
     
         for (tok, op, nargs) in stack:
-            if isinstance(op, Expression):
+            if tok == 'CONSTANT' or tok == 'IDENTIFIER':
                 operand_stack.append(op)
-            elif is_function(tok):
+            elif tok == 'MACRO':
                 args = gobble(nargs)
             
                 # will fail with multiargs (that's OK for now)
@@ -114,11 +114,6 @@ class MacroExpander(object):
             return (constraint_stack, new_lines)
         else:
             return (operand_stack, new_lines)
-        
-
-# TODO: needs to be moved... and renamed... to isfunction
-def is_function(tok):
-    return (tok is "NORM" or tok is "ABS" or tok is "SUM" or tok is "MACRO")
 
 
 

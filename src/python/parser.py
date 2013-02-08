@@ -30,8 +30,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 from expression import Variable, Parameter, Expression, \
     Shape, Sign, SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
-from scoop_atoms import Evaluator
-from macro import MacroExpander, is_function
+from macro import MacroExpander
 
 from tokens import scanner_mangled, scanner_unmangled, precedence
 from collections import deque
@@ -44,7 +43,7 @@ from datetime import datetime
 # state to keep track of whether we are parsing *before* a MINIMIZE,
 # MAXIMIZE, or FIND keyword; *on* the line that has that keyword; or
 # *after* that line
-PRE_OBJ, OBJ, POST_OBJ, CONSTR = range(4)
+PRE_OBJ, OBJ, POST_OBJ = range(3)
 
 # just to improve code readability, the two following are defined as booleans
 
@@ -62,6 +61,9 @@ check = \
     }
 
 comments = re.compile("#.*")
+
+def unknown_err(line, x):
+    raise SyntaxError("\"%s\"\n\tUnknown identifier \"%s\"." % (line, x))
 
 class Scoop(object): 
     """A simple parser for the SCOOP language""" 
@@ -108,6 +110,8 @@ class Scoop(object):
         self.__reset_state()
         self.symtable = {}
         self.line = ""
+        self.varcount = 0
+        self.state = PRE_OBJ
     
     def lex(self, s, mangle = True):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
@@ -171,16 +175,16 @@ class Scoop(object):
         if toks:
             t, v = toks.popleft()
             
-            if t is not "IDENTIFIER":
+            if t != 'IDENTIFIER':
                 raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
             elif v in self.symtable:
                 raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
         
-            shape = "SCALAR"
+            shape = 'SCALAR'
             # optionally parse shape
             if toks:
                 shape, tmp  = toks.popleft()
-                if shape is not "VECTOR" and shape is not "SCALAR":
+                if shape != 'VECTOR' and shape != 'SCALAR':
                     raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR or SCALAR shape, but got %(tmp)s instead." % locals())
         
                 # if any remaining
@@ -202,30 +206,39 @@ class Scoop(object):
         if toks:
             t, v = toks.popleft()
             
-            if t is not "IDENTIFIER":
+            if t != 'IDENTIFIER':
                 raise SyntaxError("\"%(s)s\"\n\tExpected an identifier, but got %(t)s with value %(v)s instead." % locals())
             elif v in self.symtable:
                 raise Exception("\"%(s)s\"\n\tThe name %(v)s is already in use for a parameter / variable." % locals())
             
-            shape = "SCALAR"
-            sign = "UNKNOWN"
+            shape = 'SCALAR'
+            sign = 'UNKNOWN'
             
             # optionally parse shape and sign
             if toks:
                 token, tmp  = toks.popleft()
-                if token is "POSITIVE" or token is "NEGATIVE":
-                    toks.appendleft((token,tmp))
-                elif token is not "VECTOR" and token is not "SCALAR" and token is not "MATRIX":
-                    raise SyntaxError("\"%(s)s\"\n\tExpected a VECTOR, SCALAR, or MATRIX shape, but got %(tmp)s instead." % locals())
-                else:
+                if token == 'POSITIVE' or token == 'NEGATIVE':
+                    sign = token
+                    look_for_sign = False
+                    look_for_shape = True
+                elif token == 'VECTOR' or token == 'SCALAR' or token == 'MATRIX':
                     shape = token
+                    look_for_sign = True
+                    look_for_shape = False
+                else:
+                    raise SyntaxError("\"%(s)s\"\n\tExpected a shape or sign, but got %(tmp)s instead." % locals())
+                    
                 
                 # optionally parse sign
                 if toks:
-                    sign, tmp = toks.popleft()
-                    if sign is not "POSITIVE" and sign is not "NEGATIVE":
-                        raise SyntaxError("\"%(s)s\"\n\tExpected a POSITIVE or NEGATIVE sign, but got %(tmp)s instead." % locals())
-                            
+                    token, tmp  = toks.popleft()
+                    if look_for_sign and (token == 'POSITIVE' or token == 'NEGATIVE'):
+                        sign = token
+                    elif look_for_shape and (token == 'VECTOR' or token == 'SCALAR' or token == 'MATRIX'):
+                        shape = token
+                    else:
+                        raise SyntaxError("\"%(s)s\"\n\tExpected a shape or sign to follow, but got %(tmp)s instead." % locals())
+                        
                     # if any remaining
                     if toks:
                         t, tmp = toks.popleft()
@@ -249,7 +262,7 @@ class Scoop(object):
             """(MINIMIZE|MAXIMIZE|FIND) expr"""
             (tok, val) = toks.popleft()
 
-            if self.state is not PRE_OBJ:
+            if self.state != PRE_OBJ:
                 raise Exception("Cannot have multiple objectives per SCOOP problem.")
             # expr is an RPN stack, this also checks DCP
             expr = self.parse_expr(toks, is_first_pass=is_first_pass)
@@ -365,19 +378,19 @@ class Scoop(object):
             # modified to handle variable args
             tok, val = toks.popleft()
             
-            if is_function_call and tok is not "LPAREN":
+            if is_function_call and tok != 'LPAREN':
                 raise SyntaxError("\"%(s)s\"\n\tExpecting function call but got \"%(tok)s\" (%(val)s) instead." % locals())
             
             # pre-process for unary operators            
-            if tok is "PLUS_OP" and precedence(last_tok) >= 0:
+            if tok == 'PLUS_OP' and precedence(last_tok) >= 0:
                 # this is a unary plus, skip it entirely
                 continue
                 
             # if "-" follows anything that isn't another operation, then 
             # insert a plus operation
-            if tok is "UMINUS" and precedence(last_tok) < 0:
-                toks.appendleft(("UMINUS",operator.neg))
-                tok = "PLUS_OP"
+            if tok == 'UMINUS' and precedence(last_tok) < 0:
+                toks.appendleft(('UMINUS',operator.neg))
+                tok = 'PLUS_OP'
                 val = operator.add
             
             # keep track of old token
@@ -385,51 +398,51 @@ class Scoop(object):
             
             # TODO: rewrite this ridculous tree as a dictionary?
             
-            if tok is "CONSTANT" or tok is "ONES" or tok is "ZEROS":
+            if tok == 'CONSTANT':
                 rpn_stack.append((tok,val,0))
-            elif tok is "IDENTIFIER" and val in self.symtable:
-                paramOrVariable = self.symtable[val]
+            elif tok == 'IDENTIFIER':
                 
+                paramOrVariable = self.symtable.get(val, None)
+                if not paramOrVariable: raise SyntaxError("\"%s\"\n\tUnknown identifier \"%s\"." % (s, val))
+                                
                 # on the first pass, note that we encoutered this variable
                 if is_first_pass: self.used_syms[val] = repr(paramOrVariable)
                 
                 rpn_stack.append( (tok,paramOrVariable,0) )
-            elif is_function(tok):
+            elif tok == 'MACRO':
                 # functions have highest precedence
                 is_function_call = True
                 op_stack.append((tok,val,0))
-                argcount_stack.append(0)
-            elif tok is "IDENTIFIER":
-                raise SyntaxError("\"%(s)s\"\n\tUnknown identifier \"%(val)s\"." % locals())
-            elif tok is "COMMA":
+                argcount_stack.append(0)                
+            elif tok == 'COMMA':
                 # same as semicolon. TODO: merge the two
                 op = ""
-                while op is not "LPAREN":                    
+                while op != 'LPAREN':                    
                     if op_stack:
                         op,sym,arg = op_stack[-1]   # peek at top
-                        if op is "LBRACE":
+                        if op == 'LBRACE':
                             raise SyntaxError("\"%(s)s\"\n\tCannot use comma separator inside concatenation." % locals())
-                        if op is not "LPAREN":
+                        if op != 'LPAREN':
                             push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                             op_stack.pop()
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced comma separator or mismatched parenthesis when parsing %(op)s." % locals())
                 argcount_stack[-1] += 1
-            elif tok is "SEMI":
+            elif tok == 'SEMI':
                 # same as comma. TODO: merge the two
                 op = ""
-                while op is not "LBRACE":                    
+                while op != 'LBRACE':                    
                     if op_stack:
                         op,sym,arg = op_stack[-1]   # peek at top
-                        if op is "LPAREN":
+                        if op == 'LPAREN':
                             raise SyntaxError("\"%(s)s\"\n\tCannot use semicolon separator inside function call." % locals())
-                        if op is not "LBRACE":
+                        if op != 'LBRACE':
                             push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                             op_stack.pop()
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced semicolon separator or mismatched brace when parsing %(op)s." % locals())
                 argcount_stack[-1] += 1
-            elif tok is "UMINUS" or tok is "MULT_OP" or tok is "PLUS_OP": 
+            elif tok == 'UMINUS' or tok == 'MULT_OP' or tok == 'PLUS_OP': 
                 # or tok is "MINUS_OP":
                 if op_stack:
                     op,sym,arg = op_stack[-1]   # peek at top
@@ -442,12 +455,12 @@ class Scoop(object):
                             op,sym,arg = op_stack[-1]   # peek at top
                         #else:
                         #    raise SyntaxError("\"%(s)s\"\n\tInvalid operator %(tok)s application; stuck on %(op)s." % locals())
-                if tok is "UMINUS": nargs = 1
+                if tok == 'UMINUS': nargs = 1
                 else: nargs = 2
                 op_stack.append( (tok, val, nargs) )
             # elif tok is "PLUS_OP" or tok is "MINUS_OP":
 
-            elif tok is "EQ" or tok is "LEQ" or tok is "GEQ":
+            elif tok == 'EQ' or tok == 'LEQ' or tok == 'GEQ':
                 if not parse_constr:
                     raise SyntaxError("\"%(s)s\"\n\tBoolean expression where none expected." % locals())
                 # boolean operators have the lowest precedence
@@ -460,28 +473,29 @@ class Scoop(object):
                 op_stack.append( (tok, val, 2) )
                 expected_bools -= 1
 
-            elif tok is "LPAREN":
+            elif tok == 'LPAREN':
                 op_stack.append((tok,val,0))
                 # we're now in the function call
                 if is_function_call: is_function_call = False
-            elif tok is "RPAREN":
+            elif tok == 'RPAREN':
                 op = ""
-                while op is not "LPAREN":
+                while op != 'LPAREN':
                     if op_stack: 
                         op,sym,arg = op_stack.pop()
-                        if op is not "LPAREN": push_rpn(rpn_stack, argcount_stack, op,sym,arg)
+                        if op != 'LPAREN': push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tCould not find matching left parenthesis." % locals())
-            elif tok is "LBRACE":
-                op_stack.append(("CONCAT", 'concatenation!', 0))
+            elif tok == 'LBRACE':
+                # TODO: no action yet
+                op_stack.append(('CONCAT', "concatenation!", 0))    
                 argcount_stack.append(0)
                 op_stack.append((tok,val,0))
-            elif tok is "RBRACE":
+            elif tok == 'RBRACE':
                 op = ""
-                while op is not "LBRACE":
+                while op != 'LBRACE':
                     if op_stack: 
                         op,sym,arg = op_stack.pop()
-                        if op is not "LBRACE": push_rpn(rpn_stack, argcount_stack, op,sym,arg)
+                        if op != 'LBRACE': push_rpn(rpn_stack, argcount_stack, op,sym,arg)
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tCould not find matching left brace." % locals())
             else:
@@ -489,7 +503,7 @@ class Scoop(object):
             
         while op_stack:
             op,sym,arg = op_stack.pop()
-            if op is "LPAREN":
+            if op == 'LPAREN':
                 raise SyntaxError("\"%(s)s\"\n\tCould not find matching right parenthesis." % locals())
             if expected_bools > 0:
                 raise SyntaxError("\"%(s)s\"\n\tExpected to find boolean constraint." % locals())
@@ -504,33 +518,9 @@ class Scoop(object):
         return rpn_stack
 
 def push_rpn(stack,argcount,op,sym,arg):
-    if is_function(op) or op is "CONCAT":
+    if op == 'MACRO' or op == 'CONCAT':
         a = argcount.pop()
         stack.append( (op, sym, a+1) )
     else:
         stack.append( (op,sym,arg) )
 
-def eval_rpn(stack):
-    operand_stack = []
-    for (tok, op, nargs) in stack:
-        print map(lambda e: e.description, operand_stack)
-        if isinstance(op, Expression):
-            operand_stack.append(op)
-        elif tok is "MULT_OP" or tok is "PLUS_OP" or tok is "MINUS_OP":
-            rhs = operand_stack.pop()
-            lhs = operand_stack.pop()
-            operand_stack.append(op(lhs, rhs))
-        elif tok is "UMINUS":
-            arg = operand_stack.pop()
-            operand_stack.append(op(arg))
-        else:
-            raise Exception("%s %s is not yet implemented." % (tok, op))
-    
-    print map(lambda e: e.description, operand_stack)
-    if len(operand_stack) > 1:
-        raise Exception("Error evaluating rpn stack: %s. Completed with %s leftover." %  (stack, operand_stack))
-    else:
-        if operand_stack:
-            return operand_stack[0]
-        else:
-            return None

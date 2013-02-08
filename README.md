@@ -9,6 +9,42 @@ different use cases.
 
 (XXX: a term rewriting / macro expansion language)
 
+Prerequisites
+=============
+This project requires:
+
+* Python 2.7.2+ (no Python 3 support yet)
+* [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
+
+For unit testing, we use [Nose](https://nose.readthedocs.org).
+
+Depending on the type of code you generate, you may also need:
+
+* Matlab
+* [CVX](http://cvxr.com)
+
+<!-- * `ECOS`
+* `gcc` (or similar compiler)
+* CUDA -->
+
+Installation
+============
+Installation should be as easy as
+
+    cd src
+    python setup.py install
+    
+After installation, if you have nose installed
+
+    nosetests scoop
+    
+should run the simple unit tests.
+
+A sample script showing the usage of SCOOP can be found in `main.py`. Running `python main.py` after installing SCOOP will display a rewritten problem.
+
+Features
+========
+
 Parsing and canonicalization
 ----------------------------
 The parser/canonicalizer canoncializes SOCP-representable *convex*
@@ -99,21 +135,6 @@ Note that SCOOP is stateful, so one could use Python as a templating language an
     for i in range(n):
       p.run("variable x%d scalar" % i)
 
-Prerequisites
-=============
-This project requires:
-
-* Python 2.7.2+ (no Python 3 support yet)
-* [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
-
-Depending on the type of code you generate, you may also need:
-
-* Matlab
-* [CVX](http://cvxr.com)
-
-<!-- * `ECOS`
-* `gcc` (or similar compiler)
-* CUDA -->
 
 <!-- Scientific computing mode
 =========================

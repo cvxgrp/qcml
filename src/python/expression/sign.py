@@ -1,5 +1,3 @@
-from utils import error_msg, id_wrapper
-
 class Sign(object):
     signs = set(['POSITIVE', 'NEGATIVE', 'UNKNOWN'])
     
@@ -56,10 +54,10 @@ class Sign(object):
         return self
         
     def __eq__(self,other):
-        return self.sign_str is other.sign_str
+        return self.sign_str == other.sign_str
     
     def __ne__(self,other):
-        return self.sign_str is not other.sign_str
+        return self.sign_str != other.sign_str
         
 # these are (mutable) globals, so be careful!
 POSITIVE = Sign('POSITIVE')
