@@ -31,27 +31,40 @@ policies, either expressed or implied, of the FreeBSD Project.
 from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
     Variable, Expression, Parameter, Constant, Constraint
 import operator
+import re
 
 # this is just a scaffolding for atoms
 class MacroExpander(object):
-    # counter for new variables introduced (private?)
-    # varcount = 0
-     
-    # symtable = {} # i don't actually need a symtable...
     
-    def __init__(self, table):
-        # self.symtable = table
-        self.varcount = 0
-        self.lookup = table
+    def __init__(self):
+        self.lookup = {}
 
     def __repr__(self):
         return '\n'.join(self.lines)
     
-    def create_varname(self):
-        """Creates a new, temporary variable name"""
-        name = 't' + str(self.varcount)
-        self.varcount += 1
-        return name
+    def execute_atom(self, fn, *args):
+        """Executes the atom but performs some housekeeping. It checks to see
+        if an expression using this atom has been called before. If so, it just
+        returns the previous Expression object. If not, it executes the code and
+        puts the new result into the lookup table.
+        """
+        arglist = ', '.join( map(lambda e: e.name, args) )
+    
+        # get the name of the function and its arguments
+        func_name = fn.__name__.rstrip('_') # remove trailing underscores
+        expr_string = '%s(%s)' % (func_name, arglist)
+        v = self.lookup.get(expr_string, None)
+        if v:
+            return ([], v)
+        else:
+            lines, v = fn(*args)
+            comment = ["",
+                "# '%s' replaces '%s'" % (v.name, expr_string)
+            ]
+            if lines:
+                lines = comment + lines
+                self.lookup[expr_string] = v
+            return (lines, v)
     
     # this does macro expansion / rewriting
     # once this is done, the AST (stored in RPN) for the problem is always
@@ -74,21 +87,20 @@ class MacroExpander(object):
         for (tok, op, nargs) in stack:
             if isinstance(op, Expression):
                 operand_stack.append(op)
-            elif tok is "MACRO":
+            elif is_function(tok):
                 args = gobble(nargs)
             
-                f = op(self)    # need to pass macro env over
-                print f
-                lines, var = f(*args)    # will fail with multiargs (that's OK for now)
-                print lines, var
+                # will fail with multiargs (that's OK for now)
+                lines, var = self.execute_atom(op, *args) 
+
                 new_lines += lines
                 operand_stack.append( var )
-            elif tok is "NORM" or tok is "ABS":
-                args = gobble(nargs)
-                
-                arglist = ', '.join( map(lambda e: e.name, args))
-                result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
-                operand_stack.append( result )
+            # elif tok is "NORM" or tok is "ABS":
+            #     args = gobble(nargs)
+            #     
+            #     arglist = ', '.join( map(lambda e: e.name, args))
+            #     result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
+            #     operand_stack.append( result )
             else:
                 args = gobble(nargs)
                 result = op(*args)
@@ -96,7 +108,7 @@ class MacroExpander(object):
                 if isinstance(result, Constraint):
                     constraint_stack.append( result )
                 operand_stack.append( result )
-        
+                
         # if there are any constraints, we return the constraint stack instead
         if constraint_stack: 
             return (constraint_stack, new_lines)
@@ -106,7 +118,7 @@ class MacroExpander(object):
 
 # TODO: needs to be moved... and renamed... to isfunction
 def is_function(tok):
-    return (tok is "NORM" or tok is "ABS" or tok is "MACRO")
+    return (tok is "NORM" or tok is "ABS" or tok is "SUM" or tok is "MACRO")
 
 
 

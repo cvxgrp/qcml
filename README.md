@@ -135,6 +135,7 @@ The standard linear operators are:
   * `-`, unary minus / negate
 * vector operators (map vectors to scalars)
   * `sum(x)`
+  * `sum(x,y,..)`, defined as `x + y + ...`
   
 The operators used for constructing second-order cones are:
 
@@ -149,24 +150,30 @@ Atoms
 The atoms we provide are:
 
 * scalar atoms (map scalars to scalars)
-  * `pos(x)`, defined as `max([x; 0])`
-  * `neg(x)`, defined as `max([-x; 0])`
+  * `pos(x)`, defined as `max(x, 0)`
+  * `neg(x)`, defined as `max(-x, 0)`
   * `square(x)`
   * `inv_pos(x)`
   * `geo_mean(x,y)`
   * `sqrt(x)`
 * vector atoms (map vectors to scalars)
-  * `max(x)`
-  * `min(x)`
-  * `quad_over_lin(x,y)`, second argument must be scalar
-  * `norm1(x)`
-  * `norm_inf(x)`
+  * `max(x)`, the max elem of `x`
+  * `max(x,y,..)`, the max vector consisting of max elements across rows
+  * `min(x)`, the min elem of `x`,
+  * `min(x,y,..)`, the min vector consisting of min elements across rows
+  * `quad_over_lin(x,y)`, if `y` is a vector, returns element-wise operator
+  * `norm1(x)`, defined as `sum(abs(x))`
+  * `norm1(x,y,..)`, defined as `abs(x) + abs(y) + ...`
+  * `norm_inf(x)`, defined as `max(abs(x))`
+  * `norm_inf(x,y,...)`, defined as `max(abs(x),abs(y),...)`
 
 Roadmap
 =======
 In no particular order, the future of this project...
 
-* implement the list of operators / Atoms
+* add `pow_rat` to atoms
+* parse linear expressions
+* fix lookup for atoms defined as composed atoms
 * CUDA and GPU support for large-scale solvers
 * C code generation
 * CVX code generation for verificaton

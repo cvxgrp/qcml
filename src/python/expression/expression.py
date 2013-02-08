@@ -28,144 +28,10 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-def error_msg(s):
-    def err():
-        raise Exception(s)
-    return err
-
-def id_wrapper(s):
-    def id_return():
-        return s
-    return id_return
-    
-class Shape(object):
-    shapes = set(['MATRIX', 'VECTOR', 'SCALAR'])
-    
-    add_lookup = {
-        ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
-        ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
-        ('VECTOR','SCALAR'): id_wrapper('VECTOR')
-    }
-    
-    mul_lookup = {
-        ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
-        ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
-        ('VECTOR','SCALAR'): id_wrapper('VECTOR'),
-        ('MATRIX','VECTOR'): id_wrapper('VECTOR')
-    }
-    
-    def __init__(self,shape_str):
-        if shape_str in self.shapes:
-            self.shape_str = shape_str
-        else:
-            raise Exception("No such shape %s exists." % str(shape_str))
-        
-    def __repr__(self):
-        return "Shape('%s')" % self.shape_str
-    
-    def __str__(self):
-        return self.shape_str
-        
-    def __add__(self, other):
-        lhs = self.shape_str
-        rhs = other.shape_str
-        
-        f = self.add_lookup.get( 
-            (lhs, rhs), 
-            error_msg("No addition operator implemented for '%s + %s'." % (lhs,rhs)) 
-        )
-        return Shape(f())
-    
-    __sub__ = None
-    # def __sub__(self, other):
-    #     lhs = self.shape_str
-    #     rhs = other.shape_str
-    #     
-    #     f = self.add_lookup.get( 
-    #         (lhs, rhs), 
-    #         error_msg("No subtraction operator implemented for '%s - %s'." % (lhs,rhs)) 
-    #     )
-    #     return Shape(f())
-       
-    def __mul__(self, other):
-        lhs = self.shape_str
-        rhs = other.shape_str
-        
-        f = self.mul_lookup.get( 
-            (lhs, rhs), 
-            error_msg("No multiply operator implemented for '%s * %s'." % (lhs,rhs)) 
-        )
-        return Shape(f())
-        
-    def __neg__(self):
-        return self
-    
-    def __eq__(self,other):
-        return self.shape_str is other.shape_str
-    
-    def __ne__(self,other):
-        return self.shape_str is not other.shape_str
-        
-class Sign(object):
-    signs = set(['POSITIVE', 'NEGATIVE', 'UNKNOWN'])
-    
-    add_lookup = {
-        ('POSITIVE','POSITIVE'): 'POSITIVE',
-        ('NEGATIVE','NEGATIVE'): 'NEGATIVE'
-    }
-    
-    mul_lookup = {
-        ('NEGATIVE','NEGATIVE'): 'POSITIVE',
-        ('POSITIVE','POSITIVE'): 'POSITIVE',
-        ('NEGATIVE','POSITIVE'): 'NEGATIVE',
-        ('POSITIVE','NEGATIVE'): 'NEGATIVE'
-    }
-    
-    negate = {'POSITIVE': 'NEGATIVE', 'NEGATIVE':'POSITIVE', 'UNKNOWN':'UNKNOWN'}
-    
-    def __init__(self,sign_str):
-        if sign_str in self.signs:
-            self.sign_str = sign_str
-        else:
-            raise Exception("No such sign %s exists." % str(sign_str))
-        
-    def __repr__(self):
-        return "Sign('%s')" % self.sign_str
-    
-    def __str__(self):
-        return self.sign_str
-        
-    def __add__(self, other):
-        lhs = self.sign_str
-        rhs = other.sign_str
-        
-        sign = self.add_lookup.get( (lhs, rhs), 'UNKNOWN' )
-        return Sign(sign)
-    
-    __sub__ = None
-    # def __sub__(self, other):
-    #     lhs = self.sign_str
-    #     rhs = self.negate[other.sign_str]
-    #     
-    #     sign = self.add_lookup.get( (lhs, rhs), 'UNKNOWN' )
-    #     return Sign(sign)
-       
-    def __mul__(self, other):
-        lhs = self.sign_str
-        rhs = other.sign_str
-        
-        sign = self.mul_lookup.get( (lhs, rhs), 'UNKNOWN' )
-        return Sign(sign)
-        
-    def __neg__(self):
-        self.sign_str = self.negate[self.sign_str]
-        return self
-        
-    def __eq__(self,other):
-        return self.sign_str is other.sign_str
-    
-    def __ne__(self,other):
-        return self.sign_str is not other.sign_str
+from utils import error_msg, id_wrapper, isunknown, ispositive, isnegative
+from shape import SCALAR, VECTOR, MATRIX
+from sign import POSITIVE, NEGATIVE, UNKNOWN
+from constraint import Constraint
 
 # the ordering here matters. we use a bitwise OR to accomplish vexity
 # inference. 
@@ -175,90 +41,6 @@ class Sign(object):
 
 # should i make these classes so i can print them?
 AFFINE,CONVEX,CONCAVE,NONCONVEX = range(4)
-
-# these are (mutable) globals, so be careful!
-POSITIVE = Sign('POSITIVE')
-NEGATIVE = Sign('NEGATIVE')
-UNKNOWN = Sign('UNKNOWN')
-
-SCALAR = Shape('SCALAR')
-VECTOR = Shape('VECTOR')
-MATRIX = Shape('MATRIX')
-
-# bitwise masks (AFFINE|CONVEX) = CONVEX, etc.
-def iscvx(e):
-    return (e.vexity | CONVEX) is CONVEX
-def isccv(e):
-    return (e.vexity | CONCAVE) is CONCAVE
-def isaff(e):
-    return e.vexity is AFFINE
-
-def ispositive(x):
-    return x.sign.sign_str is 'POSITIVE'
-def isnegative(x):
-    return x.sign.sign_str is 'NEGATIVE'
-def isunknown(x):
-    return x.sign.sign_str is 'UNKNOWN'
-
-def check_eq(x,y):
-    return isaff(x) and isaff(y)
-def check_leq(x,y):
-    return iscvx(x) and isccv(y)
-def check_geq(x,y):
-    return isccv(x) and iscvx(y)
-
-def build_eq(x,y):
-    return "%s - (%s) == 0" % (x.name, y.name)
-def build_leq(x,y):
-    return "%s - (%s) >= 0" % (y.name, x.name)
-def build_geq(x,y):
-  return "%s - (%s) >= 0" % (x.name, y.name)
-    
-# constraint class
-class Constraint(object):
-    valid_constraints = set(['EQ', 'LEQ', 'GEQ'])
-    constraints = {
-        'EQ': (check_eq, build_eq, '=='),
-        'LEQ': (check_leq, build_leq, '<='),
-        'GEQ': (check_geq, build_geq, '>=')
-    }
-    
-    def __init__(self, lhs, rhs, kind):
-        """Creates a constraint object, but also checks DCP"""
-        if kind in self.valid_constraints:
-            check, build, sym = self.constraints[kind]
-            if check(lhs,rhs):
-                self.lhs = lhs
-                self.rhs = rhs
-                self.kind = kind
-                self.sym = sym
-                self.name = build(lhs,rhs)
-            else:
-                raise Exception("Cannot have '%s %s %s'" % (lhs.vexity, sym, rhs.vexity))
-        else:
-            raise Exception("Unknown constraint type %s." % kind)
-            
-    # when comparing constriants to something else, that's likely the case 
-    # that something like l <= x <= u has occurred
-    def __le__(self,other):
-        if self.kind is 'LEQ':
-            return Constraint(self.rhs, other, 'LEQ')
-        else:
-            raise Exception("Cannot have constraints of the form 'x %s y <= z" % (self.sym))
-    def __ge__(self,other):
-        if self.kind is 'GEQ':
-            return Constraint(self.rhs, other, 'GEQ')
-        else:
-            raise Exception("Cannot have constraints of the form 'x %s y >= z" % (self.sym))
-            
-    def __eq__(self,other):
-        raise Exception("Cannot chain equality constraints.")
-    
-    def __repr__(self):
-        return "Constraint(%s, %s, '%s')" % (self.lhs, self.rhs, self.kind)
-    
-    def __str__(self):
-        return self.name
 
 # Expression evaluator goes here....
 class Expression(object):
@@ -272,6 +54,9 @@ class Expression(object):
     # sign = UNKNOWN
     # shape = SCALAR
     # name = ""
+    
+    # this is the total count of variables created by all Expression object
+    varcount = 0    
     
     add_lookup = {
         ('COEFF','COEFF'): 'COEFF',
@@ -408,6 +193,7 @@ class Expression(object):
     def __str__(self):
         return self.name
 
+
 class Variable(Expression):
     def __init__(self, name, shape):
         super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name, 'ARGUMENT')
@@ -495,22 +281,8 @@ def fold_with(f):
         return wrap
     return wrapper
 
-# annotations for monotonicity
-def increasing(op):
-    return op.vexity
-
-def decreasing(op):
-    if op.vexity is CONVEX: return CONCAVE
-    elif op.vexity is CONCAVE: return CONVEX
-    else: return op.vexity
-
-def nonmonotone(op):
-    if op.vexity is AFFINE: return AFFINE
-    else: return NONCONVEX
-
-
 # globals...
-INCREASING, DECREASING, NONMONOTONE = range(3)
+# INCREASING, DECREASING, NONMONOTONE = range(3)
 
         
     

@@ -29,10 +29,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 #from scoop import Scoop, print_prof_data
-from scoop import Scoop, \
-    Expression, Variable, Parameter, Constant, print_prof_data, \
-    Evaluator, POSITIVE, NEGATIVE, UNKNOWN, SCALAR, VECTOR, MATRIX, \
-    AFFINE, CONVEX, NONCONVEX, CONCAVE
+from scoop import Scoop
 # just a driver for the problems
 
 # if the lang were embedded in python, could do some crazy stuff
@@ -48,23 +45,27 @@ if __name__ == '__main__':
     # strings. kind of cool
     map (p.run, 
     ["# this entire line is a comment!",
-     "variable x scalar # hello, this is way too cool blah",
+     "variable x # hello, this is way too cool blah",
      "variable _x vector",
      "parameter A matrix positive",
      "parameter b vector",
-     "parameter a scalar",
-     "variable t scalar",
-     "variable y scalar",
-     "variable t0 scalar",
-     "parameter z scalar",
+     "parameter a positive",
+     "variable t",
+     "variable y",
+     "variable t0",
+     "parameter z",
      "",
-     "minimize x",
+     "minimize square(4*x-3) + a*norm1(_x)",
      "  square(x-6) + -5 <= 0",
+     "  max(square(x), pos(t)) <= -norm1(y,t)",
+     "  quad_over_lin(_x, x) - min(y) <= -neg(z)",
+     "  norm_inf(_x) <= sqrt(_x)"
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",
      "#sqrt(3*x-y) >= abs(z)",
      "#geo_mean(3,1) == sqrt(3*2-b)"])
+     
      
     # a = Expression(AFFINE, NEGATIVE, SCALAR, 't', 'COEFF')
     # b = Expression(CONVEX, POSITIVE, SCALAR, 'x')
@@ -78,6 +79,21 @@ if __name__ == '__main__':
     # 
     # f(A,b,a,z)
     # g(A,b,a,z)
+    
+    
+    # p2 = Scoop()
+    # map( p2.run,
+    # ["variable x vector",
+    #  "parameter a scalar positive",
+    #  "variable y scalar",
+    #  "",
+    #  "minimize y",
+    #  "  quad_over_lin(x,y) <= a"])
+    # 
+    # p.run("quad_over_lin(_x,x) <= 5")
+    
+    #print p
+    print 72*'='
     
     print p
     
