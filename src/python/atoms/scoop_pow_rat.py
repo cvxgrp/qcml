@@ -2,7 +2,7 @@ from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, isconstant, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
-from utils import create_varname
+from utils import create_varname, comment
 from scoop_sqrt import sqrt
 from scoop_square import square
 from scoop_geo_mean import geo_mean
@@ -101,6 +101,7 @@ valid = {
     (4,4): id_func,
 }
 # pow_rat(x,p,q) = x.^(p/q)
+@comment
 def pow_rat(x,p,q):
     if isconstant(p) and isconstant(q):
         # get the power

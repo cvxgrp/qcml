@@ -2,9 +2,10 @@ from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
-from utils import create_varname
+from utils import create_varname, comment
 
 # geo_mean(x,y) = sqrt(x .* y)
+@comment
 def geo_mean(x,y):
     # infer vexity from signed monotonicities
     vexity = CONCAVE | increasing(x) | increasing(y)

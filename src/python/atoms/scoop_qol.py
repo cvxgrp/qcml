@@ -2,9 +2,9 @@ from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
-from utils import create_varname
+from utils import create_varname, comment
 
-
+@comment
 def quad_over_lin(x,y):
     # infer vexity from signed monotonicities
     vexity = CONVEX

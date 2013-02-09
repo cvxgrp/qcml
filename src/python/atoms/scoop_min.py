@@ -3,10 +3,11 @@ from scoop.expression import Expression, Constant, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, UNKNOWN, \
     SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
-from utils import create_varname
+from utils import create_varname, comment
 import operator
 
 # to prevent name clash with builtin, named with trailing '_'
+@comment
 def min_(*args):    
     # infer vexity from signed monotonicities
     vexity = CONCAVE | reduce(operator.or_, map(increasing, args))

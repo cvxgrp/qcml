@@ -197,51 +197,51 @@ class Constant(Expression):
 
     
 # convex, concave, affine decorators
-def convex(fn,*args):
-    def wrap(*args):
-        e = fn(*args)
-        e.vexity |= CONVEX
-        return e
-    return wrap
+# def convex(fn,*args):
+#     def wrap(*args):
+#         e = fn(*args)
+#         e.vexity |= CONVEX
+#         return e
+#     return wrap
+# 
+# def concave(fn,*args):
+#     def wrap(*args):
+#         e = fn(*args)
+#         e.vexity |= CONCAVE
+#         return e.vexity
+#     return wrap
+# 
+# def affine(fn,*args):
+#     def wrap(*args):
+#         e = fn(*args)
+#         e.vexity |= AFFINE
+#         return e
+#     return wrap
 
-def concave(fn,*args):
-    def wrap(*args):
-        e = fn(*args)
-        e.vexity |= CONCAVE
-        return e.vexity
-    return wrap
-
-def affine(fn,*args):
-    def wrap(*args):
-        e = fn(*args)
-        e.vexity |= AFFINE
-        return e
-    return wrap
 
 
-
-def expand_all_args(fn, *args):
-    """Ensures all args are variables"""
-    def wrap(*args):
-        evaluator = args[0]
-        expanded_args = map (evaluator.expand, args[1:])
-        e = fn(evaluator, *expanded_args)
-        return e
-    return wrap
+# def expand_all_args(fn, *args):
+#     """Ensures all args are variables"""
+#     def wrap(*args):
+#         evaluator = args[0]
+#         expanded_args = map (evaluator.expand, args[1:])
+#         e = fn(evaluator, *expanded_args)
+#         return e
+#     return wrap
 
     
-def fold_with(f):
-    """To help with constant folding"""
-    def wrapper(fn, *args):
-        def wrap(*args):
-            if (all(isinstance(e, Constant) for e in args[1:])):
-                arg_vals = map (lambda e: e.value, args[1:])
-                e = Constant( f(*arg_vals) )
-            else:
-                e = fn(*args)
-            return e
-        return wrap
-    return wrapper
+# def fold_with(f):
+#     """To help with constant folding"""
+#     def wrapper(fn, *args):
+#         def wrap(*args):
+#             if (all(isinstance(e, Constant) for e in args[1:])):
+#                 arg_vals = map (lambda e: e.value, args[1:])
+#                 e = Constant( f(*arg_vals) )
+#             else:
+#                 e = fn(*args)
+#             return e
+#         return wrap
+#     return wrapper
 
 # globals...
 # INCREASING, DECREASING, NONMONOTONE = range(3)

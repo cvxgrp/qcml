@@ -35,36 +35,13 @@ import re
 
 # this is just a scaffolding for atoms
 class MacroExpander(object):
+    lookup = {}
     
     def __init__(self):
-        self.lookup = {}
+        self.__lookup = {}
 
     def __repr__(self):
         return '\n'.join(self.lines)
-    
-    def execute_atom(self, fn, *args):
-        """Executes the atom but performs some housekeeping. It checks to see
-        if an expression using this atom has been called before. If so, it just
-        returns the previous Expression object. If not, it executes the code and
-        puts the new result into the lookup table.
-        """
-        arglist = ', '.join( map(lambda e: e.name, args) )
-    
-        # get the name of the function and its arguments
-        func_name = fn.__name__.rstrip('_') # remove trailing underscores
-        expr_string = '%s(%s)' % (func_name, arglist)
-        v = self.lookup.get(expr_string, None)
-        if v:
-            return ([], v)
-        else:
-            lines, v = fn(*args)
-            comment = ["",
-                "# '%s' replaces '%s'" % (v.name, expr_string)
-            ]
-            if lines:
-                lines = comment + lines
-                self.lookup[expr_string] = v
-            return (lines, v)
     
     # this does macro expansion / rewriting
     # once this is done, the AST (stored in RPN) for the problem is always
@@ -75,6 +52,9 @@ class MacroExpander(object):
         operand_stack = []
         constraint_stack = []
         new_lines = []
+        
+        # set the current lookup table to your local copy
+        MacroExpander.lookup = self.__lookup
                 
         def gobble(nargs):
             """Gobble args from RPN stack"""
@@ -91,9 +71,11 @@ class MacroExpander(object):
                 args = gobble(nargs)
             
                 # will fail with multiargs (that's OK for now)
-                lines, var = self.execute_atom(op, *args) 
-
-                new_lines += lines
+                lines, var = op(*args) 
+                if lines:
+                    new_lines.append("")    # add whitepsace at beginning
+                    new_lines += lines
+                
                 operand_stack.append( var )
             # elif tok is "NORM" or tok is "ABS":
             #     args = gobble(nargs)
@@ -108,6 +90,9 @@ class MacroExpander(object):
                 if isinstance(result, Constraint):
                     constraint_stack.append( result )
                 operand_stack.append( result )
+        
+        # store the modified lookup locally (in this object)
+        self.__lookup = MacroExpander.lookup
                 
         # if there are any constraints, we return the constraint stack instead
         if constraint_stack: 

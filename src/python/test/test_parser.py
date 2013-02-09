@@ -99,4 +99,4 @@ def test_clear():
     
 
 # TODO: bad operations
-# TODO: bas expressions
+# TODO: bad expressions

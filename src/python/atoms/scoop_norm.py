@@ -2,10 +2,9 @@ from scoop.expression import Expression, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
-from utils import create_varname
+from utils import create_varname, comment
 
-
-# to prevent name clash with builtin, named with trailing '_'
+@comment
 def norm(*args):    
     # infer vexity from signed monotonicities
     vexity = CONVEX
