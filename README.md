@@ -16,7 +16,7 @@ This project requires:
 * Python 2.7.2+ (no Python 3 support yet)
 * [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
 
-For unit testing, we use [Nose](https://nose.readthedocs.org).
+For unit testing, we use [Nose](http://nose.readthedocs.org).
 
 Depending on the type of code you generate, you may also need:
 
@@ -34,7 +34,7 @@ Installation should be as easy as
     cd src
     python setup.py install
     
-After installation, if you have nose installed
+After installation, if you have [Nose](http://nose.readthedocs.org) installed, then typing
 
     nosetests scoop
     
