@@ -39,3 +39,6 @@ def decreasing(op):
 def nonmonotone(op):
     if op.vexity is expr.AFFINE: return expr.AFFINE
     else: return expr.NONCONVEX
+    
+def isconstant(e):
+    return e.linfunc.isconstant()

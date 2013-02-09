@@ -139,8 +139,25 @@ class LinearFunc(object):
         d = sorted(self.linear_dict.items(), key=lambda t:t[0], reverse=True)
         return ' + '.join( filter(None, map(display_linear_func, d)) )
     
-    def isconstant(self):
+    def has_constant_coeff(self):
         return ('1' in self.linear_dict and len(self.linear_dict) == 1)
+    
+    def isconstant(self):
+        return ('1' in self.linear_dict and
+             len(self.linear_dict) == 1 and
+              self.linear_dict['1'].isconstant())
+    
+    def constant_value(self):
+        if self.isconstant():
+            return self.linear_dict['1'].coeff_dict['1']
+        else:
+            return None
+            
+    # def iszero(self):
+    #     """True if linear func represents 0"""
+    #     # only true if the function is constant and the coeff is zero
+    #     return self.isconstant() and self.linear_dict['1'].iszero()
+            
         
     # linear function creation happens through class methods
     @classmethod
@@ -186,7 +203,7 @@ class LinearFunc(object):
         # allowed. d*(a*x + b*y + c) = (d*a)*x + (d*b)*y + d*c
         #        
         # don't even bother checking if RHS is a constant
-        if self.isconstant():
+        if self.has_constant_coeff():
             d = {}
             vc = self.linear_dict['1']
             for k,v in other.linear_dict.items():

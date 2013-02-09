@@ -16,22 +16,25 @@ def quad_over_lin(x,y):
     # the output is named differently, but is also an expression
     v = Expression(vexity, POSITIVE, y.shape, create_varname(), None)
     
-    norm_arg = Constant(0.5)*y - Constant(0.5)*v
-    rhs = Constant(0.5)*y + Constant(0.5)*v
+    definition = [
+        Constant(0.5)*y - Constant(0.5)*v,
+        Constant(0.5)*y + Constant(0.5)*v,
+        y >= Constant(0)
+    ]
                 
     # declare the expansion in "SCOOP"
     if y.shape == SCALAR:
-        lines = [
+        lines = filter(None, [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm([ %s ; %s ]) <= %s" % (norm_arg.name, x.name, rhs.name),
-            "%s >= 0" % y.name
-        ]
+            "norm([ %s ; %s ]) <= %s" % (definition[0].name, x.name, definition[1].name),
+            "%s" % str(definition[2])
+        ])
     else:
-        lines = [
+        lines = filter(None, [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm( %s, %s) <= %s" % (norm_arg.name, x.name, rhs.name),
-            "%s >= 0" % y.name
-        ]
+            "norm( %s, %s ) <= %s" % (definition[0].name, x.name, definition[1].name),
+            "%s" % str(definition[2])
+        ])
 
     return (lines, v)
 

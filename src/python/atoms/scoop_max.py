@@ -1,4 +1,4 @@
-from scoop.expression import Expression, \
+from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, UNKNOWN, \
@@ -15,21 +15,25 @@ def max_(*args):
     # determine the shape of the output (scalar if vector input, vector if 
     # list input)
     if len(args) == 1:
-        v = Expression(vexity, args[0].sign, SCALAR, create_varname(), None)        
+        # set the vexity to affine temporarily, so we can form v >= x expr
+        v = Expression(AFFINE, args[0].sign, SCALAR, create_varname(), None)
     elif len(args) > 1:
         if any(ispositive(e) for e in args): sign = POSITIVE
         if all(isnegative(e) for e in args): sign = NEGATIVE
         else: sign = UNKNOWN
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         
-        v = Expression(vexity, sign, shape, create_varname(), None)
+        # set the vexity to affine temporarily       
+        v = Expression(AFFINE, sign, shape, create_varname(), None)
     else:
         raise Exception("'max' cannot be called with zero arguments.")
 
     # declare the expansion in "SCOOP"
-    lhs = map(lambda x: v - x, args)
+    constraints = map(lambda x: v >= x, args)
     lines = [ 
         "variable %s %s" % (v.name, str.lower(v.shape.shape_str)) 
-    ] + map(lambda x: "%s >= 0" % x.name, lhs )
-                
+    ] + filter(None, map(lambda x: "%s" % str(x), constraints ))
+    
+    # set the proper vexity
+    v.vexity = vexity
     return (lines, v)  

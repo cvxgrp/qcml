@@ -273,7 +273,7 @@ class Scoop(object):
             if(is_first_pass):
                 # perform macro expansion on the RPN
                 (obj_stack, new_lines) = self.expander.expand( expr )
-                print obj_stack
+
                 if not obj_stack:   # should never happen
                     raise Exception("No objective parsed.")
                 obj = obj_stack.pop()

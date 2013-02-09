@@ -20,8 +20,7 @@ def sum_(*args):
         sign = reduce(operator.add, map(lambda x: x.sign, args))
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         
-        arglist = sum(args, Constant(0))
-        v = Expression(vexity, sign, shape, str(arglist), arglist )
+        v = sum(args, Constant(0))
     else:
         raise Exception("'sum' cannot be called with zero arguments.")
 

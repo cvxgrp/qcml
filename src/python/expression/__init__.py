@@ -6,5 +6,6 @@ from constraint import Constraint
 
 from utils import iscvx, isccv, isaff, \
     ispositive, isnegative, isunknown, \
-    increasing, decreasing, nonmonotone
+    increasing, decreasing, nonmonotone, \
+    isconstant
     

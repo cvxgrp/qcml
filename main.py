@@ -55,11 +55,11 @@ if __name__ == '__main__':
      "variable t0",
      "parameter z",
      "",
-     "minimize -sum(3.0*t,2.3*y,t0,t)",
-     "  square(x-6) + -5 <= 0",
-     "  max(square(x), pos(t)) <= -norm1(y,t)",
-     "  quad_over_lin(_x, x) - min(y) <= -neg(z)",
-     "  norm_inf(_x) <= sqrt(_x)"
+     "minimize pow_rat(x,4,3)",
+     "#  square(0.5 + a*x - 6) + -5 <= 0",
+     "#  max(square(x)+2, pos(t)) <= -norm1(y,t)",
+     "#  quad_over_lin(_x, x) - min(y) <= -neg(z)",
+     "#  norm_inf(_x) <= sqrt(0.8*_x-2)"
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",

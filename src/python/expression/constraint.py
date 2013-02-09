@@ -9,9 +9,7 @@ def check_geq(x,y):
 
 # TODO: parse leq and geq with norm taken into account
 def build_eq(x,y):
-    xval, yval = None, None
-    if hasattr(x, 'value'): xval = x.value
-    if hasattr(y, 'value'): yval = y.value
+    xval, yval = x.value(), y.value()
     
     if xval is not None and yval is not None:
         if xval == yval:
@@ -24,12 +22,10 @@ def build_eq(x,y):
     if yval is not None and (yval == 0.0):
         return "%s == 0" % x.name
     
-    return "%s - (%s) == 0" % (x.name, y.name)
+    return "%s == 0" % (x - y).name
     
 def build_leq(x,y):
-    xval, yval = None, None
-    if hasattr(x, 'value'): xval = x.value
-    if hasattr(y, 'value'): yval = y.value
+    xval, yval = x.value(), y.value()
     
     if xval is not None and yval is not None:
         if xval <= yval:
@@ -40,13 +36,11 @@ def build_leq(x,y):
     if xval is not None and (xval == 0.0):
         return "%s >= 0" % y.name
     if yval is not None and (yval == 0.0):
-        return "-(%s) >= 0" % x.name
-    return "%s - (%s) >= 0" % (y.name, x.name)
+        return "%s >= 0" % (-x).name
+    return "%s >= 0" % (y - x).name
     
 def build_geq(x,y):
-    xval, yval = None, None
-    if hasattr(x, 'value'): xval = x.value
-    if hasattr(y, 'value'): yval = y.value
+    xval, yval = x.value(), y.value()
     
     if xval is not None and yval is not None:
         if xval >= yval:
@@ -55,10 +49,10 @@ def build_geq(x,y):
             raise Exception("Trivial infeasibility detected: '%f < %f'" % (xval, yval))
     
     if xval is not None and (xval == 0.0):
-        return "-(%s) >= 0" % y.name
+        return "%s >= 0" % (-y).name
     if yval is not None and (yval == 0.0):
         return "%s >= 0" % x.name
-    return "%s - (%s) >= 0" % (x.name, y.name)
+    return "%s >= 0" % (x - y).name
     
 # constraint class
 class Constraint(object):

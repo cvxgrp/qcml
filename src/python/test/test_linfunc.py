@@ -22,12 +22,12 @@ experiments = [
 ]
 
 def check(r,s):
-    print str(r)
-    assert(str(r) == s)
+    print r
+    assert(r == s)
 
 def test_coeff_operators():
     for r, exp in experiments:
-        yield check, r, exp
+        yield check, str(r), exp
     
 f1 = LinearFunc.constant(2.3)
 f2 = LinearFunc.constant('c')
@@ -50,6 +50,26 @@ linfunc_experiments = [
 
 def test_linfunc_operators():    
     for r, exp in linfunc_experiments:
-        yield check, r, exp
+        yield check, str(r), exp
     yield assert_raises, Exception, operator.mul, x, y
-    
+
+linfunc_const = [
+    (f1.constant_value(), 2.3),
+    (f3.constant_value(), -6.3),
+    ((f1+f3).constant_value(), -4.0),
+    (f2.constant_value(), None)
+]
+
+def test_linfunc_const_val():
+    for r, exp in linfunc_const:
+        yield check, r, exp
+# linfunc_bools = [
+#     (f1.isconstant(), True),
+#     (f3.isconstant(), True),
+#     ((f1-f1).iszero(), True)
+# ]
+# 
+# 
+# def test_constant():
+#     for r, exp in linfunc_bools:
+#         yield check, r, exp

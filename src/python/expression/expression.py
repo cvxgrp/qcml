@@ -83,7 +83,8 @@ class Expression(object):
         if func: self.linfunc = func
         else: self.linfunc = LinearFunc.variable(name)
         
-        # self.description = name
+    def value(self):
+        return self.linfunc.constant_value()
     
     def __add__(self, other):
         vexity = self.vexity | other.vexity
