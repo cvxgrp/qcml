@@ -1,4 +1,4 @@
-from scoop.expression import Expression, \
+from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -14,19 +14,22 @@ def quad_over_lin(x,y):
 
     # x is an (affine) Expression
     # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, y.shape, create_varname())
+    v = Expression(vexity, POSITIVE, y.shape, create_varname(), None)
+    
+    norm_arg = Constant(0.5)*y - Constant(0.5)*v
+    rhs = Constant(0.5)*y + Constant(0.5)*v
                 
     # declare the expansion in "SCOOP"
     if y.shape == SCALAR:
         lines = [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm([ 0.5*(%s) - 0.5*(%s) ; %s ]) <= 0.5*(%s) + 0.5*(%s)" % (y.name, v.name, x.name, y.name, v.name),
+            "norm([ %s ; %s ]) <= %s" % (norm_arg.name, x.name, rhs.name),
             "%s >= 0" % y.name
         ]
     else:
         lines = [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm(0.5*(%s) - 0.5*(%s), %s) <= 0.5*(%s) + 0.5*(%s)" % (y.name, v.name, x.name, y.name, v.name),
+            "norm( %s, %s) <= %s" % (norm_arg.name, x.name, rhs.name),
             "%s >= 0" % y.name
         ]
 

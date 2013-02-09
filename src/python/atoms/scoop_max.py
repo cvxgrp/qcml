@@ -15,20 +15,21 @@ def max_(*args):
     # determine the shape of the output (scalar if vector input, vector if 
     # list input)
     if len(args) == 1:
-        v = Expression(vexity, args[0].sign, SCALAR, create_varname())        
+        v = Expression(vexity, args[0].sign, SCALAR, create_varname(), None)        
     elif len(args) > 1:
         if any(ispositive(e) for e in args): sign = POSITIVE
         if all(isnegative(e) for e in args): sign = NEGATIVE
         else: sign = UNKNOWN
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         
-        v = Expression(vexity, sign, shape, create_varname())
+        v = Expression(vexity, sign, shape, create_varname(), None)
     else:
         raise Exception("'max' cannot be called with zero arguments.")
 
     # declare the expansion in "SCOOP"
+    lhs = map(lambda x: v - x, args)
     lines = [ 
         "variable %s %s" % (v.name, str.lower(v.shape.shape_str)) 
-    ] + map(lambda x: "%s - (%s) >= 0" % (v.name, x.name), args )
+    ] + map(lambda x: "%s >= 0" % x.name, lhs )
                 
     return (lines, v)  

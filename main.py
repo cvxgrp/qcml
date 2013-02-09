@@ -55,7 +55,7 @@ if __name__ == '__main__':
      "variable t0",
      "parameter z",
      "",
-     "minimize square(4*x-3) + a*norm1(_x)",
+     "minimize -sum(3.0*t,2.3*y,t0,t)",
      "  square(x-6) + -5 <= 0",
      "  max(square(x), pos(t)) <= -norm1(y,t)",
      "  quad_over_lin(_x, x) - min(y) <= -neg(z)",

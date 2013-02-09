@@ -29,6 +29,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 from utils import error_msg, id_wrapper, isunknown, ispositive, isnegative
+from linfunc import LinearFunc
 from shape import SCALAR, VECTOR, MATRIX
 from sign import POSITIVE, NEGATIVE, UNKNOWN
 from constraint import Constraint
@@ -58,31 +59,29 @@ class Expression(object):
     # this is the total count of variables created by all Expression object
     varcount = 0    
     
-    add_lookup = {
-        ('COEFF','COEFF'): 'COEFF',
-    }
-    
-    mul_lookup = {
-        ('COEFF','COEFF'): id_wrapper('COEFF'),
-        ('COEFF','ARGUMENT'): id_wrapper('ARGUMENT')
-    }
-    
-    valid_kinds = set(['COEFF', 'ARGUMENT'])
+    # add_lookup = {
+    #     ('COEFF','COEFF'): 'COEFF',
+    # }
+    # 
+    # mul_lookup = {
+    #     ('COEFF','COEFF'): id_wrapper('COEFF'),
+    #     ('COEFF','ARGUMENT'): id_wrapper('ARGUMENT')
+    # }
+    # 
+    # valid_kinds = set(['COEFF', 'ARGUMENT'])
     
     vexity_lookup = {'AFFINE': AFFINE, 'CONVEX': CONVEX, 'CONCAVE': CONCAVE, 'NONCONVEX': NONCONVEX}
     vexity_names = ['AFFINE', 'CONVEX', 'CONCAVE', 'NONCONVEX']
     
     negate = {AFFINE: AFFINE, CONVEX: CONCAVE, CONCAVE: CONVEX, NONCONVEX: NONCONVEX}
     
-    def __init__(self, vexity, sign, shape, name, kind='ARGUMENT'):
-        if kind in self.valid_kinds:
-            self.vexity = vexity
-            self.sign = sign
-            self.shape = shape
-            self.name = name
-            self.kind = kind
-        else:
-            raise Exception("Cannot construct an expression of kind %s." % kind)
+    def __init__(self, vexity, sign, shape, name, func):
+        self.vexity = vexity
+        self.sign = sign
+        self.shape = shape
+        self.name = name
+        if func: self.linfunc = func
+        else: self.linfunc = LinearFunc.variable(name)
         
         # self.description = name
     
@@ -90,44 +89,19 @@ class Expression(object):
         vexity = self.vexity | other.vexity
         sign = self.sign + other.sign
         shape = self.shape + other.shape
-        if self.kind is other.kind:
-            kind = self.kind
-        else:
-            kind = 'ARGUMENT'
+        linfunc = self.linfunc + other.linfunc
+        name = str(linfunc)
         
-        isconstant = False
-        if hasattr(self, 'value') and hasattr(other, 'value'):
-            value = self.value + other.value
-            name = str(value)
-            isconstant = True
-        else:
-            name = self.name + ' + ' + other.name
-        
-        result = Expression(vexity, sign, shape, name, kind)
-        if isconstant: result.value = value
-        return result
+        return Expression(vexity, sign, shape, name, linfunc)
     
-    __sub__ = None
-    # def __sub__(self, other):
-    #     vexity = self.vexity | self.negate[other.vexity]
-    #     sign = self.sign - other.sign
-    #     shape = self.shape - other.shape
-    #     if self.kind is other.kind:
-    #         kind = self.kind
-    #     else:
-    #         kind = 'ARGUMENT'
-    #     
-    #     isconstant = False
-    #     if hasattr(self, 'value') and hasattr(other, 'value'):
-    #         value = self.value - other.value
-    #         name = str(value)
-    #         isconstant = True
-    #     else:
-    #         name = self.name + ' - (' + other.name + ')'
-    #     
-    #     result = Expression(vexity, sign, shape, name, kind)
-    #     if isconstant: result.value = value
-    #     return result
+    def __sub__(self, other):
+        vexity = self.vexity | self.negate[other.vexity]
+        sign = self.sign + (-other.sign)
+        shape = self.shape + (-other.shape)
+        linfunc = self.linfunc - other.linfunc
+        name = str(linfunc)
+        
+        return Expression(vexity, sign, shape, name, linfunc)
 
     def __mul__(self, other):
         # expressions are always affine expressions
@@ -146,32 +120,17 @@ class Expression(object):
 
         sign = self.sign * other.sign
         shape = self.shape * other.shape
-        f = self.mul_lookup.get(
-            (self.kind,other.kind),
-            error_msg(TypeError,"Cannot multiply (%s) with (%s)." % (self.name, other.name))
-        )
-        kind = f()
+        linfunc = self.linfunc * other.linfunc
+        name = str(linfunc)
         
-        isconstant = False
-        if hasattr(self, 'value') and hasattr(other, 'value'):
-            value = other.value * self.value
-            name = str(value)
-            isconstant = True
-        else:
-            name = self.name + ' * (' + other.name + ')'
-        
-        result = Expression(vexity, sign, shape, name, kind)
-        if isconstant: result.value = value
-        return result
+        return Expression(vexity, sign, shape, name, linfunc)
         
     def __neg__(self):
         self.vexity = self.negate[self.vexity]
         self.sign = -self.sign
         self.shape = -self.shape
-        self.name = '-(' + self.name + ')'
-        if hasattr(self, 'value'):
-            self.value = -self.value
-            self.name = str(self.value)        
+        self.linfunc = -self.linfunc
+        self.name = str(self.linfunc)
         return self
     
     def __le__(self,other):
@@ -188,7 +147,7 @@ class Expression(object):
     __ne__ = None
     
     def __repr__(self):
-        return "Expression(%s, %s, %s, %s, %s)" % (self.vexity, self.sign, self.shape, self.name, self.kind)
+        return "Expression(%s, %s, %s, %s, %s)" % (self.vexity, self.sign, self.shape, self.name, self.linfunc)
     
     def __str__(self):
         return self.name
@@ -196,7 +155,10 @@ class Expression(object):
 
 class Variable(Expression):
     def __init__(self, name, shape):
-        super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name, 'ARGUMENT')
+        if shape != MATRIX:
+            super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name, LinearFunc.variable(name))
+        else:
+            raise TypeError("Cannot create a matrix variable.")
     
     def __repr__(self):
         return "variable %s %s" % ( str(self.name), str.lower(str(self.shape)) )
@@ -206,7 +168,7 @@ class Variable(Expression):
         
 class Parameter(Expression):
     def __init__(self, name, shape, sign):
-        super(Parameter, self).__init__(AFFINE, sign, shape, name, 'COEFF')
+        super(Parameter, self).__init__(AFFINE, sign, shape, name, LinearFunc.constant(name))
         
     def __repr__(self):
         if isunknown(self):
@@ -221,15 +183,14 @@ class Constant(Expression):
     # value = 0.0
     
     def __init__(self, value):
-        self.value = value
         if value >= 0:
             sign = POSITIVE
         else:
             sign = NEGATIVE
-        super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value), 'COEFF')
+        super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value), LinearFunc.constant(value))
         
     def __repr__(self):
-        return str(self.value)
+        return self.name
     
     __str__ = __repr__
 

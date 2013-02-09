@@ -15,7 +15,7 @@ def norm(*args):
     
     arglist = ', '.join( map(lambda e: e.name, args) )
     # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, SCALAR, create_varname())
+    v = Expression(vexity, POSITIVE, SCALAR, create_varname(), None)
     
     lines = [ 
         "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),

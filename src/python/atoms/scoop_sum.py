@@ -1,4 +1,4 @@
-from scoop.expression import Expression, \
+from scoop.expression import Expression, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -20,8 +20,8 @@ def sum_(*args):
         sign = reduce(operator.add, map(lambda x: x.sign, args))
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         
-        arglist = ' + '.join( map(lambda e: e.name, args) )
-        v = Expression(vexity, sign, shape, "(%s)" % arglist )
+        arglist = sum(args, Constant(0))
+        v = Expression(vexity, sign, shape, str(arglist), arglist )
     else:
         raise Exception("'sum' cannot be called with zero arguments.")
 

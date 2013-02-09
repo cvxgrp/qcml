@@ -266,13 +266,14 @@ class Scoop(object):
                 raise Exception("Cannot have multiple objectives per SCOOP problem.")
             # expr is an RPN stack, this also checks DCP
             expr = self.parse_expr(toks, is_first_pass=is_first_pass)
-        
+            
             if not expr:
                 raise Exception("No objective specified.")
         
             if(is_first_pass):
                 # perform macro expansion on the RPN
                 (obj_stack, new_lines) = self.expander.expand( expr )
+                print obj_stack
                 if not obj_stack:   # should never happen
                     raise Exception("No objective parsed.")
                 obj = obj_stack.pop()
@@ -292,6 +293,7 @@ class Scoop(object):
                     "# \"%s\"" % self.line,
                     "%s %s" % (val, obj.name)
                 ]
+
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros

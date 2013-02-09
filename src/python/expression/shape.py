@@ -7,13 +7,15 @@ class Shape(object):
         ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
         ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
         ('VECTOR','SCALAR'): id_wrapper('VECTOR'),
-        ('VECTOR','VECTOR'): id_wrapper('VECTOR')
+        ('VECTOR','VECTOR'): id_wrapper('VECTOR'),
     }
     
     mul_lookup = {
         ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
         ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
+        ('SCALAR','MATRIX'): id_wrapper('MATRIX'),
         ('VECTOR','SCALAR'): id_wrapper('VECTOR'),
+        ('MATRIX','SCALAR'): id_wrapper('MATRIX'),
         ('MATRIX','VECTOR'): id_wrapper('VECTOR')
     }
     
