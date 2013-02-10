@@ -29,7 +29,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
-    Variable, Expression, Parameter, Constant, Constraint
+    Variable, Expression, Parameter, Constant, Cone
 import operator
 import re
 
@@ -73,21 +73,16 @@ class MacroExpander(object):
                 # will fail with multiargs (that's OK for now)
                 lines, var = op(*args) 
                 if lines:
-                    new_lines.append("")    # add whitepsace at beginning
                     new_lines += lines
-                
+                    new_lines.append("")    # add whitepsace at end
+                    
                 operand_stack.append( var )
-            # elif tok is "NORM" or tok is "ABS":
-            #     args = gobble(nargs)
-            #     
-            #     arglist = ', '.join( map(lambda e: e.name, args))
-            #     result = Expression(CONVEX, POSITIVE, args[0].shape, "norm(%s)" % arglist)
-            #     operand_stack.append( result )
             else:
                 args = gobble(nargs)
                 result = op(*args)
                 
-                if isinstance(result, Constraint):
+                # don't append constraints that are trivial
+                if isinstance(result, Cone) and not result.istrivial():
                     constraint_stack.append( result )
                 operand_stack.append( result )
         

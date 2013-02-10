@@ -1,101 +1,156 @@
-from utils import isaff, iscvx, isccv
+import operator
 
-def check_eq(x,y):
-    return isaff(x) and isaff(y)
-def check_leq(x,y):
-    return iscvx(x) and isccv(y)
-def check_geq(x,y):
-    return isccv(x) and iscvx(y)
+    
 
-# TODO: parse leq and geq with norm taken into account
-def build_eq(x,y):
+# these are convenience functions to *return* the cone constructor
+# 0 Cone.zero(x) means x == 0
+# 1 Cone.linear(x) means x >= 0
+# 2 Cone.SOC(t,x) means abs(x) <= t
+# 4 Cone.SOC(t,x,y,z) means norm(x,y,z) <= t
+# n Cone.SOC(t,[x]) means norm(x) <= t
+# n Cone.SOC(t,[x,y,z]) means norm([x;y;z]) <= t
+#
+# TODO: for all of these, the first thing that happens before codegen is that 
+# *all* expressions is that 
+# the constant term in the linear functional is inverted (moved to the RHS)
+# TODO: before codegen, also, trivially feasible constraints should be removed
+
+def is_trivially_feasible(x, bool_op, y):
     xval, yval = x.value(), y.value()
     
     if xval is not None and yval is not None:
-        if xval == yval:
-            return ""
+        if bool_op(xval, yval):
+            return True
         else:
-            raise Exception("Trivial infeasibility detected: '%f != %f'" % (xval, yval))
+            raise Exception("Trivial infeasibility detected: '%s(%f, %f)'" % (bool_op.__name__, xval, yval))
+    else:
+        return False
+
+class Cone(object):
     
-    if xval is not None and (xval == 0.0):
-        return "%s == 0" % y.name
-    if yval is not None and (yval == 0.0):
-        return "%s == 0" % x.name
-    
-    return "%s == 0" % (x - y).name
-    
-def build_leq(x,y):
-    xval, yval = x.value(), y.value()
-    
-    if xval is not None and yval is not None:
-        if xval <= yval:
-            return ""
+    def __init__(self,size, t, *args):
+        # a cone of size 0 is the free cone
+        # a cone of size 1 is the nonnegative orthant
+        # a cone of size m (m is an int) is just one where len(args)==m-1
+        # a cone of size 'n' is  ||x||<=t, len(args)==1, but args[0] is a list
+        self.size = size
+        self.t = t
+        if isinstance(size, str) and not args:
+            raise Exception("Cannot construct an SOC cone with no cone argument!")
         else:
-            raise Exception("Trivial infeasibility detected: '%f > %f'" % (xval, yval))
-    
-    if xval is not None and (xval == 0.0):
-        return "%s >= 0" % y.name
-    if yval is not None and (yval == 0.0):
-        return "%s >= 0" % (-x).name
-    return "%s >= 0" % (y - x).name
-    
-def build_geq(x,y):
-    xval, yval = x.value(), y.value()
-    
-    if xval is not None and yval is not None:
-        if xval >= yval:
-            return ""
-        else:
-            raise Exception("Trivial infeasibility detected: '%f < %f'" % (xval, yval))
-    
-    if xval is not None and (xval == 0.0):
-        return "%s >= 0" % (-y).name
-    if yval is not None and (yval == 0.0):
-        return "%s >= 0" % x.name
-    return "%s >= 0" % (x - y).name
-    
-# constraint class
-class Constraint(object):
-    valid_constraints = set(['EQ', 'LEQ', 'GEQ'])
-    constraints = {
-        'EQ': (check_eq, build_eq, '=='),
-        'LEQ': (check_leq, build_leq, '<='),
-        'GEQ': (check_geq, build_geq, '>=')
-    }
-    
-    def __init__(self, lhs, rhs, kind):
-        """Creates a constraint object, but also checks DCP"""
-        if kind in self.valid_constraints:
-            check, build, sym = self.constraints[kind]
-            if check(lhs,rhs):
-                self.lhs = lhs
-                self.rhs = rhs
-                self.kind = kind
-                self.sym = sym
-                self.name = build(lhs,rhs)
-            else:
-                raise Exception("Cannot have '%s %s %s'" % (lhs.vexity, sym, rhs.vexity))
-        else:
-            raise Exception("Unknown constraint type %s." % kind)
-            
-    # when comparing constriants to something else, that's likely the case 
-    # that something like l <= x <= u has occurred
-    def __le__(self,other):
-        if self.kind is 'LEQ':
-            return Constraint(self.rhs, other, 'LEQ')
-        else:
-            raise Exception("Cannot have constraints of the form 'x %s y <= z" % (self.sym))
-    def __ge__(self,other):
-        if self.kind is 'GEQ':
-            return Constraint(self.rhs, other, 'GEQ')
-        else:
-            raise Exception("Cannot have constraints of the form 'x %s y >= z" % (self.sym))
-            
-    def __eq__(self,other):
-        raise Exception("Cannot chain equality constraints.")
+            self.arglist = args
     
     def __repr__(self):
-        return "Constraint(%s, %s, '%s')" % (self.lhs, self.rhs, self.kind)
+        arglist = ','.join( map(str, [self.t] + self.arglist) )
+        return "Cone(%s,%s)" % (self.size, arglist)
     
     def __str__(self):
-        return self.name
+        if self.istrivial(): return ""
+        if self.size == 0:
+            return "%s == 0" % str(self.t)
+        elif self.size == 1:
+            return "%s >= 0" % str(self.t)
+        elif len(self.arglist) == 1:
+            if isinstance(self.size, str):
+                if len(self.arglist[0]) == 1:
+                    # if singleton, norm(x) <= t
+                    return "norm(%s) <= %s" % (str(self.arglist[0][0]), str(self.t))
+                else:
+                    # norm([*args]) <= t
+                    arglist = ';'.join( map(str, self.arglist[0]) )
+                    return "norm([%s]) <= %s" % (arglist, str(self.t))
+            else:
+                # abs(*args) <= t
+                return "abs(%s) <= %s" % (str(self.arglist[0]), str(self.t))
+        else:
+            # norm(x,y,z,...) <= t
+            arglist = ','.join( map(str, self.arglist) )
+            return "norm(%s) <= %s" % (arglist, str(self.t))
+    
+    __eq__ = None
+    __lt__ = None
+    __le__ = None
+    __gt__ = None
+    __ge__ = None
+                   
+    @classmethod
+    def zero(self,x):
+        return Cone(0,x)
+        
+    @classmethod
+    def linear(self,x):
+        return Cone(1,x)
+        
+    @classmethod
+    def SOC(self,t,*args):
+        if not args:
+            return Cone(1,t)    # linear cone
+        if len(args) == 1:
+            if not args[0]:
+                return Cone(1,t)    # linear cone (SOC(x,[]))
+            elif isinstance(args[0],list):
+                # norm([*args]) <= t
+                return Cone('n',t,*args)
+            else:
+                # abs(*args) <= t
+                return Cone(2,t,*args)
+        else:
+            # norm(*args) <= t
+            return Cone(len(args),t,*args)
+    
+    def istrivial(self):
+        return False
+
+class EqConstraint(Cone):
+    def __init__(self, lhs, rhs):
+        self.lhs = lhs
+        self.rhs = rhs
+        super(EqConstraint, self).__init__(0, lhs-rhs)
+        
+    def istrivial(self):
+        return is_trivially_feasible(self.lhs, operator.eq, self.rhs)
+
+        
+class LeqConstraint(Cone):
+    def __init__(self, lhs, rhs):
+        self.lhs = lhs
+        self.rhs = rhs
+        super(LeqConstraint, self).__init__(1, rhs-lhs)
+        
+    def istrivial(self):
+        return is_trivially_feasible(self.lhs, operator.le, self.rhs)
+    
+    def __repr__(self):
+        return "LeqConstraint(%s, %s)" % (self.lhs, self.rhs)
+    
+    def __le__(self,other):
+        return LeqConstraint(self.rhs, other)
+    
+    def __ge__(self,other):
+        raise Exception("Cannot have constraints of the form 'x <= y >= z")
+    
+    def __eq__(self,other):
+        raise Exception("Cannot have constraints of the form 'x <= y == z")
+        
+        
+class GeqConstraint(Cone):
+    def __init__(self, lhs, rhs):
+        self.lhs = lhs
+        self.rhs = rhs
+        super(GeqConstraint, self).__init__(1, lhs-rhs)
+    
+    def istrivial(self):
+        return is_trivially_feasible(self.lhs, operator.ge, self.rhs)
+    
+    def __repr__(self):
+        return "GeqConstraint(%s, %s)" % (self.lhs, self.rhs)
+    
+    def __le__(self,other):
+        return Exception("Cannot have constraints of the form 'x >= y <= z")
+    
+    def __ge__(self,other):
+        raise LeqConstraint(self.rhs, other)
+        
+    def __eq__(self,other):
+        raise Exception("Cannot have constraints of the form 'x >= y == z")
+        

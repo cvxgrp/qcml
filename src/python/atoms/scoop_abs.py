@@ -1,4 +1,4 @@
-from scoop.expression import Expression, \
+from scoop.expression import Expression, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -15,10 +15,11 @@ def abs_(x):
     
     # the output is named differently, but is also an expression
     v = Expression(vexity, POSITIVE, x.shape, create_varname(), None) 
+    definition = Cone.SOC(v,x)
     
     lines = [ 
         "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-        "abs(%s) <= %s" % (x.name, v.name)
+        "%s" % str(definition)
     ]       
 
     return (lines, v)  

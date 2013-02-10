@@ -28,11 +28,14 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from utils import error_msg, id_wrapper, isunknown, ispositive, isnegative
+from utils import error_msg, id_wrapper, \
+    isunknown, ispositive, isnegative, \
+    isaff, iscvx, isccv
+    
 from linfunc import LinearFunc
 from shape import SCALAR, VECTOR, MATRIX
 from sign import POSITIVE, NEGATIVE, UNKNOWN
-from constraint import Constraint
+from constraint import EqConstraint, LeqConstraint, GeqConstraint
 
 # the ordering here matters. we use a bitwise OR to accomplish vexity
 # inference. 
@@ -57,8 +60,8 @@ class Expression(object):
     # name = ""
     
     # this is the total count of variables created by all Expression object
-    varcount = 0    
-    
+    # varcount = 0    
+    # 
     # add_lookup = {
     #     ('COEFF','COEFF'): 'COEFF',
     # }
@@ -134,14 +137,26 @@ class Expression(object):
         self.name = str(self.linfunc)
         return self
     
+
+    # TODO: do vexity checks here
     def __le__(self,other):
-        return Constraint(self,other, 'LEQ')
+        if iscvx(self) and isccv(other):
+            return LeqConstraint(self,other)
+        else:
+            raise Exception("Cannot have '%s <= %s'" % (self.vexity_names[self.vexity], other.vexity_names[self.vexity]))
     
     def __ge__(self,other):
-        return Constraint(self,other, 'GEQ')
+        if isccv(self) and iscvx(other):
+            return GeqConstraint(self,other)
+        else:
+            raise Exception("Cannot have '%s >= %s'" % (self.vexity_names[self.vexity], other.vexity_names[self.vexity]))
     
     def __eq__(self,other):
-        return Constraint(self,other, 'EQ')
+        if isaff(self) and isaff(other):
+            return EqConstraint(self,other)
+        else:
+            raise Exception("Cannot have '%s == %s'" % (self.vexity_names[self.vexity], other.vexity_names[self.vexity]))
+            
         
     __lt__ = None
     __gt__ = None

@@ -92,10 +92,12 @@ class Scoop(object):
         
     def __repr__(self):
         lines = [
+            "# " + 70*"=",
             "# Canonicalized SOCP. Converted on %s." % datetime.now().ctime(),
             "#",
-            "# Expressions in double quotes show identifiers before name-mangling.",
-            "# Name-mangling adds an underscore ('_') to all names.",
+            "# Original variable names are mangled and have an underscore ('_')",
+            "# preceding them.", 
+            "# " + 70*"=",
             ""
         ]
         lines += self.used_syms.values() + self.equivalent
@@ -287,19 +289,24 @@ class Scoop(object):
                         "\"%s\"\n\tObjective vexity %s does not agree with %s" % 
                         (self.line, Expression.vexity_names[obj.vexity], tok)
                     )
-                # add the objective
-                new_lines += [
-                    "",
+                    
+                # label the top
+                label = ["",
+                    "# " + 70*"=",
                     "# \"%s\"" % self.line,
-                    "%s %s" % (val, obj.name)
-                ]
+                    "# " + 70*"="]
+                    
+                # add the objective
+                lines = label + new_lines + \
+                    ["# \"%s\"" % self.line,
+                     "%s %s" % (val, obj.name)]
 
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros
-                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), new_lines)
+                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
                 
-                self.equivalent += new_lines
+                self.equivalent += lines
             else:
                 # now we only need to parse affine expressions and cone expressions
                 # set the state to "we just parsed the objective"
@@ -319,18 +326,22 @@ class Scoop(object):
             if(is_first_pass):
                 # perform macro expansion on the RPN
                 (constraint, new_lines) = self.expander.expand( expr )
+                # label the top
+                label = ["",
+                    "# " + 70*"=",
+                    "# \"%s\"" % self.line,
+                    "# " + 70*"="]
+                    
                 # add the constraint
-                new_lines += [
-                    "",
-                    "# \"%s\"" % self.line 
-                ] + map(str, constraint)
+                lines = label + new_lines + \
+                    ["# \"%s\"" % self.line] + map(str, constraint)
                 
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros
-                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), new_lines)
+                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
                 
-                self.equivalent += new_lines
+                self.equivalent += lines
                 
             #else:
                 # now we only need to parse affine expressions and cone expressions

@@ -192,9 +192,6 @@ Roadmap
 =======
 In no particular order, the future of this project...
 
-* add `pow_rat` to atoms
-* parse linear expressions
-* fix lookup for atoms defined as composed atoms
 * CUDA and GPU support for large-scale solvers
 * C code generation
 * CVX code generation for verificaton
@@ -204,8 +201,6 @@ In no particular order, the future of this project...
 * a solver based on scientific computing (just walks parse trees)
 * hook up to CVXOPT
 * a lex/yacc C API?
-
-
 
 
 

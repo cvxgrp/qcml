@@ -1,7 +1,4 @@
 from scoop.expression.linfunc import Coeff, LinearFunc
-from scoop.expression import Variable, Parameter, Constant, \
-    SCALAR, VECTOR, MATRIX, \
-    POSITIVE, NEGATIVE, UNKNOWN
 from nose.tools import assert_raises, with_setup    
 import operator
 

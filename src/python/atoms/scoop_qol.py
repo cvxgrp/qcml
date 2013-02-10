@@ -1,7 +1,7 @@
-from scoop.expression import Expression, Constant, \
+from scoop.expression import Expression, Constant, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE 
 from utils import create_varname, comment
 
 @comment
@@ -15,25 +15,31 @@ def quad_over_lin(x,y):
     # x is an (affine) Expression
     # the output is named differently, but is also an expression
     v = Expression(vexity, POSITIVE, y.shape, create_varname(), None)
-    
-    definition = [
-        Constant(0.5)*y - Constant(0.5)*v,
-        Constant(0.5)*y + Constant(0.5)*v,
-        y >= Constant(0)
-    ]
                 
     # declare the expansion in "SCOOP"
     if y.shape == SCALAR:
+        definition = [
+            # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
+            Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, [Constant(0.5)*y - Constant(0.5)*v, x]),
+            y >= Constant(0)
+        ]
+        
         lines = filter(None, [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm([ %s ; %s ]) <= %s" % (definition[0].name, x.name, definition[1].name),
-            "%s" % str(definition[2])
+            "%s" % str(definition[0]),
+            "%s" % str(definition[1])
         ])
     else:
+        definition = [
+            # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
+            Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, Constant(0.5)*y - Constant(0.5)*v, x),
+            y >= Constant(0)
+        ]
+        
         lines = filter(None, [
             "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "norm( %s, %s ) <= %s" % (definition[0].name, x.name, definition[1].name),
-            "%s" % str(definition[2])
+            "%s" % str(definition[0]),
+            "%s" % str(definition[1])
         ])
 
     return (lines, v)

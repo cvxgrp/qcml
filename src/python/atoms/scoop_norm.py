@@ -1,4 +1,4 @@
-from scoop.expression import Expression, \
+from scoop.expression import Expression, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -16,9 +16,16 @@ def norm(*args):
     # the output is named differently, but is also an expression
     v = Expression(vexity, POSITIVE, SCALAR, create_varname(), None)
     
+    if len(args) == 1:
+        # Cone.SOC(v, [x]), norm(x) <= v
+        definition = Cone.SOC(v, args)
+    else:
+        # Cone.SOC(v,x,y,z,...), norm(x,y,z,...) <= v
+        definition = Cone.SOC(v, *args)
+    
     lines = [ 
         "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-        "norm(%s) <= %s" % (arglist, v.name)
+        "%s" % str(definition)
     ] 
     
     return (lines, v)  

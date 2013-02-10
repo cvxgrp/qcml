@@ -25,5 +25,4 @@ def sum_(*args):
     else:
         raise Exception("'sum' cannot be called with zero arguments.")
 
-      
     return ([], v)  

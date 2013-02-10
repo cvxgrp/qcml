@@ -57,11 +57,11 @@ if __name__ == '__main__':
      "",
      "minimize norm1(x)",
      "  abs(x) <= 3",
-     "  norm_inf(x) <= y"
-     "#  square(0.5 + a*x - 6) + -5 <= 0",
+     "  norm_inf(x) <= y",
+     "  square(0.5 + a*x - 6) + -5 <= 0",
      "#  max(square(x)+2, pos(t)) <= -norm1(y,t)",
      "#  quad_over_lin(_x, x) - min(y) <= -neg(z)",
-     "#  norm_inf(_x) <= sqrt(0.8*_x-2)"
+     "  norm_inf(_x) <= sqrt(0.8*_x-2)"
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     # p.run("quad_over_lin(_x,x) <= 5")
     
     #print p
-    print 72*'='
+    #print 72*'='
     
     print p
     

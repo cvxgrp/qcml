@@ -1,5 +1,8 @@
 import scoop as s
 import scoop.macro as m
+import re
+
+first_underscore = re.compile("^_")
 
 def create_varname():
     """Creates a new, temporary variable name"""
@@ -16,7 +19,7 @@ def comment(fn, *args):
         executes the code and puts the new result into the MacroExpander
         lookup table.
         """
-        arglist = ', '.join( map(lambda e: e.name, args) )
+        arglist = ', '.join( map(lambda e: re.sub(first_underscore, "",e.name), args) )
     
         # get the name of the function and its arguments
         func_name = fn.__name__.rstrip('_') # remove trailing underscores
@@ -26,7 +29,7 @@ def comment(fn, *args):
             return ([], v)
         else:
             lines, v = fn(*args)
-            comment = ["# '%s' replaces '%s'" % (v.name, expr_string)]
+            comment = ["# '%s' canonicalizes '%s'" % (v.name, expr_string)]
             if lines:
                 lines = comment + lines
                 m.MacroExpander.lookup[expr_string] = v
