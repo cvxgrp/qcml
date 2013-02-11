@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Constant, Cone, \
+from scoop.expression import Variable, Constant, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -12,20 +12,24 @@ def geo_mean(x,y):
 
     # x is an (affine) Expression
     # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, x.shape + y.shape, create_varname(), None)
+    v = Variable(create_varname(), x.shape + y.shape)
     
-    definition = [
+    # declare definiton
+    constraints = [
+        v, # declare variable
         Cone.SOC(Constant(0.5)*x + Constant(0.5)*y, -Constant(0.5)*x + Constant(0.5)*y, v),
         y >= Constant(0)
     ]
                 
     # declare the expansion in "SCOOP"
-    lines = filter(None, [
-        "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-        "%s" % str(definition[0]),
-        "%s" % str(definition[1])
-    ])
+    # lines = filter(None, [
+    #     "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
+    #     "%s" % str(definition[0]),
+    #     "%s" % str(definition[1])
+    # ])
+    
+    v.vexity, v.sign = vexity, POSITIVE
 
-    return (lines, v)
+    return (v, constraints)
       
  

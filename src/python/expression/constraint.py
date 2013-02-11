@@ -41,8 +41,8 @@ class Cone(object):
             self.arglist = args
     
     def __repr__(self):
-        arglist = ','.join( map(str, [self.t] + self.arglist) )
-        return "Cone(%s,%s)" % (self.size, arglist)
+        arglist = ','.join( map(str, self.arglist) )
+        return "Cone(%s,%s,%s)" % (self.size,self.t, arglist)
     
     def __str__(self):
         if self.istrivial(): return ""
@@ -66,6 +66,9 @@ class Cone(object):
             # norm(x,y,z,...) <= t
             arglist = ','.join( map(str, self.arglist) )
             return "norm(%s) <= %s" % (arglist, str(self.t))
+    
+    """Declaration of constraint in SCOOP lang"""
+    scoop = __str__
     
     __eq__ = None
     __lt__ = None

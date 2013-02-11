@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Cone, \
+from scoop.expression import Variable, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -12,20 +12,21 @@ def norm(*args):
     elif isnegative(x): vexity |= decreasing(x)
     else: vexity |= nonmonotone(x)
     
-    arglist = ', '.join( map(lambda e: e.name, args) )
-    # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, SCALAR, create_varname(), None)
+    # create a new variable
+    v = Variable(create_varname(), SCALAR)
     
     if len(args) == 1:
         # Cone.SOC(v, [x]), norm(x) <= v
-        definition = Cone.SOC(v, args)
+        definition = [v, Cone.SOC(v, args)]
     else:
         # Cone.SOC(v,x,y,z,...), norm(x,y,z,...) <= v
-        definition = Cone.SOC(v, *args)
+        definition = [v, Cone.SOC(v, *args)]
     
-    lines = [ 
-        "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-        "%s" % str(definition)
-    ] 
+    # lines = [ 
+    #     "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
+    #     "%s" % str(definition)
+    # ] 
     
-    return (lines, v)  
+    v.vexity, v.sign = vexity, POSITIVE
+    
+    return (v, definition)  

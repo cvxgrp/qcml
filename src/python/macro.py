@@ -29,9 +29,10 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
-    Variable, Expression, Parameter, Constant, Cone
+    Variable, Expression, Parameter, Constant, Cone, to_scoop
 import operator
 import re
+
 
 # this is just a scaffolding for atoms
 class MacroExpander(object):
@@ -71,9 +72,9 @@ class MacroExpander(object):
                 args = gobble(nargs)
             
                 # will fail with multiargs (that's OK for now)
-                lines, var = op(*args) 
-                if lines:
-                    new_lines += lines
+                var, definition = op(*args) 
+                if definition:
+                    new_lines += filter(None, map(to_scoop, definition))
                     new_lines.append("")    # add whitepsace at end
                     
                 operand_stack.append( var )

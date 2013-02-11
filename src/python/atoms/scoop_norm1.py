@@ -8,7 +8,7 @@ import operator
 @comment
 def norm1(*args):
     results = map(abs_, args)
-    all_lines, all_results = zip(*results)
-    sum_lines, v = sum_(*all_results)
+    all_vars, all_defs = zip(*results)
+    v, d = sum_(*all_vars)
     
-    return (reduce(operator.add,all_lines) + sum_lines, v)
+    return (v, reduce(operator.add,all_defs) + d)

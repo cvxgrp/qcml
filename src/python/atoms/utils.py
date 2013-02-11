@@ -15,7 +15,7 @@ def comment(fn, *args):
     def atom(*args):
         """Decorates an atom to perform some housekeeping. It checks to 
         see if an expression using this atom has been called before. If 
-        so, it just returns the previous Expression object. If not, it 
+        so, it just returns the previous Definition object. If not, it 
         executes the code and puts the new result into the MacroExpander
         lookup table.
         """
@@ -24,14 +24,17 @@ def comment(fn, *args):
         # get the name of the function and its arguments
         func_name = fn.__name__.rstrip('_') # remove trailing underscores
         expr_string = '%s(%s)' % (func_name, arglist)
+        
+        # lookup to see if the same function has been called before
         v = m.MacroExpander.lookup.get(expr_string, None)
+        
         if v:
-            return ([], v)
+            return (v,[])
         else:
-            lines, v = fn(*args)
+            (v,defs) = fn(*args)
             comment = ["# '%s' canonicalizes '%s'" % (v.name, expr_string)]
-            if lines:
-                lines = comment + lines
+            if defs:
+                defs = comment + defs
                 m.MacroExpander.lookup[expr_string] = v
-            return (lines, v)
+            return (v,defs)
     return atom

@@ -137,8 +137,6 @@ class Expression(object):
         self.name = str(self.linfunc)
         return self
     
-
-    # TODO: do vexity checks here
     def __le__(self,other):
         if iscvx(self) and isccv(other):
             return LeqConstraint(self,other)
@@ -163,9 +161,15 @@ class Expression(object):
     __ne__ = None
     
     def __repr__(self):
+        """Representation in Python"""
         return "Expression(%s, %s, %s, %s, %s)" % (self.vexity, self.sign, self.shape, self.name, self.linfunc)
     
     def __str__(self):
+        """String representation"""
+        return self.name
+    
+    def scoop(self):
+        """Declaration of expression in SCOOP lang"""
         return self.name
 
 
@@ -177,23 +181,28 @@ class Variable(Expression):
             raise TypeError("Cannot create a matrix variable.")
     
     def __repr__(self):
+        return "Variable(%s, %s)" % (self.name, self.shape)
+        
+    def scoop(self):
+        """Declaration of variable in SCOOP lang"""
         return "variable %s %s" % ( str(self.name), str.lower(str(self.shape)) )
-    
-    def __str__(self):
-        return self.name
         
 class Parameter(Expression):
     def __init__(self, name, shape, sign):
         super(Parameter, self).__init__(AFFINE, sign, shape, name, LinearFunc.constant(name))
         
     def __repr__(self):
+        return "Parameter(%s, %s, %s)" % (self.name, self.shape, self.sign)
+            
+    def __str__(self):
+        return self.name
+    
+    def scoop(self):
         if isunknown(self):
             return "parameter %s %s" % ( str(self.name), str.lower(str(self.shape)) )
         else:
             return "parameter %s %s %s" % ( str(self.name), str.lower(str(self.shape)), str.lower(str(self.sign)) )
     
-    def __str__(self):
-        return self.name
         
 class Constant(Expression):
     # value = 0.0
@@ -206,9 +215,11 @@ class Constant(Expression):
         super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value), LinearFunc.constant(value))
         
     def __repr__(self):
-        return self.name
+        return "Constant(%s)" % self.value
     
-    __str__ = __repr__
+    def scoop(self):
+        """Declaration of variable in SCOOP lang"""
+        return "variable %s %s" % ( str(self.name), str.lower(str(self.shape)) )
 
     
 # convex, concave, affine decorators

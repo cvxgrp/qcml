@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Cone, \
+from scoop.expression import Variable, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -14,13 +14,14 @@ def abs_(x):
     else: vexity |= nonmonotone(x)
     
     # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, x.shape, create_varname(), None) 
-    definition = Cone.SOC(v,x)
+    v = Variable(create_varname(), x.shape) 
+    definition = [v, Cone.SOC(v,x)]
     
-    lines = [ 
-        "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-        "%s" % str(definition)
-    ]       
+    # lines = [ 
+    #     "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
+    #     "%s" % str(definition)
+    # ]
+    v.vexity, v.sign = vexity, POSITIVE      
 
-    return (lines, v)  
+    return (v, definition)  
 

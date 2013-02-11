@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Constant, Cone, \
+from scoop.expression import Variable, Constant, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE 
@@ -12,37 +12,31 @@ def quad_over_lin(x,y):
     elif isnegative(x): vexity |= decreasing(x) | decreasing(y)
     else: vexity |= nonmonotone(x) | decreasing(y)
 
-    # x is an (affine) Expression
-    # the output is named differently, but is also an expression
-    v = Expression(vexity, POSITIVE, y.shape, create_varname(), None)
+    # declare a new variable
+    v = Variable(create_varname(), y.shape)
                 
     # declare the expansion in "SCOOP"
     if y.shape == SCALAR:
         definition = [
+            v,  # declare the variable
             # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
             Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, [Constant(0.5)*y - Constant(0.5)*v, x]),
             y >= Constant(0)
         ]
-        
-        lines = filter(None, [
-            "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "%s" % str(definition[0]),
-            "%s" % str(definition[1])
-        ])
+
     else:
         definition = [
+            v, # declare the variable
             # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
             Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, Constant(0.5)*y - Constant(0.5)*v, x),
             y >= Constant(0)
         ]
         
-        lines = filter(None, [
-            "variable %s %s" % (v.name, str.lower(v.shape.shape_str)),
-            "%s" % str(definition[0]),
-            "%s" % str(definition[1])
-        ])
+    # set vexity and signs (this is for vexity and sign inference in remaining expression)
+    v.vexity, v.sign = vexity, POSITIVE
+    # v.sign = POSITIVE
 
-    return (lines, v)
+    return (v, definition)
 
 
   

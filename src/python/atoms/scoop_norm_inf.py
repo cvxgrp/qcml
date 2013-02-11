@@ -8,8 +8,8 @@ import operator
 @comment
 def norm_inf(*args):
     results = map(abs_, args)
-    all_lines, all_results = zip(*results)
-    max_lines, v = max_(*all_results)
+    all_vars, all_defs = zip(*results)
+    v, d = max_(*all_vars)
     
-    return (reduce(operator.add,all_lines) + max_lines, v)
-
+    return (v, reduce(operator.add,all_defs) + d)
+    

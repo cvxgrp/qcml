@@ -7,5 +7,5 @@ from constraint import EqConstraint, LeqConstraint, GeqConstraint, Cone
 from utils import iscvx, isccv, isaff, \
     ispositive, isnegative, isunknown, \
     increasing, decreasing, nonmonotone, \
-    isconstant
+    isconstant, to_scoop
     

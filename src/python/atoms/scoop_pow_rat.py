@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Constant, \
+from scoop.expression import Variable, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, isconstant, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -9,76 +9,67 @@ from scoop_geo_mean import geo_mean
 from scoop_qol import quad_over_lin
 
 def id_func(x):
-    return ([], x)
+    return (x, [])
 
 def quad(x):
-    line1, result1 = square(x)
-    line2, result2 = square(result1)
+    v1, d1 = square(x)
+    v2, d2 = square(v1)
     
-    return (line1 + line2, result2)
+    return (v2, d1+d2)
 
 def cube(x):
-    line1, result1 = square(x)
-    line2, result2 = quad_over_lin(result1,x)
+    v1, d1 = square(x)
+    v2, d2 = quad_over_lin(v1,x)
     
-    return (line1 + line2, result2)
+    return (v2, d1 + d2)
     
 def one_fourth(x):
-    line1, result1 = sqrt(x)
-    line2, result2 = sqrt(result1)
+    v1, d1 = sqrt(x)
+    v2, d2 = sqrt(v1)
     
-    return (line1 + line2, result2)
+    return (v2, d1+d2)
 
 def three_fourths(x):
-    line1, result1 = sqrt(x)
-    line2, result2 = geo_mean(x,result1)
-    
-    return (line1 + line2, result2)
+    v1, d1 = sqrt(x)
+    v2, d2 = geo_mean(x,v1)
 
+    return (v2, d1 + d2)
+    
 def four_thirds(x):
-    v = Expression(AFFINE, POSITIVE, x.shape, create_varname(), None)
+    v = Variable(create_varname(), x.shape)
     
-    line, result = three_fourths(v)
-    constraint = (x <= result)
-
-    lines = filter(None, ["variable %s %s" % (v.name, str.lower(v.shape.shape_str))]
-        + line + ["%s" % str(constraint)])
+    var, d = three_fourths(v)
+    d.append(x <= var)
     
     # assign vexity after
-    v.vexity = CONVEX | increasing(x)
-    return (lines, v)
+    v.vexity, v.sign = CONVEX | increasing(x), POSITIVE
+    return (v, d)
 
 def three_halves(x):
-    line1, result1 = sqrt(x)
-    line2, result2 = quad_over_lin(x,result1)
+    v1, d1 = sqrt(x)
+    v2, d2 = quad_over_lin(x,v1)
     
-    return (line1 + line2, result2)
+    return (v2, d1 + d2)
 
-def one_third(x):
-    v = Expression(AFFINE, POSITIVE, x.shape, create_varname(), None)
+def one_third(x):    
+    v = Variable(create_varname(), x.shape)
     
-    line, result = cube(v)
-    constraint = (x <= result)
+    var, d = cube(v)
+    d.append(x <= var)
 
-    lines = filter(None, ["variable %s %s" % (v.name, str.lower(v.shape.shape_str))]
-        + line + ["%s" % str(constraint)])
-    
     # assign vexity after
-    v.vexity = CONCAVE | increasing(x)
-    return (lines, v)
+    v.vexity, v.sign = CONCAVE | increasing(x), POSITIVE
+    return (v, d)
     
 def two_thirds(x):
-    v = Expression(AFFINE, POSITIVE, x.shape, create_varname(), None)
+    v = Variable(create_varname(), x.shape)
     
-    line, result = three_halves(v)
-    constraint = (x <= result)
+    var, d = three_halves(v)
+    d.append(x <= var)
 
-    lines = filter(None, ["variable %s %s" % (v.name, str.lower(v.shape.shape_str))]
-        + line + ["%s" % str(constraint)])
-    
     # assign vexity after
-    v.vexity = CONCAVE | increasing(x)
-    return (lines, v)
+    v.vexity, v.sign = CONCAVE | increasing(x), POSITIVE
+    return (v, d)
 
 
 # only valid entries for pow_rat

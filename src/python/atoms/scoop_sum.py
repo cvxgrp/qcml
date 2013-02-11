@@ -1,4 +1,4 @@
-from scoop.expression import Expression, Constant, \
+from scoop.expression import Variable, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
@@ -12,12 +12,13 @@ def sum_(*args):
     # infer vexity from signed monotonicities
     vexity = AFFINE | reduce(operator.or_, map(increasing, args))
     
-    # the output is named differently, but is also an expression
-    # determine the shape of the output (scalar if vector input, vector if 
-    # list input)
+    # determine if it's a row sum or a column sum
     if len(args) == 1:
-        v = Expression(vexity, args[0].sign, SCALAR, "sum(%s)" % args[0].name, None)        
+        # column sum
+        v = Variable("sum(%s)" % args[0].name, SCALAR)
+        v.vexity, v.sign = vexity, args[0].sign
     elif len(args) > 1:
+        # row sum
         sign = reduce(operator.add, map(lambda x: x.sign, args))
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         
@@ -25,4 +26,5 @@ def sum_(*args):
     else:
         raise Exception("'sum' cannot be called with zero arguments.")
 
-    return ([], v)  
+
+    return (v, [])

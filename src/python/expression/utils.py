@@ -42,3 +42,7 @@ def nonmonotone(op):
     
 def isconstant(e):
     return e.linfunc.isconstant()
+    
+def to_scoop(x):
+    if hasattr(x,'scoop'): return x.scoop()
+    else: return str(x)

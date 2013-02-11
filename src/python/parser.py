@@ -90,7 +90,7 @@ class Scoop(object):
         self.__varcount = 0
         
         
-    def __repr__(self):
+    def __str__(self):
         lines = [
             "# " + 70*"=",
             "# Canonicalized SOCP. Converted on %s." % datetime.now().ctime(),
@@ -304,7 +304,7 @@ class Scoop(object):
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros
-                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
+                #map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
                 
                 self.equivalent += lines
             else:
@@ -339,7 +339,7 @@ class Scoop(object):
                 
                 # re-parse the new lines, but don't mangle variable names or
                 # expand macros
-                map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
+                #map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
                 
                 self.equivalent += lines
                 
@@ -419,7 +419,7 @@ class Scoop(object):
                 if not paramOrVariable: raise SyntaxError("\"%s\"\n\tUnknown identifier \"%s\"." % (s, val))
                                 
                 # on the first pass, note that we encoutered this variable
-                if is_first_pass: self.used_syms[val] = repr(paramOrVariable)
+                if is_first_pass: self.used_syms[val] = paramOrVariable.scoop()
                 
                 rpn_stack.append( (tok,paramOrVariable,0) )
             elif tok == 'MACRO':
