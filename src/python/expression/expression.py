@@ -48,30 +48,7 @@ AFFINE,CONVEX,CONCAVE,NONCONVEX = range(4)
 
 # Expression evaluator goes here....
 class Expression(object):
-    """ A linear expression. Always affine. """
-    # acutally, i lied.
-    #
-    # 
-    # these can be convex, concave, affine
-    # can be positive, negative, unknown
-    # vexity = NONCONVEX
-    # sign = UNKNOWN
-    # shape = SCALAR
-    # name = ""
-    
-    # this is the total count of variables created by all Expression object
-    # varcount = 0    
-    # 
-    # add_lookup = {
-    #     ('COEFF','COEFF'): 'COEFF',
-    # }
-    # 
-    # mul_lookup = {
-    #     ('COEFF','COEFF'): id_wrapper('COEFF'),
-    #     ('COEFF','ARGUMENT'): id_wrapper('ARGUMENT')
-    # }
-    # 
-    # valid_kinds = set(['COEFF', 'ARGUMENT'])
+    """An expression..."""
     
     vexity_lookup = {'AFFINE': AFFINE, 'CONVEX': CONVEX, 'CONCAVE': CONCAVE, 'NONCONVEX': NONCONVEX}
     vexity_names = ['AFFINE', 'CONVEX', 'CONCAVE', 'NONCONVEX']
@@ -155,10 +132,9 @@ class Expression(object):
         else:
             raise Exception("Cannot have '%s == %s'" % (self.vexity_names[self.vexity], other.vexity_names[self.vexity]))
             
-        
-    __lt__ = None
-    __gt__ = None
-    __ne__ = None
+    def __lt__(self, other): return NotImplemented
+    def __gt__(self, other): return NotImplemented
+    def __ne__(self, other): return NotImplemented
     
     def __repr__(self):
         """Representation in Python"""
@@ -215,7 +191,7 @@ class Constant(Expression):
         super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value), LinearFunc.constant(value))
         
     def __repr__(self):
-        return "Constant(%s)" % self.value
+        return "Constant(%s)" % self.name
     
     def scoop(self):
         """Declaration of variable in SCOOP lang"""

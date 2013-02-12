@@ -16,6 +16,7 @@ def display_coeff(x):
 
 def display_linear_func(x): 
     k,v = x
+    
     if k == '1':
         if v.iszero():  # or epsilon
             return ''
@@ -32,6 +33,11 @@ def display_linear_func(x):
         term = map(lambda e: "%s*%s" % (e, str(k)), coeffs)
         return ' + '.join(term)
 
+def filter_zero(d):
+    return dict( (k,v) for k,v in d.iteritems() if v != 0.0 )
+def linfunc_filter_zero(d):
+    return dict( (k,v) for k,v in d.iteritems() if not ('1' in v.coeff_dict and v.coeff_dict['1'] == 0.0) )
+
 class Coeff(object):
     """A class / container for storing coefficients. These are stored in the 
     form of c + a1*p1 + a2*p2 + ... , where pi are parameters.
@@ -41,7 +47,8 @@ class Coeff(object):
     another parametered named 'x' that is suddently a negative matrix.
     """
     def __init__(self, dictionary={}):
-        self.coeff_dict = dictionary
+        if dictionary: self.coeff_dict = dictionary
+        else: self.coeff_dict = {'1': 0}
     
     def __repr__(self):
         return "Coeff(%s)" % self.coeff_dict
@@ -50,7 +57,9 @@ class Coeff(object):
         # sort the dictionary before displaying it
         d = sorted(self.coeff_dict.items(), key=lambda t:t[0], reverse=True)
         
-        return ' + '.join( filter(None, map(display_coeff, d)) )
+        s = ' + '.join( filter(None, map(display_coeff, d)) )
+        if s: return s
+        else: return "0"
             
     # Coeff creation happens though class methods
     @classmethod
@@ -77,7 +86,8 @@ class Coeff(object):
         
     def iszero(self):
         """True if coeff represents 0"""
-        return self.isconstant() and self.coeff_dict['1'] == 0.0
+        return (self.isconstant() and self.coeff_dict['1'] == 0.0)
+    
     
     def __add__(self, other):
         # add the constants
@@ -85,7 +95,8 @@ class Coeff(object):
         b = other.coeff_dict
         # got this nice piece of code off stackoverflow http://stackoverflow.com/questions/1031199/adding-dictionaries-in-python
         d = dict( (n, a.get(n, 0) + b.get(n, 0)) for n in set(a)|set(b) )
-        return Coeff(d)
+        
+        return Coeff(filter_zero(d))
     
     def __neg__(self):
         for k in self.coeff_dict:
@@ -97,7 +108,8 @@ class Coeff(object):
         a = self.coeff_dict
         b = other.coeff_dict
         d = dict( (n, a.get(n, 0) - b.get(n, 0)) for n in set(a)|set(b) )
-        return Coeff(d)
+        
+        return Coeff(filter_zero(d))
     
     def __mul__(self,other):
         # multiplying coefficients
@@ -117,7 +129,7 @@ class Coeff(object):
                 else:
                     d[k1 + '*' + k2] = v1*v2
         
-        return Coeff(d)
+        return Coeff(filter_zero(d))
         # (c + a1*p1)*c 
 
 ZERO = Coeff.constant(0)   
@@ -129,7 +141,8 @@ class LinearFunc(object):
     """
     
     def __init__(self, dictionary={}):
-        self.linear_dict = dictionary   # function represented as a dictionary
+        if dictionary: self.linear_dict = dictionary   # function represented as a dictionary
+        else: self.linear_dict = {'1': ZERO}
 
     def __repr__(self):
         return "LinearFunc(%s)" % self.linear_dict
@@ -137,7 +150,9 @@ class LinearFunc(object):
     def __str__(self):
         # sort the dictionary before displaying it
         d = sorted(self.linear_dict.items(), key=lambda t:t[0], reverse=True)
-        return ' + '.join( filter(None, map(display_linear_func, d)) )
+        s = ' + '.join( filter(None, map(display_linear_func, d)) )
+        if s: return s
+        else: return "0"
     
     def has_constant_coeff(self):
         return ('1' in self.linear_dict and len(self.linear_dict) == 1)
@@ -148,10 +163,11 @@ class LinearFunc(object):
               self.linear_dict['1'].isconstant())
     
     def constant_value(self):
-        if self.isconstant():
-            return self.linear_dict['1'].coeff_dict['1']
-        else:
-            return None
+        if self.isconstant(): return self.linear_dict['1'].coeff_dict['1']
+        else: return None
+    
+
+        
             
     # def iszero(self):
     #     """True if linear func represents 0"""
@@ -184,7 +200,8 @@ class LinearFunc(object):
         b = other.linear_dict
         # got this nice piece of code off stackoverflow http://stackoverflow.com/questions/1031199/adding-dictionaries-in-python
         d = dict( (n, a.get(n, ZERO) + b.get(n, ZERO)) for n in set(a)|set(b) )
-        return LinearFunc(d)
+        
+        return LinearFunc(linfunc_filter_zero(d))
     
     def __neg__(self):
         for k in self.linear_dict:
@@ -196,7 +213,8 @@ class LinearFunc(object):
         a = self.linear_dict
         b = other.linear_dict
         d = dict( (n, a.get(n, ZERO) - b.get(n, ZERO)) for n in set(a)|set(b) )
-        return LinearFunc(d)
+
+        return LinearFunc(linfunc_filter_zero(d))
     
     def __mul__(self,other):
         # only allow f*g when f is a constant, only left-hand mults are 
@@ -208,7 +226,8 @@ class LinearFunc(object):
             vc = self.linear_dict['1']
             for k,v in other.linear_dict.items():
                 d[k] = vc * v
-            return LinearFunc(d)
+                
+            return LinearFunc(linfunc_filter_zero(d))
         else:
             raise Exception("Cannot multiply two linear functionals. Nonconvex operation.")
     

@@ -117,10 +117,9 @@ class Scoop(object):
     
     def lex(self, s, mangle = True):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
-        if mangle: return scanner_mangled.scan(s)
-        else: return scanner_unmangled.scan(s)
+        return scanner_mangled.scan(s)
     
-    def parse(self,toks,is_first_pass):
+    def parse(self,toks):
         """Parses the tokenized list. Could use LR parsing, but SCOOP is simple
         enough that expressions are parsed with a shunting-yard algorithm.
         Everything else is just simple keywords.
@@ -136,14 +135,14 @@ class Scoop(object):
             'VARIABLE': self.parse_variable, 
             'PARAMETER': self.parse_parameter,
             'SUBJECT_TO': self.parse_subject_to,
-            'MINIMIZE': self.parse_objective(is_first_pass),
-            'MAXIMIZE': self.parse_objective(is_first_pass),
-            'FIND': self.parse_objective(is_first_pass)
+            'MINIMIZE': self.parse_objective,
+            'MAXIMIZE': self.parse_objective,
+            'FIND': self.parse_objective
         }
         
         # if not one of the listed actions, the default is to attempt to
         # parse a constraint
-        actions.get(toks[0][0], self.parse_constraint(is_first_pass))(toks)        
+        actions.get(toks[0][0], self.parse_constraint)(toks)        
         
     def display(self,toks):
         print ' '.join( map(lambda x:str(x[1]), toks) )
@@ -151,21 +150,20 @@ class Scoop(object):
     @profile
     def run(self, s):
         Scoop.varcount = self.__varcount    # set global counter
-        self.__run(s)
-        self.__varcount = Scoop.varcount    # save previous counter
         
-    # come up with a new name?
-    def __run(self, s, mangle=True, is_first_pass=True):
         self.line = re.sub(comments, "", s.lstrip())
-        result, remainder = self.lex(s, mangle)
+        result, remainder = self.lex(s)
         if result:
             if not remainder:
-                self.parse(deque(result), is_first_pass)
+                self.parse(deque(result))
                 #self.rpn_eval.hello()
                 #self.display(result)
                 # print '\n'
             else:
                 raise Exception("Unknown parse error.")
+        
+        self.__varcount = Scoop.varcount    # save previous counter
+        
     
     # parsing functions to follow
     def parse_variable(self,toks):
@@ -259,96 +257,76 @@ class Scoop(object):
         else:
             raise Exception("Cannot use optional \"subject to\" keyword without corresponding minimize, maximize, or find.")
 
-    def parse_objective(self,is_first_pass):
-        def parse_objective_wrap(toks):
-            """(MINIMIZE|MAXIMIZE|FIND) expr"""
-            (tok, val) = toks.popleft()
+    def parse_objective(self, toks):
+        """(MINIMIZE|MAXIMIZE|FIND) expr"""
+        (tok, val) = toks.popleft()
 
-            if self.state != PRE_OBJ:
-                raise Exception("Cannot have multiple objectives per SCOOP problem.")
-            # expr is an RPN stack, this also checks DCP
-            expr = self.parse_expr(toks, is_first_pass=is_first_pass)
+        if self.state != PRE_OBJ:
+            raise Exception("Cannot have multiple objectives per SCOOP problem.")
+        # expr is an RPN stack, this also checks DCP
+        expr = self.parse_expr(toks)
             
-            if not expr:
-                raise Exception("No objective specified.")
+        if not expr:
+            raise Exception("No objective specified.")
         
-            if(is_first_pass):
-                # perform macro expansion on the RPN
-                (obj_stack, new_lines) = self.expander.expand( expr )
+        # perform macro expansion on the RPN
+        (obj_stack, new_lines) = self.expander.expand( expr )
 
-                if not obj_stack:   # should never happen
-                    raise Exception("No objective parsed.")
-                obj = obj_stack.pop()
-                if obj_stack:       # should never happen
-                    raise Exception("Unparsed operands.")
+        if not obj_stack:   # should never happen
+            raise Exception("No objective parsed.")
+        obj = obj_stack.pop()
+        if obj_stack:       # should never happen
+            raise Exception("Unparsed operands.")
                 
-                if obj.shape != SCALAR:
-                    raise Exception("\"%s\"\n\tObjective function %s should be scalar." % (self.line, obj.name))
-                if not check[tok](obj):
-                    raise Exception(
-                        "\"%s\"\n\tObjective vexity %s does not agree with %s" % 
-                        (self.line, Expression.vexity_names[obj.vexity], tok)
-                    )
+        if obj.shape != SCALAR:
+            raise Exception("\"%s\"\n\tObjective function %s should be scalar." % (self.line, obj.name))
+        if not check[tok](obj):
+            raise Exception(
+                "\"%s\"\n\tObjective vexity %s does not agree with %s" % 
+                (self.line, Expression.vexity_names[obj.vexity], tok)
+            )
                     
-                # label the top
-                label = ["",
-                    "# " + 70*"=",
-                    "# \"%s\"" % self.line,
-                    "# " + 70*"="]
+        # label the top
+        label = ["",
+            "# " + 70*"=",
+            "# \"%s\"" % self.line,
+            "# " + 70*"="]
                     
-                # add the objective
-                lines = label + new_lines + \
-                    ["# \"%s\"" % self.line,
-                     "%s %s" % (val, obj.name)]
+        # add the objective
+        label += new_lines + \
+            ["# \"%s\"" % self.line,
+             "%s %s" % (val, obj.name)]
 
-                
-                # re-parse the new lines, but don't mangle variable names or
-                # expand macros
-                #map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
-                
-                self.equivalent += lines
-            else:
-                # now we only need to parse affine expressions and cone expressions
-                # set the state to "we just parsed the objective"
-                self.state = OBJ
-        return parse_objective_wrap
+        self.equivalent += label
+
+        # set the state to "we just parsed the objective"
+        self.state = OBJ
         
-    def parse_constraint(self,is_first_pass):
-        def parse_constraint_wrap(toks):
-            """expr (EQ|GEQ|LEQ) expr"""
-            self.__reset_state()                     # reset the parser state
-            # start parsing booleans
-            # expr is an RPN stack, this also checks DCP
-            expr = self.parse_expr(toks, is_first_pass=is_first_pass, parse_constr = True)    
-            if not expr:
-                raise Exception("Unknown constraint error.")
+    def parse_constraint(self, toks):
+        """expr (EQ|GEQ|LEQ) expr"""
+        self.__reset_state()                     # reset the parser state
+        # start parsing booleans
+        # expr is an RPN stack, this also checks DCP
+        expr = self.parse_expr(toks, parse_constr = True)    
+        if not expr:
+            raise Exception("Unknown constraint error.")
                 
-            if(is_first_pass):
-                # perform macro expansion on the RPN
-                (constraint, new_lines) = self.expander.expand( expr )
-                # label the top
-                label = ["",
-                    "# " + 70*"=",
-                    "# \"%s\"" % self.line,
-                    "# " + 70*"="]
+        # perform macro expansion on the RPN
+        (constraint, new_lines) = self.expander.expand( expr )
+        # label the top
+        label = ["",
+            "# " + 70*"=",
+            "# \"%s\"" % self.line,
+            "# " + 70*"="]
                     
-                # add the constraint
-                lines = label + new_lines + \
-                    ["# \"%s\"" % self.line] + map(str, constraint)
+        # add the constraint
+        label += new_lines + \
+            ["# \"%s\"" % self.line] + map(str, constraint)
                 
-                
-                # re-parse the new lines, but don't mangle variable names or
-                # expand macros
-                #map(lambda x: self.__run(x, mangle=False, is_first_pass=False), lines)
-                
-                self.equivalent += lines
-                
-            #else:
-                # now we only need to parse affine expressions and cone expressions
-                #print "finished?"            
-        return parse_constraint_wrap
+        self.equivalent += label
+       
     
-    def parse_expr(self,toks,is_first_pass=False,parse_constr = False):
+    def parse_expr(self,toks,parse_constr = False):
         """ term = CONSTANT 
                  | variable-IDENTIFIER 
                  | parameter-IDENTIFIER 
@@ -418,8 +396,8 @@ class Scoop(object):
                 paramOrVariable = self.symtable.get(val, None)
                 if not paramOrVariable: raise SyntaxError("\"%s\"\n\tUnknown identifier \"%s\"." % (s, val))
                                 
-                # on the first pass, note that we encoutered this variable
-                if is_first_pass: self.used_syms[val] = paramOrVariable.scoop()
+                # keep track of identifiers we've used
+                self.used_syms[val] = paramOrVariable.scoop()
                 
                 rpn_stack.append( (tok,paramOrVariable,0) )
             elif tok == 'MACRO':

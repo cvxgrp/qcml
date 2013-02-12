@@ -58,7 +58,7 @@ if __name__ == '__main__':
      "minimize norm1(x)",
      "  abs(x) <= 3",
      "  norm_inf(x) <= y",
-     "  square(0.5 + a*x - 6) + -5 <= 0",
+     "  square(0.5 + a*x - 6) + -5 <= a*x <= a*x",
      "#  max(square(x)+2, pos(t)) <= -norm1(y,t)",
      "#  quad_over_lin(_x, x) - min(y) <= -neg(z)",
      "  norm_inf(_x) <= sqrt(0.8*_x-2)"

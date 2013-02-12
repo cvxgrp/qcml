@@ -16,12 +16,13 @@ import operator
 # TODO: before codegen, also, trivially feasible constraints should be removed
 
 def is_trivially_feasible(x, bool_op, y):
-    xval, yval = x.value(), y.value()
+    test = (x-y).value()
     
-    if xval is not None and yval is not None:
-        if bool_op(xval, yval):
+    if test is not None:
+        if bool_op(test, 0):
             return True
         else:
+            xval, yval = x.value(), y.value()
             raise Exception("Trivial infeasibility detected: '%s(%f, %f)'" % (bool_op.__name__, xval, yval))
     else:
         return False
@@ -70,12 +71,18 @@ class Cone(object):
     """Declaration of constraint in SCOOP lang"""
     scoop = __str__
     
+    # def __eq__(self, other): return NotImplemented
+    # def __lt__(self, other): return NotImplemented
+    # def __le__(self, other): return NotImplemented
+    # def __gt__(self, other): return NotImplemented
+    # def __ge__(self, other): return NotImplemented
+    
     __eq__ = None
     __lt__ = None
     __le__ = None
     __gt__ = None
     __ge__ = None
-                   
+    
     @classmethod
     def zero(self,x):
         return Cone(0,x)
@@ -126,14 +133,14 @@ class LeqConstraint(Cone):
     def __repr__(self):
         return "LeqConstraint(%s, %s)" % (self.lhs, self.rhs)
     
-    def __le__(self,other):
-        return LeqConstraint(self.rhs, other)
-    
-    def __ge__(self,other):
-        raise Exception("Cannot have constraints of the form 'x <= y >= z")
-    
-    def __eq__(self,other):
-        raise Exception("Cannot have constraints of the form 'x <= y == z")
+    # def __le__(self,other):
+    #     return LeqConstraint(self.rhs, other)
+    # 
+    # def __ge__(self,other):
+    #     raise Exception("Cannot have constraints of the form 'x <= y >= z")
+    # 
+    # def __eq__(self,other):
+    #     raise Exception("Cannot have constraints of the form 'x <= y == z")
         
         
 class GeqConstraint(Cone):
@@ -148,12 +155,12 @@ class GeqConstraint(Cone):
     def __repr__(self):
         return "GeqConstraint(%s, %s)" % (self.lhs, self.rhs)
     
-    def __le__(self,other):
-        return Exception("Cannot have constraints of the form 'x >= y <= z")
-    
-    def __ge__(self,other):
-        raise LeqConstraint(self.rhs, other)
-        
-    def __eq__(self,other):
-        raise Exception("Cannot have constraints of the form 'x >= y == z")
+    # def __le__(self,other):
+    #     raise Exception("Cannot have constraints of the form 'x >= y <= z")
+    # 
+    # def __ge__(self,other):
+    #     raise LeqConstraint(self.rhs, other)
+    #     
+    # def __eq__(self,other):
+    #     raise Exception("Cannot have constraints of the form 'x >= y == z")
         

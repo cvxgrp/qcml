@@ -12,7 +12,7 @@ experiments = [
     (a + b, "a + 1.0"),
     (e + b + d + a, "2*a + -2.0"),
     (-(a + b), "-a + -1.0"),
-    (d - a, ""),
+    (d - a, "0"),
     (b*e, "-3.0"),
     (a*c, "a*b"),
     (h, "2*a*a + -2.0")
@@ -42,7 +42,8 @@ linfunc_experiments = [
     (f1*x + f3*x - f5*y, "-4.0*y + -4.0*x"),
     (-(x + y), "-y + -x"),
     ((f1 + f2)*x + y, "y + c*x + 2.3*x"),
-    (g1*g2*x, "2.0*a*a*x + -2.0*x")
+    (g1*g2*x, "2.0*a*a*x + -2.0*x"),
+    (f1*x - f1*x, "0")
 ]
 
 def test_linfunc_operators():    

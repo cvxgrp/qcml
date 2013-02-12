@@ -40,6 +40,7 @@ class MacroExpander(object):
     
     def __init__(self):
         self.__lookup = {}
+        #self.symtable = symtable    # variable symbol table
 
     def __repr__(self):
         return '\n'.join(self.lines)
@@ -52,8 +53,11 @@ class MacroExpander(object):
         """Expand any macros to a set of new SCOOP lines."""
         operand_stack = []
         constraint_stack = []
-        new_lines = []
+
+        cone_stack = [] # stack of cones
         
+        last_bool_tok = ''
+        last_bool_arg = None
         # set the current lookup table to your local copy
         MacroExpander.lookup = self.__lookup
                 
@@ -74,16 +78,34 @@ class MacroExpander(object):
                 # will fail with multiargs (that's OK for now)
                 var, definition = op(*args) 
                 if definition:
-                    new_lines += filter(None, map(to_scoop, definition))
-                    new_lines.append("")    # add whitepsace at end
+                    print filter(lambda e: e is not '' and e[0]!='#', map(to_scoop, definition))
+                    f = filter(lambda e: not isinstance(e,str) and (isinstance(e,Variable) or (isinstance(e,Cone) and not e.istrivial())), definition)
+                    print map(lambda e:e.scoop(), f)
+                    
+                    cone_stack += filter(None, map(to_scoop, definition))
+                    cone_stack.append("")    # add whitepsace at end
                     
                 operand_stack.append( var )
             else:
+                # these are all operators
                 args = gobble(nargs)
+                
+                # allow chaining of inequality operators
+                if (tok == 'LEQ' or tok == 'GEQ' or tok == 'EQ') and last_bool_arg:
+                    if tok != last_bool_tok:
+                        raise SyntaxError("Cannot chain %s and %s." % (last_bool_tok, tok))
+                    else:
+                        args[0] = last_bool_arg
+                
                 result = op(*args)
                 
+                if tok == 'LEQ' or tok == 'GEQ' or tok =='EQ':
+                    last_bool_arg = args[1]
+                    last_bool_tok = tok
+                                
                 # don't append constraints that are trivial
                 if isinstance(result, Cone) and not result.istrivial():
+                    # this is for parsing constraints
                     constraint_stack.append( result )
                 operand_stack.append( result )
         
@@ -92,71 +114,8 @@ class MacroExpander(object):
                 
         # if there are any constraints, we return the constraint stack instead
         if constraint_stack: 
-            return (constraint_stack, new_lines)
+            return (constraint_stack, cone_stack)
         else:
-            return (operand_stack, new_lines)
+            return (operand_stack, cone_stack)
 
 
-
-
-
-
-# (Coeff, Variable)? (Coeff,)
-
-    # what does it do?
-    # every Operand has a .rewrite associated with it
-    # a row is
-    # [(Parameter, Variable), (Parameter, Variable), .., (Parameter,)]
-    # a cone constraint is
-    # no, for the cones, we will form
-    # (SCALAR Variable, Variable, Variable) # in (t,x,y,z) form
-    # (VECTOR Variable, Variable) # this is multiarg form |x|<=y
-    # (VECTOR Variable, Variable, Variable) # norms([x y]) <= vec in R^n, norm is in R^2
-    # (Variable, ) # this is x >= 0
-    # we'll pre-process this list before codegen, which will get us G, h
-    # and will also form "struct" directly
-        
-    # printing is just a matter of printing the symbol table
-    # then each *row* of Ax = b
-    # then the list of cones
-        
-    # codegen is just a matter of gen-ing each *row* of Ax = b
-    # then converting IR form to G,h, then gen-ing each *row block* of 
-    # Gx + s = h
-        
-    # that will produce a bunch of constraints and give the top-level name
-    
-# 1) as i parse, any "variables" or "parameters" will get created in the IR symbol table (separate lists)
-    
-# 2) when Evaluator is run, it first checks to see if any of the special
-# cases are satisfied across the *entire* line
-# these are:
-# [VARIABLE, ZERO, GEQ] -- "variable len" linear cone (SOC 1)
-# [VARIABLE, ABS, VARIABLE, LEQ] -- "variable len" # of (SOC 2)
-# [VARIABLE, NORM, SCALAR VARIABLE, LEQ] -- "1" # of (SOC VARLEN + 1)
-# [VARIABLE, ..., NORM, VARIABLE, LEQ] -- "variable len" # of (SOC # args + 1)
-# affine EQ... (how to check this?)
-#
-# so the usual EYE is
-# EYE(start=0,stride=1) generates -> [1 0; 0 1]
-# EYE(start=0,stride=2) generates -> [1 0; 0 0; 0 1; 0 0], but
-# EYE(start=1,stride=2) generates -> [0 0; 1 0; 0 0; 0 1]
-    
-# otherwise, it will just consume using an RPN algorithm
-
-# another question: will i have to have the user provide the dimensions for the variables when they call the solver? i should. this would solve a lot of little problems.
-# okay, regarding above: here is the solution for languages with closures:
-#    p = Scoop()
-#    p.eval?/run?(...)
-#    f = p.generate()
-#    f(x_len=3,y_len=2)(A=1,b=2,c=3)   # this will solve it
-# dimensions are passed in using closures. so if variable dimensions change, you have to recall the whole function, but if only problem data changes, then you just have to call the second function.
-# so there's a distinction between problem dimensions and data
-
-# for languages without closures, you will have to do
-#    f(A=1,b=2,c=3,x_len=3,y_len=2), etc.
-# this is for something like C
-#
-# alternatively, for C, you could run a C-specific generator that requires knowledge of the dimensions before it generates code. that's fine, too. in fact, most C implementations will probably fall under this category. but they will also 
-#
-# obviously, i could work around this with C++ templating, but, hey, I'm not going to do that.
