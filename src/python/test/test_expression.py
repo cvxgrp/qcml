@@ -1,5 +1,5 @@
 from scoop.expression import Expression, Constant, Parameter, Variable, \
-    CONVEX, AFFINE, CONCAVE, Shape, Sign
+    CONVEX, AFFINE, CONCAVE, Sign
 
 # def test_parameter():
 #     p = Parameter

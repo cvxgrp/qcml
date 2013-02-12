@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, isconstant, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    POSITIVE, NEGATIVE, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 from scoop_sqrt import sqrt
 from scoop_square import square

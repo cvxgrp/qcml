@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Constant, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    POSITIVE, NEGATIVE, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 
 # geo_mean(x,y) = sqrt(x .* y)

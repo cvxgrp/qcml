@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Cone, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    POSITIVE, NEGATIVE, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 
 # to prevent name clash with builtin, named with trailing '_'

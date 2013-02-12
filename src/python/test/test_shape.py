@@ -1,52 +1,44 @@
-from scoop.expression import Shape
+from scoop.expression import Scalar, Vector, Matrix, isscalar, isvector, ismatrix
+from scoop.expression.shape import Row, Col
 from nose.tools import assert_raises
 import operator
 
-shapes = ['vector', 'scalar', 'matrix']
+shapes = [Scalar(), Vector('x'), Matrix('a')]
 
-def create_shape(s):
-    shape = Shape(str.upper(s))
-    assert(shape.shape_str == str.upper(s))
-
-def add_shape(s1,s2, exp):
-    p1 = Shape(str.upper(s1))
-    p2 = Shape(str.upper(s2))
-    result = p1+p2
-    assert(result.shape_str == str.upper(exp))
+def add_shape(s1,s2, exp,row,col):
+    result = s1+s2
+    assert(exp(result) and result.rows == row and result.cols == col)
     
 def negate_shape(s):
-    p = Shape(str.upper(s))
-    v = -p
-    assert(v.shape_str == p.shape_str)
+    v = -s
+    assert(v.rows == s.rows and v.cols == s.cols)
 
-def mul_shape(s1,s2, exp):
-    p1 = Shape(str.upper(s1))
-    p2 = Shape(str.upper(s2))
-    result = p1*p2
-    assert(result.shape_str == str.upper(exp))
+def mul_shape(s1,s2, exp,row,col):
+    result = s1*s2
+    assert(exp(result) and result.rows == row and result.cols == col)
 
 def test_add():
     add_list = [
-        ('scalar','scalar', 'scalar'),
-        ('scalar','vector', 'vector'),
-        ('vector','scalar', 'vector'),
-        ('vector','vector', 'vector'),
+        (Scalar(),Scalar(), isscalar, Row(1), Col(1)),
+        (Scalar(),Vector('x'), isvector, Row('x'), Col(1)),
+        (Vector('y'),Scalar(), isvector, Row('y'), Col(1)),
+        (Vector('x'),Vector('z'), isvector, Row('x'), Col(1)),
     ]
-    for s1,s2,exp in add_list:
-        yield add_shape, s1,s2,exp
+    for s1,s2,exp,r,c in add_list:
+        yield add_shape, s1,s2,exp,r,c
     fail_list = [
-        ('scalar','matrix', TypeError),
-        ('matrix','scalar', TypeError),
-        ('matrix','vector', TypeError),
-        ('matrix','matrix', TypeError), # disallowed for now
-        ('vector','matrix', TypeError)
+        (Scalar(), Matrix('a'), TypeError),
+        (Matrix('a'), Scalar(), TypeError),
+        (Matrix('a'),Vector('x'), TypeError),
+        (Matrix('a'),Matrix('a'), TypeError), # disallowed for now
+        (Vector('x'),Matrix('a'), TypeError)
     ]
     for s1,s2,failure in fail_list:
-        yield assert_raises, failure, add_shape, s1,s2,''
+        yield assert_raises, failure, add_shape, s1,s2,None,None,None
             
 def test_sub():
-    s1 = Shape('SCALAR')
-    s2 = Shape('SCALAR')
+    s1 = Scalar()
+    s2 = Scalar()
     yield assert_raises, Exception, operator.sub, s1, s2
 
 def test_negate():
@@ -55,51 +47,22 @@ def test_negate():
 
 def test_mul():
     mul_list = [
-        ('scalar','scalar', 'scalar'),
-        ('scalar','vector', 'vector'),
-        ('scalar','matrix', 'matrix'),
-        ('vector','scalar', 'vector'),
-        ('matrix','vector', 'vector'),
-        ('matrix','scalar', 'matrix')
+        (Scalar(),Scalar(), isscalar, Row(1), Col(1)),
+        (Scalar(),Vector('x'), isvector, Row('x'), Col(1)),
+        (Scalar(),Matrix('a'), ismatrix, Row('a'), Col('a')),
+        (Vector('x'),Scalar(), isvector, Row('x'), Col(1)),
+        (Matrix('a'),Vector('x'), isvector, Row('a'), Col(1)),
+        (Matrix('a'),Scalar(), ismatrix, Row('a'), Col('a'))
     ]
-    for s1,s2,exp in mul_list:
-        yield mul_shape, s1,s2,exp
+    for s1,s2,exp,r,c in mul_list:
+        yield mul_shape, s1,s2,exp,r,c
     fail_list = [
-        ('vector','vector', TypeError),
-        ('vector','matrix', TypeError),
-        ('matrix','matrix', TypeError),
+        (Vector('x'),Vector('y'), TypeError),
+        (Vector('x'),Matrix('a'), TypeError),
+        (Matrix('a'),Matrix('a'), TypeError),
     ]
     for s1,s2,failure in fail_list:
-        yield assert_raises, failure, mul_shape, s1,s2,''
+        yield assert_raises, failure, mul_shape, s1,s2,None,None,None
     
-
-def equals(s1,s2):
-    p1 = Shape(str.upper(s1))
-    p2 = Shape(str.upper(s2))
-    result = (p1 == p2)
-    exp = (s1 == s2)
-    assert(result == exp)
-
-def not_equals(s1,s2):
-    p1 = Shape(str.upper(s1))
-    p2 = Shape(str.upper(s2))
-    result = (p1 != p2)
-    exp = (s1 != s2)
-    assert(result == exp)
-    
-def test_shape_bools():
-    for s1 in shapes:
-        for s2 in shapes:
-            yield equals, s1, s2
-            yield not_equals, s1, s2
-            
-def test_shape_creation():
-    for s in shapes:
-        yield create_shape, s
-    
-    # attempt to create strange shape
-    yield assert_raises, Exception, create_shape, 'tensor'
-    yield assert_raises, Exception, create_shape, 'circle'
-    yield assert_raises, Exception, create_shape, 'TREE'
     
     

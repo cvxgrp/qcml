@@ -1,77 +1,105 @@
-from utils import error_msg, id_wrapper
-
-class Shape(object):
-    shapes = set(['MATRIX', 'VECTOR', 'SCALAR'])
-    
-    add_lookup = {
-        ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
-        ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
-        ('VECTOR','SCALAR'): id_wrapper('VECTOR'),
-        ('VECTOR','VECTOR'): id_wrapper('VECTOR'),
-    }
-    
-    mul_lookup = {
-        ('SCALAR','SCALAR'): id_wrapper('SCALAR'),
-        ('SCALAR','VECTOR'): id_wrapper('VECTOR'),
-        ('SCALAR','MATRIX'): id_wrapper('MATRIX'),
-        ('VECTOR','SCALAR'): id_wrapper('VECTOR'),
-        ('MATRIX','SCALAR'): id_wrapper('MATRIX'),
-        ('MATRIX','VECTOR'): id_wrapper('VECTOR')
-    }
-    
-    def __init__(self,shape_str):
-        if shape_str in self.shapes:
-            self.shape_str = shape_str
-        else:
-            raise Exception("No such shape %s exists." % str(shape_str))
-        
-    def __repr__(self):
-        return "Shape('%s')" % self.shape_str
-    
-    def __str__(self):
-        return self.shape_str
-        
-    def __add__(self, other):
-        lhs = self.shape_str
-        rhs = other.shape_str
-        
-        f = self.add_lookup.get( 
-            (lhs, rhs), 
-            error_msg(TypeError, "'%s + %s' combination is disallowed." % (lhs,rhs)) 
-        )
-        return Shape(f())
-    
-    __sub__ = None
-    # def __sub__(self, other):
-    #     lhs = self.shape_str
-    #     rhs = other.shape_str
-    #     
-    #     f = self.add_lookup.get( 
-    #         (lhs, rhs), 
-    #         error_msg("No subtraction operator implemented for '%s - %s'." % (lhs,rhs)) 
-    #     )
-    #     return Shape(f())
-       
-    def __mul__(self, other):
-        lhs = self.shape_str
-        rhs = other.shape_str
-        
-        f = self.mul_lookup.get( 
-            (lhs, rhs), 
-            error_msg(TypeError, "No multiply operator implemented for '%s * %s'." % (lhs,rhs)) 
-        )
-        return Shape(f())
-        
-    def __neg__(self):
-        return self
+class Dimension(object):
+    def __init__(self, s):
+        self.size = s
     
     def __eq__(self,other):
-        return self.shape_str == other.shape_str
-    
+        return self.size == other.size
     def __ne__(self,other):
-        return self.shape_str != other.shape_str
+        return self.size != other.size
+    
+class Row(Dimension):
+    def __init__(self, s):
+        super(Row, self).__init__(s)
+    
+    def __repr__(self):
+        return "Row(%s)" % self.size
 
-# these are mutable globals, so be careful!
-SCALAR = Shape('SCALAR')
-VECTOR = Shape('VECTOR')
-MATRIX = Shape('MATRIX')
+class Col(Dimension):
+    def __init__(self, s):
+        super(Col, self).__init__(s)
+    
+    def __repr__(self):
+        return "Col(%s)" % self.size
+
+class Shape(object):
+    def __init__(self,m,n):
+            self.rows = m
+            self.cols = n
+        
+    def __repr__(self):
+        return "Shape(%s, %s)" % (self.shape_str, self.rows, self.cols)
+    
+    __sub__ = None
+    __eq__ = None
+    __ne__ = None
+    
+    def __add__(self, other):
+        if isinstance(self, Scalar) and isinstance(other, Scalar):
+            return Scalar()
+        elif isinstance(self, Scalar) and isinstance(other, Vector):
+            return Vector(other.rows)
+        elif isinstance(self, Vector) and isinstance(other, Scalar):
+            return Vector(self.rows)
+        elif isinstance(self, Vector) and isinstance(other, Vector):
+            if self.rows.size == 1:
+                return Vector(other.rows)
+            else:
+                # also, self.rows == other.rows
+                return Vector(self.rows)
+        else:
+            lhs = self.__class__.__name__
+            rhs = self.__class__.__name__
+            raise TypeError("'%s + %s' combination is disallowed." % (lhs, rhs))
+    
+    def __mul__(self, other):
+        if isinstance(self, Scalar) and isinstance(other,Scalar):
+            return Scalar()
+        elif isinstance(self,Scalar) and isinstance(other,Vector):
+            return Vector(other.rows)
+        elif isinstance(self,Scalar) and isinstance(other, Matrix):
+            return Matrix(other.rows, other.cols)
+        elif isinstance(self,Vector) and isinstance(other,Scalar):
+            return Vector(self.rows)
+        elif isinstance(self,Matrix) and isinstance(other,Scalar):
+            return Matrix(self.rows, self.cols)
+        elif isinstance(self,Matrix) and isinstance(other,Vector):
+            # also, their rows are equal to our cols
+            return Vector(self.rows)
+        else:
+            lhs = self.__class__.__name__
+            rhs = self.__class__.__name__
+            raise TypeError("No multiply operator implemented for '%s * %s'." % (lhs,rhs))
+    
+    def __neg__(self):
+        return self
+        
+        
+class Scalar(Shape):
+    def __init__(self,r = None):
+        # just ignores the first argument
+        super(Scalar,self).__init__(Row(1), Col(1))
+    
+    def __repr__(self):
+        return "Scalar()"
+
+class Vector(Shape):
+    def __init__(self,r):
+        if isinstance(r,str):
+            super(Vector,self).__init__(Row(r), Col(1))
+        else:
+            super(Vector,self).__init__(r, Col(1))
+    
+    def __repr__(self):
+        return "Vector(%s)" % self.rows
+        
+class Matrix(Shape):
+    def __init__(self,r,c = None):
+        if isinstance(r,str):
+            super(Matrix,self).__init__(Row(r), Col(r))
+        elif c:
+            super(Matrix,self).__init__(r, c)
+        else:
+            raise Exception("Cannont create matrix with no columns.")
+    
+    def __repr__(self):
+        return "Matrix(%s,%s)" % (self.rows, self.cols)

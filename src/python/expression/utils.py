@@ -1,4 +1,5 @@
 import expression as expr
+import shape
 
 # utility functions for handling error messages
 def error_msg(T, s):
@@ -46,3 +47,10 @@ def isconstant(e):
 def to_scoop(x):
     if hasattr(x,'scoop'): return x.scoop()
     else: return str(x)
+
+def isscalar(x):
+    return isinstance(x,shape.Scalar)
+def isvector(x):
+    return isinstance(x,shape.Vector)
+def ismatrix(x):
+    return isinstance(x,shape.Matrix)

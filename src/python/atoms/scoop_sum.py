@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    POSITIVE, NEGATIVE, Scalar, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 import operator
 
@@ -15,7 +15,7 @@ def sum_(*args):
     # determine if it's a row sum or a column sum
     if len(args) == 1:
         # column sum
-        v = Variable("sum(%s)" % args[0].name, SCALAR)
+        v = Variable("sum(%s)" % args[0].name, Scalar())
         v.vexity, v.sign = vexity, args[0].sign
     elif len(args) > 1:
         # row sum

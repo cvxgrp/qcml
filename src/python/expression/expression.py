@@ -30,10 +30,10 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 from utils import error_msg, id_wrapper, \
     isunknown, ispositive, isnegative, \
-    isaff, iscvx, isccv
+    isaff, iscvx, isccv, ismatrix
     
 from linfunc import LinearFunc
-from shape import SCALAR, VECTOR, MATRIX
+from shape import Scalar, Vector, Matrix
 from sign import POSITIVE, NEGATIVE, UNKNOWN
 from constraint import EqConstraint, LeqConstraint, GeqConstraint
 
@@ -151,7 +151,7 @@ class Expression(object):
 
 class Variable(Expression):
     def __init__(self, name, shape):
-        if shape != MATRIX:
+        if not ismatrix(shape):
             super(Variable, self).__init__(AFFINE, UNKNOWN, shape, name, LinearFunc.variable(name))
         else:
             raise TypeError("Cannot create a matrix variable.")
@@ -188,7 +188,7 @@ class Constant(Expression):
             sign = POSITIVE
         else:
             sign = NEGATIVE
-        super(Constant, self).__init__(AFFINE, sign, SCALAR, str(value), LinearFunc.constant(value))
+        super(Constant, self).__init__(AFFINE, sign, Scalar(), str(value), LinearFunc.constant(value))
         
     def __repr__(self):
         return "Constant(%s)" % self.name

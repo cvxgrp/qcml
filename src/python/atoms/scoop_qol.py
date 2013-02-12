@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Constant, Cone, \
     increasing, decreasing, nonmonotone, \
-    ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE 
+    ispositive, isnegative, isscalar, \
+    POSITIVE, NEGATIVE, CONVEX, CONCAVE, AFFINE 
 from utils import create_varname, comment
 
 @comment
@@ -16,7 +16,7 @@ def quad_over_lin(x,y):
     v = Variable(create_varname(), y.shape)
                 
     # declare the expansion in "SCOOP"
-    if y.shape == SCALAR:
+    if isscalar(y.shape):
         definition = [
             v,  # declare the variable
             # norm([(1/2)(t-v); x]) <= (1/2)(y + v)

@@ -2,7 +2,7 @@ from scoop.expression import Variable, Constant, \
     increasing, decreasing, nonmonotone, \
     ispositive, isnegative, \
     POSITIVE, NEGATIVE, UNKNOWN, \
-    SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    Scalar, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 import operator
 
@@ -17,7 +17,7 @@ def min_(*args):
     # list input)
     if len(args) == 1:
         # set the vexity to affine temporarily, so we can form v <= x expr
-        v = Variable(create_varname(), SCALAR)
+        v = Variable(create_varname(), Scalar())
         sign = args[0].sign      
     elif len(args) > 1:
         if any(isnegative(e) for e in args): sign = NEGATIVE

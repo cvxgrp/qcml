@@ -1,12 +1,18 @@
 from nose.tools import assert_raises, with_setup
 from scoop import Scoop
-from scoop.expression import Shape, Sign, AFFINE
+from scoop.expression import isscalar, isvector, ismatrix, Sign, AFFINE
 from collections import deque
 
 p1 = Scoop()
 p2 = Scoop()
 # these aren't exposed in scoop, so they are redefined here
 PRE_OBJ, OBJ, POST_OBJ = range(3)
+
+check = {
+    'SCALAR': isscalar,
+    'VECTOR': isvector,
+    'MATRIX': ismatrix
+}
 
 def setup_func():
     "set up test fixtures"
@@ -35,7 +41,7 @@ def test_existing_names():
 @with_setup(setup_func, teardown_func)
 def add_variable(s):
     p1.parse_variable(deque([("VARIABLE",""),("IDENTIFIER", "x"), (str.upper(s), s)]))
-    assert(p1.symtable["x"].shape == Shape(str.upper(s)))
+    assert(check[str.upper(s)](p1.symtable["x"].shape))
     assert(p1.symtable["x"].sign == Sign("UNKNOWN"))
     assert(p1.symtable["x"].vexity == AFFINE)
 
@@ -44,16 +50,16 @@ def add_variable(s):
 def add_parameter(s1, s2, shape_first = True):
     p1.parse_parameter(deque([("PARAMETER",""),("IDENTIFIER", "x"), (str.upper(s1), s1), (str.upper(s2), s2)]))
     if shape_first:
-        assert(p1.symtable["x"].shape == Shape(str.upper(s1)))
+        assert(check[str.upper(s1)](p1.symtable["x"].shape))
         assert(p1.symtable["x"].sign == Sign(str.upper(s2)))
         assert(p1.symtable["x"].vexity == AFFINE)
     else:
-        assert(p1.symtable["x"].shape == Shape(str.upper(s2)))
+        assert(check[str.upper(s2)](p1.symtable["x"].shape))
         assert(p1.symtable["x"].sign == Sign(str.upper(s1)))
         assert(p1.symtable["x"].vexity == AFFINE)
     
 
-shapes = ["scalar", "vector", "matrix"]
+shapes = ["SCALAR", "VECTOR", "MATRIX"]
 signs = ["positive", "negative"]
 # assert that shape and sign can be specified in any way
 def test_shape_and_sign():

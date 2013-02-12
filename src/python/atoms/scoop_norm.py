@@ -1,7 +1,7 @@
 from scoop.expression import Variable, Cone, \
     increasing, decreasing, nonmonotone, \
-    ispositive, isnegative, \
-    POSITIVE, NEGATIVE, SCALAR, VECTOR, CONVEX, CONCAVE, AFFINE
+    ispositive, isnegative, Scalar, \
+    POSITIVE, NEGATIVE, CONVEX, CONCAVE, AFFINE
 from utils import create_varname, comment
 
 @comment
@@ -13,7 +13,7 @@ def norm(*args):
     else: vexity |= nonmonotone(x)
     
     # create a new variable
-    v = Variable(create_varname(), SCALAR)
+    v = Variable(create_varname(), Scalar())
     
     if len(args) == 1:
         # Cone.SOC(v, [x]), norm(x) <= v

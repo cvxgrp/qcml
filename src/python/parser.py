@@ -29,7 +29,9 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 from expression import Variable, Parameter, Expression, \
-    Shape, Sign, SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
+    Scalar, Vector, Matrix, isscalar, \
+    Sign, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
+from expression.linfunc import LinearFunc
 from codegen import Codegen
 from macro import MacroExpander
 
@@ -47,12 +49,16 @@ from datetime import datetime
 PRE_OBJ, OBJ, POST_OBJ = range(3)
 
 # check for agreement of objective vexity with argument
-check = \
-    {
-        "MINIMIZE": iscvx,
-        "MAXIMIZE": isccv,
-        "FIND": isaff
-    }
+check = {
+    "MINIMIZE": iscvx,
+    "MAXIMIZE": isccv,
+    "FIND": isaff
+}
+build_shape = {
+    'SCALAR': Scalar,
+    'VECTOR': Vector,
+    'MATRIX': Matrix
+}
 
 comments = re.compile("#.*")
 
@@ -153,6 +159,7 @@ class Scoop(object):
     @profile
     def run(self, s):
         Scoop.varcount = self.__varcount    # set global counter
+        LinearFunc.used_vars = self.used_syms  # set the dict for linfunc
         
         self.line = re.sub(comments, "", s.lstrip())
         result, remainder = self.lex(s)
@@ -191,8 +198,8 @@ class Scoop(object):
                 if toks:
                     t, tmp = toks.popleft()
                     raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for variables with %(t)s token %(tmp)s." % locals())
-        
-            self.symtable[v] = Variable(v,Shape(shape))
+            
+            self.symtable[v] = Variable(v,build_shape[shape](v))
         else:
             raise SyntaxError("\"%(s)s\"\n\tNo variable name provided." % locals())
         
@@ -244,7 +251,7 @@ class Scoop(object):
                         t, tmp = toks.popleft()
                         raise SyntaxError("\"%(s)s\"\n\tUnexpected ending for parameters with %(t)s token %(tmp)s." % locals())
         
-            self.symtable[v] = Parameter(v, Shape(shape), Sign(sign))
+            self.symtable[v] = Parameter(v, build_shape[shape](v), Sign(sign))
         else:
             raise SyntaxError("\"%(s)s\"\n\tNo parameter name provided." % locals())
              
@@ -278,7 +285,7 @@ class Scoop(object):
         if obj_stack:       # should never happen
             raise Exception("Unparsed operands.")
                 
-        if obj.shape != SCALAR:
+        if not isscalar(obj.shape):
             raise Exception("\"%s\"\n\tObjective function %s should be scalar." % (self.line, obj.name))
         if not check[tok](obj):
             raise Exception(
@@ -406,6 +413,7 @@ class Scoop(object):
                 # data structure to keep track of variables referened in the 
                 # original problem.
                 self.used_syms.add(val)
+                
                 
                 # keep track of minimal variable and param references (in the rewritten problem)
                 if isinstance(paramOrVariable,Variable):

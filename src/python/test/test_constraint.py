@@ -1,13 +1,13 @@
 from scoop.expression.constraint import Cone
 from scoop.expression import Variable, Parameter, Constant, \
-    SCALAR, VECTOR, MATRIX, \
+    Scalar, \
     POSITIVE, NEGATIVE, UNKNOWN
 from nose.tools import assert_raises    
 
 
-x = Variable('x', SCALAR)
-y = Variable('y', SCALAR)
-t = Variable('t', SCALAR)
+x = Variable('x', Scalar())
+y = Variable('y', Scalar())
+t = Variable('t', Scalar())
 
 # test expected cones
 cone_test = [

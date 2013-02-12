@@ -28,7 +28,7 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
-from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
+from expression import UNKNOWN, CONVEX, POSITIVE, \
     Variable, Expression, Parameter, Constant, Cone, to_scoop
 import operator
 import re
@@ -121,6 +121,7 @@ class MacroExpander(object):
         
         # store the modified lookup locally (in this object)
         self.__lookup = MacroExpander.lookup
+        
                 
         # if there are any constraints, we return the constraint stack instead
         if constraint_stack: 
