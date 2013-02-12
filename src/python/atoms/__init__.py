@@ -1,12 +1,4 @@
-# from scoop.scoop_atoms import Evaluator
-# from types import MethodType
-# 
-# # atoms from separate files
-# from add import op_add
-# from minus import op_minus
-# from mult import op_mult
-# from negate import op_neg
-
+# atoms from separate files
 from scoop_abs import abs_
 from scoop_geo_mean import geo_mean
 from scoop_inv_pos import inv_pos
@@ -22,13 +14,6 @@ from scoop_qol import quad_over_lin
 from scoop_sqrt import sqrt
 from scoop_square import square
 from scoop_sum import sum_
-
-
-# # attach the atoms to the Evaluator class
-# Evaluator.add = MethodType(op_add, None, Evaluator)
-# Evaluator.sub = MethodType(op_minus, None, Evaluator)
-# Evaluator.mul = MethodType(op_mult, None, Evaluator)
-# Evaluator.neg = MethodType(op_neg, None, Evaluator)
 
 # build dictionary of methods (matching with identifiers)
 macros = \

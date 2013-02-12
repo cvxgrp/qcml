@@ -1,3 +1,5 @@
+from scoop.codegen import Row, Col
+
 def display_coeff(x):
     k,v = x
     if k == '1':
@@ -46,12 +48,13 @@ class Coeff(object):
     is, we can't have a parameter named 'x' that is a positive scalar and
     another parametered named 'x' that is suddently a negative matrix.
     """
-    def __init__(self, dictionary={}):
+    def __init__(self, size, dictionary={}):
         if dictionary: self.coeff_dict = dictionary
         else: self.coeff_dict = {'1': 0}
+        self.rows, self.cols = size
     
     def __repr__(self):
-        return "Coeff(%s)" % self.coeff_dict
+        return "Coeff((%s,%s), %s)" % (self.rows, self.cols, self.coeff_dict)
     
     def __str__(self):
         # sort the dictionary before displaying it
@@ -64,12 +67,12 @@ class Coeff(object):
     # Coeff creation happens though class methods
     @classmethod
     def constant(self, val):
-        return Coeff({'1': val})
+        return Coeff((Row(1),Col(1)), {'1': val})
         
     @classmethod
     def parameter(self, s):
         if isinstance(s,str):
-            return Coeff({s: 1})
+            return Coeff((Row(s), Col(s)), {s: 1})
         else:
             raise Exception("Cannot create a coefficient")
             
@@ -95,8 +98,9 @@ class Coeff(object):
         b = other.coeff_dict
         # got this nice piece of code off stackoverflow http://stackoverflow.com/questions/1031199/adding-dictionaries-in-python
         d = dict( (n, a.get(n, 0) + b.get(n, 0)) for n in set(a)|set(b) )
+        dims = (self.rows + other.rows, self.cols + other.cols)
         
-        return Coeff(filter_zero(d))
+        return Coeff(dims, filter_zero(d))
     
     def __neg__(self):
         for k in self.coeff_dict:
@@ -108,8 +112,9 @@ class Coeff(object):
         a = self.coeff_dict
         b = other.coeff_dict
         d = dict( (n, a.get(n, 0) - b.get(n, 0)) for n in set(a)|set(b) )
+        dims = (self.rows + other.rows, self.cols + other.cols)
         
-        return Coeff(filter_zero(d))
+        return Coeff(dims, filter_zero(d))
     
     def __mul__(self,other):
         # multiplying coefficients
@@ -128,8 +133,13 @@ class Coeff(object):
                     d[k1] = v + v2*v1
                 else:
                     d[k1 + '*' + k2] = v1*v2
+        if other.cols.size == 1:
+            # usually, "1" is a placeholder for a diagonal matrix
+            dims = (self.rows, self.cols)
+        else:
+            dims = (self.rows, other.cols)
         
-        return Coeff(filter_zero(d))
+        return Coeff(dims, filter_zero(d))
         # (c + a1*p1)*c 
 
 ZERO = Coeff.constant(0)   
@@ -143,6 +153,7 @@ class LinearFunc(object):
     def __init__(self, dictionary={}):
         if dictionary: self.linear_dict = dictionary   # function represented as a dictionary
         else: self.linear_dict = {'1': ZERO}
+        
 
     def __repr__(self):
         return "LinearFunc(%s)" % self.linear_dict
@@ -193,6 +204,15 @@ class LinearFunc(object):
             return LinearFunc({s: Coeff.constant(1.0)})
         else:
             raise Exception("Cannot create a linear function from %s" % val)
+    
+    def get_dimensions(self):
+        rows = Row(1)
+        for v in self.linear_dict.values():
+            rows += v.rows
+        
+        dims = dict( (k, (rows, v.cols)) for k, v in self.linear_dict.iteritems() )
+
+        return dims
     
     def __add__(self, other):
         # add the constants

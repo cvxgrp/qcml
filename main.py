@@ -55,7 +55,7 @@ if __name__ == '__main__':
      "variable t0",
      "parameter z",
      "",
-     "minimize norm1(x)",
+     "minimize a*x",
      "  abs(x) <= 3",
      "  norm_inf(x) <= y",
      "  square(0.5 + a*x - 6) + -5 <= a*x <= a*x",
@@ -67,93 +67,10 @@ if __name__ == '__main__':
      "#abs(x)+3*x <= t -3",
      "#sqrt(3*x-y) >= abs(z)",
      "#geo_mean(3,1) == sqrt(3*2-b)"])
-     
-     
-    # a = Expression(AFFINE, NEGATIVE, SCALAR, 't', 'COEFF')
-    # b = Expression(CONVEX, POSITIVE, SCALAR, 'x')
-    # 
-    # print repr(b * a)
-    # 
-
-    # f = p.generate()
-    # 
-    # g = p.deliteGenerate(Adim=(),,)
-    # 
-    # f(A,b,a,z)
-    # g(A,b,a,z)
-    
-    
-    # p2 = Scoop()
-    # map( p2.run,
-    # ["variable x vector",
-    #  "parameter a scalar positive",
-    #  "variable y scalar",
-    #  "",
-    #  "minimize y",
-    #  "  quad_over_lin(x,y) <= a"])
-    # 
-    # p.run("quad_over_lin(_x,x) <= 5")
-    
-    #print p
-    #print 72*'='
     
     print p
+    f = p.generate()
+    f(x = 1, _x = 3, y = 1, t0 = 1)
     
-    # idemp = """
-    # variable __x vector
-    # parameter _A matrix positive
-    # variable _x scalar
-    # 
-    # # 't0' replaces 'square(3.0)'
-    # variable t0 scalar
-    # norm(0.5 - 0.5*t0, 3.0) <= 0.5 + 0.5*t0
-    # 
-    # # 't1' replaces 'square(4.0 + t0)'
-    # variable t1 scalar
-    # norm(0.5 - 0.5*t1, 4.0 + t0) <= 0.5 + 0.5*t1
-    # 
-    # # "minimize square(4.0 + square(3)) + x"
-    # minimize t1 + _x
-    # 
-    # # 't2' replaces 'square(_x)'
-    # variable t2 scalar
-    # norm(0.5 - 0.5*t2, _x) <= 0.5 + 0.5*t2
-    # 
-    # # "square(x) + -5 <= A*_x - -3"
-    # _A * (__x) + 3.0 - (t2 - (5.0)) >= 0
-    # """
-    # 
-    # p2 = Scoop()
-    # map(p2.run, idemp.split('\n'))
-    # 
-    # print p2
-    # print_prof_data()
-    
-    # k = Evaluator()
-    #     c = Parameter('a', VECTOR, UNKNOWN)
-    #     a = Variable('y', SCALAR)
-    #     b = Variable('z', VECTOR)
-    
-    # x = Constant(3.0)
-    # y = Constant(6.0)
-    # 
-    # r = k.add(x,y)
-    # 
-    # v = k.add(a,b)
-    # h = k.sub(v,r)
-    # f = k.mul(c,a)
-    # print v.helpstring()
-    # print h.helpstring()
-    # print f.helpstring()
-    # print k.add(c,v).helpstring()
-    # print p.rpn_eval.affine
-    # 
-    # print p.rpn_eval.varlist
-    # print p.rpn_eval.tmplist
-    # print p.rpn_eval.paramlist
-    # 
-    # print p.rpn_eval.equiv
-    # print p.rpn_eval.dimensions
-    # 
-    
+
     

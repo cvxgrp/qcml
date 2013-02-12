@@ -36,15 +36,13 @@ from atoms import macros, abs_, norm, sum_
 def unrecognized_token(s):
     raise Exception("The string \'%(s)s\' cannot be tokenized." % locals())
         
-def macro_or_identifier(mangle, token):
+def macro_or_identifier(token):
     f = macros.get(token, None)
     if f: return ('MACRO', f)
-    elif mangle: return ('IDENTIFIER', '_' + token)
-    else: return ('IDENTIFIER', token)
+    else: return ('IDENTIFIER', '_' + token)
 
 # this is the tokenizer for basic SOCP problems
-def create_scanner(mangle):
-    return re.Scanner([
+scanner = re.Scanner([
         (r"#.*",                    None ), # gobble comments
         (r"variable(?=\s+)",        lambda scanner,token:('VARIABLE', token) ),
         (r"parameter(?=\s+)",       lambda scanner,token:('PARAMETER', token) ),
@@ -70,7 +68,7 @@ def create_scanner(mangle):
         (r"\)",                     lambda scanner,token:('RPAREN', token) ),
         (r"\[",                     lambda scanner,token:('LBRACE', token) ),
         (r"\]",                     lambda scanner,token:('RBRACE', token) ),
-        (r"[a-zA-Z_\d]+",  	        lambda scanner,token:macro_or_identifier(mangle, token) ),
+        (r"[a-zA-Z_\d]+",  	        lambda scanner,token:macro_or_identifier(token) ),
         (r"\+",                     lambda scanner,token:('PLUS_OP', operator.add) ),
         (r"\-",                     lambda scanner,token:('UMINUS', operator.neg) ),
         (r"\*",                     lambda scanner,token:('MULT_OP', operator.mul) ),
@@ -79,9 +77,6 @@ def create_scanner(mangle):
         (r"\s+",                    None), # None == skip token.
         (r".",                      lambda scanner,token:unrecognized_token(token))
     ])
-
-scanner_mangled = create_scanner(True)
-scanner_unmangled = create_scanner(False)
 
 # "operator" precedence
 op_prec = { 'MACRO': 4, 'MULT_OP':3,  'UMINUS':2, \

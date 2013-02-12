@@ -33,14 +33,19 @@ from expression import UNKNOWN, SCALAR, VECTOR, MATRIX, CONVEX, POSITIVE, \
 import operator
 import re
 
+def is_nontrivial_cone(e):
+    return isinstance(e,Cone) and not e.istrivial()
 
+def is_variable(e):
+    return isinstance(e,Variable)
+    
 # this is just a scaffolding for atoms
 class MacroExpander(object):
     lookup = {}
     
-    def __init__(self):
+    def __init__(self, table):
         self.__lookup = {}
-        #self.symtable = symtable    # variable symbol table
+        self.symtable = table    # variable symbol table
 
     def __repr__(self):
         return '\n'.join(self.lines)
@@ -55,6 +60,7 @@ class MacroExpander(object):
         constraint_stack = []
 
         cone_stack = [] # stack of cones
+        lines = [] # description of problem
         
         last_bool_tok = ''
         last_bool_arg = None
@@ -78,12 +84,14 @@ class MacroExpander(object):
                 # will fail with multiargs (that's OK for now)
                 var, definition = op(*args) 
                 if definition:
-                    print filter(lambda e: e is not '' and e[0]!='#', map(to_scoop, definition))
-                    f = filter(lambda e: not isinstance(e,str) and (isinstance(e,Variable) or (isinstance(e,Cone) and not e.istrivial())), definition)
-                    print map(lambda e:e.scoop(), f)
+
+                    cone_stack += filter(is_nontrivial_cone, definition)
+                    varlist = filter(is_variable, definition)
+                    for v in varlist:
+                        self.symtable[v.name] = v
                     
-                    cone_stack += filter(None, map(to_scoop, definition))
-                    cone_stack.append("")    # add whitepsace at end
+                    lines += filter(None, map(to_scoop, definition))
+                    lines.append("")    # add whitepsace at end
                     
                 operand_stack.append( var )
             else:
@@ -107,6 +115,8 @@ class MacroExpander(object):
                 if isinstance(result, Cone) and not result.istrivial():
                     # this is for parsing constraints
                     constraint_stack.append( result )
+                    cone_stack.append( result )
+                    
                 operand_stack.append( result )
         
         # store the modified lookup locally (in this object)
@@ -114,8 +124,8 @@ class MacroExpander(object):
                 
         # if there are any constraints, we return the constraint stack instead
         if constraint_stack: 
-            return (constraint_stack, cone_stack)
+            return (constraint_stack, cone_stack, lines)
         else:
-            return (operand_stack, cone_stack)
+            return (operand_stack, cone_stack, lines)
 
 

@@ -30,9 +30,10 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 from expression import Variable, Parameter, Expression, \
     Shape, Sign, SCALAR, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
+from codegen import Codegen
 from macro import MacroExpander
 
-from tokens import scanner_mangled, scanner_unmangled, precedence
+from tokens import scanner, precedence
 from collections import deque
 from profiler import profile, print_prof_data
 
@@ -44,13 +45,6 @@ from datetime import datetime
 # MAXIMIZE, or FIND keyword; *on* the line that has that keyword; or
 # *after* that line
 PRE_OBJ, OBJ, POST_OBJ = range(3)
-
-# just to improve code readability, the two following are defined as booleans
-
-# during this phase, we expand macros and mangle names
-MACRO_EXPANSION = True
-# during this phase, we only parse the SOCP (and maintain variable counter)
-PARSE_SOCP = False      
 
 # check for agreement of objective vexity with argument
 check = \
@@ -79,12 +73,18 @@ class Scoop(object):
         # current line (private?)
         self.line = ""
         
-        # equivalent problem (using only SOCP atoms)
-        self.used_syms = {}
-        self.equivalent = []
+        # string description of problem
+        self.used_syms = set()
+        self.description = []
+        
+        # SOCP data structures (used for codegen)
+        self.codegen = Codegen()
+        # self.variables = {} # these are used variables
+        # self.cones = []
+        # self.obj = None
     
-        # equiv_macros is passed by reference
-        self.expander = MacroExpander()
+        # symtable is passed by reference
+        self.expander = MacroExpander(self.codegen.variables)
         
         # private variable counter
         self.__varcount = 0
@@ -100,8 +100,11 @@ class Scoop(object):
             "# " + 70*"=",
             ""
         ]
-        lines += self.used_syms.values() + self.equivalent
+        original_ids = list(self.symtable[e].scoop() for e in self.used_syms)
+        lines += original_ids + self.description
+
         return '\n'.join(lines)
+        #return str(self.cones) + str(self.obj)
     
     def __reset_state(self):  # private
         if self.state is OBJ:
@@ -117,7 +120,7 @@ class Scoop(object):
     
     def lex(self, s, mangle = True):
         """Tokenizes the input string 's'. Uses the hidden re.Scanner function."""
-        return scanner_mangled.scan(s)
+        return scanner.scan(s)
     
     def parse(self,toks):
         """Parses the tokenized list. Could use LR parsing, but SCOOP is simple
@@ -144,8 +147,8 @@ class Scoop(object):
         # parse a constraint
         actions.get(toks[0][0], self.parse_constraint)(toks)        
         
-    def display(self,toks):
-        print ' '.join( map(lambda x:str(x[1]), toks) )
+    # def display(self,toks):
+    #     print ' '.join( map(lambda x:str(x[1]), toks) )
     
     @profile
     def run(self, s):
@@ -156,9 +159,6 @@ class Scoop(object):
         if result:
             if not remainder:
                 self.parse(deque(result))
-                #self.rpn_eval.hello()
-                #self.display(result)
-                # print '\n'
             else:
                 raise Exception("Unknown parse error.")
         
@@ -270,7 +270,7 @@ class Scoop(object):
             raise Exception("No objective specified.")
         
         # perform macro expansion on the RPN
-        (obj_stack, new_lines) = self.expander.expand( expr )
+        (obj_stack, cones, new_lines) = self.expander.expand( expr )
 
         if not obj_stack:   # should never happen
             raise Exception("No objective parsed.")
@@ -287,17 +287,21 @@ class Scoop(object):
             )
                     
         # label the top
-        label = ["",
+        self.description  += ["",
             "# " + 70*"=",
             "# \"%s\"" % self.line,
             "# " + 70*"="]
                     
         # add the objective
-        label += new_lines + \
-            ["# \"%s\"" % self.line,
+        self.description += new_lines
+        self.description += ["# \"%s\"" % self.line,
              "%s %s" % (val, obj.name)]
-
-        self.equivalent += label
+        # convert to minimization prob
+        if tok == 'MAXIMIZE': self.codegen.obj = -obj   
+        else: self.codegen.obj = obj
+        
+        # add the constraints to the cone
+        self.codegen.cones += cones
 
         # set the state to "we just parsed the objective"
         self.state = OBJ
@@ -312,19 +316,19 @@ class Scoop(object):
             raise Exception("Unknown constraint error.")
                 
         # perform macro expansion on the RPN
-        (constraint, new_lines) = self.expander.expand( expr )
+        (constraint, cones, new_lines) = self.expander.expand( expr )
         # label the top
-        label = ["",
+        self.description += ["",
             "# " + 70*"=",
             "# \"%s\"" % self.line,
             "# " + 70*"="]
                     
         # add the constraint
-        label += new_lines + \
-            ["# \"%s\"" % self.line] + map(str, constraint)
-                
-        self.equivalent += label
-       
+        self.description += new_lines
+        self.description += ["# \"%s\"" % self.line] + map(str, constraint)
+        
+        self.codegen.cones += cones
+                       
     
     def parse_expr(self,toks,parse_constr = False):
         """ term = CONSTANT 
@@ -396,8 +400,18 @@ class Scoop(object):
                 paramOrVariable = self.symtable.get(val, None)
                 if not paramOrVariable: raise SyntaxError("\"%s\"\n\tUnknown identifier \"%s\"." % (s, val))
                                 
-                # keep track of identifiers we've used
-                self.used_syms[val] = paramOrVariable.scoop()
+                # keep track of identifiers we've used (this is in the
+                # original problem). since we introduce new variables, i 
+                # don't want them "shown" at the end. this is just a separate 
+                # data structure to keep track of variables referened in the 
+                # original problem.
+                self.used_syms.add(val)
+                
+                # keep track of minimal variable and param references (in the rewritten problem)
+                if isinstance(paramOrVariable,Variable):
+                    self.codegen.variables[val] = paramOrVariable
+                else:
+                    self.codegen.parameters[val] = paramOrVariable
                 
                 rpn_stack.append( (tok,paramOrVariable,0) )
             elif tok == 'MACRO':

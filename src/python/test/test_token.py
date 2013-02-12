@@ -1,4 +1,4 @@
-from scoop.tokens import scanner_mangled, scanner_unmangled, precedence
+from scoop.tokens import scanner, precedence
 from scoop.atoms import macros
 
 # these should lex properly, but may be nonsensicla
@@ -31,12 +31,12 @@ test_tokens = [
 
 # expected identifiers
 test_id = [
-    ["A","x", "b", "c", "x"],
+    ["_A","_x", "_b", "_c", "_x"],
     [],
     [],
-    ["m", "A"],
-    ["x", "x", "x"],
-    ["total", "k", "s"],
+    ["_m", "_A"],
+    ["_x", "_x", "_x"],
+    ["_total", "_k", "_s"],
     []
 ]
 
@@ -51,22 +51,14 @@ test_macros = [
     []
 ]
 
-def test_scanner_mangled():
+def test_scanner():
     for s,exp in zip(test_strings, test_tokens):
-        yield check_lex, scanner_mangled.scan, s, exp
+        yield check_lex, scanner.scan, s, exp
     for s,exp in zip(test_strings, test_id):
-        mangled = map(lambda x:'_'+x, exp)
-        yield check_id, scanner_mangled.scan, s, mangled
+        yield check_id, scanner.scan, s, exp
     for s,exp in zip(test_strings, test_macros):
-        yield check_macro, scanner_mangled.scan, s, exp
+        yield check_macro, scanner.scan, s, exp
     
-def test_scanner_unmangled():
-    for s,exp in zip(test_strings, test_tokens):
-        yield check_lex, scanner_unmangled.scan, s, exp
-    for s,exp in zip(test_strings, test_id):
-        yield check_id, scanner_unmangled.scan, s, exp
-    for s,exp in zip(test_strings, test_macros):
-        yield check_macro, scanner_unmangled.scan, s, exp
 
 def check_lex(f, s, expected):
     tok_list, remainder = f(s)

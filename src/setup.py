@@ -8,7 +8,6 @@ setup(
     packages=[  'scoop', 
                 'scoop.codegen', 
                 'scoop.atoms', 
-                'scoop.ir',
                 'scoop.expression',
                 'scoop.test'],
     package_dir={'scoop': 'python'},

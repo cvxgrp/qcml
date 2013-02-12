@@ -110,6 +110,13 @@ class Cone(object):
     
     def istrivial(self):
         return False
+    
+    def get_all_linfuncs(self):
+        def get_linfunc(funcs):
+            if len(funcs) == 1 and isinstance(funcs[0],list): return map(lambda e:e.linfunc, funcs[0])
+            else: return map(lambda e:e.linfunc, funcs)
+    
+        return [self.t.linfunc] + get_linfunc(self.arglist)
 
 class EqConstraint(Cone):
     def __init__(self, lhs, rhs):
