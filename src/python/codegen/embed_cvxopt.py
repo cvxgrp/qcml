@@ -194,6 +194,9 @@ def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,t
         h_vecs.append(hl_vec[blk_sz*i:blk_sz*i+blk_sz])
     
     return (G_mats, h_vecs)
+    
+def valid_args(e):
+    return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
 
 def generate(self):
     """This function will make sure to check that all *vector* variables have
@@ -245,7 +248,7 @@ def generate(self):
     def solver(**kwargs):
         # we'll assume we know 
         # # keyword args expect values to be of type int
-        if all(isinstance(e,int) or isinstance(e,o.matrix) for e in kwargs.values()):
+        if all(valid_args(e) for e in kwargs.values()):
             # args contains *actual* dimensions (for variables) and parameter values
             args = mangle(kwargs)
             
@@ -306,12 +309,7 @@ def generate(self):
                     
                     Gq_mats += mats
                     hq_vecs += vecs
-                print sizes
-                print c_obj
-                print A_mat
-                print b_mat
-                print Gl_mat
-                print hl_vec
+
                 sol = solvers.socp(c_obj, Gl_mat, hl_vec, Gq_mats, hq_vecs, A_mat, b_mat)
                 # print sol
                 # # Gl_mat, hl_vec
@@ -330,7 +328,7 @@ def generate(self):
             else:
                 raise Exception("Not all variable dimensions or parameters have been specified.")
         else:
-            raise Exception("Expected integer arguments for variables and matrix arguments for params.") 
+            raise Exception("Expected integer arguments for variables and matrix or float arguments for params.") 
     return solver
     
 # TODO: attach generate to Scoop class

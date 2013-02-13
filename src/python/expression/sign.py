@@ -50,8 +50,8 @@ class Sign(object):
         return Sign(sign)
         
     def __neg__(self):
-        self.sign_str = self.negate[self.sign_str]
-        return self
+        sign_str = self.negate[self.sign_str]
+        return Sign(sign_str)
         
     def __eq__(self,other):
         return self.sign_str == other.sign_str

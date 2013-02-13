@@ -122,12 +122,12 @@ class Expression(object):
         return Expression(vexity, sign, shape, name, linfunc)
         
     def __neg__(self):
-        self.vexity = self.negate[self.vexity]
-        self.sign = -self.sign
-        self.shape = -self.shape
-        self.linfunc = -self.linfunc
-        self.name = str(self.linfunc)
-        return self
+        vexity = self.negate[self.vexity]
+        sign = -self.sign
+        shape = -self.shape
+        linfunc = -self.linfunc
+        name = str(self.linfunc)
+        return Expression(vexity, sign, shape, name, linfunc)
     
     def __le__(self,other):
         if iscvx(self) and isccv(other):

@@ -107,9 +107,10 @@ class Coeff(object):
         return Coeff(filter_zero(d))
     
     def __neg__(self):
+        d = {}
         for k in self.coeff_dict:
-            self.coeff_dict[k] = -self.coeff_dict[k]
-        return self
+            d[k] = -self.coeff_dict[k]
+        return Coeff(d)
     
     def __sub__(self,other):
         # subtract the constants
@@ -235,9 +236,10 @@ class LinearFunc(object):
         return LinearFunc(linfunc_filter_zero(d))
     
     def __neg__(self):
+        d = {}
         for k in self.linear_dict:
-            self.linear_dict[k] = -self.linear_dict[k]
-        return self
+            d[k] = -self.linear_dict[k]
+        return LinearFunc(d)
     
     def __sub__(self,other):
         # subtract the constants
