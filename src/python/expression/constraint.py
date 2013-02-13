@@ -1,4 +1,5 @@
 import operator
+from linfunc import ZERO
 
 # these are convenience functions to *return* the cone constructor
 # 0 Cone.zero(x) means x == 0
@@ -24,6 +25,23 @@ def is_trivially_feasible(x, bool_op, y):
             raise Exception("Trivial infeasibility detected: '%s(%f, %f)'" % (bool_op.__name__, xval, yval))
     else:
         return False
+        
+def move_constant_to_rhs(func):
+    # problem is Gx + s = h
+    # s in K
+    # so s = -Gx + h
+    # if s in K, then we need to return -G and h
+    # so we negate the linear expression to get -G and -h,
+    # then negate h (or, in our case, 'c') to get the right thing
+    fneg = -func
+    f = dict(fneg.linear_dict)
+    c = fneg.linear_dict.get('1', None)
+    if c:
+        del f['1']
+        return (f, -c)
+    else:
+        return (f, ZERO)
+
 
 class Cone(object):
     
@@ -108,58 +126,22 @@ class Cone(object):
     
     def istrivial(self):
         return False
-        
-    def get_equivalence_sets(self, variables):
-        """Returns a list of dicts of vector variables whose shapes are related"""
-   
-        if self.istrivial(): return []
-        x = self.t.linfunc.get_dimensions()
-        s1 = set(x)
-        
-        if self.size == 0:
-            return [s1]
-        elif self.size == 1:
-            return [s1]
-        elif len(self.arglist) == 1:
-            if isinstance(self.size, str):
-                    ys = map(lambda e:set(e.linfunc.linear_dict), self.arglist[0])
-                    return [s1] + ys
-            else:
-                # abs(*args) <= t
-                y = self.arglist[0].linfunc.linear_dict
-                s2 = set(y)
-                return [s1.union(s2)]
-        else:
-            # norm(x,y,z,...) <= t
-            ys = map(lambda e:set(e.linfunc.linear_dict), self.arglist)
-            s = reduce(lambda x,y: x.union(y), ys, s1)
-            return [s]
     
-    def get_dimension(self, s):
-        linfuncs = [self.t.linfunc.linear_dict]
-        if self.size !=0 and self.size != 1 and len(self.arglist) == 1:
-            if isinstance(self.size, str):
-                    ys = map(lambda e:e.linfunc.linear_dict, self.arglist[0])
-                    linfuncs += ys
-            else:
-                # abs(*args) <= t
-                linfuncs += [self.arglist[0].linfunc.linear_dict]
-        else:
-            # norm(x,y,z,...) <= t
-            ys = map(lambda e:e.linfunc.linear_dict, self.arglist)
-            linfuncs += ys
+    def get_all_rows(self):
+        def get_linfunc(funcs):
+            if len(funcs) == 1 and isinstance(funcs[0],list): return map(lambda e:e.linfunc, funcs[0])
+            else: return map(lambda e:e.linfunc, funcs)
+        def get_sizes(funcs):
+            if len(funcs) == 1 and isinstance(funcs[0],list): return map(lambda e:e.shape, funcs[0])
+            else: return map(lambda e:e.shape, funcs)
         
-        def lookup_dim(e):
-            return e.get(s, None)
-
-        return map(lookup_dim, linfuncs)
-    
-    # def get_all_linfuncs(self):
-    #     def get_linfunc(funcs):
-    #         if len(funcs) == 1 and isinstance(funcs[0],list): return map(lambda e:e.linfunc, funcs[0])
-    #         else: return map(lambda e:e.linfunc, funcs)
-    # 
-    #     return [self.t.linfunc] + get_linfunc(self.arglist)
+        linfuncs = [self.t.linfunc] + get_linfunc(self.arglist)
+        rhs_and_lhs = map(move_constant_to_rhs, linfuncs)
+        lhs = list( v[0] for v in rhs_and_lhs )
+        rhs = list( v[1] for v in rhs_and_lhs )
+        sizes = [self.t.shape] + get_sizes(self.arglist)
+        # t is *always* first
+        return lhs, rhs, sizes
 
 class EqConstraint(Cone):
     def __init__(self, lhs, rhs):

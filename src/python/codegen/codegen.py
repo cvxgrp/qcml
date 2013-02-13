@@ -3,6 +3,19 @@ from scoop.expression import isscalar
 def mangle(d):
     return dict( ('_'+k,v) for k,v in d.iteritems() )
 
+def ismultiply(k):
+    return '*' in k
+
+def issum(k):
+    return 'sum' in k
+
+def height_of(heights, lookup):
+    v = 0
+    for h in heights:
+        v += h.row_value(lookup)
+    return v
+
+
 class Codegen(object):
     """Generic code generator object for optimization problems. Contains a
     dictionary of variables used in the optimization problem, cone constraints
@@ -24,58 +37,24 @@ class Codegen(object):
         d = set( k for k,v in self.variables.iteritems() if not isscalar(v.shape) )
         return d & set(list_of_used)
         
-    def get_variable_sizes(self, list_of_used):
+    def get_variable_sizes(self, defined):
         sizes = {}
-        used = set(list_of_used)    # original variables
-        vectors = set()
-        equiv_list = []             # list of equivalent sets
-        
-        print self.variables
+                        
+        for k,v in self.variables.iteritems():
+            if isscalar(v.shape):
+                sizes[k] = 1
+            else:
+                key = v.shape.rows.size
+                sizes[k] = defined[key]
                 
-        # for k,v in self.variables.iteritems():
-        #     if v.shape == SCALAR:
-        #         sizes[k] = 1
-        #     else:
-        #         vectors.add(k)
-        # 
-        # def references_vector(x):
-        #     dims = x.get_dimensions()
-        #     intersect = set(dims) & vectors
-        #     if intersect:
-        #         return (intersect, dims)
-        # 
-        # if vectors:
-        #     # if there are any vectors we need to infer dimensions
-        #     dims = self.obj.linfunc.get_dimensions()
-        #     # check the objective first
-        #     if set(dims) & vectors:
-        #         print used & vectors
-        #         print dims
-        #     
-        #     # look at all the cones and build equivalence sets
-        #     for c in self.cones:
-        #         s = c.get_equivalence_sets(self.variables)
-        #         for r in s:
-        #             for e in r:
-        #                 print ec
-        #                 print c.get_dimension(e)
-            #     lins = c.get_all_linfuncs()
-            #     dims = filter(None, map(references_vector, lins))
-            #     
-            #     if dims:
-            #         equiv = set()
-            #         for e in dims: equiv |= e[0]
-            #         
-            #         for e in equiv:
-            #             size = sizes.get(e, None)
-            #             if size: sizes[e] = size
-            #             else: sizes[e] = Row(e)
-            # 
-            # print sizes
-                # row, col = Row(1), Col(1)
-                # print 72*"="
-                # for k in lins:
-                #     print k.get_dimensions()
-        # print self.variables
-        # print sizes
+        return sizes
+        
+
+    # def zero_cones(self):
+    #     """Builds A*x = b"""
+    #     return filter(lambda e: e.size == 1, self.cones)
+    #     
+    # def second_order_cones(self):
+    #     return filter(lambda e: e.size != 1, self.cones)
+        
         

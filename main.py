@@ -30,6 +30,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 #from scoop import Scoop, print_prof_data
 from scoop import Scoop
+import cvxopt as o
 # just a driver for the problems
 
 # if the lang were embedded in python, could do some crazy stuff
@@ -45,23 +46,23 @@ if __name__ == '__main__':
     # strings. kind of cool
     map (p.run, 
     ["# this entire line is a comment!",
-     "variable x # hello, this is way too cool blah",
+     "variable x vector# hello, this is way too cool blah",
      "variable _x vector",
      "parameter A matrix positive",
      "parameter b vector",
-     "parameter a positive",
+     "parameter a vector",
      "variable t",
      "variable y",
      "variable t0",
      "parameter z",
      "",
-     "minimize a*x",
+     "minimize sum(x)",
      "  abs(x) <= 3",
-     "  norm_inf(x) <= y",
-     "  square(0.5 + a*x - 6) + -5 <= a*x <= a*x",
+     "#  norm_inf(x) <= y",
+     "#  square(0.5 + a*x - 6) + -5 <= a*x <= a*x",
      "#  max(square(x)+2, pos(t)) <= -norm1(y,t)",
      "#  quad_over_lin(_x, x) - min(y) <= -neg(z)",
-     "  norm_inf(_x) <= sqrt(0.8*_x-2)"
+     "#  norm_inf(_x) <= sqrt(0.8*_x-2)"
      "#norm(x) <= -3",
      "#a >= 0",
      "#abs(x)+3*x <= t -3",
@@ -70,7 +71,7 @@ if __name__ == '__main__':
     
     print p
     f = p.generate()
-    f(x = 1, _x = 3, y = 1, t0 = 1)
+    f(x = 5, _x = 3, y = 1, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
     
 
     

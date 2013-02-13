@@ -29,6 +29,20 @@ class Shape(object):
     def __repr__(self):
         return "Shape(%s, %s)" % (self.shape_str, self.rows, self.cols)
     
+    def row_value(self, lookup):
+        """Lookup the row value from the lookup table"""
+        if self.rows.size == 1:
+            return 1
+        else:
+            return lookup[self.rows.size]
+    
+    def col_value(self, lookup):
+        """Lookup the row value from the lookup table"""
+        if self.cols.size == 1:
+            return 1
+        else:
+            return lookup[self.cols.size]
+    
     __sub__ = None
     __eq__ = None
     __ne__ = None

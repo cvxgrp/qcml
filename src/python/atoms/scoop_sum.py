@@ -16,6 +16,8 @@ def sum_(*args):
     if len(args) == 1:
         # column sum
         v = Variable("sum(%s)" % args[0].name, Scalar())
+        v.linfunc = args[0].linfunc.rowsum()
+        
         v.vexity, v.sign = vexity, args[0].sign
     elif len(args) > 1:
         # row sum

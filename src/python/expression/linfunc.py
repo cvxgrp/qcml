@@ -65,6 +65,10 @@ class Coeff(object):
     @classmethod
     def constant(self, val):
         return Coeff({'1': val})
+    
+    @classmethod
+    def ones(self):
+        return Coeff({'ones^T': 1})
         
     @classmethod
     def parameter(self, s):
@@ -72,6 +76,10 @@ class Coeff(object):
             return Coeff({s: 1})
         else:
             raise Exception("Cannot create a coefficient")
+            
+    def constant_value(self):
+        if self.isconstant(): return self.coeff_dict['1']
+        else: return None
             
     def isconstant(self):
         return ('1' in self.coeff_dict and len(self.coeff_dict) == 1)
@@ -87,7 +95,7 @@ class Coeff(object):
     def iszero(self):
         """True if coeff represents 0"""
         return (self.isconstant() and self.coeff_dict['1'] == 0.0)
-    
+            
     
     def __add__(self, other):
         # add the constants
@@ -239,5 +247,12 @@ class LinearFunc(object):
         else:
             raise Exception("Cannot multiply two linear functionals. Nonconvex operation.")
     
-    
+    def rowsum(self):
+        # sum(a*x + b) = (1^T*a)*x + (1^T)*b
+        d = {}
+        vc = Coeff.ones()
+        for k,v in self.linear_dict.items():
+            d[k] = vc * v
+        
+        return LinearFunc(linfunc_filter_zero(d))
     
