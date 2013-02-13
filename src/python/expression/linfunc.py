@@ -138,7 +138,22 @@ class Coeff(object):
                     d[k1 + '*' + k2] = v1*v2
 
         return Coeff(filter_zero(d))
-        # (c + a1*p1)*c 
+        # (c + a1*p1)*c
+    
+    def transpose(self):
+        # add a "'" to every term
+        # note that the key "a*b'" means (a*b)' or b'*a'
+        d = {}
+        for k,v in self.coeff_dict.items():
+            if '*' in k:
+                keys = k.split('*')
+                keys = map(lambda e: e+'\'', keys)
+                keys.reverse()
+                key = ('*').join(keys)
+                d[key] = v
+            else:
+                d[k + '\''] = v
+        return Coeff(d)
 
 ZERO = Coeff.constant(0)
 
@@ -255,4 +270,14 @@ class LinearFunc(object):
             d[k] = vc * v
         
         return LinearFunc(linfunc_filter_zero(d))
+        
+    def transpose(self):
+        # only allow (f)' when f is a constant expression
+        if self.has_constant_coeff():
+            vc = self.linear_dict['1']
+            self.linear_dict['1'] = vc.transpose()
+            return LinearFunc(self.linear_dict)
+        else:
+            # TODO: this object isn't an expression
+            raise Exception("Cannot transpose variable expression.") 
     

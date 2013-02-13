@@ -395,9 +395,6 @@ class Scoop(object):
                 tok = 'PLUS_OP'
                 val = operator.add
             
-            # keep track of old token
-            last_tok = tok
-            
             # TODO: rewrite this ridculous tree as a dictionary?
             
             if tok == 'CONSTANT':
@@ -455,8 +452,12 @@ class Scoop(object):
                     else:
                         raise SyntaxError("\"%(s)s\"\n\tMisplaced semicolon separator or mismatched brace when parsing %(op)s." % locals())
                 argcount_stack[-1] += 1
+            elif tok == 'TRANSPOSE':
+                if last_tok == 'IDENTIFIER' or last_tok == 'RPAREN':
+                    rpn_stack.append( (tok, val, 1) )
+                else:
+                    raise SyntaxError("\"%(s)s\"\n\tCannot transpose %(last_tok)s." % locals())
             elif tok == 'UMINUS' or tok == 'MULT_OP' or tok == 'PLUS_OP': 
-                # or tok is "MINUS_OP":
                 if op_stack:
                     op,sym,arg = op_stack[-1]   # peek at top
                     
@@ -513,6 +514,9 @@ class Scoop(object):
                         raise SyntaxError("\"%(s)s\"\n\tCould not find matching left brace." % locals())
             else:
                 raise SyntaxError("\"%(s)s\"\n\tUnexpected %(tok)s with value %(val)s." % locals())
+                
+            # keep track of old token
+            last_tok = tok
             
         while op_stack:
             op,sym,arg = op_stack.pop()

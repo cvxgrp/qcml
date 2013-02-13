@@ -30,7 +30,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 from utils import error_msg, id_wrapper, \
     isunknown, ispositive, isnegative, \
-    isaff, iscvx, isccv, ismatrix
+    isaff, iscvx, isccv, ismatrix, isscalar, isvector
     
 from linfunc import LinearFunc
 from shape import Scalar, Vector, Matrix
@@ -46,6 +46,21 @@ from constraint import EqConstraint, LeqConstraint, GeqConstraint
 # should i make these classes so i can print them?
 AFFINE,CONVEX,CONCAVE,NONCONVEX = range(4)
 
+def transpose(x):
+    if isinstance(x,Expression):
+        vexity = x.vexity
+        sign = x.sign
+        if isscalar(x.shape):
+            shape = x.shape
+        else:
+            shape = Matrix(x.shape.cols, x.shape.rows)
+        linfunc = x.linfunc.transpose()
+        name = str(linfunc)
+        
+        return Expression(vexity, sign, shape, name, linfunc)
+    else:
+        raise SyntaxError("Cannot transpose non-Expression.")
+        
 # Expression evaluator goes here....
 class Expression(object):
     """An expression..."""

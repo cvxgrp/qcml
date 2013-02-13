@@ -3,7 +3,7 @@ from scoop.atoms import macros
 
 # these should lex properly, but may be nonsensicla
 test_strings = [
-    "minimize A*x + b - c + square(x)",
+    "minimize A*x + b - c' + square(x)",
     "maximize find parameter nonnegative nonpositive",
     "subject to 3*2 - 1 ==<=>= 0.3 0",
     "variable m scalar negative parameter matrix A positive",
@@ -20,7 +20,7 @@ fail_strings = [
 # expected success tokens
 test_tokens = [
     ["MINIMIZE", "IDENTIFIER", "MULT_OP", "IDENTIFIER", "PLUS_OP", "IDENTIFIER",
-     "UMINUS", "IDENTIFIER", "PLUS_OP", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN"],
+     "UMINUS", "IDENTIFIER", "TRANSPOSE", "PLUS_OP", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN"],
     ["MAXIMIZE", "FIND", "PARAMETER", "POSITIVE", "NEGATIVE"],
     ["SUBJECT_TO", "CONSTANT", "MULT_OP", "CONSTANT", "UMINUS", "CONSTANT", "EQ", "LEQ", "GEQ", "CONSTANT", "CONSTANT"],
     ["VARIABLE", "IDENTIFIER", "SCALAR", "NEGATIVE", "PARAMETER", "MATRIX", "IDENTIFIER", "POSITIVE"],

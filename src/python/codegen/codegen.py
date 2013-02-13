@@ -5,6 +5,9 @@ def mangle(d):
 
 def ismultiply(k):
     return '*' in k
+    
+def istranspose(k):
+    return '\'' in k
 
 def issum(k):
     return 'sum' in k

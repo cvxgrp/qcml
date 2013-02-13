@@ -27,7 +27,7 @@ class Shape(object):
             self.cols = n
         
     def __repr__(self):
-        return "Shape(%s, %s)" % (self.shape_str, self.rows, self.cols)
+        return "Shape(%s, %s)" % (self.rows, self.cols)
     
     def row_value(self, lookup):
         """Lookup the row value from the lookup table"""
@@ -78,7 +78,10 @@ class Shape(object):
             return Matrix(self.rows, self.cols)
         elif isinstance(self,Matrix) and isinstance(other,Vector):
             # also, their rows are equal to our cols
-            return Vector(self.rows)
+            if self.rows.size == 1 and other.cols.size == 1:
+                return Scalar()
+            else:
+                return Vector(self.rows)
         else:
             lhs = self.__class__.__name__
             rhs = self.__class__.__name__
@@ -111,6 +114,20 @@ class Vector(Shape):
     
     def __str__(self):
         return "vector"
+
+# class VectorT(Shape):
+#     def __init__(self,r):
+#         if isinstance(r,str):
+#             super(VectorT,self).__init__(Row(1), Col(r))
+#         else:
+#             super(VectorT,self).__init__(Row(1), r)
+#     
+#     def __repr__(self):
+#         return "VectorT(%s)" % self.cols
+#     
+#     def __str__(self):
+#         return "vector"
+        
         
 class Matrix(Shape):
     def __init__(self,r,c = None):
@@ -126,3 +143,19 @@ class Matrix(Shape):
     
     def __str__(self):
         return "matrix"
+        
+# class MatrixT(Shape):
+#     def __init__(self,r,c=None):
+#         if isinstance(r,str):
+#             super(MatrixT,self).__init__(Col(r), Row(r))
+#         elif c:
+#             super(MatrixT,self).__init__(c, r)
+#         else:
+#             raise Exception("Cannont create matrix with no columns.")
+# 
+#     
+#     def __repr__(self):
+#         return "MatrixT(%s)" % self.cols
+#     
+#     def __str__(self):
+#         return "matrix"

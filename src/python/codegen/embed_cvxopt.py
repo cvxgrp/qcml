@@ -31,7 +31,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 import cvxopt as o
 from cvxopt import solvers
 from scoop.expression import Parameter
-from codegen import mangle, ismultiply, height_of
+from codegen import mangle, ismultiply, istranspose, height_of
 # for embedded in python
 
 
@@ -48,7 +48,7 @@ def onesT(v,m):
 # define how to evaluate a coefficient in a matrix
 # a failure case sum(a*x), where x is scalar, but a is vector
 # another failure case is A*B*C, where B has diff dimensions than C.cols
-def eval_matrix_coeff(coeff, params, rows, cols):
+def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
     params['ones^T'] = onesT(1,cols)
     v = coeff.constant_value()
     if v:
@@ -69,7 +69,9 @@ def eval_matrix_coeff(coeff, params, rows, cols):
                 else:
                     raise Exception("Unknown matrix coeff...")
             elif not ismultiply(k):
-                value += v*params[k]
+                p = params[ k.rstrip('\'') ]
+                if istranspose(k): value += v*p.T
+                else: value += v*p
             else:
                 keys = k.split('*')
                 keys.reverse()
@@ -84,11 +86,16 @@ def eval_matrix_coeff(coeff, params, rows, cols):
                     if k1 == 'ones^T':
                         params[k1] = onesT(1,prev_param.size[0])
 
-                    #print params[k1]
-                    mult = params[k1]*mult
-                    prev_param = params[k1]
+                    p = params[ k.rstrip('\'') ]
+                    if istranspose(k): 
+                        mult = p.T*mult
+                        prev_param = p.T
+                    else: 
+                        mult = p*mult
+                        prev_param = p
                 value += v*mult
-        return value.T
+        if transpose_output: return value.T
+        else: return value
 
 # define how to evaluate a coefficient in a vector
 def eval_coeff(coeff, params, rows):
@@ -101,12 +108,17 @@ def eval_coeff(coeff, params, rows):
             if k == '1':
                 value += o.matrix(v, (rows,1))
             elif not ismultiply(k):
-                value += v*params[k]
+                p = params[ k.rstrip('\'') ]
+                if istranspose(k): value += v*p.T
+                else: value += v*p
             else:
-                keys = k.split('*').reverse()
+                keys = k.split('*')
+                keys.reverse()
                 mult = 1
                 for k1 in keys:
-                    mult *= params[k1]
+                    p = params[ k.rstrip('\'') ]
+                    if istranspose(k): mult = p.T*mult
+                    else: mult = p*mult
                 value += v*mult
         return value
         
@@ -116,9 +128,10 @@ def build_matrix(A,b,b_height, params,vec_sizes,start_idxs,total_width):
     G_vals = []
     G_I, G_J = [], []
     idx = 0  
-                     
+    
     for row, coeff, size in zip(A,b,b_height):
         row_height = size.row_value(vec_sizes)
+        
         h_vec[idx:idx+row_height] = eval_coeff(coeff, params, row_height)
         for k,v in row.iteritems():   # repeated function
             # we ignore constant coefficients
@@ -268,7 +281,7 @@ def generate(self):
                     if k != '1':
                         idx = start_idxs[k]
                         row_height = sizes[k]
-                        c_obj[idx:idx+row_height] = eval_matrix_coeff(v, args, row_height, 1)
+                        c_obj[idx:idx+row_height] = eval_matrix_coeff(v, args, row_height, 1, transpose_output=True)
                 
                 # get matrices
                 A_mat, b_mat = build_matrix(A, b, b_height, args, sizes, start_idxs, cum)
@@ -293,7 +306,12 @@ def generate(self):
                     
                     Gq_mats += mats
                     hq_vecs += vecs
-                
+                print sizes
+                print c_obj
+                print A_mat
+                print b_mat
+                print Gl_mat
+                print hl_vec
                 sol = solvers.socp(c_obj, Gl_mat, hl_vec, Gq_mats, hq_vecs, A_mat, b_mat)
                 # print sol
                 # # Gl_mat, hl_vec

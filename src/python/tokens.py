@@ -59,11 +59,6 @@ scanner = re.Scanner([
         (r"<=",                     lambda scanner,token:('LEQ', operator.le) ),
         (r">=",                     lambda scanner,token:('GEQ', operator.ge) ),
         (r"\d+\.\d*|\d+",           lambda scanner,token:('CONSTANT', e.Constant(float(token))) ),
-        # abs and norm are built in for the second-order cones
-        # (r"abs(?=\s*\()",           lambda scanner,token:("ABS", abs_) ),
-        # (r"norm2(?=\s*\()|norm(?=\s*\()", 
-        #                             lambda scanner,token:("NORM", norm) ),
-        # (r"sum(?=\s*\()",           lambda scanner,token:("SUM", sum_) ),
         (r"\(",                     lambda scanner,token:('LPAREN', token) ),
         (r"\)",                     lambda scanner,token:('RPAREN', token) ),
         (r"\[",                     lambda scanner,token:('LBRACE', token) ),
@@ -74,6 +69,7 @@ scanner = re.Scanner([
         (r"\*",                     lambda scanner,token:('MULT_OP', operator.mul) ),
         (r",",                      lambda scanner,token:('COMMA', token) ),
         (r";",                      lambda scanner,token:('SEMI', token) ),
+        (r"'",                      lambda scanner,token:('TRANSPOSE', e.transpose) ),
         (r"\s+",                    None), # None == skip token.
         (r".",                      lambda scanner,token:unrecognized_token(token))
     ])
