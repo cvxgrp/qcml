@@ -95,6 +95,9 @@ class Scalar(Shape):
     
     def __repr__(self):
         return "Scalar()"
+    
+    def __str__(self):
+        return "scalar"
 
 class Vector(Shape):
     def __init__(self,r):
@@ -105,6 +108,9 @@ class Vector(Shape):
     
     def __repr__(self):
         return "Vector(%s)" % self.rows
+    
+    def __str__(self):
+        return "vector"
         
 class Matrix(Shape):
     def __init__(self,r,c = None):
@@ -117,3 +123,6 @@ class Matrix(Shape):
     
     def __repr__(self):
         return "Matrix(%s,%s)" % (self.rows, self.cols)
+    
+    def __str__(self):
+        return "matrix"
