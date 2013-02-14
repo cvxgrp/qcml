@@ -21,20 +21,26 @@ problems = [
 ]
 
 #TODO: make sure maximization problem returns "- obj val"
-def check_solved(prob, exp, data):
-    p = Scoop()
-    map(p.run, prob)
-    print p
-    # assert False
-    f = p.generate()
-    x = f(**data)
-    print x['status']
-    print x['primal objective']
-    print x['x']
-    assert(x['status'] == 'optimal')
-    assert(abs(x['primal objective'] - exp) <= TOL)
+def checker(func, *args):
+
+    def check_solved(prob, exp, data):
+        p = Scoop()
+        map(p.run, prob)
+        print p
+        # assert False
+        f = getattr(p, func)(*args)
+        x = f(**data)
+        print x['status']
+        print x['primal objective']
+        print x['x']
+        assert(x['status'] == 'optimal')
+        assert(abs(x['primal objective'] - exp) <= TOL)
+    return check_solved
 
 def test_problems():
     for p, exp, data in problems:
-        yield check_solved, p, exp, data
+        yield checker("generate"), p, exp, data
+    
+    for p, exp, data in problems:
+        yield checker("generate_fixed_soc", 3), p, exp, data
     

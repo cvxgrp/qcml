@@ -122,7 +122,7 @@ class Cone(object):
                 return Cone(2,t,*args)
         else:
             # norm(*args) <= t
-            return Cone(len(args),t,*args)
+            return Cone(1+len(args),t,*args)
     
     def istrivial(self):
         return False

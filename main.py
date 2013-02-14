@@ -70,7 +70,7 @@ if __name__ == '__main__':
      "#geo_mean(3,1) == sqrt(3*2-b)"])
     
     print p
-    f = p.generate()
+    f = p.generate_fixed_soc(3)
     f(x = 5, _x = 3, y = 1, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
     
 

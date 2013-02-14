@@ -127,7 +127,6 @@ class MacroExpander(object):
         if constraint_stack: 
             return (constraint_stack, cone_stack, lines)
         else:
-            print operand_stack
             return (operand_stack, cone_stack, lines)
 
 

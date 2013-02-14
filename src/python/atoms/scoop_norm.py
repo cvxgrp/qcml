@@ -29,7 +29,4 @@ def norm(*args):
     # ] 
     
     v.vexity, v.sign = vexity, POSITIVE
-    print args
-    print v.vexity
-    print v.sign
     return (v, definition)  
