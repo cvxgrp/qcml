@@ -22,7 +22,6 @@ problems = [
 
 #TODO: make sure maximization problem returns "- obj val"
 def checker(func, *args):
-
     def check_solved(prob, exp, data):
         p = Scoop()
         map(p.run, prob)

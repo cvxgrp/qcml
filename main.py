@@ -51,13 +51,13 @@ if __name__ == '__main__':
      "parameter A matrix positive",
      "parameter b vector",
      "parameter a vector",
-     "variable t",
-     "variable y",
+     "variable t vector",
+     "variable y vector",
      "variable t0",
      "parameter z",
      "",
      "minimize sum(x)",
-     "  abs(x) <= 3",
+     "  norm(x) <= 3",
      "#  norm_inf(x) <= y",
      "#  square(0.5 + a*x - 6) + -5 <= a*x <= a*x",
      "#  max(square(x)+2, pos(t)) <= -norm1(y,t)",
@@ -71,7 +71,10 @@ if __name__ == '__main__':
     
     print p
     f = p.generate_fixed_soc(3)
-    f(x = 5, _x = 3, y = 1, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
+    sol = f(x = 5, t = 5, y = 5, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
+    f2 = p.generate()
+    sol = f2(x = 5, t = 5, y = 5, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
     
+    #print sol['x']
 
     

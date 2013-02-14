@@ -12,14 +12,17 @@ def norm(*args):
     if all(ispositive(e) for e in args): vexity |= reduce(operator.or_, map(increasing, args))
     elif all(isnegative(e) for e in args): vexity |= reduce(operator.or_, map(decreasing, args))
     else: vexity |= reduce(operator.or_, map(nonmonotone, args))
-        
-    # create a new variable
-    v = Variable(create_varname(), Scalar())
     
     if len(args) == 1:
+        # create a new variable
+        v = Variable(create_varname(), Scalar())
+        
         # Cone.SOC(v, [x]), norm(x) <= v
         definition = [v, Cone.SOC(v, [args[0]])]
     else:
+        # create a new variable (assumes all args have the same shape)
+        v = Variable(create_varname(), args[0].shape)
+        
         # Cone.SOC(v,x,y,z,...), norm(x,y,z,...) <= v
         definition = [v, Cone.SOC(v, *args)]
     

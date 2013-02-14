@@ -246,8 +246,6 @@ def generate(self):
             hq_height.append(sizes)
 
     def solver(**kwargs):
-        # we'll assume we know 
-        # # keyword args expect values to be of type int
         if all(valid_args(e) for e in kwargs.values()):
             # args contains *actual* dimensions (for variables) and parameter values
             args = mangle(kwargs)
