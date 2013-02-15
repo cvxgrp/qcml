@@ -9,7 +9,9 @@ test_strings = [
     "variable m scalar negative parameter matrix A positive",
     "norm ( ) norm(x) norm2(x) norm1 (x)",
     "[--total geo_mean(k,s) ;]",
-    ""
+    "",
+    "parameter xvectorpositive",
+    "parameter x vectorpositive"
 ]
 
 # these might fail
@@ -26,7 +28,9 @@ test_tokens = [
     ["VARIABLE", "IDENTIFIER", "SCALAR", "NEGATIVE", "PARAMETER", "MATRIX", "IDENTIFIER", "POSITIVE"],
     ["MACRO", "LPAREN", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN"],
     ["LBRACE", "UMINUS", "UMINUS", "IDENTIFIER", "MACRO", "LPAREN", "IDENTIFIER", "COMMA", "IDENTIFIER", "RPAREN", "SEMI", "RBRACE"],
-    []
+    [],
+    ["PARAMETER", "IDENTIFIER"],
+    ["PARAMETER", "IDENTIFIER", "IDENTIFIER"]
 ]
 
 # expected identifiers
@@ -37,7 +41,9 @@ test_id = [
     ["_m", "_A"],
     ["_x", "_x", "_x"],
     ["_total", "_k", "_s"],
-    []
+    [],
+    ["_xvectorpositive"],
+    ["_x", "_vectorpositive"]
 ]
 
 # expected macros
@@ -48,6 +54,8 @@ test_macros = [
     [],
     [macros['norm'], macros['norm'], macros['norm2'], macros['norm1']],
     [macros['geo_mean']],
+    [],
+    [],
     []
 ]
 
@@ -62,17 +70,22 @@ def test_scanner():
 
 def check_lex(f, s, expected):
     tok_list, remainder = f(s)
+    print tok_list
     assert(not remainder)
     assert( all(t[0] == e for t,e in zip(tok_list, expected)) )
 
 def check_id(f, s, expected):
     tok_list, remainder = f(s)
+    print tok_list
+    print s
+    print expected
     assert(not remainder)
     ids = filter(lambda x: x[0] is "IDENTIFIER", tok_list)
     assert( all(t[1] == e for t,e in zip(ids, expected)) )
 
 def check_macro(f, s, expected):
     tok_list, remainder = f(s)
+    print tok_list
     assert(not remainder)
     ids = filter(lambda x: x[0] is "MACRO", tok_list)
     assert( all(t[1] is e for t,e in zip(ids, expected)) )
