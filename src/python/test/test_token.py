@@ -11,7 +11,8 @@ test_strings = [
     "[--total geo_mean(k,s) ;]",
     "",
     "parameter xvectorpositive",
-    "parameter x vectorpositive"
+    "parameter x vectorpositive",
+    "variable x vector#hello"
 ]
 
 # these might fail
@@ -30,7 +31,8 @@ test_tokens = [
     ["LBRACE", "UMINUS", "UMINUS", "IDENTIFIER", "MACRO", "LPAREN", "IDENTIFIER", "COMMA", "IDENTIFIER", "RPAREN", "SEMI", "RBRACE"],
     [],
     ["PARAMETER", "IDENTIFIER"],
-    ["PARAMETER", "IDENTIFIER", "IDENTIFIER"]
+    ["PARAMETER", "IDENTIFIER", "IDENTIFIER"],
+    ["VARIABLE", "IDENTIFIER", "VECTOR"]
 ]
 
 # expected identifiers
@@ -43,7 +45,8 @@ test_id = [
     ["_total", "_k", "_s"],
     [],
     ["_xvectorpositive"],
-    ["_x", "_vectorpositive"]
+    ["_x", "_vectorpositive"],
+    ["_x"]
 ]
 
 # expected macros
@@ -54,6 +57,7 @@ test_macros = [
     [],
     [macros['norm'], macros['norm'], macros['norm2'], macros['norm1']],
     [macros['geo_mean']],
+    [],
     [],
     [],
     []
