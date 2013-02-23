@@ -199,9 +199,11 @@ In no particular order, the future of this project...
 * example suite
 * user guide
 * a solver based on scientific computing (just walks parse trees)
-* hook up to CVXOPT
 * a lex/yacc C API?
 
+Support
+=======
+This project is supported in large part by an XDATA grant, supported by the Air Force Research Laboratory grant FA8750-12-2-0306.
 
 
 <!-- Syntax
