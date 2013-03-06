@@ -75,6 +75,10 @@ if __name__ == '__main__':
     f2 = p.generate()
     sol = f2(x = 5, t = 5, y = 5, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
     
+    f3 = p.generate_matrix()
+    (c, G, h, free_lens, lp_lens, soc_lens) = f3(x = 5, t = 5, y = 5, t0 = 1, A = o.matrix(-1,(3,5)), z = 4)
+    
+    
     #print sol['x']
 
     
