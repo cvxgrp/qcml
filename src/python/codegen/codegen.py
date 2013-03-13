@@ -17,6 +17,16 @@ def height_of(heights, lookup):
     for h in heights:
         v += h.row_value(lookup)
     return v
+    
+def recover_variables(x, start_idxs, sizes, variables):
+    solution = {}
+    for v in variables:
+        ind = start_idxs[v];
+        l = sizes[v];
+        vname = v.lstrip('_')   # remove the mangling for the variable name
+        solution[vname] = x[ind:ind+l]
+    
+    return solution
 
 
 class Codegen(object):

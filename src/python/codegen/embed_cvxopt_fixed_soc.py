@@ -32,7 +32,7 @@ import math
 import cvxopt as o
 from cvxopt import solvers
 from scoop.expression import Parameter, Variable, Scalar, Vector, Constant, Cone
-from codegen import mangle, ismultiply, istranspose, height_of
+from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
 from scoop.atoms.utils import create_varname
 # for embedded in python
 
@@ -533,7 +533,8 @@ def generate(self, soc_sz):
                 # 
                 #     
                 # print c_obj
-                return sol
+                solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
+                return solution
 
             else:
                 raise Exception("Not all variable dimensions or parameters have been specified.")

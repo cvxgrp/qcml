@@ -28,6 +28,9 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
+# if the lang were embedded in python, could do some crazy stuff
+# problem is getting variable names from the symbol table
+
 from expression import Variable, Parameter, Expression, \
     Scalar, Vector, Matrix, isscalar, \
     Sign, CONVEX, CONCAVE, AFFINE, iscvx, isccv, isaff
@@ -156,8 +159,9 @@ class Scoop(object):
     # def display(self,toks):
     #     print ' '.join( map(lambda x:str(x[1]), toks) )
     
-    @profile
+    #@profile
     def run(self, s):
+        s.lstrip().rstrip()     # strip any leading or trailing whitespace
         Scoop.varcount = self.__varcount    # set global counter
         LinearFunc.used_vars = self.used_syms  # set the dict for linfunc
         
@@ -170,6 +174,10 @@ class Scoop(object):
                 raise Exception("Unknown parse error.")
         
         self.__varcount = Scoop.varcount    # save previous counter
+    
+    def rewrite(self, s):
+        lines = s.split('\n')
+        map(self.run, lines)
         
     
     # parsing functions to follow

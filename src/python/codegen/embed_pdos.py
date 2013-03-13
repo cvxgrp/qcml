@@ -1,3 +1,5 @@
+# This version just returns the matrices used in calling the SOCP solver
+
 """
 Copyright (c) 2012-2013, Eric Chu (eytchu@gmail.com)
 All rights reserved.
@@ -29,6 +31,9 @@ policies, either expressed or implied, of the FreeBSD Project.
 """
 
 import cvxopt as o
+import pdos_direct as p
+import pdos_indirect as q
+import numpy as np
 from cvxopt import solvers
 from scoop.expression import Parameter
 from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
@@ -198,7 +203,7 @@ def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,t
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
 
-def generate(self):
+def generate(self,indirect=False):
     """This function will make sure to check that all *vector* variables have
     their dimension defined. If dimensions are defined for SCALAR variables, 
     they are ignored."""
@@ -308,7 +313,9 @@ def generate(self):
                     Gq_mats += mats
                     hq_vecs += vecs
 
-                sol = solvers.socp(c_obj, Gl_mat, hl_vec, Gq_mats, hq_vecs, A_mat, b_mat)
+                # instead of calling the solvers, just print out the matrices
+                
+                #sol = solvers.socp(c_obj, Gl_mat, hl_vec, Gq_mats, hq_vecs, A_mat, b_mat)
                 # print sol
                 # # Gl_mat, hl_vec
                 # 
@@ -321,36 +328,26 @@ def generate(self):
                 # 
                 #     
                 # print c_obj
+                
+                Gqs = o.sparse(Gq_mats)
+                hqs = o.matrix(hq_vecs)
+                soc_lens = np.array(map(lambda x: x.size[0], hq_vecs))
+                lp_lens = hl_vec.size[0]
+                free_lens = b_mat.size[0]
+                G = o.sparse([A_mat, Gl_mat, Gqs])
+                h = o.matrix([b_mat, hl_vec, hqs])
+                (Gp, Gi, Gx) = G.CCS
+                if(indirect):
+                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1)
+                else:
+                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1)
+                
 
                 solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
                 return solution
-
             else:
                 raise Exception("Not all variable dimensions or parameters have been specified.")
         else:
             raise Exception("Expected integer arguments for variables and matrix or float arguments for params.") 
     return solver
     
-# TODO: attach generate to Scoop class
-# def generate(self, *kwargs):
-#     self.
-#     
-# # eventually will take Evaluator object or some IR as input
-#     # do as much of the hard work outside of this function
-#     # there's not a lot to be done, but the more you do, the better
-#     
-#     # this is a compromise with CVX and CVXGEN
-#     #   * you won't have to re-parse the problem, but you do have to re-stuff
-#     #   * you don't get the speed of CVXGEN, but you get the speed of programming (as in CVX)
-#     def f(**kwargs):
-#         # check to make sure the provided arguments are in our parameter list
-#         # at the moment, this list is just provided by the args to generate
-#         if set(args).issubset(kwargs):
-#             print "Yay! it works!"
-#         else:
-#             print "You fail! We expected arguments named %s" % str(args)
-#                # this function won't work because you passed the wrong arguments. we're expecting
-#             raise Exception("SORRY!")
-# 
-#     # return the solver function
-#    return f

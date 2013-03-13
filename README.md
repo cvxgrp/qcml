@@ -15,6 +15,8 @@ This project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
 * [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
+* [PDOS](http://github.com/cvxgrp/pdos) -- be sure to install the Python module
+* [NUMPY](http://www.numpy.org/)
 
 For unit testing, we use [Nose](http://nose.readthedocs.org).
 
