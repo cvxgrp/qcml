@@ -17,7 +17,7 @@ def geo_mean(x,y):
     # declare definiton
     constraints = [
         v, # declare variable
-        Cone.SOC(Constant(0.5)*x + Constant(0.5)*y, -Constant(0.5)*x + Constant(0.5)*y, v),
+        Cone.SOC(x + y, y - x, Constant(2.0)*v),
         y >= Constant(0)
     ]
                 

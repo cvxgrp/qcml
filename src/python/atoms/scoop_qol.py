@@ -27,16 +27,18 @@ def quad_over_lin(x,y):
     if isscalar(shape):
         definition = [
             v,  # declare the variable
-            # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
-            Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, [Constant(0.5)*y - Constant(0.5)*v, x]),
+            # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
+            # norm([y-v; 2x]) <= y+v
+            Cone.SOC(y + v, [y - v, Constant(2.0)*x]),
             y >= Constant(0)
         ]
 
     else:
         definition = [
             v, # declare the variable
-            # norm([(1/2)(t-v); x]) <= (1/2)(y + v)
-            Cone.SOC(Constant(0.5)*y + Constant(0.5)*v, Constant(0.5)*y - Constant(0.5)*v, x),
+            # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
+            # norm([y-v; 2x]) <= y+v
+            Cone.SOC(y + v, y - v, Constant(2.0)*x),
             y >= Constant(0)
         ]
         

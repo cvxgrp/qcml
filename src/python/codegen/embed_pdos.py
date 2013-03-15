@@ -344,7 +344,7 @@ def generate(self,indirect=False):
                 
 
                 solution = recover_variables(o.matrix(sol['x']), start_idxs, sizes, variable_set)
-                solution['primal objective'] = np.dot(np.array(c_obj), sol['x'])
+                solution['primal objective'] = np.vdot(np.array(c_obj), sol['x'])
                 solution['status'] = sol['status']
                 return solution
             else:
