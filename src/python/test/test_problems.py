@@ -20,7 +20,7 @@ problems = [
     
 ]
 
-#TODO: make sure maximization problem returns "- obj val"
+#TODO: ensure that F'*x doesn't introduce 0's
 def checker(func, *args):
     def check_solved(prob, exp, data):
         p = Scoop()
