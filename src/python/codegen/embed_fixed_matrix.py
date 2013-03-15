@@ -28,10 +28,12 @@ those of the authors and should not be interpreted as representing official
 policies, either expressed or implied, of the FreeBSD Project.
 """
 
+import math
 import cvxopt as o
 from cvxopt import solvers
-from scoop.expression import Parameter
+from scoop.expression import Parameter, Variable, Scalar, Vector, Constant, Cone
 from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
+from scoop.atoms.utils import create_varname
 # for embedded in python
 
 
@@ -49,6 +51,7 @@ def onesT(v,m):
 # a failure case sum(a*x), where x is scalar, but a is vector
 # another failure case is A*B*C, where B has diff dimensions than C.cols
 def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
+    # rows is the rows of the input
     params['ones^T'] = onesT(1,cols)
     v = coeff.constant_value()
     if v:
@@ -128,7 +131,7 @@ def build_matrix(A,b,b_height, params,vec_sizes,start_idxs,total_width):
     G_vals = []
     G_I, G_J = [], []
     idx = 0  
-    
+        
     for row, coeff, size in zip(A,b,b_height):
         row_height = size.row_value(vec_sizes)
         
@@ -195,15 +198,165 @@ def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,t
     
     return (G_mats, h_vecs)
     
+def pad_matrix(G, h, start_idxs, total_width, target_size):
+    init_size = G.size[0]
+    counter = 0
+    Ai, Aj, Aval = [], [], []
+    Gi, Gj, Gval = list(G.I), list(G.J), list(G.V)
+    hval = list(h)
+    b = []
+    while init_size < target_size:
+        new_var = create_varname()  # this is always scalar
+        # create a new var and ensure its index is at the end
+        start_idxs[new_var] = total_width
+
+        Ai.append(counter)
+        Aj.append(total_width)
+        Gi.append(init_size)
+        Gj.append(total_width)
+        Gval.append(-1.)
+        
+        # increment the total number of variables
+        total_width += 1
+        counter += 1
+        init_size += 1
+        
+    Aval = counter*[1.]
+    b = counter*[0.]
+    hval += counter*[0.]
+    
+    return [Gi], [Gj], [Gval], [hval], [Ai], [Aj], [Aval], [b], total_width
+        
+def chop_matrix(G, h, start_idxs, total_width, target_size):
+    if h.size[0] <= target_size:
+        return pad_matrix(G,h, start_idxs, total_width, target_size)
+    else:
+        Ai, Aj, Aval = [], [], []
+        b = []
+        Gis, Gjs, Gvals = [], [], []
+        hlist = []
+        hval = list(h)
+        t, ht = G[0,:], h[0]
+        others = G[1:,:]
+        #ti,tj,val = G.I[0], G.J[0], G.V[0]          # first component is "t"
+        #Gi, Gj, Gval = G.I[1:], G.J[1:], G.V[1:]    # the rest
+        
+        hval = list(h[1:])
+        
+        arglist_size = target_size - 1  # recall that target size counts "t" as well
+        l = others.size[0]
+        # chunk size
+        n = int(math.ceil(l/float(arglist_size)))
+        G_chunk = [others[i:i+n,:] for i in range(0,l,n)]
+        h_chunk = [hval[i:i+n] for i in range(0,l,n)]
+        
+        
+        # introduce a new variable for each arg
+        new_variables = []
+        for g,hc in zip(G_chunk,h_chunk):
+            Gi, Gj, Gval = list(g.I+1), list(g.J), list(g.V)
+            new_var = create_varname()  # this is always scalar
+            # create a new var and ensure its index is at the end
+            start_idxs[new_var] = total_width
+            new_variables.append(total_width)
+            
+            Gi.append(0)
+            Gj.append(total_width)
+            Gval.append(-1.)
+            total_width += 1
+            
+            h_vec = o.matrix([0] + hc)
+            G_mat = o.spmatrix(Gval, Gi, Gj, (g.size[0]+1, total_width))
+            
+            Gi_list, Gj_list, Gval_list, hval_list, \
+            Ai_list, Aj_list, Aval_list, b_list, total_width \
+                = chop_matrix(G_mat, h_vec, start_idxs, total_width, target_size)
+            #[Gi], [Gj], [Gval], [hval], [Ai], [Aj], [Aval], [b], total_width
+            
+            Gis += Gi_list
+            Gjs += Gj_list
+            Gvals += Gval_list
+            hlist += hval_list
+            Ai += Ai_list
+            Aj += Aj_list
+            Aval += Aval_list
+            b += b_list
+            
+        ti, tj, tval = list(t.I), list(t.J), list(t.V)
+        counter = 1
+        for ind in new_variables:
+            tval.append(-1.)
+            tj.append(ind)
+            ti.append(counter)
+            counter += 1
+            
+        hlist.append([ht] + (counter-1)*[0])
+        Gis.append(ti)
+        Gjs.append(tj)
+        Gvals.append(tval)
+
+        return Gis, Gjs, Gvals, hlist, Ai, Aj, Aval, b, total_width
+    
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
 
-def generate(self):
+
+def generate(self, soc_sz):
     """This function will make sure to check that all *vector* variables have
     their dimension defined. If dimensions are defined for SCALAR variables, 
-    they are ignored."""
+    they are ignored.
+    
+    This code generator assumes the second-order cone size has a fixed length."""
+    
+    if soc_sz < 3:
+        raise Exception("Minimum SOC size is 3.")
+    
     codegen = self.codegen
     used = set(self.used_syms)
+    
+    def pad_cone(k, target_size):
+        row, coeff, sizes = k.get_all_rows()
+        init_size = k.size
+        cones = []
+        others = []
+        while init_size < target_size:
+            v = Variable(create_varname(), sizes[0])
+            codegen.variables[v.name] = v
+            cones.append(v == Constant(0))
+            others.append(v)
+            init_size += 1
+        arglist = list(k.arglist) + others
+        new_cone = Cone.SOC(k.t, *arglist)
+        cones.append(new_cone)
+        return cones
+        
+    def split_cone(k, target_size):
+        if k.size <= target_size:
+            return pad_cone(k, target_size)
+        
+        cones = []
+        row, coeff, sizes = k.get_all_rows()
+        arglist_size = target_size - 1  # recall that target size counts "t" as well
+        t = k.t
+        arglist = list(k.arglist)
+        l = len(arglist)
+        # chunk size
+        n = int(math.ceil(l/float(arglist_size)))
+        args = [arglist[i:i+n] for i in range(0,l,n)]
+        
+        # introduce a new variable for each arg
+        new_variables = []
+        for a in args:
+            v = Variable(create_varname(), sizes[0])
+            codegen.variables[v.name] = v
+            new_variables.append(v)
+            new_cone = Cone.SOC(v, *a)
+            cones += split_cone(new_cone, target_size)
+        
+        new_cone = Cone.SOC(k.t, *new_variables)
+        cones.append(new_cone)
+        return cones
+
     
     # get the used params and the used variables
     params = dict( (k,v) for k,v in self.symtable.iteritems() if k in used and isinstance(v,Parameter) )
@@ -219,6 +372,27 @@ def generate(self):
     # this is a block matrix for product cones
     Gblk, hblk, hblk_blocks = [], [], [] # these are for doing things like abs(x) <= t
     
+    # chop up known blocks
+    cones = [] 
+    while codegen.cones:
+        k = codegen.cones.pop()
+        if k.size == 0 or k.size == 1:
+            cones.append(k)
+        elif isinstance(k.size, int):
+            counter = k.size
+            row, coeff, sizes = k.get_all_rows()
+            others = []
+            # i think just a simple "split_cone" call will do
+            if counter < soc_sz:
+                cones += pad_cone(k, soc_sz)
+            elif counter > soc_sz:
+                cones += split_cone(k, soc_sz)
+            else:
+                cones.append(k)
+        else:
+            cones.append(k)
+        
+    codegen.cones = cones
     for k in codegen.cones:
         if k.size == 0:
             # print "goes in A,b"
@@ -245,13 +419,11 @@ def generate(self):
             hq.append(coeff)
             hq_height.append(sizes)
 
+            
     def solver(**kwargs):
         if all(valid_args(e) for e in kwargs.values()):
             # args contains *actual* dimensions (for variables) and parameter values
             args = mangle(kwargs)
-            
-            # only care about the ones that are used
-            # args = dict( (k,v) for k,v in mangled.iteritems() if k in set(used) )
             
             # make sure all keys are subset of needed variable list
             if variable_set.issubset(args) and set(params).issubset(args):
@@ -275,6 +447,40 @@ def generate(self):
                     if k in set(args):
                         sizes[k] = args[k].size
                 
+                Gis, Gjs, Gvals, hs = [],[],[],[]
+                Ais, Ajs, Avals, bs = [],[],[],[]
+                # we do the SOC first, since we will be introducing new variables (new columns)
+                for G, h, height in zip(Gq, hq, hq_height):
+                    mat, vec = build_matrix(G, h, height, args, sizes, start_idxs, cum)
+                    
+                    Gi_list, Gj_list, Gvals_list, hlist, Ai_list, Aj_list, Av_list, \
+                    blist, cum = chop_matrix(mat, vec, start_idxs, cum, soc_sz)
+                    
+                    Gis += Gi_list
+                    Gjs += Gj_list
+                    Gvals += Gvals_list
+                    hs += hlist
+                    Ais += Ai_list
+                    Ajs += Aj_list
+                    Avals += Av_list
+                    bs += blist
+                    
+                    # print args
+                    # # ensure that sizes agree
+                    # oldsize = mat.size
+                    # mat.size = (oldsize[0], cum)
+                    # print mat
+                    # print vec
+                    # Gq_mats.append(mat)
+                    # hq_vecs.append(vec)
+                    
+                # cum is now updated
+                Gq_mats, hq_vecs = [], []
+                for i,j,v,h in zip(Gis, Gjs, Gvals, hs):
+                    hq_vecs.append(o.matrix(h,tc='d'))
+                    Gq_mats.append(o.spmatrix(v,i,j,(soc_sz, cum)))
+                
+                
                 # get objective vector
                 c_obj = o.matrix(0, (cum,1), 'd')
                 for k,v in c.iteritems():
@@ -285,19 +491,24 @@ def generate(self):
                         c_obj[idx:idx+row_height] = eval_matrix_coeff(v, args, row_height, 1, transpose_output=True)
                 
                 # get matrices
-                A_mat, b_mat = build_matrix(A, b, b_height, args, sizes, start_idxs, cum)
+                A_mat, b_vec = build_matrix(A, b, b_height, args, sizes, start_idxs, cum)
+                height = A_mat.size[0]
+                Ai, Aj, Av, b_vals = list(A_mat.I), list(A_mat.J), list(A_mat.V), list(b_vec)
+                # now, update A_mat and b_mat
+                for i,j,v,h in zip(Ais, Ajs, Avals, bs):
+                    b_vals += h
+                    Ai += (map(lambda e: e+height, i))
+                    Aj += j
+                    Av += v
+                    height += len(h)
+                    
+                
+                b_vec = o.matrix(b_vals,tc='d')
+                A_mat = o.spmatrix(Av, Ai, Aj, (height, cum))
+                    
                 Gl_mat, hl_vec = build_matrix(Gl, hl, hl_height, args, sizes, start_idxs, cum)
-                Gq_mats, hq_vecs = [], []
                 
-                # matrices in SOC
-                for G, h, height in zip(Gq, hq, hq_height):
-                    mat, vec = build_matrix(G, h, height, args, sizes, start_idxs, cum)
-                    # ensure that sizes agree
-                    oldsize = mat.size
-                    mat.size = (oldsize[0], cum)
-                    Gq_mats.append(mat)
-                    hq_vecs.append(vec)
-                
+                # these have been pre-divided
                 for G, h, height in zip(Gblk, hblk, hblk_blocks):
                     mats, vecs = build_block_matrices(G, h, height, args, sizes, start_idxs, cum)
                     # ensure that sizes agree
@@ -308,22 +519,15 @@ def generate(self):
                     Gq_mats += mats
                     hq_vecs += vecs
 
-                sol = solvers.socp(c_obj, Gl_mat, hl_vec, Gq_mats, hq_vecs, A_mat, b_mat)
-                # print sol
-                # # Gl_mat, hl_vec
-                # 
-                # print sizes
-                # print c_obj
-                # print A_mat
-                # print b_mat
-                # print Gl_mat
-                # print hl_vec
-                # 
-                #     
-                # print c_obj
 
-                solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
-                return solution
+                Gqs = o.sparse(Gq_mats)
+                hqs = o.matrix(hq_vecs)
+                soc_lens = map(lambda x: x.size[0], hq_vecs)
+                lp_lens = hl_vec.size[0]
+                free_lens = b_vec.size[0]
+                G = o.sparse([A_mat, Gl_mat, Gqs])
+                h = o.matrix([b_vec, hl_vec, hqs])
+                return (c_obj, G, h, free_lens, lp_lens, soc_lens)
 
             else:
                 raise Exception("Not all variable dimensions or parameters have been specified.")
@@ -331,26 +535,3 @@ def generate(self):
             raise Exception("Expected integer arguments for variables and matrix or float arguments for params.") 
     return solver
     
-# TODO: attach generate to Scoop class
-# def generate(self, *kwargs):
-#     self.
-#     
-# # eventually will take Evaluator object or some IR as input
-#     # do as much of the hard work outside of this function
-#     # there's not a lot to be done, but the more you do, the better
-#     
-#     # this is a compromise with CVX and CVXGEN
-#     #   * you won't have to re-parse the problem, but you do have to re-stuff
-#     #   * you don't get the speed of CVXGEN, but you get the speed of programming (as in CVX)
-#     def f(**kwargs):
-#         # check to make sure the provided arguments are in our parameter list
-#         # at the moment, this list is just provided by the args to generate
-#         if set(args).issubset(kwargs):
-#             print "Yay! it works!"
-#         else:
-#             print "You fail! We expected arguments named %s" % str(args)
-#                # this function won't work because you passed the wrong arguments. we're expecting
-#             raise Exception("SORRY!")
-# 
-#     # return the solver function
-#    return f

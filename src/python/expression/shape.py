@@ -1,11 +1,14 @@
+# this will all change when dimensions become "abstract" strings
+
 class Dimension(object):
     def __init__(self, s):
         self.size = s
     
-    def __eq__(self,other):
-        return self.size == other.size
-    def __ne__(self,other):
-        return self.size != other.size
+    # different dimensions are not comparable
+    # i.e., Row(A) cannot be compared to Col(A)
+    def __eq__(self,other): NotImplemented
+    def __ne__(self,other): NotImplemented
+
     
 class Row(Dimension):
     def __init__(self, s):
@@ -13,6 +16,11 @@ class Row(Dimension):
     
     def __repr__(self):
         return "Row(%s)" % self.size
+    
+    def __eq__(self,other):
+        return self.size == other.size
+    def __ne__(self,other):
+        return self.size != other.size
 
 class Col(Dimension):
     def __init__(self, s):
@@ -20,6 +28,17 @@ class Col(Dimension):
     
     def __repr__(self):
         return "Col(%s)" % self.size
+        
+    def __eq__(self,other):
+        return self.size == other.size
+    def __ne__(self,other):
+        return self.size != other.size
+
+def isrow(x):
+    return isinstance(x,Row)
+
+def iscol(x):
+    return isinstance(x,Col)
 
 class Shape(object):
     def __init__(self,m,n):
@@ -34,14 +53,41 @@ class Shape(object):
         if self.rows.size == 1:
             return 1
         else:
-            return lookup[self.rows.size]
+            v = lookup[self.rows.size]
+            if( isrow(self.rows) ):
+                if isinstance(v,int):
+                    return v
+                else:
+                    return v[0]
+            elif( iscol(self.rows) ):
+                if isinstance(v,int):
+                    return v
+                else:
+                    return v[1]
+            else:
+                return v
+                
     
     def col_value(self, lookup):
-        """Lookup the row value from the lookup table"""
+        """Lookup the column value from the lookup table"""
         if self.cols.size == 1:
             return 1
         else:
-            return lookup[self.cols.size]
+            v = lookup[self.cols.size]
+            if( isrow(self.cols) ):
+                if isinstance(v,int):
+                    return v
+                else:
+                    return v[0]
+            elif( iscol(self.cols) ):
+                if isinstance(v,int):
+                    return v
+                else:
+                    return v[1]
+            else:
+                return v
+
+
     
     __sub__ = None
     __eq__ = None

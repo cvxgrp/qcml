@@ -3,7 +3,8 @@ from profiler import print_prof_data
 import codegen.embed_cvxopt as g1
 import codegen.embed_cvxopt_fixed_soc as g2
 import codegen.embed_matrix as g3
-import codegen.embed_pdos as g4
+import codegen.embed_fixed_matrix as g4
+import codegen.embed_pdos as g5
 
 # to make sure atoms get loaded
 import atoms
@@ -13,7 +14,8 @@ from types import MethodType
 Scoop.generate = MethodType(g1.generate, None, Scoop)
 Scoop.generate_fixed_soc = MethodType(g2.generate, None, Scoop)
 Scoop.generate_matrix = MethodType(g3.generate, None, Scoop)
-Scoop.generate_pdos = MethodType(g4.generate, None, Scoop)
+Scoop.generate_fixed_matrix = MethodType(g4.generate, None, Scoop)
+Scoop.generate_pdos = MethodType(g5.generate, None, Scoop)
 
 # Evaluator.add = MethodType(op_add, None, Evaluator)
 # Evaluator.sub = MethodType(op_minus, None, Evaluator)

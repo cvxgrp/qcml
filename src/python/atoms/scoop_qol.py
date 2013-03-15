@@ -13,10 +13,18 @@ def quad_over_lin(x,y):
     else: vexity |= nonmonotone(x) | decreasing(y)
 
     # declare a new variable
-    v = Variable(create_varname(), y.shape)
+    shape = None
+    if isscalar(y.shape):
+        shape = x.shape
+    elif isscalar(x.shape):
+        shape = y.shape
+    else:
+        raise SyntaxError("Cannot use quad over lin with x, y both vector arguments.")
+        
+    v = Variable(create_varname(), shape)
                 
     # declare the expansion in "SCOOP"
-    if isscalar(y.shape):
+    if isscalar(shape):
         definition = [
             v,  # declare the variable
             # norm([(1/2)(t-v); x]) <= (1/2)(y + v)

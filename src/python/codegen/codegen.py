@@ -51,14 +51,20 @@ class Codegen(object):
         return d & set(list_of_used)
         
     def get_variable_sizes(self, defined):
-        sizes = {}
-                        
+        sizes = {}    
+            
         for k,v in self.variables.iteritems():
             if isscalar(v.shape):
                 sizes[k] = 1
             else:
                 key = v.shape.rows.size
-                sizes[k] = defined[key]
+                
+                # TODO: insert user-defined "row" operator for matrices passed in
+                d = defined[key]
+                if(d.__class__.__name__ == "int"):
+                    sizes[k] = d
+                else:
+                    sizes[k] = d.size[0]
                 
         return sizes
         

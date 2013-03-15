@@ -51,6 +51,7 @@ def onesT(v,m):
 # a failure case sum(a*x), where x is scalar, but a is vector
 # another failure case is A*B*C, where B has diff dimensions than C.cols
 def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
+    # rows is the rows of the input
     params['ones^T'] = onesT(1,cols)
     v = coeff.constant_value()
     if v:
@@ -78,7 +79,7 @@ def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
                 keys = k.split('*')
                 keys.reverse()
                 mult = 1
-                prev_param = None
+                prev_param = ones(0,rows)
                 for k1 in keys:
                     
                     # in the special case where we we have something like
@@ -88,7 +89,7 @@ def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
                     if k1 == 'ones^T':
                         params[k1] = onesT(1,prev_param.size[0])
 
-                    p = params[ k.rstrip('\'') ]
+                    p = params[ k1.rstrip('\'') ]
                     if istranspose(k): 
                         mult = p.T*mult
                         prev_param = p.T
@@ -155,7 +156,6 @@ def build_matrix(A,b,b_height, params,vec_sizes,start_idxs,total_width):
 
 def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,total_width):
     heights = map(lambda e:e.row_value(vec_sizes), b_blk_height)
-    print b_blk_height
     if any(e != heights[0] for e in heights):
         raise Exception("Expected blocks to be the same size!")
         
@@ -445,7 +445,7 @@ def generate(self, soc_sz):
                 # add parameter sizes to the dictionary (!!!hack)
                 for k in codegen.parameters:
                     if k in set(args):
-                        sizes[k] = args[k].size[0]
+                        sizes[k] = args[k].size
                 
                 Gis, Gjs, Gvals, hs = [],[],[],[]
                 Ais, Ajs, Avals, bs = [],[],[],[]

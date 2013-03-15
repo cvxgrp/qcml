@@ -81,7 +81,7 @@ def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
                 keys = k.split('*')
                 keys.reverse()
                 mult = 1
-                prev_param = None
+                prev_param = ones(0,rows)
                 for k1 in keys:
                     
                     # in the special case where we we have something like
@@ -91,7 +91,7 @@ def eval_matrix_coeff(coeff, params, rows, cols, transpose_output=False):
                     if k1 == 'ones^T':
                         params[k1] = onesT(1,prev_param.size[0])
 
-                    p = params[ k.rstrip('\'') ]
+                    p = params[ k1.rstrip('\'') ]
                     if istranspose(k): 
                         mult = p.T*mult
                         prev_param = p.T
@@ -278,7 +278,7 @@ def generate(self,indirect=False):
                 # add parameter sizes to the dictionary (!!!hack)
                 for k in codegen.parameters:
                     if k in set(args):
-                        sizes[k] = args[k].size[0]
+                        sizes[k] = args[k].size
                 
                 # get objective vector
                 c_obj = o.matrix(0, (cum,1), 'd')
@@ -343,7 +343,7 @@ def generate(self,indirect=False):
                     sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1)
                 
 
-                solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
+                solution = recover_variables(o.matrix(sol['x']), start_idxs, sizes, variable_set)
                 return solution
             else:
                 raise Exception("Not all variable dimensions or parameters have been specified.")

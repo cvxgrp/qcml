@@ -1,7 +1,16 @@
 from scoop import Scoop
 import cvxopt as o
+import numpy as npy
 
 if __name__ == '__main__':
+    
+    print "Creating data."
+    n = 30    # number of variables
+    m = 10      # number of factors
+    mu = o.exp(o.normal(n))
+    D = o.spdiag(o.sqrt(o.uniform(n,b=2.0)))
+    F = o.normal(n,m)
+    gamma = 1
     
     p = Scoop()
     
@@ -11,15 +20,24 @@ if __name__ == '__main__':
     p.rewrite(
         """
         variable x vector
-        minimize sum(x)
-            norm(x) <= 3
+        parameter mu vector
+        parameter gamma positive
+        parameter F matrix
+        parameter D matrix
+        maximize (mu'*x - gamma*(norm(F'*x) + norm(D*x)))
+            sum(x) == 10
         """
     )
     
     # you can also add to the problem spec line by line if you wanted to
     # but you have to be careful to reference variables or parameters that
     # you have previously declared
-    p.rewrite("x >= -2")
+    p.rewrite("x >= 0")
+    
+    npy.savetxt('mu', npy.matrix(mu))
+    (Dp,Di,Dx) = D.CCS
+    npy.savetxt('Dx', npy.matrix(Dx))
+    npy.savetxt('F', npy.matrix(F))
     
     print p
     
@@ -29,20 +47,31 @@ if __name__ == '__main__':
     # length 3
     f = p.generate_fixed_soc(3)
     # solve the problem with x of length 5
-    sol1 = f(x = 5)
+    sol1 = f(x = n, mu = mu, D = D, F = F, gamma = gamma)
     
     # generate a generic solver (CVXOPT) for the second-order cone program
     f2 = p.generate()
     # solve the problem with x of length 5
-    sol2 = f2(x = 5)
+    sol2 = f2(x = n, mu = mu, D = D, F = F, gamma = gamma)
     
     # generate a function to spit out the raw data
-    # f3 = p.generate_matrix()
-    # (c, G, h, free_lens, lp_lens, soc_lens) = f3(x = 5)
+    f3 = p.generate_matrix()
+    (c, G, h, free_lens, lp_lens, soc_lens) = f3(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    npy.savetxt('Gj', npy.matrix(G.J))
+    npy.savetxt('Gi', npy.matrix(G.I))
+    npy.savetxt('Gx', npy.matrix(G.V))
+    
+    # generate a function to spit out the raw data
+    f4 = p.generate_fixed_matrix(3)
+    (c, G, h, free_lens, lp_lens, soc_lens) = f4(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    (Gp,Gi,Gx) = G.CCS
+    npy.savetxt('Gj_fx', npy.matrix(G.J))
+    npy.savetxt('Gi_fx', npy.matrix(G.I))
+    npy.savetxt('Gx_fx', npy.matrix(G.V))
     
     # now, use a first order solver to solve the problem
-    f4 = p.generate_pdos(False)
-    sol3 = f4(x = 5)
+    f5 = p.generate_pdos(False)
+    sol3 = f5(x = n, mu = mu, D = D, F = F, gamma = gamma)
     
     # compare the solutions
     print sol1['x']
@@ -50,10 +79,10 @@ if __name__ == '__main__':
     print sol3['x']
     #print sol['x']
     
-    raw_input("now solve the same problem with different length variable; press ENTER to continue....")
-    # now try solving the same problem but with different length x's
-    for l in range(1,10):
-        sol = f2(x = l)
-        print sol['x']
+    # raw_input("now solve the same problem with different length variable; press ENTER to continue....")
+    # # now try solving the same problem but with different length x's
+    # for l in range(1,10):
+    #     sol = f2(x = l)
+    #     print sol['x']
 
     
