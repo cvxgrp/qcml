@@ -5,14 +5,13 @@ import numpy as npy
 if __name__ == '__main__':
     
     print "Creating data."
-    n = 100    # number of variables
-    m = 10      # number of factors
-
-    mu = o.exp(o.normal(n))
-    D = o.spdiag(o.sqrt(o.uniform(n,b=2.0)))
-    F = o.normal(n,m)
+    n = 2      # number of features
+    m = 100   # number of examples
+    X = o.normal(m,n, -2)
+    Y = o.normal(m,n, 2)
     gamma = 1
     
+    print "Rewriting SVM"
     p = Scoop()
     
     # a Scoop model is specified by strings
@@ -20,25 +19,14 @@ if __name__ == '__main__':
     #   representation of an SOCP
     p.rewrite(
         """
-        variable x vector
-        parameter mu vector
+        variable a vector
+        variable b scalar
+        parameter X matrix      # positive samples
+        parameter Y matrix      # negative samples
         parameter gamma positive
-        parameter F matrix
-        parameter D matrix
-        maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
-            sum(x) == 10
+        minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
         """
     )
-    
-    # you can also add to the problem spec line by line if you wanted to
-    # but you have to be careful to reference variables or parameters that
-    # you have previously declared
-    p.rewrite("x >= 0")
-    
-    npy.savetxt('mu', npy.matrix(mu))
-    (Dp,Di,Dx) = D.CCS
-    npy.savetxt('Dx', npy.matrix(Dx))
-    npy.savetxt('F', npy.matrix(F))
     
     print p
     
@@ -57,14 +45,14 @@ if __name__ == '__main__':
     
     # generate a function to spit out the raw data
     f3 = p.generate_matrix()
-    (c, G, h, free_lens, lp_lens, soc_lens) = f3(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    (c, G, h, free_lens, lp_lens, soc_lens) = f3(a = n, X = X, Y = Y, gamma = gamma)
     npy.savetxt('Gj', npy.matrix(G.J))
     npy.savetxt('Gi', npy.matrix(G.I))
     npy.savetxt('Gx', npy.matrix(G.V))
     
     # generate a function to spit out the raw data
     f4 = p.generate_fixed_matrix(3)
-    (c, G, h, free_lens, lp_lens, soc_lens) = f4(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    (c, G, h, free_lens, lp_lens, soc_lens) = f4(a = n, X = X, Y = Y, gamma = gamma)
     (Gp,Gi,Gx) = G.CCS
     npy.savetxt('Gj_fx', npy.matrix(G.J))
     npy.savetxt('Gi_fx', npy.matrix(G.I))
@@ -72,7 +60,7 @@ if __name__ == '__main__':
     
     # now, use a first order solver to solve the problem
     f5 = p.generate_pdos(False)
-    sol3 = f5(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    sol3 = f5(a = n, X = X, Y = Y, gamma = gamma)
     
     # compare the solutions
     # print sol1['x']
