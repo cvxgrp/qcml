@@ -534,6 +534,8 @@ def generate(self, soc_sz):
                 #     
                 # print c_obj
                 solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
+                solution['primal objective'] = sol['primal objective']
+                solution['status'] = sol['status']
                 return solution
 
             else:
