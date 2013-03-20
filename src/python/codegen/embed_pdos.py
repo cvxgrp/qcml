@@ -338,9 +338,9 @@ def generate(self,indirect=False):
                 h = o.matrix([b_mat, hl_vec, hqs])
                 (Gp, Gi, Gx) = G.CCS
                 if(indirect):
-                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1)
+                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1, NORMALIZE=1)
                 else:
-                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1)
+                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1, NORMALIZE=1)
                 
 
                 solution = recover_variables(o.matrix(sol['x']), start_idxs, sizes, variable_set)
