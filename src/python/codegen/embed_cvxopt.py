@@ -322,7 +322,7 @@ def generate(self):
                 #     
                 # print c_obj
 
-                solution = recover_variables(sol['x'], start_idxs, sizes, variable_set)
+                solution = recover_variables(sol['x'], start_idxs, sizes, codegen.variables)
                 solution['primal objective'] = sol['primal objective']
                 solution['status'] = sol['status']
                 return solution
