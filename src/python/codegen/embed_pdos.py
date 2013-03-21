@@ -203,7 +203,7 @@ def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,t
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
 
-def generate(self,indirect=False):
+def generate(self,indirect=False,MAX_ITERS=2000, EPS_ABS=1e-4, EPS_INFEAS=5e-5, ALPHA=1.0, VERBOSE=False, NORMALIZE=False, CG_MAX_ITS=20, CG_TOL=1e-4):
     """This function will make sure to check that all *vector* variables have
     their dimension defined. If dimensions are defined for SCALAR variables, 
     they are ignored."""
@@ -338,9 +338,9 @@ def generate(self,indirect=False):
                 h = o.matrix([b_mat, hl_vec, hqs])
                 (Gp, Gi, Gx) = G.CCS
                 if(indirect):
-                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1, MAX_ITERS=5000, ALPHA=1.8, EPS_ABS=1e-3)
+                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, MAX_ITERS=MAX_ITERS, EPS_ABS=EPS_ABS, EPS_INFEAS=EPS_INFEAS, ALPHA=ALPHA, CG_MAX_ITS=CG_MAX_ITS, CG_TOL=CG_TOL, VERBOSE=VERBOSE, NORMALIZE=NORMALIZE)
                 else:
-                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, VERBOSE=1, MAX_ITERS=5000, ALPHA=1.8, EPS_ABS=1e-3)
+                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, MAX_ITERS=MAX_ITERS, EPS_ABS=EPS_ABS, EPS_INFEAS=EPS_INFEAS, ALPHA=ALPHA, VERBOSE=VERBOSE, NORMALIZE=NORMALIZE)
                 
 
                 solution = recover_variables(o.matrix(sol['x']), start_idxs, sizes, codegen.variables)

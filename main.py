@@ -71,7 +71,7 @@ if __name__ == '__main__':
     npy.savetxt('Gx_fx', npy.matrix(G.V))
     
     # now, use a first order solver to solve the problem
-    f5 = p.generate_pdos(False)
+    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8)
     sol3 = f5(x = n, mu = mu, D = D, F = F, gamma = gamma)
     
     # compare the solutions
