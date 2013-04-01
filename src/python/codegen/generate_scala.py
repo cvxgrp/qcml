@@ -36,6 +36,12 @@ from scoop.expression import Parameter
 from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
 # for embedded in Delite
 
+def replace_with_sum(s):
+    # replace ones^T*(varname) with (varname)._sum
+    slist = s.split('+')
+    slist = map(lambda x: re.sub(r'\s*ones\^T\*([a-zA-Z_]+)\s*',r'\1.sum', x), slist)
+    
+    return ' + '.join(slist)
 
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
@@ -75,16 +81,13 @@ def generate(self, **kwargs):
         def constraints():
             for k in codegen.cones:
                 if k.size == 0:
-                    # replace ones^T*(varname) with (varname)._sum
                     s = str(k.t)
-                    slist = s.split('+')
-                    slist = map(lambda x: re.sub(r'\s*ones\^T\*([a-zA-Z_]+)\s*',r'\1.sum', x), slist)
-                    
-                    yield "%s == 0" % ' + '.join(slist)
+                    yield "%s == 0" % replace_with_sum(s)
+                elif k.size == 1:
+                    s = str(k.t)
+                    yield "%s >= 0" % replace_with_sum(s)
                 else:
                     yield str(k)
-                # elif k.size == 1:
-                #     return "%s >= 0" % str(k.t)
                 # elif isinstance(k.size, int):
                 #     if isinstance(self.size, str):
                 #         if len(self.arglist[0]) == 1:
