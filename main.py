@@ -30,6 +30,10 @@ if __name__ == '__main__':
         """
     )
     
+    p.generate_delite(x = 5)
+    
+    """
+    
     # you can also add to the problem spec line by line if you wanted to
     # but you have to be careful to reference variables or parameters that
     # you have previously declared
@@ -85,5 +89,5 @@ if __name__ == '__main__':
     # for l in range(1,10):
     #     sol = f2(x = l)
     #     print sol['x']
-
+    """
     
