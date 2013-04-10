@@ -6,6 +6,7 @@ import codegen.embed_matrix as g3
 import codegen.embed_fixed_matrix as g4
 import codegen.embed_pdos as g5
 import codegen.generate_scala as g6
+import codegen.embed_ecos as g7
 
 # to make sure atoms get loaded
 import atoms
@@ -18,6 +19,7 @@ Scoop.generate_matrix = MethodType(g3.generate, None, Scoop)
 Scoop.generate_fixed_matrix = MethodType(g4.generate, None, Scoop)
 Scoop.generate_pdos = MethodType(g5.generate, None, Scoop)
 Scoop.generate_delite = MethodType(g6.generate, None, Scoop)
+Scoop.generate_ecos = MethodType(g7.generate, None, Scoop)
 
 # Evaluator.add = MethodType(op_add, None, Evaluator)
 # Evaluator.sub = MethodType(op_minus, None, Evaluator)

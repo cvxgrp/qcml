@@ -15,5 +15,8 @@ setup(
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',
     long_description=open('../README.md').read(),
-    requires = ["cvxopt(>= 1.1.5)", "pdos(>= 1.0)", "numpy(>=1.7)"] # this doesn't appear to do anything unfortunately
+    requires = ["cvxopt(>= 1.1.5)", 
+                "pdos(>= 1.0)", 
+                "numpy(>=1.7)", 
+                "ecos(>=1.0)"] # this doesn't appear to do anything unfortunately
 )

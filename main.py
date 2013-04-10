@@ -1,12 +1,13 @@
 from scoop import Scoop
 import cvxopt as o
 import numpy as npy
+import time
 
 if __name__ == '__main__':
     
     print "Creating data."
-    n = 100    # number of variables
-    m = 10      # number of factors
+    n = 1000    # number of variables
+    m = 100      # number of factors
 
     mu = o.exp(o.normal(n))
     D = o.spdiag(o.sqrt(o.uniform(n,b=2.0)))
@@ -27,10 +28,23 @@ if __name__ == '__main__':
         parameter D matrix
         maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
             sum(x) == 10
+            x >= 0
         """
     )
     
+    # solve the problem with x of length 5
     p.generate_delite(x = 5)
+    f = p.generate_ecos()
+    t1 = time.time()
+    sol = f(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    t2 = time.time()
+    print 'took %0.3f ms' % ((t2 - t1)*1000.0)
+    
+    f2 = p.generate()
+    t1 = time.time()
+    sol2 = f2(x = n, mu = mu, D = D, F = F, gamma = gamma)
+    t2 = time.time()
+    print 'took %0.3f ms' % ((t2 - t1)*1000.0)
     
     """
     
