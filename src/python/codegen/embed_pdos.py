@@ -331,20 +331,26 @@ def generate(self,indirect=False,MAX_ITERS=2000, EPS_ABS=1e-4, EPS_INFEAS=5e-5, 
                 
                 Gqs = o.sparse(Gq_mats)
                 hqs = o.matrix(hq_vecs)
-                soc_lens = np.array(map(lambda x: x.size[0], hq_vecs))
+                soc_lens = map(lambda x: x.size[0], hq_vecs)
                 lp_lens = hl_vec.size[0]
                 free_lens = b_mat.size[0]
                 G = o.sparse([A_mat, Gl_mat, Gqs])
                 h = o.matrix([b_mat, hl_vec, hqs])
-                (Gp, Gi, Gx) = G.CCS
+                dims ={'f':free_lens,'l':lp_lens,'q':soc_lens}
+                opts = {'MAX_ITERS':MAX_ITERS, 
+                        'EPS_ABS':EPS_ABS,
+                        'ALPHA':ALPHA,
+                        'CG_MAX_ITS':CG_MAX_ITS,
+                        'CG_TOL':CG_TOL,
+                        'VERBOSE':VERBOSE,
+                        'NORMALIZE':NORMALIZE}
                 if(indirect):
-                    sol = q.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, MAX_ITERS=MAX_ITERS, EPS_ABS=EPS_ABS, EPS_INFEAS=EPS_INFEAS, ALPHA=ALPHA, CG_MAX_ITS=CG_MAX_ITS, CG_TOL=CG_TOL, VERBOSE=VERBOSE, NORMALIZE=NORMALIZE)
+                    sol = q.solve(c_obj,G,h,dims,opts)
                 else:
-                    sol = p.solve(np.array(Gx), np.array(Gi), np.array(Gp), np.array(h), np.array(c_obj), f=free_lens, l=lp_lens, q=soc_lens, MAX_ITERS=MAX_ITERS, EPS_ABS=EPS_ABS, EPS_INFEAS=EPS_INFEAS, ALPHA=ALPHA, VERBOSE=VERBOSE, NORMALIZE=NORMALIZE)
-                
+                    sol = p.solve(c_obj,G,h,dims,opts)
 
-                solution = recover_variables(o.matrix(sol['x']), start_idxs, sizes, codegen.variables)
-                solution['primal objective'] = np.vdot(np.array(c_obj), sol['x'])
+                solution = recover_variables(sol['x'], start_idxs, sizes, codegen.variables)
+                solution['primal objective'] = np.vdot(c_obj, sol['x'])
                 solution['status'] = sol['status']
                 return solution
             else:
