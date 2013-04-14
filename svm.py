@@ -50,6 +50,13 @@ if __name__ == '__main__':
     npy.savetxt('Gi', npy.matrix(G.I))
     npy.savetxt('Gx', npy.matrix(G.V))
     
+    npy.savetxt('c', npy.matrix(c))
+    npy.savetxt('h', npy.matrix(h))
+    
+    print free_lens
+    print lp_lens
+    print soc_lens
+    
     # generate a function to spit out the raw data
     f4 = p.generate_fixed_matrix(3)
     (c, G, h, free_lens, lp_lens, soc_lens) = f4(a = n, X = X, Y = Y, gamma = gamma)
@@ -59,7 +66,7 @@ if __name__ == '__main__':
     npy.savetxt('Gx_fx', npy.matrix(G.V))
     
     # now, use a first order solver to solve the problem
-    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8)
+    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8,MAX_ITERS=10000)
     sol3 = f5(a = n, X = X, Y = Y, gamma = gamma)
     
     # compare the solutions

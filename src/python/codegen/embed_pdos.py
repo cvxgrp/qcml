@@ -203,7 +203,7 @@ def build_block_matrices(A_blk,b_blk,b_blk_height, params,vec_sizes,start_idxs,t
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
 
-def generate(self,indirect=False,MAX_ITERS=2000, EPS_ABS=1e-4, EPS_INFEAS=5e-5, ALPHA=1.0, VERBOSE=False, NORMALIZE=False, CG_MAX_ITS=20, CG_TOL=1e-4):
+def generate(self,indirect=False,MAX_ITERS=2000, EPS_ABS=1e-3, EPS_INFEAS=5e-5, ALPHA=1.0, VERBOSE=False, NORMALIZE=False, CG_MAX_ITS=20, CG_TOL=1e-4):
     """This function will make sure to check that all *vector* variables have
     their dimension defined. If dimensions are defined for SCALAR variables, 
     they are ignored."""

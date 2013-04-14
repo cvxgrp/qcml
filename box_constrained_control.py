@@ -19,14 +19,19 @@ if __name__ == '__main__':
     R = R.trans()*R + o.spdiag(o.matrix(npy.ones(m)))
     Q = o.matrix(cholesky(Q))
     R = o.matrix(cholesky(R))
+    #Q = o.spdiag(o.matrix(npy.ones(n))) #
+    #R = o.spdiag(o.matrix(npy.ones(m))) #
     
 
     A = o.normal(n,n)
     s = max(abs(eigvals(A)))
+    #A = o.spdiag(o.matrix(npy.ones(n))) #A/s
     A = A/s
     B = o.normal(n,m)
     q = max(abs(svdvals(B)))
+    #B = o.matrix(npy.ones((n,m)))#1.1*B/q
     B = 1.1*B/q
+    #xinit = o.matrix(npy.ones(n)) #5*o.normal(n,1)
     xinit = 5*o.normal(n,1)
     
     # TODO: add "/" for constants or something...
@@ -56,8 +61,8 @@ if __name__ == '__main__':
     for i in range(T):
         objective += ["square(norm(Q*x%i)) + square(norm(R*u%i))" % (i,i)]
     
-    objective += ["square(norm(Q*x%i))" % T]
-    problem += ["minimize 0.5*(" + ' + '.join(objective) + ")"]
+    #objective += ["square(norm(Q*x%i))" % T]
+    problem += ["minimize %f*(" % (1.0/(2*T))+ ' + '.join(objective) + ")"]
     p.rewrite('\n'.join(problem))
         
     f = p.generate_ecos()
@@ -66,22 +71,48 @@ if __name__ == '__main__':
     t2 = time.time()
     print 'took %0.3f ms' % ((t2 - t1)*1000.0)
     
-    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=False,ALPHA=1.8, MAX_ITERS=10000)
+    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8, MAX_ITERS=50000)
     t1 = time.time()
     sol3 = f5(**data)
     t2 = time.time()
     print 'took %0.3f ms' % ((t2 - t1)*1000.0)
     
-    print sol['u0']
-    print sol['u2']
+    # print sol['u0']
+    # print sol['u1']
+    # print sol['u2']
+    # print sol['u3']
+    # 
+    # obj = sol['x%i' %T].trans()*sol['x%i'%T]
+    # for i in range(T):
+    #     obj += sol['x%i'%i].trans()*sol['x%i'%i] + sol['u%i'%i].trans()*sol['u%i'%i]
+    # 
+    # print (0.5)*obj
+    for i in range(T):
+        print sol['x%i' % i]
+        print sol3['x%i' % i]
+    
 
     
     
-    # f2 = p.generate()
-#     t1 = time.time()
-#     sol2 = f2(x = n, mu = mu, D = D, F = F, gamma = gamma)
-#     t2 = time.time()
-#     print 'took %0.3f ms' % ((t2 - t1)*1000.0)
+    f2 = p.generate()
+    t1 = time.time()
+    sol2 = f2(**data)
+    t2 = time.time()
+    print 'took %0.3f ms' % ((t2 - t1)*1000.0)
+    
+    
+    f3 = p.generate_matrix()
+    (c, G, h, free_lens, lp_lens, soc_lens) = f3(**data)
+    npy.savetxt('Gj', npy.matrix(G.J))
+    npy.savetxt('Gi', npy.matrix(G.I))
+    npy.savetxt('Gx', npy.matrix(G.V))
+    
+    npy.savetxt('c', npy.matrix(c))
+    npy.savetxt('h', npy.matrix(h))
+    
+    print free_lens
+    print lp_lens
+    print soc_lens
     
     
     
