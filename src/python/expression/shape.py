@@ -108,7 +108,7 @@ class Shape(object):
                 return Vector(self.rows)
         else:
             lhs = self.__class__.__name__
-            rhs = self.__class__.__name__
+            rhs = other.__class__.__name__
             raise TypeError("'%s + %s' combination is disallowed." % (lhs, rhs))
     
     def __mul__(self, other):
@@ -130,7 +130,7 @@ class Shape(object):
                 return Vector(self.rows)
         else:
             lhs = self.__class__.__name__
-            rhs = self.__class__.__name__
+            rhs = other.__class__.__name__
             raise TypeError("No multiply operator implemented for '%s * %s'." % (lhs,rhs))
     
     def __neg__(self):

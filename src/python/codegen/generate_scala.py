@@ -36,12 +36,14 @@ from scoop.expression import Parameter
 from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
 # for embedded in Delite
 
-def replace_with_sum(s):
+def replace_with_opticvx(s):
     # replace ones^T*(varname) with (varname)._sum
     slist = s.split('+')
     slist = map(lambda x: re.sub(r'\s*ones\^T\*([a-zA-Z_]+)\s*',r'\1.sum', x), slist)
+    # replace x' with x.T
+    retlist = re.sub(r'\'', r'.T',' + '.join(slist))
     
-    return ' + '.join(slist)
+    return retlist
 
 def valid_args(e):
     return isinstance(e,int) or isinstance(e,o.matrix) or isinstance(e,o.spmatrix) or isinstance(e,float)
@@ -82,28 +84,18 @@ def generate(self, **kwargs):
             for k in codegen.cones:
                 if k.size == 0:
                     s = str(k.t)
-                    yield "%s == 0" % replace_with_sum(s)
+                    yield "%s == 0" % replace_with_opticvx(s)
                 elif k.size == 1:
                     s = str(k.t)
-                    yield "%s >= 0" % replace_with_sum(s)
+                    yield "%s >= 0" % replace_with_opticvx(s)
                 else:
-                    yield str(k)
-                # elif isinstance(k.size, int):
-                #     if isinstance(self.size, str):
-                #         if len(self.arglist[0]) == 1:
-                #             # if singleton, norm(x) <= t
-                #             return "norm(%s) <= %s" % (str(self.arglist[0][0]), str(self.t))
-                #         else:
-                #             # norm([*args]) <= t
-                #             arglist = ';'.join( map(str, self.arglist[0]) )
-                #             return "norm([%s]) <= %s" % (arglist, str(self.t))
-                #     else:
-                #         # abs(*args) <= t
-                #         return "abs(%s) <= %s" % (str(self.arglist[0]), str(self.t))
-                # else:
-                #     # norm(x,y,z,...) <= t
-                #     arglist = ','.join( map(str, self.arglist) )
-                #     return "norm(%s) <= %s" % (arglist, str(self.t))
+                    if len(k.arglist) == 1:
+                        s1 = ', '.join(map(lambda x: replace_with_opticvx(str(x)),k.arglist[0]))
+                        s2 = replace_with_opticvx(str(k.t))
+                        yield "in_secondorder_cone(cat(%s),%s)" % (s1, s2)
+                    else:                        
+                        yield "cfor(...) ( (i) => in_second_order_cone(cat(...), ...) )"
+
                 
             
         print """
@@ -134,8 +126,8 @@ def main(args: Array[String]) {
             '\n    '.join(params()), 
             '\n    '.join(given()),
             ', '.join(over()),
-            '\n      '.join(constraints()),
-            codegen.obj
+            ',\n      '.join(constraints()),
+            replace_with_opticvx(str(codegen.obj))
              )
 
     else:

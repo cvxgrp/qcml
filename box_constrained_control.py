@@ -9,7 +9,7 @@ if __name__ == '__main__':
     print "Creating data."
     n = 5       # states
     m = 2       # inputs
-    T = 10      # horizon
+    T = 20     # horizon
     
     o.setseed(2)
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         objective += ["square(norm(Q*x%i)) + square(norm(R*u%i))" % (i,i)]
     
     #objective += ["square(norm(Q*x%i))" % T]
-    problem += ["minimize %f*(" % (1.0/(2*T))+ ' + '.join(objective) + ")"]
+    problem += ["minimize %f*(" % (1.0/2.0)+ ' + '.join(objective) + ")"]
     p.rewrite('\n'.join(problem))
         
     f = p.generate_ecos()

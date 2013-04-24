@@ -6,13 +6,13 @@ import time
 if __name__ == '__main__':
     
     print "Creating data."
-    n = 10000    # number of variables
-    m = 100      # number of factors
+    n = 1000    # number of variables
+    m = 30      # number of factors
 
     mu = o.exp(o.normal(n))
     D = o.spdiag(o.sqrt(o.uniform(n,b=2.0)))
     F = o.normal(n,m)
-    gamma = 10
+    gamma = 1
     
     p = Scoop()
     
@@ -27,7 +27,7 @@ if __name__ == '__main__':
         parameter F matrix
         parameter D matrix
         maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
-            sum(x) == 100
+            sum(x) == 1
             x >= 0
         """
     )

@@ -169,7 +169,11 @@ class Scoop(object):
         result, remainder = self.lex(s)
         if result:
             if not remainder:
-                self.parse(deque(result))
+                try:
+                    self.parse(deque(result))
+                except:
+                    print self.line
+                    raise
             else:
                 raise Exception("Unknown parse error.")
         
