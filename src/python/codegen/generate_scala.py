@@ -32,7 +32,7 @@ import re
 
 import cvxopt as o
 from cvxopt import solvers
-from scoop.expression import Parameter
+from scoop.expression import Parameter, ismatrix, isvector, isscalar
 from codegen import mangle, ismultiply, istranspose, height_of, recover_variables
 # for embedded in Delite
 
@@ -59,6 +59,7 @@ def generate(self, **kwargs):
         # args contains *actual* dimensions (for variables) and parameter values
         args = mangle(kwargs)
         sizes = codegen.get_variable_sizes(args)
+        
     
         def variables():
             for k in codegen.variables:
@@ -68,13 +69,36 @@ def generate(self, **kwargs):
             for k in codegen.parameters:
                 yield "val %s = cvxparam" %k
             
-        def params():
-            for k in codegen.parameters:
-                yield "params(%s)," % k
+        def params_and_given():
+            row_count = 0
+            col_count = 0
             
-        def given():
-            for k in codegen.parameters:
-                yield "given(%s)," % k
+            s = []
+            for x in codegen.parameters:
+                y = codegen.parameters[x]
+                if isscalar(y.shape):
+                    s += ["inputscalar -> %s" % y]
+                elif isvector(y.shape):
+                    row_count = row_count + 1
+                    s += ["inputvector(m%s) -> %s" % (row_count, y)]
+                else:
+                    col_count = col_count + 1
+                    row_count = row_count + 1
+                    s += ["inputmatrix(m%s,n%s) -> %s" % (row_count, col_count, y)]
+                    
+            sizes = []
+            for i in range(row_count):
+                sizes += ["m%s" % (i+1)]
+            for i in range(col_count):
+                sizes += ["n%s" % (i+1)]
+            return """
+    /* list params? */
+    params(%s),
+
+    /* list inputs */
+    given(%s),
+            """ % (', '.join(sizes), ', '.join(s))
+
     
         def over():
             for k in codegen.variables:
@@ -108,12 +132,7 @@ def main(args: Array[String]) {
   
   /* define the SOCP */
   val prob = problem(
-    /* list params? */
     %s
-    
-    /* list inputs */
-    %s
-    
     over(%s),
     where(
       %s
@@ -123,8 +142,7 @@ def main(args: Array[String]) {
   
 }""" % (    '\n  '.join(variables()), 
             '\n  '.join(parameters()), 
-            '\n    '.join(params()), 
-            '\n    '.join(given()),
+            params_and_given(),
             ', '.join(over()),
             ',\n      '.join(constraints()),
             replace_with_opticvx(str(codegen.obj))
