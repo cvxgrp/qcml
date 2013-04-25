@@ -6,6 +6,7 @@ setup(
     author='Eric Chu',
     author_email='eytchu@gmail.com',
     packages=[  'scoop', 
+                'scoop.qc_ply',
                 'scoop.codegen', 
                 'scoop.atoms', 
                 'scoop.expression',

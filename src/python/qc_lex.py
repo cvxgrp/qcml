@@ -5,7 +5,7 @@ pycparser library.
 # import re
 # import expression as e
 import operator
-import ply.lex as lex
+from qc_ply import lex
 # from atoms import macros, abs_, norm, sum_
 
 

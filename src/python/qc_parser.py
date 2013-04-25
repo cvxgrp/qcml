@@ -1,4 +1,4 @@
-from ply import yacc
+from qc_ply import yacc
 from qc_lex import QCLexer
 
 class QCParser(object):

@@ -1,25 +1,25 @@
-from parser import Scoop
-from profiler import print_prof_data
-import codegen.embed_cvxopt as g1
-import codegen.embed_cvxopt_fixed_soc as g2
-import codegen.embed_matrix as g3
-import codegen.embed_fixed_matrix as g4
-import codegen.embed_pdos as g5
-import codegen.generate_scala as g6
-import codegen.embed_ecos as g7
+# from parser import Scoop
+# from profiler import print_prof_data
+# import codegen.embed_cvxopt as g1
+# import codegen.embed_cvxopt_fixed_soc as g2
+# import codegen.embed_matrix as g3
+# import codegen.embed_fixed_matrix as g4
+# import codegen.embed_pdos as g5
+# import codegen.generate_scala as g6
+# import codegen.embed_ecos as g7
 
 # to make sure atoms get loaded
-import atoms
+# import atoms
 
 # attach the code generator to the Scoop class
-from types import MethodType
-Scoop.generate = MethodType(g1.generate, None, Scoop)
-Scoop.generate_fixed_soc = MethodType(g2.generate, None, Scoop)
-Scoop.generate_matrix = MethodType(g3.generate, None, Scoop)
-Scoop.generate_fixed_matrix = MethodType(g4.generate, None, Scoop)
-Scoop.generate_pdos = MethodType(g5.generate, None, Scoop)
-Scoop.generate_delite = MethodType(g6.generate, None, Scoop)
-Scoop.generate_ecos = MethodType(g7.generate, None, Scoop)
+# from types import MethodType
+# Scoop.generate = MethodType(g1.generate, None, Scoop)
+# Scoop.generate_fixed_soc = MethodType(g2.generate, None, Scoop)
+# Scoop.generate_matrix = MethodType(g3.generate, None, Scoop)
+# Scoop.generate_fixed_matrix = MethodType(g4.generate, None, Scoop)
+# Scoop.generate_pdos = MethodType(g5.generate, None, Scoop)
+# Scoop.generate_delite = MethodType(g6.generate, None, Scoop)
+# Scoop.generate_ecos = MethodType(g7.generate, None, Scoop)
 
 # Evaluator.add = MethodType(op_add, None, Evaluator)
 # Evaluator.sub = MethodType(op_minus, None, Evaluator)
@@ -27,3 +27,4 @@ Scoop.generate_ecos = MethodType(g7.generate, None, Scoop)
 # Evaluator.neg = MethodType(op_neg, None, Evaluator)
 
 
+from qc_parser import QCParser
