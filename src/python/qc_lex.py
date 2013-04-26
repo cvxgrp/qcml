@@ -48,7 +48,8 @@ class QCLexer:
         'minimize'    : 'SENSE',
         'maximize'    : 'SENSE',
         'find'        : 'SENSE',
-        'subject to'  : 'SUBJ_TO',
+        'subject'     : 'SUBJ',
+        'to'          : 'TO'
     }
 
     tokens = [

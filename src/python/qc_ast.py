@@ -1,5 +1,8 @@
-# Built from PyCParesr's AST and Python's AST
-from qc_vexity import Convex, Concave, Affine
+# Built from PyCParser's AST and Python's AST
+from qc_vexity import Convex, Concave, Affine, Nonconvex
+from qc_sign import Positive, Negative, Neither
+from utils import isaffine, isconvex, isconcave, ispositive, isnegative, isconstant, isparameter
+import sys
 
 class Node(object):
     """ Abstract base class for AST nodes.
@@ -8,8 +11,8 @@ class Node(object):
         """ A sequence of all children that are Nodes
         """
         pass
-
-    def show(self, buf=sys.stdout, offset=0, attrnames=False, nodenames=False, showcoord=False, _my_node_name=None):
+    
+    def show(self, buf=sys.stdout, offset=0, attrnames=False, nodenames=False, _my_node_name=None):
         """ Pretty print the Node and all its attributes and
             children (recursively) to a buffer.
             
@@ -46,8 +49,8 @@ class Node(object):
                 attrstr = ', '.join('%s' % v for v in vlist)
             buf.write(attrstr)
 
-        if showcoord:
-            buf.write(' (at %s)' % self.coord)
+        # if showcoord:
+        #     buf.write(' (at %s)' % self.coord)
         buf.write('\n')
 
         for (child_name, child) in self.children():
@@ -56,7 +59,6 @@ class Node(object):
                 offset=offset + 2,
                 attrnames=attrnames,
                 nodenames=nodenames,
-                showcoord=showcoord,
                 _my_node_name=child_name)
 
 
@@ -123,12 +125,73 @@ class NodeVisitor(object):
 # 
 #     attr_names = ('op',)
 
-class BinaryOp(Node):
-    def __init__(self, op, left, right, coord=None):
-        self.op = op
-        self.left = left
-        self.right = right
-        self.coord = coord
+class Program(Node):
+    def __init__(self, objective, constraints):
+        self.objective = objective
+        self.constraints = constraints
+        self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
+    
+    def children(self):
+        nodelist = []
+        if self.objective is not None: nodelist.append(("objective", self.objective))
+        if self.constraints is not None: 
+            for c in self.constraints:
+                nodelist.append(("constraint" , c))
+        return tuple(nodelist)
+    
+    attr_names = ('is_dcp',)
+
+
+class Constant(Node):
+    def __init__(self, value):
+        self.value = value  # this is a float
+        self.vexity = Affine()
+        if float(value) >= 0.0:
+            self.sign = Positive()
+        else:
+            self.sign = Negative()
+            
+    def __str__(self): return str(self.value)
+        
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign')
+
+class Parameter(Node):
+    def __init__(self, value, sign):
+        self.value = value
+        self.vexity = Affine()
+        self.sign = sign
+    
+    def __str__(self): return str(self.value)
+    
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign')
+    
+class Variable(Node):
+    def __init__(self, value):
+        self.value = value
+        self.vexity = Affine()
+        self.sign = Neither()
+        
+    def __str__(self): return str(self.value)
+        
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign')
+
+class Add(Node):
+    def __init__(self, left, right):
+        if isconstant(right):
+            self.right = left
+            self.left = right
+        else:
+            self.left = left
+            self.right = right
+        
+        self.sign = left.sign + right.sign
+        self.vexity = left.vexity + right.vexity
 
     def children(self):
         nodelist = []
@@ -136,24 +199,125 @@ class BinaryOp(Node):
         if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ('op',)
+    attr_names = ('vexity', 'sign')
 
-
-class For(Node):
-    def __init__(self, init, cond, next, stmt, coord=None):
-        self.init = init
-        self.cond = cond
-        self.next = next
-        self.stmt = stmt
-        self.coord = coord
+class RelOp(Node):
+    def __init__(self, op, left, right):
+        self.op = op
+        self.left = left
+        self.right = right
+        
+        if op == '==':
+            self.is_dcp = isaffine(left) and isaffine(right)
+        elif op == '<=':
+            self.is_dcp = isconvex(left) and isconcave(right)
+        elif op == '>=':
+            self.is_dcp = isconcave(left) and isconvex(right)
+        else:
+            self.is_dcp = False
 
     def children(self):
         nodelist = []
-        if self.init is not None: nodelist.append(("init", self.init))
-        if self.cond is not None: nodelist.append(("cond", self.cond))
-        if self.next is not None: nodelist.append(("next", self.next))
-        if self.stmt is not None: nodelist.append(("stmt", self.stmt))
+        if self.left is not None: nodelist.append(("left", self.left))
+        if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ()
+    attr_names = ('op', 'is_dcp')
+    
+class Mul(Node):
+    """ Assumes the lefthand side is a Constant or a Parameter
+    """
+    def __init__(self, left, right):
+        if isconstant(right):
+            self.left = right
+            self.right = left
+        else:
+            self.left = left
+            self.right = right
+            
+        self.sign = left.sign * right.sign
+        if isparameter(self.left) or isconstant(self.left):
+            if isaffine(self.right):
+                self.vexity = Affine()
+            elif (isconvex(self.right) and ispositive(self.left)) or (isconcave(self.right) and isnegative(self.left)):
+                self.vexity = Convex()
+            elif (isconcave(self.right) and ispositive(self.left)) or (isconvex(self.right) and isnegative(self.left)):
+                self.vexity = Concave()
+            else:
+                self.vexity = Nonconvex()
+        else:
+            # do i raise an error? do i complain about non-dcp compliance?
+            self.vexity = Nonconvex()
+
+    def children(self):
+        nodelist = []
+        if self.right is not None: nodelist.append(("right", self.right))
+        return tuple(nodelist)
+
+    attr_names = ('left', 'vexity', 'sign')
+
+class Negate(Node):
+    def __init__(self, expr):
+        self.expr = expr
+        self.sign = -expr.sign
+        self.vexity = -expr.vexity
+
+    def children(self):
+        nodelist = []
+        if self.expr is not None: nodelist.append(("expr", self.expr))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign')
+
+class Transpose(Node):
+    def __init__(self, expr):
+        self.expr = expr
+        self.sign = expr.sign
+        self.vexity = expr.vexity
+
+    def children(self):
+        nodelist = []
+        if self.expr is not None: nodelist.append(("expr", self.expr))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign')
+    
+class Objective(Node):
+    def __init__(self, sense, expr):
+        self.sense = sense
+        self.expr = expr
+        
+        if sense == 'minimize':
+            self.is_dcp = isconvex(expr)
+        elif sense == 'maximize':
+            self.is_dcp = isconcave(expr)
+        elif sense == 'find':
+            self.is_dcp = isaffine(expr)
+        else:
+            self.is_dcp = False
+    
+    def children(self):
+        nodelist = []
+        if self.expr is not None: nodelist.append(("expr", self.expr))
+        return tuple(nodelist)
+
+    attr_names = ('is_dcp',)
+
+# class For(Node):
+#     def __init__(self, init, cond, next, stmt, coord=None):
+#         self.init = init
+#         self.cond = cond
+#         self.next = next
+#         self.stmt = stmt
+#         self.coord = coord
+# 
+#     def children(self):
+#         nodelist = []
+#         if self.init is not None: nodelist.append(("init", self.init))
+#         if self.cond is not None: nodelist.append(("cond", self.cond))
+#         if self.next is not None: nodelist.append(("next", self.next))
+#         if self.stmt is not None: nodelist.append(("stmt", self.stmt))
+#         return tuple(nodelist)
+# 
+#     attr_names = ()
 
