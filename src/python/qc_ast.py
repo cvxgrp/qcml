@@ -1,6 +1,7 @@
 # Built from PyCParser's AST and Python's AST
 from qc_vexity import Convex, Concave, Affine, Nonconvex
 from qc_sign import Positive, Negative, Neither
+from qc_shape import Scalar, Vector, Matrix
 from utils import isaffine, isconvex, isconcave, ispositive, isnegative, isconstant, isparameter
 import sys
 
@@ -110,27 +111,16 @@ class NodeVisitor(object):
             self.visit(c)
 
 
-# class Assignment(Node):
-#     def __init__(self, op, lvalue, rvalue, coord=None):
-#         self.op = op
-#         self.lvalue = lvalue
-#         self.rvalue = rvalue
-#         self.coord = coord
-# 
-#     def children(self):
-#         nodelist = []
-#         if self.lvalue is not None: nodelist.append(("lvalue", self.lvalue))
-#         if self.rvalue is not None: nodelist.append(("rvalue", self.rvalue))
-#         return tuple(nodelist)
-# 
-#     attr_names = ('op',)
-
 class Program(Node):
-    def __init__(self, objective, constraints):
+    def __init__(self, objective, constraints, variables, parameters, dimensions):
         self.objective = objective
         self.constraints = constraints
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
-    
+        self.variables = variables      # variables declared by the user
+        self.parameters = parameters    # parameters declared by the user
+        self.dimensions = dimensions    # dimensions declared by the user
+        self.new_variables = {}         # new variables introduced by rewriting
+        
     def children(self):
         nodelist = []
         if self.objective is not None: nodelist.append(("objective", self.objective))
@@ -138,6 +128,11 @@ class Program(Node):
             for c in self.constraints:
                 nodelist.append(("constraint" , c))
         return tuple(nodelist)
+    
+    def add_constraint(self, c):
+        """ Allows us to add constraints to the program
+        """
+        self.constraints.append(c)
     
     attr_names = ('is_dcp',)
 
@@ -150,6 +145,7 @@ class Constant(Node):
             self.sign = Positive()
         else:
             self.sign = Negative()
+        self.shape = Scalar()
             
     def __str__(self): return str(self.value)
         
@@ -158,28 +154,30 @@ class Constant(Node):
     attr_names = ('value', 'vexity', 'sign')
 
 class Parameter(Node):
-    def __init__(self, value, sign):
+    def __init__(self, value, shape, sign):
         self.value = value
         self.vexity = Affine()
         self.sign = sign
+        self.shape = shape
     
     def __str__(self): return str(self.value)
     
     def children(self): return []
     
-    attr_names = ('value', 'vexity', 'sign')
+    attr_names = ('value', 'vexity', 'sign','shape')
     
 class Variable(Node):
-    def __init__(self, value):
+    def __init__(self, value, shape):
         self.value = value
         self.vexity = Affine()
         self.sign = Neither()
+        self.shape = shape
         
     def __str__(self): return str(self.value)
         
     def children(self): return []
     
-    attr_names = ('value', 'vexity', 'sign')
+    attr_names = ('value', 'vexity', 'sign', 'shape')
 
 class Add(Node):
     def __init__(self, left, right):
@@ -192,6 +190,7 @@ class Add(Node):
         
         self.sign = left.sign + right.sign
         self.vexity = left.vexity + right.vexity
+        self.shape = left.shape + right.shape
 
     def children(self):
         nodelist = []
@@ -199,13 +198,14 @@ class Add(Node):
         if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ('vexity', 'sign')
+    attr_names = ('vexity', 'sign','shape')
 
 class RelOp(Node):
     def __init__(self, op, left, right):
         self.op = op
         self.left = left
         self.right = right
+        self.shape = left.shape + right.shape
         
         if op == '==':
             self.is_dcp = isaffine(left) and isaffine(right)
@@ -222,7 +222,7 @@ class RelOp(Node):
         if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ('op', 'is_dcp')
+    attr_names = ('op', 'is_dcp', 'shape')
     
 class Mul(Node):
     """ Assumes the lefthand side is a Constant or a Parameter
@@ -236,6 +236,7 @@ class Mul(Node):
             self.right = right
             
         self.sign = left.sign * right.sign
+        self.shape = left.shape * right.shape
         if isparameter(self.left) or isconstant(self.left):
             if isaffine(self.right):
                 self.vexity = Affine()
@@ -254,38 +255,41 @@ class Mul(Node):
         if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ('left', 'vexity', 'sign')
+    attr_names = ('left', 'vexity', 'sign', 'shape')
 
 class Negate(Node):
     def __init__(self, expr):
         self.expr = expr
         self.sign = -expr.sign
         self.vexity = -expr.vexity
+        self.shape = expr.shape
 
     def children(self):
         nodelist = []
         if self.expr is not None: nodelist.append(("expr", self.expr))
         return tuple(nodelist)
 
-    attr_names = ('vexity', 'sign')
+    attr_names = ('vexity', 'sign', 'shape')
 
 class Transpose(Node):
     def __init__(self, expr):
         self.expr = expr
         self.sign = expr.sign
         self.vexity = expr.vexity
+        self.shape = expr.shape.transpose()
 
     def children(self):
         nodelist = []
         if self.expr is not None: nodelist.append(("expr", self.expr))
         return tuple(nodelist)
 
-    attr_names = ('vexity', 'sign')
+    attr_names = ('vexity', 'sign', 'shape')
     
 class Objective(Node):
     def __init__(self, sense, expr):
         self.sense = sense
         self.expr = expr
+        self.shape = expr.shape # better be scalar!
         
         if sense == 'minimize':
             self.is_dcp = isconvex(expr)
@@ -301,7 +305,7 @@ class Objective(Node):
         if self.expr is not None: nodelist.append(("expr", self.expr))
         return tuple(nodelist)
 
-    attr_names = ('is_dcp',)
+    attr_names = ('is_dcp','shape')
 
 # class For(Node):
 #     def __init__(self, init, cond, next, stmt, coord=None):
@@ -320,4 +324,19 @@ class Objective(Node):
 #         return tuple(nodelist)
 # 
 #     attr_names = ()
+
+# class Assignment(Node):
+#     def __init__(self, op, lvalue, rvalue, coord=None):
+#         self.op = op
+#         self.lvalue = lvalue
+#         self.rvalue = rvalue
+#         self.coord = coord
+# 
+#     def children(self):
+#         nodelist = []
+#         if self.lvalue is not None: nodelist.append(("lvalue", self.lvalue))
+#         if self.rvalue is not None: nodelist.append(("rvalue", self.rvalue))
+#         return tuple(nodelist)
+# 
+#     attr_names = ('op',)
 

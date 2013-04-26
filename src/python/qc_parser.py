@@ -2,6 +2,7 @@ from qc_ply import yacc
 from qc_lex import QCLexer
 from qc_ast import Constant, Parameter, Variable, Add, Negate, Mul, Objective, RelOp, Program
 from qc_sign import Neither, Positive, Negative
+from qc_shape import Shape, Scalar
 from utils import isconstant, isadd, ismul, isparameter
 import operator
 
@@ -143,7 +144,7 @@ class QCParser(object):
                    | empty"""
         if p[3] is not None:
             p[1] += p[3]
-        p[0] = Program(p[2], p[1])
+        p[0] = Program(p[2], p[1], self._variables, self._parameters, self._dimensions)
     
     def p_lines_line(self,p):
         """lines : declaration NL"""
@@ -184,9 +185,7 @@ class QCParser(object):
         pass
     
     def p_create_identifier(self,p):
-        """create : VARIABLE array
-                  | VARIABLE ID
-                  | PARAMETER array
+        """create : VARIABLE ID
                   | PARAMETER ID
                   | DIMENSION ID
         """
@@ -194,32 +193,55 @@ class QCParser(object):
             self._print_err("name '%s' already exists in namespace" % p[2])
         else:
             if(p[1] == 'variable'):
-                self._variables[p[2]] = Variable(p[2])
+                self._variables[p[2]] = Variable(p[2], Scalar())
             if(p[1] == 'parameter'):
-                self._parameters[p[2]] = Parameter(p[2], Neither())
+                self._parameters[p[2]] = Parameter(p[2], Scalar(), Neither())
             if(p[1] == 'dimension'):
                 self._dimensions.add(p[2])
+                
+    def p_create_array_identifier(self,p):
+        """create : VARIABLE array
+                  | PARAMETER array
+        """
+        (name, dims) = p[2]
+        if self._name_exists(name):
+            self._print_err("name '%s' already exists in namespace" % name)
+        else:
+            if(p[1] == 'variable'):
+                self._variables[name] = Variable(name, Shape(dims))
+            if(p[1] == 'parameter'):
+                self._parameters[name] = Parameter(name, Shape(dims), Neither())
     
     def p_create_signed_identifier(self,p):
-        """create : PARAMETER array SIGN
-                  | PARAMETER ID SIGN"""
+        'create : PARAMETER ID SIGN'
         if self._name_exists(p[2]):
             self._print_err("name '%s' already exists in namespace" % p[2])
         else:
             if p[3] == 'positive' or p[3] == 'nonnegative':
-                self._parameters[p[2]] = Parameter(p[2], Positive())
+                self._parameters[p[2]] = Parameter(p[2], Scalar(), Positive())
             else:
-                self._parameters[p[2]] = Parameter(p[2], Negative())
+                self._parameters[p[2]] = Parameter(p[2], Scalar(), Negative())
+    
+    def p_create_signed_array_identifier(self,p):
+        'create : PARAMETER array SIGN'
+        (name, dims) = p[2]
+        if self._name_exists(name):
+            self._print_err("name '%s' already exists in namespace" % name)
+        else:
+            if p[3] == 'positive' or p[3] == 'nonnegative':
+                self._parameters[name] = Parameter(name, Shape(dims), Positive())
+            else:
+                self._parameters[name] = Parameter(name, Shape(dims), Negative())
     
     def p_array_identifier(self,p):
         'array : ID LPAREN dimlist RPAREN'
-        p[0] = p[1]
+        p[0] = (p[1],p[3])
     
     # (for shape) id, id, id ...
     def p_dimlist_list(self,p):
         'dimlist : dimlist COMMA ID'
         if(p[3] in self._dimensions):
-            p[0] = p[1] + [p[2]]
+            p[0] = p[1] + [p[3]]
         else:
             self._print_err("dimension %s not declared" % p[2])
     
@@ -290,9 +312,9 @@ class QCParser(object):
         if isinstance(p[1], float):
             p[0] = Constant(p[1])
         elif p[1] in self._variables.keys():
-            p[0] = self._variables[p[1]]
+            p[0] = ToVector(self._variables[p[1]])
         elif p[1] in self._parameters.keys():
-            p[0] = self._parameters[p[1]]
+            p[0] = ToMatrix(self._parameters[p[1]])
         else:
             self._print_err("Unknown identifier %s" % p[1], 2)
     

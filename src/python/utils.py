@@ -1,3 +1,6 @@
+""" Utility boolean functions. These are intended to operate on (subclasses)
+    of type Node.
+"""
 from qc_sign import Positive, Negative, Neither
 from qc_vexity import Convex, Concave, Affine, Nonconvex
 #from qc_ast import Constant, Add
@@ -35,6 +38,13 @@ def ismul(x):
     return isinstance(x, ast.Mul)
 
 def isparameter(x):
-    # this allows arbitrary operations on parameters (a*b+c) is a parameter
-    # if a, b, c are parameters
     return isinstance(x, ast.Parameter)
+    
+def isvector(x):
+    return isinstance(x.shape, Vector)
+
+def isscalar(x):
+    return isinstance(x.shape, Scalar)
+
+def ismatrix(x):
+    return isinstance(x.shape, Matrix)
