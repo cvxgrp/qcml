@@ -6,6 +6,7 @@ pycparser library.
 # import expression as e
 import operator
 from qc_ply import lex
+from qc_atoms import atoms
 # from atoms import macros, abs_, norm, sum_
 
 
@@ -32,28 +33,34 @@ class QCLexer:
              print tok
     
     # reserved keywords in the language
-    reserved = {
-        'variable'    : 'VARIABLE',
-        'parameter'   : 'PARAMETER',
-        'dimension'   : 'DIMENSION',
-        'expression'  : 'EXPRESSION',
-        'variables'   : 'VARIABLES',
-        'parameters'  : 'PARAMETERS',
-        'dimensions'  : 'DIMENSIONS',
-        'expressions' : 'EXPRESSIONS',
-        'positive'    : 'SIGN',
-        'negative'    : 'SIGN',
-        'nonnegative' : 'SIGN',
-        'nonpositive' : 'SIGN',
-        'minimize'    : 'SENSE',
-        'maximize'    : 'SENSE',
-        'find'        : 'SENSE',
-        'subject'     : 'SUBJ',
-        'to'          : 'TO'
-    }
+    reserved = dict([
+        ('variable', 'VARIABLE'),
+        ('parameter', 'PARAMETER'),
+        ('dimension', 'DIMENSION'),
+        #'expression'  : 'EXPRESSION',
+        ('variables', 'VARIABLES'),
+        ('parameters', 'PARAMETERS'),
+        ('dimensions', 'DIMENSIONS'),
+        #'expressions' : 'EXPRESSIONS',
+        ('positive', 'SIGN'),
+        ('negative', 'SIGN'),
+        ('nonnegative', 'SIGN'),
+        ('nonpositive', 'SIGN'),
+        ('minimize', 'SENSE'),
+        ('maximize', 'SENSE'),
+        ('find', 'SENSE'),
+        ('subject', 'SUBJ'),
+        ('to', 'TO'),
+        # builtin functions in the language
+        ('norm', 'NORM'),
+        ('norm2', 'NORM'),
+        ('abs', 'ABS'),
+        ('sum', 'SUM'),
+        #'norms' : 'NORM',
+    ] + zip(atoms.keys(),['ATOM']*len(atoms.keys())))
 
     tokens = [
-        'CONSTANT', 'PLUS', 'MINUS', 'UMINUS', 'TIMES', 'DIVIDE', 'ASSIGN', 'EQ', 'LEQ', 'GEQ',
+        'INTEGER','CONSTANT', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQ', 'LEQ', 'GEQ',
         'COMMA', 'SEMI', 'TRANSPOSE', 'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN',
         'ID', 'COMMENT', 'NL'
     ] + list(set(reserved.values()))
@@ -62,7 +69,7 @@ class QCLexer:
     t_MINUS     = r'\-'
     t_TIMES     = r'\*'
     t_DIVIDE    = r'/'
-    t_ASSIGN    = r'='
+    # t_ASSIGN    = r'='
     t_EQ        = r'=='
     t_LEQ       = r'<='
     t_GEQ       = r'>='
@@ -73,13 +80,20 @@ class QCLexer:
     t_RBRACE    = r'\]'
     t_LPAREN    = r'\('
     t_RPAREN    = r'\)'
-    #t_NL = r'\n+'
 
+    # for parsing integers
+    def t_INTEGER(self,t):
+        r'\d+'
+        t.value = int(t.value)
+        return t
+        
     # for parsing constant floats
     def t_CONSTANT(self,t):
-        r'\d+\.\d*|\d+'
+        r'\d+\.\d*'
         t.value = float(t.value)
         return t
+    
+
 
     # for identifiers
     def t_ID(self,t):

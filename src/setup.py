@@ -7,6 +7,8 @@ setup(
     author_email='eytchu@gmail.com',
     packages=[  'scoop', 
                 'scoop.qc_ply',
+                'scoop.qc_atoms',
+                'scoop.qc_ast',
                 'scoop.codegen', 
                 'scoop.atoms', 
                 'scoop.expression',

@@ -1,3 +1,26 @@
+def isconvex(x):
+    return isinstance(x.vexity, Convex)
+
+def isconcave(x):
+    return isinstance(x.vexity, Concave)
+
+def isaffine(x):
+    return isinstance(x.vexity, Affine)
+
+def isnonconvex(x):
+    return isinstance(x.vexity, Nonconvex)
+
+# vexity inference using monotonicty
+def increasing(x):
+    return x.vexity
+
+def decreasing(x):
+    return -x.vexity
+
+def nonmonotone(x):
+    if isaffine(x): return x.vexity
+    else: return Nonconvex()
+    
 class Vexity(object):
     def __add__(self,other): return self
     def __sub__(self,other): return self

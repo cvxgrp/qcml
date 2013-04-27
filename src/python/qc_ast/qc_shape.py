@@ -1,14 +1,24 @@
 
-# isvector, isscalar, and ismatrix are local functions. compare to the ones
-# in utils.py
+# public utility functions
 def isvector(x):
-    return isinstance(x, Vector) or (ismatrix(x) and (x.col == 1))
+    return isinstance(x.shape, Vector)
 
 def isscalar(x):
-    return isinstance(x, Scalar) or (isvector(x) and (x.row == 1))
+    return isinstance(x.shape, Scalar)
 
 def ismatrix(x):
+    return isinstance(x.shape, Matrix)
+    
+# _isvector, _isscalar, and _ismatrix are local functions. compare to above
+def _isvector(x):
+    return isinstance(x, Vector) or (_ismatrix(x) and (x.col == 1))
+
+def _isscalar(x):
+    return isinstance(x, Scalar) or (_isvector(x) and (x.row == 1))
+
+def _ismatrix(x):
     return isinstance(x, Matrix)
+
 
 class Shape(object):
     def __init__(self, dimensions):
@@ -29,6 +39,9 @@ class Shape(object):
 
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, ', '.join(map(str, self.dimensions)))
+    
+    def transpose(self):
+        raise NotImplementedError("Transpose not implemented for %s" % self)
 
 
 # XXX / TODO: slicing
@@ -41,20 +54,20 @@ class Matrix(Shape):
     
 
     def __add__(self, other):
-        if isscalar(other):
+        if _isscalar(other):
             return Matrix(self.row, self.col)
-        elif ismatrix(other):
+        elif _ismatrix(other):
             if self.row == other.row and self.col == other.col:
                 return Matrix(self.row, self.col)
             else:
-                raise TypeError("Cannot add %s and %s; incompatible sizes." % (self, other))
+                raise TypeError("Cannot add / compare %s and %s; incompatible sizes." % (self, other))
         else:
-            raise TypeError("No addition operator implemented for '%s + %s'." % (self,other))
+            raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
     
     def __mul__(self, other):
-        if isscalar(other):
+        if _isscalar(other):
             return Matrix(self.row, self.col)
-        elif ismatrix(other):
+        elif _ismatrix(other):
             if self.col == other.row:
                 if other.col == 1 and self.row == 1:
                     return Scalar()
@@ -66,6 +79,9 @@ class Matrix(Shape):
                 raise TypeError("Cannot multiply %s and %s; incompatible sizes." % (self, other))
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
+    
+    def transpose(self):
+        return Matrix(self.col, self.row)
             
 class Rank1Matrix(Matrix):
     """ Class for carrying around Rank 1 matrix. Not sure if it will be useful.
@@ -74,30 +90,33 @@ class Rank1Matrix(Matrix):
         self.left = left
         self.right = right
         super(Rank1Matrix, self).__init__(left.row, right.col)
+    
+    def transpose(self):
+        return Rank1Matrix(self.col, self.row)
         
 class Vector(Matrix):
     def __init__(self, row):
         super(Vector, self).__init__(row, 1)
         
     def __add__(self, other):
-        if isscalar(other):
+        if _isscalar(other):
             return Vector(self.row)
-        elif isvector(other):
+        elif _isvector(other):
             if self.row == other.row:
                 return Vector(self.row)
             else:
-                raise TypeError("Cannot add %s and %s; incompatible sizes." % (self, other))
+                raise TypeError("Cannot add / compare %s and %s; incompatible sizes." % (self, other))
         else:
-            raise TypeError("No addition operator implemented for '%s + %s'." % (self,other))
+            raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
     
     __sub__ = __add__
             
     def __mul__(self, other):
         # exludes Vector * Matrix (this should never happen, since we won't 
         # have Matrix variables)
-        if isscalar(other):
+        if _isscalar(other):
             return Vector(self.row)
-        elif ismatrix(other):
+        elif _ismatrix(other):
             if other.row == 1:
                 # rank 1 multiply
                 return Rank1Matrix(self, other)
@@ -105,30 +124,36 @@ class Vector(Matrix):
                 raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
+    
+    def transpose(self):
+        return Matrix(1, self.row)
         
 class Scalar(Vector):
     def __init__(self):
         super(Scalar, self).__init__(1)
         
     def __add__(self, other):
-        if isscalar(other):
+        if _isscalar(other):
             return Scalar()
-        elif isvector(other):
+        elif _isvector(other):
             return Vector(other.row)
-        elif ismatrix(other):
+        elif _ismatrix(other):
             return Matrix(other.row, other.col)
         else:
-            raise TypeError("No addition operator implemented for '%s + %s'." % (self,other))
+            raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
     
     __sub__ = __add__
             
     def __mul__(self, other):
-        if isscalar(other):
+        if _isscalar(other):
             return Scalar()
-        elif isvector(other):
+        elif _isvector(other):
             return Vector(other.row)
-        elif ismatrix(other):
+        elif _ismatrix(other):
             return Matrix(other.row, other.col)
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
+    
+    def transpose(self):
+        return self
     

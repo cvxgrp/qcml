@@ -1,9 +1,25 @@
 # Built from PyCParser's AST and Python's AST
+
 from qc_vexity import Convex, Concave, Affine, Nonconvex
 from qc_sign import Positive, Negative, Neither
 from qc_shape import Scalar, Vector, Matrix
-from utils import isaffine, isconvex, isconcave, ispositive, isnegative, isconstant, isparameter
-import sys
+from utils import isaffine, isconvex, isconcave, \
+    ispositive, isnegative, \
+    isvector, ismatrix, isscalar
+from scoop.qc_atoms import atoms
+import sys, re
+
+def isconstant(x):
+    return isinstance(x, Constant)
+    
+def isadd(x):
+    return isinstance(x, Add)
+
+def ismul(x):
+    return isinstance(x, Mul)
+
+def isparameter(x):
+    return isinstance(x, Parameter)
 
 class Node(object):
     """ Abstract base class for AST nodes.
@@ -110,8 +126,21 @@ class NodeVisitor(object):
         for c_name, c in node.children():
             self.visit(c)
 
+class Expression(Node): 
+    """ Expression AST node.
+    
+        Abstract Expression class.
+    """
+    pass
 
 class Program(Node):
+    """ Program AST node.
+    
+        This node is root node for the program. Its children is a *single*
+        Objective node and a list of RelOp nodes.
+        
+        It is DCP compliant when the Objective is DCP and the RelOp's are DCP.
+    """
     def __init__(self, objective, constraints, variables, parameters, dimensions):
         self.objective = objective
         self.constraints = constraints
@@ -120,6 +149,8 @@ class Program(Node):
         self.parameters = parameters    # parameters declared by the user
         self.dimensions = dimensions    # dimensions declared by the user
         self.new_variables = {}         # new variables introduced by rewriting
+    
+    def __str__(self): return "%s\nsubject to\n    %s" % (self.objective, '\n    '.join(map(str,self.constraints)))
         
     def children(self):
         nodelist = []
@@ -136,71 +167,50 @@ class Program(Node):
     
     attr_names = ('is_dcp',)
 
-
-class Constant(Node):
-    def __init__(self, value):
-        self.value = value  # this is a float
-        self.vexity = Affine()
-        if float(value) >= 0.0:
-            self.sign = Positive()
+class Objective(Node):
+    """ Objective AST node.
+    
+        This node contains the representation of the objective. It also stores
+        the objective's sense (minimize, maximize, or find).
+        
+        It is DCP compliant when the objective's expression agrees with its
+        sense. Convex for minimization, concave for maximization, or affine
+        for find / feasibility problems.
+    """
+    def __init__(self, sense, expr):
+        self.sense = sense
+        self.expr = expr
+        self.shape = expr.shape # better be scalar!
+        
+        if sense == 'minimize':
+            self.is_dcp = isconvex(expr)
+        elif sense == 'maximize':
+            self.is_dcp = isconcave(expr)
+        elif sense == 'find':
+            self.is_dcp = isaffine(expr)
         else:
-            self.sign = Negative()
-        self.shape = Scalar()
-            
-    def __str__(self): return str(self.value)
-        
-    def children(self): return []
+            self.is_dcp = False
     
-    attr_names = ('value', 'vexity', 'sign')
-
-class Parameter(Node):
-    def __init__(self, value, shape, sign):
-        self.value = value
-        self.vexity = Affine()
-        self.sign = sign
-        self.shape = shape
+    def __str__(self): return "%s %s" % (self.sense, self.expr)
     
-    def __str__(self): return str(self.value)
-    
-    def children(self): return []
-    
-    attr_names = ('value', 'vexity', 'sign','shape')
-    
-class Variable(Node):
-    def __init__(self, value, shape):
-        self.value = value
-        self.vexity = Affine()
-        self.sign = Neither()
-        self.shape = shape
-        
-    def __str__(self): return str(self.value)
-        
-    def children(self): return []
-    
-    attr_names = ('value', 'vexity', 'sign', 'shape')
-
-class Add(Node):
-    def __init__(self, left, right):
-        if isconstant(right):
-            self.right = left
-            self.left = right
-        else:
-            self.left = left
-            self.right = right
-        
-        self.sign = left.sign + right.sign
-        self.vexity = left.vexity + right.vexity
-        self.shape = left.shape + right.shape
-
     def children(self):
         nodelist = []
-        if self.left is not None: nodelist.append(("left", self.left))
-        if self.right is not None: nodelist.append(("right", self.right))
+        if self.expr is not None: nodelist.append(("expr", self.expr))
         return tuple(nodelist)
 
-    attr_names = ('vexity', 'sign','shape')
-
+    attr_names = ('is_dcp','shape')
+    
 class RelOp(Node):
+    """ RelOp AST node.
+    
+        This node forms a constraint in the program.
+        
+        DCP compliance depends on the op type. For EQ, RelOp is DCP compliant
+        when both sides are Affine. For GEQ, RelOp is DCP compliant when the 
+        lefthand side is Concave and the righthand side is Convex. For LEQ,
+        RelOp is DCP complaint when the lefthand side is Convex and the
+        righthand side is Concave.
+    """
     def __init__(self, op, left, right):
         self.op = op
         self.left = left
@@ -215,6 +225,8 @@ class RelOp(Node):
             self.is_dcp = isconcave(left) and isconvex(right)
         else:
             self.is_dcp = False
+    
+    def __str__(self): return "%s %s %s" % (self.left, self.op, self.right)
 
     def children(self):
         nodelist = []
@@ -223,9 +235,172 @@ class RelOp(Node):
         return tuple(nodelist)
 
     attr_names = ('op', 'is_dcp', 'shape')
+
+class Constant(Expression):
+    """ Constant AST node.
     
-class Mul(Node):
-    """ Assumes the lefthand side is a Constant or a Parameter
+        Contains a floating point number. It is Affine; its sign depends on
+        the sign of the float.
+    """
+    def __init__(self, value):
+        self.value = value  # this is a float
+        self.vexity = Affine()
+        if float(value) >= 0.0:
+            self.sign = Positive()
+        else:
+            self.sign = Negative()
+        self.shape = Scalar()
+            
+    def __str__(self): return str(self.value)
+    
+    def __repr__(self): return "Constant(%s)" % self.value
+        
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign')
+
+class Parameter(Expression):
+    """ Parameter AST node.
+    
+        Contains a representation of Parameters. It is Affine; its sign and
+        shape are supplied from QCML.
+    """
+    def __init__(self, value, shape, sign):
+        self.value = value
+        self.vexity = Affine()
+        self.sign = sign
+        self.shape = shape
+    
+    def __str__(self): return str(self.value)
+    
+    def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
+    
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign','shape')
+    
+class Variable(Expression):
+    """ Variable AST node.
+    
+        Contains a representation of Variables. It is Affine; its sign is 
+        Neither positive nor negative. Its shape is supplied from QCML.
+    """
+    def __init__(self, value, shape):
+        self.value = value
+        self.vexity = Affine()
+        self.sign = Neither()
+        self.shape = shape
+        
+    def __str__(self): return str(self.value)
+    
+    def __repr__(self): return "Variable('%s',%s)" % (self.value, self.shape)
+        
+    def children(self): return []
+    
+    attr_names = ('value', 'vexity', 'sign', 'shape')
+
+class ToVector(Variable):
+    """ ToVector AST node. Subclass of Variable.
+        
+        Cast a Variable with generic Shape into a vector. 
+            
+        Typically, the tree (whenever a Variable is used in an expression)
+        looks like the following:
+        
+            Operations --- ToVector --- Slice --- Variable
+    """
+    
+    def __init__(self, expr):
+        self.value = expr
+        self.sign = expr.sign
+        self.vexity = expr.vexity
+        if isvector(expr):
+            self.shape = expr.shape
+        else:
+            # otherwise, construct a vector from the *first* dimension of the
+            # subsequent expression (whether or not it can be done)
+            #
+            # we verify validity externally
+            if len(expr.shape.dimensions) == 1:
+                self.shape = Vector(expr.shape.dimensions[0])
+            else:
+                raise TypeError("Cannot construct a vector node from %s" % repr(expr))
+       
+    def children(self):
+        nodelist = []
+        if self.value is not None: nodelist.append(("expr", self.value))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign', 'shape')
+        
+class ToMatrix(Parameter):
+    """ ToMatrix AST node. Subclass of Parameter.
+    
+        Cast a Parameter with generic Shape into a matrix.
+            
+        Typically, the tree (whenever a Parameter is used in an expression)
+        looks like the following:
+        
+            Operations --- ToMatrix --- Slice --- Parameter
+        
+        TODO: During rewrite stage, collapse all subclasses of Parameter into
+        a single node with slice information and shape information.
+    """
+    
+    def __init__(self, expr):
+        self.value = expr
+        self.sign = expr.sign
+        self.vexity = expr.vexity
+        if ismatrix(expr):
+            self.shape = expr.shape
+        else:
+            # otherwise, construct a vector from the *first* dimension of the
+            # subsequent expression (whether or not it can be done)
+            #
+            # we verify validity externally
+            if len(expr.shape.dimensions) == 2:
+                self.shape = Matrix(expr.shape.dimensions[0], expr.shape.dimensions[1])
+            else:
+                raise TypeError("Cannot construct a matrix node from %s" % repr(expr))
+        
+    def children(self):
+        nodelist = []
+        if self.value is not None: nodelist.append(("expr", self.value))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign', 'shape')
+
+""" Expression AST nodes
+    
+    What follows are nodes that are used to form expressions.
+"""
+class Add(Expression):
+    def __init__(self, left, right):
+        if isconstant(right):
+            self.right = left
+            self.left = right
+        else:
+            self.left = left
+            self.right = right
+        
+        self.sign = left.sign + right.sign
+        self.vexity = left.vexity + right.vexity
+        self.shape = left.shape + right.shape
+    
+    def __str__(self): return "%s + %s" % (self.left, self.right)
+
+    def children(self):
+        nodelist = []
+        if self.left is not None: nodelist.append(("left", self.left))
+        if self.right is not None: nodelist.append(("right", self.right))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign','shape')
+
+class Mul(Expression):
+    """ Assumes the lefthand side is a Constant or a Parameter. 
+    
+        Effectively a unary operator.
     """
     def __init__(self, left, right):
         if isconstant(right):
@@ -249,20 +424,28 @@ class Mul(Node):
         else:
             # do i raise an error? do i complain about non-dcp compliance?
             self.vexity = Nonconvex()
+            raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be Constant or Parameter)" % (repr(left), repr(right)))
+
+    # we omit parenthesis since multiply is distributed out
+    def __str__(self): return "%s*%s" % (self.left, self.right)
 
     def children(self):
         nodelist = []
+        if self.left is not None: nodelist.append(("left", self.left))
         if self.right is not None: nodelist.append(("right", self.right))
         return tuple(nodelist)
 
-    attr_names = ('left', 'vexity', 'sign', 'shape')
+    attr_names = ('vexity', 'sign', 'shape')
 
-class Negate(Node):
+class Negate(Expression):
     def __init__(self, expr):
         self.expr = expr
         self.sign = -expr.sign
         self.vexity = -expr.vexity
         self.shape = expr.shape
+    
+    # we omit the parenthesis since negate is distributed out
+    def __str__(self): return "-%s" % self.expr
 
     def children(self):
         nodelist = []
@@ -271,41 +454,47 @@ class Negate(Node):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Transpose(Node):
+class Transpose(Parameter,Expression):
+    """ Can only be applied to parameters
+    """
     def __init__(self, expr):
-        self.expr = expr
+        self.value = expr
         self.sign = expr.sign
         self.vexity = expr.vexity
         self.shape = expr.shape.transpose()
+    
+    def __str__(self): return "%s'" % self.value
 
     def children(self):
         nodelist = []
-        if self.expr is not None: nodelist.append(("expr", self.expr))
+        if self.value is not None: nodelist.append(("value", self.value))
         return tuple(nodelist)
 
     attr_names = ('vexity', 'sign', 'shape')
+
+
+class Atom(Expression): 
+    """ Atom AST node.
     
-class Objective(Node):
-    def __init__(self, sense, expr):
-        self.sense = sense
-        self.expr = expr
-        self.shape = expr.shape # better be scalar!
-        
-        if sense == 'minimize':
-            self.is_dcp = isconvex(expr)
-        elif sense == 'maximize':
-            self.is_dcp = isconcave(expr)
-        elif sense == 'find':
-            self.is_dcp = isaffine(expr)
-        else:
-            self.is_dcp = False
+        Stores the name of the atom and its arguments
+    """
+    def __init__(self,name,arguments):
+        self.name = name
+        self.arglist = arguments
+        # get the attributes of the atom
+        self.sign, self.vexity, self.shape = atoms[self.name].attributes(*self.arglist)
+            
+    
+    def __str__(self): return "%s(%s)" % (self.name, ','.join(map(str, self.arglist)))
     
     def children(self):
         nodelist = []
-        if self.expr is not None: nodelist.append(("expr", self.expr))
+        if self.arglist is not None: 
+            for arg in self.arglist:
+                nodelist.append(("argument", arg))
         return tuple(nodelist)
 
-    attr_names = ('is_dcp','shape')
+    attr_names = ('name', 'vexity', 'sign', 'shape')
 
 # class For(Node):
 #     def __init__(self, init, cond, next, stmt, coord=None):

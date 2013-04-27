@@ -1,3 +1,12 @@
+def ispositive(x):
+    return isinstance(x.sign, Positive)
+
+def isnegative(x):
+    return isinstance(x.sign, Negative)
+
+def isneither(x):
+    return isinstance(x.sign, Neither)
+
 class Sign(object):
     def __add__(self,other): return self
     def __sub__(self,other): return self
