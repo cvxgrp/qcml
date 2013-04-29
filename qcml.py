@@ -26,11 +26,13 @@ if __name__ == "__main__":
         -(x + 1) == 0
         A'*x - b == 0 
         --x == 0
-        quad_over_lin(x,y,z) <= 1
+        x'*x <= 1
+        quad_over_lin(x,z) <= 1
 
         minimize c'*x + b
         subject to
         """)
     
-    print y
-    y.show()
+    if y:
+        print y
+        y.show()

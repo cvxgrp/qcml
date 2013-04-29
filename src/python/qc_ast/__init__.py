@@ -7,5 +7,5 @@ from qc_ast import isparameter, isconstant, isadd, ismul, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
-    ToVector, ToMatrix, Atom
+    ToVector, ToMatrix, Atom, Node
     

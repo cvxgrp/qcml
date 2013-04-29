@@ -28,3 +28,6 @@
 
 
 from qc_parser import QCParser
+
+import qc_atoms
+atoms = qc_atoms.atoms

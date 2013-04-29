@@ -1,133 +1,27 @@
 from qc_ply import yacc
 from qc_lex import QCLexer
-from qc_ast import isconstant, isadd, ismul, isparameter, \
+from qc_ast import isconstant, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
     ToVector, ToMatrix, Atom, \
-    Neither, Positive, Negative, \
+    Neither, Positive, Negative, Node, \
     Shape, Scalar, Vector, Matrix, isscalar
-import operator
+from utils import create_shape_from_dims, \
+    constant_folding_add, \
+    constant_folding_mul, \
+    negate_node, distribute
 
-def negate_node(x):
-    """ Negates an AST node"""
-    
-    def _negate(x):
-        """ Ensures Negate(Negate(x)) is just x."""
-        if isinstance(x, Negate):
-            return x.expr
-        else:
-            return Negate(x)
-            
-    if isconstant(x):
-        return Constant(-x.value)
-    elif isadd(x):
-        if isconstant(x.left):
-            return Add(Constant(-x.left.value), _negate(x.right))
-        else:
-            return Add(_negate(x.left), _negate(x.right))
-    elif ismul(x):
-        if isconstant(x.left):
-            return Mul(Constant(-x.left.value), x.right)
-        else:
-            return Mul(_negate(x.left), x.right)
-    else:
-        return _negate(x)
+# our own exception class
+class QCError(Exception): pass
 
-def constant_folding(lhs,rhs,op,isop,do_op):
-    """ Generic code for constant folding. Only for associative operators.
-        
-        op:
-            Operation node (must be AST Node subclass)
-        
-        isop:
-            Function to check if a Node is this op
-            
-        do_op:
-            Execute the operator (e.g, for Add node, this is operator.add)
-    """
-    if isconstant(lhs) and isconstant(rhs):
-        return Constant(do_op(lhs.value, rhs.value))
-    
-    left = lhs
-    right = rhs
-    if isconstant(lhs) and isop(rhs):
-        # left is constant and right is the result of an add
-        # by convention, we'll put constants on the left leaf
-        if isconstant(rhs.left):
-            right = rhs.right
-            left = Constant(do_op(rhs.left.value,lhs.value))
-        else:
-            right = rhs
-            left = lhs
-    elif isconstant(rhs) and isop(lhs):
-        # right is constant and left is the result of an add
-        # by convention, we'll put constants on the right leaf
-        if isconstant(lhs.left):
-            right = lhs.right
-            left = Constant(do_op(lhs.left.value,rhs.value))
-    elif isop(lhs) and isop(rhs) and isconstant(lhs.left) and isconstant(rhs.left):
-        # if adding two add nodes with constants on both sides
-        left = Constant(do_op(lhs.left.value, rhs.left.value))
-        right = op(lhs.right, rhs.right)
-    elif isop(lhs) and isconstant(lhs.left):
-        # if there are constants on the lhs, move up tree
-        left = lhs.left
-        right = op(lhs.right, rhs)
-    elif isop(rhs) and isconstant(rhs.left):
-        # if there are constants on the rhs, move up tree    
-        left = rhs.left
-        right = op(lhs,rhs.right)  
-    
-    return op(left, right)
-        
-def constant_folding_add(lhs,rhs):
-    return constant_folding(lhs, rhs, Add, isadd, operator.add)
+def _find_column(data,pos):
+    last_cr = data.rfind('\n',0,pos)
+    if last_cr < 0:
+      last_cr = 0
+    column = (pos - last_cr) + 1
+    return column
 
-def constant_folding_mul(lhs,rhs):
-    return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
-    
-def distribute(lhs, rhs):
-    """ Distribute multiply a*(x + y) = a*x + a*y
-    """
-    if isadd(lhs):
-        return constant_folding_add(
-            distribute(lhs.left, rhs), 
-            distribute(lhs.right, rhs)
-        )
-    elif isadd(rhs):
-        return constant_folding_add(
-            distribute(lhs,rhs.left), 
-            distribute(lhs,rhs.right)
-        )
-    else: 
-        return constant_folding_mul(lhs,rhs)
-
-# XXX/TODO: the functions above may be better placed in a separate file. a
-# "rewrite" file?
-
-def create_shape_from_dims(dims):
-    """ Creates a shape from a dimension list.
-    """
-    if not dims:
-        raise SyntaxError("Cannot create empty shape")
-
-    if len(dims) == 1:
-        if dims[0] == 1:
-            return Scalar()
-        else:
-            return Vector(dims[0])
-    elif len(dims) == 2:
-        if dims[0] == 1 and dims[1] == 1:
-            return Scalar()
-        elif dims[1] == 1:
-            return Vector(dims[0])
-        else:
-            return Matrix(dims[0], dims[1])
-    else:
-        return Shape(dims)
-
-        
 class QCParser(object):
     """ QCParser parses QCML but does not perform rewriting.
     
@@ -141,7 +35,6 @@ class QCParser(object):
         self.lex.build();
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
-        self.has_error = False
         
         self._dimensions = set()
         self._variables = {}
@@ -162,17 +55,13 @@ class QCParser(object):
             text += '\n'
         
         try:
-            result = self.parser.parse(text, debug=False)
-            if self.has_error:
-                # TODO: reset stuff
-                return None
-            else:
-                return result
+            return self.parser.parse(text, debug=False)
+        except QCError:
+            pass
         except Exception as e:
-            # TODO: problem here with the offset...
-            self._print_err(e,0)
+            self._print_err(e, False)
     
-    def _print_err(self, msg,offset = 0):
+    def _print_err(self, msg, raise_error=True):
         """ Prints a QCML parse error.
         
             msg:
@@ -181,25 +70,44 @@ class QCParser(object):
             offset:
                 An integer for the line offset
         """
-        if not self.has_error:
-            self.has_error = True
-            # get the entire string we just tried to parse
-            s = self.lex.lexer.lexdata.split('\n')
-            # check if the current token is a newline
-            current_token = self.lex.lexer.lexmatch.lastgroup
-            if current_token == 't_NL':
-                print "arr"
-                offset += 2
-            else:
-                offset += 1
-            num = self.lex.lexer.lineno
-            leader = 2*' '
-                        
-            print
-            print leader, """>> line %s: "%s" """ % (num, s[num-offset].lstrip().rstrip())
-            print leader, msg
-            print 
-        raise SyntaxError(msg)
+        # get the entire string we just tried to parse
+        data = self.lex.lexer.lexdata
+        s = data.split('\n')
+        # check if the current token is a newline
+        current_token = self.lex.lexer.lexmatch.lastgroup
+        lexpos = self.lex.lexer.lexpos
+        if current_token == 't_NL':
+            print "arr"
+            offset = 2
+            lexpos -= 20
+        else:
+            offset = 1
+        
+        # if token:
+#             print token
+#             print token.type
+#             
+#             num = token.lineno
+#             pos = _find_column(data, token.lexpos)
+#             
+#         else:
+        num = self.lex.lexer.lineno - offset + 1
+        line = s[num - 1]
+
+        leader = 2*' '
+        print "QCML error on line %s:" % num
+        #print
+        #print leader, """   ... """
+        #print leader, """   %s """ % s[ind - 1].lstrip().rstrip()
+        print leader, """>> %s """ % line.lstrip().rstrip()
+        #print leader, """   %s """ % s[ind + 1].lstrip().rstrip()
+        #print leader, """   ... """
+        print
+        print "Error:", msg
+        print
+        
+        if raise_error:
+            raise QCError(msg)
     
     def _name_exists(self,s):
         return (s in self._variables.keys() or s in self._parameters.keys() or s in self._dimensions)
@@ -309,7 +217,7 @@ class QCParser(object):
                 shape = Scalar()
             else:
                 shape = create_shape_from_dims(p[3])
-            p[0] = (p[1],shape)
+            p[0] = (p[1],shape)        
     
     # (for shape) id, id, id ...
     def p_dimlist_list(self,p):
@@ -317,7 +225,7 @@ class QCParser(object):
         if(p[3] in self._dimensions):
             p[0] = p[1] + [p[3]]
         else:
-            self._print_err("dimension '%s' not declared" % p[2])
+            self._print_err("dimension '%s' not declared" % p[3])
     
     def p_dimlist_list_int(self,p):
         'dimlist : dimlist COMMA INTEGER'
@@ -456,8 +364,7 @@ class QCParser(object):
         if(p is None):
             self._print_err("End of file reached")
         else:
-            offset = 1
             if p.type != 'NL':
                 self._print_err("Syntax error at '%s'" % p.value)
             else:
-                self._print_err("Syntax error at newline. Perhaps missing a constraint?",1)
+                self._print_err("Syntax error at newline. Perhaps missing a constraint?")

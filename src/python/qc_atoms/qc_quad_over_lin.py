@@ -1,4 +1,4 @@
-from scoop.qc_properties import Scalar, Vector, Matrix, \
+from scoop.qc_ast import Scalar, Vector, Matrix, \
     ispositive, isnegative, \
     isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \

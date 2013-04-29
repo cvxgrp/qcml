@@ -1,12 +1,10 @@
 # Built from PyCParser's AST and Python's AST
 
-from qc_vexity import Convex, Concave, Affine, Nonconvex
-from qc_sign import Positive, Negative, Neither
-from qc_shape import Scalar, Vector, Matrix
-from utils import isaffine, isconvex, isconcave, \
-    ispositive, isnegative, \
-    isvector, ismatrix, isscalar
-from scoop.qc_atoms import atoms
+from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave
+from qc_sign import Positive, Negative, Neither, ispositive, isnegative
+from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+
+import scoop
 import sys, re
 
 def isconstant(x):
@@ -78,7 +76,6 @@ class Node(object):
                 nodenames=nodenames,
                 _my_node_name=child_name)
 
-
 class NodeVisitor(object):
     """ A base NodeVisitor class for visiting c_ast nodes. 
         Subclass it and define your own visit_XXX methods, where
@@ -132,7 +129,7 @@ class Expression(Node):
         Abstract Expression class.
     """
     pass
-
+    
 class Program(Node):
     """ Program AST node.
     
@@ -482,8 +479,11 @@ class Atom(Expression):
         self.name = name
         self.arglist = arguments
         # get the attributes of the atom
-        self.sign, self.vexity, self.shape = atoms[self.name].attributes(*self.arglist)
-            
+        try:
+            self.sign, self.vexity, self.shape = scoop.atoms[self.name].attributes(*self.arglist)
+        except TypeError as e:
+            msg = re.sub(r'attributes\(\)', r'%s' % self.name, str(e))
+            raise TypeError(msg)  
     
     def __str__(self): return "%s(%s)" % (self.name, ','.join(map(str, self.arglist)))
     
