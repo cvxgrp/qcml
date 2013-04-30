@@ -98,6 +98,12 @@ def test_mul():
     ]
     for s1,s2,failure in fail_list:
         yield assert_raises, failure, mul_shape, s1,s2,None,None,None
+
+# def test_stack():
+#     stack_list = [
+#         (Scalar(), Scalar(), Vector(2,1))
+#     ]
+    
     
     
     

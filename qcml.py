@@ -13,10 +13,10 @@ if __name__ == "__main__":
         
         variables y(31) a(1,5)
         
-        z - x + c == 1
-        quad_over_lin(x,z) <= 1
+        norm(x) + norm(z) <= b
+        norm(z) <= b
         
-        minimize c'*x + b
+        minimize square(norm(x))
         
         # 82 + 6/3 == 1
         # dimension p

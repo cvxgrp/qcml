@@ -1,6 +1,9 @@
 # atoms from separate files
 
 import qc_quad_over_lin
+import qc_square
+import qc_geo_mean
+import qc_sqrt
 
 # from scoop_abs import abs_
 # from scoop_geo_mean import geo_mean
@@ -30,7 +33,7 @@ import qc_quad_over_lin
 atoms = \
     {
         # 'abs': abs_,
-        # 'geo_mean': geo_mean,
+        'geo_mean': qc_geo_mean,
         # 'inv_pos': inv_pos,
         # 'max': max_,
         # 'min': min_,
@@ -42,10 +45,12 @@ atoms = \
         # 'pos': pos,
         # 'pow_rat': pow_rat,
         'quad_over_lin': qc_quad_over_lin,
-        # 'sqrt': sqrt,
-        # 'square': square,
+        'sqrt': qc_sqrt,
+        'square': qc_square,
         # 'sum': sum_
     }
+
+from qc_base import norm, norm_rewrite, abs_, abs_rewrite
 
     
 

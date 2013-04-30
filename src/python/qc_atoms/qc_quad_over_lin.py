@@ -4,10 +4,11 @@ from scoop.qc_ast import Scalar, Vector, Matrix, \
     increasing, decreasing, nonmonotone, \
     Positive, Negative, \
     Convex, Concave, Affine, \
-    Variable, Objective, Program, Constant
+    Variable, Objective, Program, Constant, \
+    SOC, SOCProd
 from utils import create_varname
 
-import scoop as s
+#import scoop as s
 
 """ This is the quad_over_lin atom.
 
@@ -51,15 +52,20 @@ def rewrite(p,x,y):
         x, y
             the arguments
     """
-    s = create_varname()
-    v = Variable(s, p.shape)
+    v = Variable(create_varname(), p.shape)
     
-    objective = Objective('minimize', v)
-    constraints = [
-        y >= Constant(0)
-    ]
+    if isscalar(p):
+        constraints = [
+            SOC(y + v, [y - v, Constant(2.0)*x]),
+            y >= Constant(0)
+        ]
+    else:
+        constraints = [
+            SOCProd(y + v, [y - v, Constant(2.0)*x]),
+            y >= Constant(0)
+        ]
 
-    return Program(objective, constraints, {s: v})
+    return (v, constraints)
 
     # v = Variable(create_varname(), shape)
     #                 
@@ -82,6 +88,5 @@ def rewrite(p,x,y):
     #             y >= Constant(0)
     #         ]
     #
-    pass
 
 

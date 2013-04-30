@@ -4,7 +4,7 @@ from qc_ast import isconstant, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
-    ToVector, ToMatrix, Atom, \
+    ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
     Neither, Positive, Negative, Node, \
     Shape, Scalar, Vector, Matrix, isscalar
 
@@ -145,6 +145,7 @@ class QCParser(object):
         constraints = p[1]
         if p[3] is not None:
             constraints += p[3]
+        constraints = filter(None, constraints)
         p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
     
     def p_lines_line(self,p):
@@ -297,10 +298,6 @@ class QCParser(object):
         else:
             p[0] = [p[1] >= p[3]]
         
-        if p[0][0] == True:
-            p[0] = []
-        elif p[0][0] == False:
-            self._print_err("Boolean constraint %s %s %s is trivially infeasible." % (p[1], p[2], p[3]))
         #p[0] = [RelOp(p[2],p[1],p[3])]
     
     # more generic chained constraint is 
@@ -310,23 +307,12 @@ class QCParser(object):
     # not sure if we need to handle that
     def p_chained_constraint(self,p):
         '''constraint : expression LEQ expression LEQ expression
-                      | expression GEQ expression GEQ expression'''
-        def _check(x,y,op):
-            result = op(x,y)
-            if isinstance(result, Bool):
-                if result:
-                    return None
-                else:
-                    self._print_err("Boolean constraint %s %s %s is trivially infeasible." % (x, p[2], y))
-            else:
-                return result
-        
+                      | expression GEQ expression GEQ expression'''        
         if p[2] == '<=':
-            p[0] = [ _check(p[1], p[3], operator.le), _check(p[3], p[5], operator.le) ]
+            p[0] = [ p[1] <= p[3], p[3] <= p[5] ]
         else:
-            p[0] = [ _check(p[1], p[3], operator.ge), _check(p[3], p[5], operator.ge) ]
+            p[0] = [ p[1] >= p[3], p[3] >= p[5] ]
         
-        p[0] = filter(lambda x: x is not None, p[0])
     
     def p_expression_add(self,p):
         'expression : expression PLUS expression'
@@ -387,6 +373,18 @@ class QCParser(object):
             p[0] = ToMatrix(self._parameters[p[1]])
         else:
             self._print_err("Unknown identifier '%s'" % p[1])
+    
+    def p_expression_sum(self,p):
+        'expression : SUM LPAREN expression RPAREN'
+        p[0] = Sum(p[3])
+    
+    def p_expression_abs(self,p):
+        'expression : ABS LPAREN expression RPAREN'
+        p[0] = Abs(p[3])
+    
+    def p_expression_norm(self,p):
+        'expression : NORM LPAREN arglist RPAREN'
+        p[0] = Norm(p[3])
     
     def p_expression_atom(self,p):
         'expression : ATOM LPAREN arglist RPAREN'

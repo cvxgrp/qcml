@@ -19,7 +19,27 @@ def _isscalar(x):
 def _ismatrix(x):
     return isinstance(x, Matrix)
 
-
+# def stack(args):
+#     """ Stacks the shapes.
+#     
+#         args
+#             list of shapes to stack
+#     """
+#     def _stack(x,y):
+#         new_dimensions = []
+#         if len(x.dimensions) == len(y.dimensions):       
+#             if x.dimensions[-1] == y.dimensions[-1]:
+#                 for (e1,e2) in zip(x.dimensions[0:-1], y.dimensions[0:-1]):
+#                     new_dimensions.append(str(e1) + ' + ' + str(e2))
+#                 return Shape(new_dimensions)              
+#             else:
+#                 raise TypeError("Cannot stack '%s' and '%s', since they do not agree in last dimension." % (x, y))
+#         else:
+#             raise TypeError("Cannot stack '%s' and '%s', since they are not the same shape." % (x, y))
+#             
+#     return reduce(_stack, args)
+    
+        
 class Shape(object):
     def __init__(self, dimensions):
         """ Initializes an object
