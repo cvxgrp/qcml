@@ -3,9 +3,10 @@ from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_vexity import Affine, Convex, Concave, Nonconvex, \
     isconvex, isconcave, isaffine, \
     increasing, decreasing, nonmonotone
+#from qc_expression import 
 from qc_ast import isparameter, isconstant, isadd, ismul, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
-    ToVector, ToMatrix, Atom, Node
-    
+    ToVector, ToMatrix, Atom, Node, \
+    NodeVisitor

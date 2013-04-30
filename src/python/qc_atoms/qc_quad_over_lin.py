@@ -3,7 +3,9 @@ from scoop.qc_ast import Scalar, Vector, Matrix, \
     isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
     Positive, Negative, \
-    Convex, Concave, Affine
+    Convex, Concave, Affine, \
+    Variable, Objective, Program, Constant
+from utils import create_varname
 
 import scoop as s
 
@@ -40,7 +42,25 @@ def attributes(x,y):
         shape = y.shape    
     return (sign, vexity, shape)
 
-def rewrite(x,y):
+def rewrite(p,x,y):
+    """ Rewrite a quad_over_lin node
+        
+        p
+            the parent node
+        
+        x, y
+            the arguments
+    """
+    s = create_varname()
+    v = Variable(s, p.shape)
+    
+    objective = Objective('minimize', v)
+    constraints = [
+        y >= Constant(0)
+    ]
+
+    return Program(objective, constraints, {s: v})
+
     # v = Variable(create_varname(), shape)
     #                 
     #     # declare the expansion in "SCOOP"

@@ -1,3 +1,5 @@
+from qc_ast import NodeVisitor
+from qc_atoms import atoms
 """ For rewriting atoms.
 
     Atoms need to have an AST node....
@@ -42,4 +44,10 @@
 """
 
 # only rewrites the ATOM nodes
-class QCRewriter(NodeVisitor): pass
+class QCRewriter(NodeVisitor):
+    varcount = 0
+    
+    def visit_Atom(self, node):
+        p = atoms[node.name].rewrite(node,*node.arglist)
+        print p
+        node = None

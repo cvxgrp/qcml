@@ -28,6 +28,7 @@
 
 
 from qc_parser import QCParser
+from qc_rewrite import QCRewriter
 
 import qc_atoms
 atoms = qc_atoms.atoms

@@ -7,10 +7,6 @@ from qc_ast import isconstant, \
     ToVector, ToMatrix, Atom, \
     Neither, Positive, Negative, Node, \
     Shape, Scalar, Vector, Matrix, isscalar
-from utils import create_shape_from_dims, \
-    constant_folding_add, \
-    constant_folding_mul, \
-    negate_node, distribute
 
 # our own exception class
 class QCError(Exception): pass
@@ -21,6 +17,30 @@ def _find_column(data,pos):
       last_cr = 0
     column = (pos - last_cr) + 1
     return column
+
+# XXX/TODO: the functions above may be better placed in a separate file. a
+# "rewrite" file?
+
+def create_shape_from_dims(dims):
+    """ Creates a shape from a dimension list.
+    """
+    if not dims:
+        raise SyntaxError("Cannot create empty shape")
+
+    if len(dims) == 1:
+        if dims[0] == 1:
+            return Scalar()
+        else:
+            return Vector(dims[0])
+    elif len(dims) == 2:
+        if dims[0] == 1 and dims[1] == 1:
+            return Scalar()
+        elif dims[1] == 1:
+            return Vector(dims[0])
+        else:
+            return Matrix(dims[0], dims[1])
+    else:
+        return Shape(dims)
 
 class QCParser(object):
     """ QCParser parses QCML but does not perform rewriting.
@@ -270,7 +290,18 @@ class QCParser(object):
         '''constraint : expression EQ expression
                       | expression LEQ expression
                       | expression GEQ expression'''
-        p[0] = [RelOp(p[2],p[1],p[3])]
+        if p[2] == '==':
+            p[0] = [p[1] == p[3]]
+        elif p[2] == '<=':
+            p[0] = [p[1] <= p[3]]
+        else:
+            p[0] = [p[1] >= p[3]]
+        
+        if p[0][0] == True:
+            p[0] = []
+        elif p[0][0] == False:
+            self._print_err("Boolean constraint %s %s %s is trivially infeasible." % (p[1], p[2], p[3]))
+        #p[0] = [RelOp(p[2],p[1],p[3])]
     
     # more generic chained constraint is 
     #    constraint EQ expression
@@ -280,8 +311,22 @@ class QCParser(object):
     def p_chained_constraint(self,p):
         '''constraint : expression LEQ expression LEQ expression
                       | expression GEQ expression GEQ expression'''
-        p[0] = [RelOp(p[2],p[1],p[3]), RelOp(p[4],p[3],p[5])]
-    
+        def _check(x,y,op):
+            result = op(x,y)
+            if isinstance(result, Bool):
+                if result:
+                    return None
+                else:
+                    self._print_err("Boolean constraint %s %s %s is trivially infeasible." % (x, p[2], y))
+            else:
+                return result
+        
+        if p[2] == '<=':
+            p[0] = [ _check(p[1], p[3], operator.le), _check(p[3], p[5], operator.le) ]
+        else:
+            p[0] = [ _check(p[1], p[3], operator.ge), _check(p[3], p[5], operator.ge) ]
+        
+        p[0] = filter(lambda x: x is not None, p[0])
     
     def p_expression_add(self,p):
         'expression : expression PLUS expression'
@@ -291,7 +336,7 @@ class QCParser(object):
             # x + x = 2x
             p[0] = Mul(Constant(2.0), p[1])
         else:
-            p[0] = constant_folding_add(p[1],p[3])
+            p[0] = p[1] + p[3] # expression + epxression
     
     def p_expression_minus(self,p):
         'expression : expression MINUS expression'
@@ -299,7 +344,7 @@ class QCParser(object):
         if str(p[1]) == str(p[3]):
             p[0] = Constant(0)
         else:
-            p[0] = constant_folding_add(p[1], negate_node(p[3]))
+            p[0] = p[1] - p[3]
     
     def p_expression_divide(self,p):
         'expression : expression DIVIDE expression'
@@ -310,7 +355,7 @@ class QCParser(object):
             
     def p_expression_multiply(self,p):
         'expression : expression TIMES expression'
-        p[0] = distribute(p[1],p[3])
+        p[0] = p[1] * p[3]
     
     def p_expression_group(self,p):
         'expression : LPAREN expression RPAREN'
@@ -318,7 +363,7 @@ class QCParser(object):
     
     def p_expression_negate(self,p):
         'expression : MINUS expression %prec UMINUS'
-        p[0] = negate_node(p[2])
+        p[0] = -p[2]
     
     def p_expression_transpose(self,p):
         'expression : expression TRANSPOSE'

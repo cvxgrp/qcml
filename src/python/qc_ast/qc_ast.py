@@ -3,9 +3,107 @@
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+#from utils import negate_node, constant_folding_add, distribute
 
 import scoop
 import sys, re
+import operator
+
+""" Utility functions
+"""
+def negate_node(x):
+    """ Negates an AST node"""
+    
+    def _negate(x):
+        """ Ensures Negate(Negate(x)) is just x."""
+        if isinstance(x, Negate):
+            return x.expr
+        else:
+            return Negate(x)
+            
+    if isconstant(x):
+        return Constant(-x.value)
+    elif isadd(x):
+        if isconstant(x.left):
+            return Add(Constant(-x.left.value), _negate(x.right))
+        else:
+            return Add(_negate(x.left), _negate(x.right))
+    elif ismul(x):
+        if isconstant(x.left):
+            return Mul(Constant(-x.left.value), x.right)
+        else:
+            return Mul(_negate(x.left), x.right)
+    else:
+        return _negate(x)
+
+def constant_folding(lhs,rhs,op,isop,do_op):
+    """ Generic code for constant folding. Only for associative operators.
+        
+        op:
+            Operation node (must be AST Node subclass)
+        
+        isop:
+            Function to check if a Node is this op
+            
+        do_op:
+            Execute the operator (e.g, for Add node, this is operator.add)
+    """
+    if isconstant(lhs) and isconstant(rhs):
+        return Constant(do_op(lhs.value, rhs.value))
+    
+    left = lhs
+    right = rhs
+    if isconstant(lhs) and isop(rhs):
+        # left is constant and right is the result of an add
+        # by convention, we'll put constants on the left leaf
+        if isconstant(rhs.left):
+            right = rhs.right
+            left = Constant(do_op(rhs.left.value,lhs.value))
+        else:
+            right = rhs
+            left = lhs
+    elif isconstant(rhs) and isop(lhs):
+        # right is constant and left is the result of an add
+        # by convention, we'll put constants on the right leaf
+        if isconstant(lhs.left):
+            right = lhs.right
+            left = Constant(do_op(lhs.left.value,rhs.value))
+    elif isop(lhs) and isop(rhs) and isconstant(lhs.left) and isconstant(rhs.left):
+        # if adding two add nodes with constants on both sides
+        left = Constant(do_op(lhs.left.value, rhs.left.value))
+        right = op(lhs.right, rhs.right)
+    elif isop(lhs) and isconstant(lhs.left):
+        # if there are constants on the lhs, move up tree
+        left = lhs.left
+        right = op(lhs.right, rhs)
+    elif isop(rhs) and isconstant(rhs.left):
+        # if there are constants on the rhs, move up tree    
+        left = rhs.left
+        right = op(lhs,rhs.right)  
+    
+    return op(left, right)
+        
+def constant_folding_add(lhs,rhs):
+    return constant_folding(lhs, rhs, Add, isadd, operator.add)
+
+def constant_folding_mul(lhs,rhs):
+    return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
+    
+def distribute(lhs, rhs):
+    """ Distribute multiply a*(x + y) = a*x + a*y
+    """
+    if isadd(lhs):
+        return constant_folding_add(
+            distribute(lhs.left, rhs), 
+            distribute(lhs.right, rhs)
+        )
+    elif isadd(rhs):
+        return constant_folding_add(
+            distribute(lhs,rhs.left), 
+            distribute(lhs,rhs.right)
+        )
+    else: 
+        return constant_folding_mul(lhs,rhs)
 
 def isconstant(x):
     return isinstance(x, Constant)
@@ -18,6 +116,9 @@ def ismul(x):
 
 def isparameter(x):
     return isinstance(x, Parameter)
+    
+""" Actual AST class
+"""
 
 class Node(object):
     """ Abstract base class for AST nodes.
@@ -76,15 +177,15 @@ class Node(object):
                 nodenames=nodenames,
                 _my_node_name=child_name)
 
-class NodeVisitor(object):
-    """ A base NodeVisitor class for visiting c_ast nodes. 
+class NodeTransformer(object):
+    """ A base NodeTransformer class for visiting c_ast nodes. 
         Subclass it and define your own visit_XXX methods, where
         XXX is the class name you want to visit with these 
         methods.
         
         For example:
         
-        class ConstantVisitor(NodeVisitor):
+        class ConstantVisitor(NodeTransformer):
             def __init__(self):
                 self.values = []
             
@@ -105,7 +206,7 @@ class NodeVisitor(object):
             defined will not be visited - if you need this, call
             generic_visit() on the node. 
             You can use:
-                NodeVisitor.generic_visit(self, node)
+                NodeTransformer.generic_visit(self, node)
         *   Modeled after Python's own AST visiting facilities
             (the ast module of Python 3.0)
     """
@@ -122,13 +223,42 @@ class NodeVisitor(object):
         """
         for c_name, c in node.children():
             self.visit(c)
+            
 
 class Expression(Node): 
     """ Expression AST node.
     
         Abstract Expression class.
     """
-    pass
+    def __neg__(self):
+        return negate_node(self)
+        
+    def __sub__(self,other):
+        return constant_folding_add(self, -other)
+    
+    def __add__(self,other):
+        return constant_folding_add(self,other)
+    
+    def __mul__(self,other):
+        return distribute(self, other)
+        
+    def __eq__(self, other):
+        if isconstant(self) and isconstant(other):
+            return self.value == other.value
+        else:
+            return RelOp('==', self, other)
+    
+    def __le__(self, other):
+        if isconstant(self) and isconstant(other):
+            return self.value <= other.value
+        else:
+            return RelOp('<=', self, other)
+    
+    def __ge__(self, other):
+        if isconstant(self) and isconstant(other):
+            return self.value >= other.value
+        else:
+            return RelOp('>=', self, other)
     
 class Program(Node):
     """ Program AST node.
@@ -138,7 +268,7 @@ class Program(Node):
         
         It is DCP compliant when the Objective is DCP and the RelOp's are DCP.
     """
-    def __init__(self, objective, constraints, variables, parameters, dimensions):
+    def __init__(self, objective, constraints, variables, parameters={}, dimensions=set()):
         self.objective = objective
         self.constraints = constraints
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)

@@ -80,20 +80,19 @@ class QCLexer:
     t_RBRACE    = r'\]'
     t_LPAREN    = r'\('
     t_RPAREN    = r'\)'
+    
+    # for parsing constant floats
+    # WARNING: this must appear before t_INTEGER
+    def t_CONSTANT(self,t):
+        r'\d+\.\d*'
+        t.value = float(t.value)
+        return t
 
     # for parsing integers
     def t_INTEGER(self,t):
         r'\d+'
         t.value = int(t.value)
         return t
-        
-    # for parsing constant floats
-    def t_CONSTANT(self,t):
-        r'\d+\.\d*'
-        t.value = float(t.value)
-        return t
-    
-
 
     # for identifiers
     def t_ID(self,t):
