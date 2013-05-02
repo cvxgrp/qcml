@@ -2,6 +2,7 @@ import qc_geo_mean as geo_mean
 from scoop.qc_ast import increasing, decreasing, nonmonotone, \
      Positive, Negative, ispositive, isnegative, \
      Convex, Concave, Affine, Constant
+from utils import annotate
 
 
 """ This is the sqrt atom.
@@ -19,6 +20,7 @@ from scoop.qc_ast import increasing, decreasing, nonmonotone, \
 def attributes(x):
     return geo_mean.attributes(x, Constant(1.0))
 
+@annotate('sqrt')
 def rewrite(p,x):
     """ Rewrite a square node
         

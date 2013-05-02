@@ -1,8 +1,8 @@
-import qc_quad_over_lin as qol
+import qc_square_over_lin as sol
 from scoop.qc_ast import increasing, decreasing, nonmonotone, \
      Positive, Negative, ispositive, isnegative, \
-     Convex, Concave, Affine, Constant
-
+     Convex, Concave, Affine, Constant, Atom
+from utils import annotate
 
 """ This is the square atom.
 
@@ -22,8 +22,9 @@ from scoop.qc_ast import increasing, decreasing, nonmonotone, \
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return qol.attributes(x, Constant(1.0))
+    return sol.attributes(x, Constant(1.0))
 
+@annotate('square')
 def rewrite(p,x):
     """ Rewrite a square node
         
@@ -33,28 +34,6 @@ def rewrite(p,x):
         x
             the argument
     """
-    return qol.rewrite(p,x,Constant(1.0))
-
-    # v = Variable(create_varname(), shape)
-    #                 
-    #     # declare the expansion in "SCOOP"
-    #     if isscalar(shape):
-    #         definition = [
-    #             v,  # declare the variable
-    #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
-    #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, [y - v, Constant(2.0)*x]),
-    #             y >= Constant(0)
-    #         ]
-    # 
-    #     else:
-    #         definition = [
-    #             v, # declare the variable
-    #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
-    #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, y - v, Constant(2.0)*x),
-    #             y >= Constant(0)
-    #         ]
-    #
+    return sol.rewrite(p,x,Constant(1.0))
 
 

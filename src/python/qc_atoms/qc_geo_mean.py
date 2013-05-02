@@ -6,7 +6,7 @@ from scoop.qc_ast import Scalar, Vector, Matrix, \
     Convex, Concave, Affine, \
     Variable, Objective, Program, Constant, \
     SOC, SOCProd
-from utils import create_varname
+from utils import create_varname, annotate
 
 """ This is the geo_mean atom.
 
@@ -31,6 +31,7 @@ def attributes(x,y):
     shape = x.shape + y.shape
     return (sign, vexity, shape)
 
+@annotate('geo_mean')
 def rewrite(p,x,y):
     """ Rewrite a quad_over_lin node
         
@@ -44,7 +45,8 @@ def rewrite(p,x,y):
     
     constraints = [
         SOCProd(x + y, [y - x, Constant(2.0)*v]),
-        y >= Constant(0)
+        y >= Constant(0),
+        x >= Constant(0)
     ]
 
     return (v, constraints)

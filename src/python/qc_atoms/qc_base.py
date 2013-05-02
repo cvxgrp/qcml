@@ -6,7 +6,7 @@ from scoop.qc_ast import Scalar, Vector, Matrix, \
     Convex, Concave, Affine, \
     Variable, Objective, Program, Constant, \
     SOC, SOCProd
-from utils import create_varname
+from utils import create_varname, annotate
 import operator
 
 """ These define the attributes of the *basic* atoms, norm and abs, along with
@@ -36,6 +36,7 @@ def abs_(x):
 
 """ Rewrite rules
 """
+@annotate('norm')
 def norm_rewrite(p, args):
     v = Variable(create_varname(), p.shape)
     
@@ -46,6 +47,7 @@ def norm_rewrite(p, args):
     
     return (v, constraints)
 
+@annotate('abs')
 def abs_rewrite(p, x):
     v = Variable(create_varname(), p.shape)
     constraints = [SOCProd(v, [x])]

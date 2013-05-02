@@ -237,6 +237,25 @@ class RelOp(Node):
         else:
             self.is_dcp = False
     
+    def __eq__(self, other):
+        if self.op == other.op:
+            return str(self.left - self.right) == str(other.left - other.right)
+        elif self.op == '<=' and other.op == '>=':
+            return str(self.left - self.right) == str(other.right - other.left)
+        elif self.op == '>=' and other.op == '<=':
+            return str(self.right - self.left) == str(other.left - other.right)
+        else:
+            return False
+    
+    def __ne__(self, other):
+        return not (self == other)
+    
+    def __hash__(self):
+        if self.op == '<=':
+            return hash(str(self.left - self.right))
+        else:
+            return hash(str(self.right - self.left))
+    
     def __str__(self): return "%s %s %s" % (self.left, self.op, self.right)
 
     def children(self):
@@ -267,6 +286,15 @@ class SOC(Node):
         self.is_dcp = all(map(isaffine, self.left)) and isaffine(self.right)
     
     def __str__(self): return "norm([%s]) <= %s" % ('; '.join(map(str,self.left)), self.right)
+    
+    def __eq__(self, other):
+        return str(self) == str(other)
+    
+    def __ne__(self, other):
+        return not (self == other)
+    
+    def __hash__(self):
+        return hash(str(self))
 
     def children(self):
         nodelist = []
@@ -301,7 +329,20 @@ class SOCProd(Node):
         
         self.is_dcp = all(map(isaffine, args)) and isaffine(self.right)
     
-    def __str__(self): return "norm(%s) <= %s" % (', '.join(map(str, self.arglist)), self.right)
+    def __str__(self):
+        if len(self.arglist) == 1:
+            return "abs(%s) <= %s" % (self.arglist[0], self.right)
+        else:
+            return "norm(%s) <= %s" % (', '.join(map(str, self.arglist)), self.right)
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+    
+    def __ne__(self, other):
+        return not (self == other)
+    
+    def __hash__(self):
+        return hash(str(self))
 
     def children(self):
         nodelist = []

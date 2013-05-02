@@ -13,10 +13,11 @@ if __name__ == "__main__":
         
         variables y(31) a(1,5)
         
-        norm(x) + norm(z) <= b
-        norm(z) <= b
+        norm_inf(x,z) <= 1
+        #norm_inf(x) <= 2
+        #pow_rat(x,2,3) >= 0
         
-        minimize square(norm(x))
+        minimize c'*x
         
         # 82 + 6/3 == 1
         # dimension p

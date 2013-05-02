@@ -10,9 +10,9 @@ from utils import create_varname, annotate
 
 #import scoop as s
 
-""" This is the quad_over_lin atom.
+""" This is the square_over_lin atom.
 
-        quad_over_lin(x,y) = (x^Tx) ./ y
+        square_over_lin(x,y) = (x).^2 ./ y
     
     If y is a vector, it computes the division elementwise.
     
@@ -38,13 +38,17 @@ def attributes(x,y):
     else: vexity += nonmonotone(x) + decreasing(y)
     
     if isscalar(y):
-        shape = Scalar()
+        shape = x.shape
+    elif isscalar(x):
+        shape = y.shape
+    elif y.shape.row == x.shape.row:
+        shape = x.shape
     else:
-        raise TypeError("Cannot use quad_over_lin with vector y arguments. Perhaps you meant 'square_over_lin'?")
+        raise TypeError("Cannot use square_over_lin with x, y disagreeing in length.")
         
     return (sign, vexity, shape)
 
-@annotate('quad_over_lin')
+@annotate('square_over_lin')
 def rewrite(p,x,y):
     """ Rewrite a quad_over_lin node
         
@@ -57,7 +61,7 @@ def rewrite(p,x,y):
     v = Variable(create_varname(), p.shape)
     
     constraints = [
-        SOC(y + v, [y - v, Constant(2.0)*x]),
+        SOCProd(y + v, [y - v, Constant(2.0)*x]),
         y >= Constant(0)
     ]
 

@@ -5,6 +5,7 @@ from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 
 import scoop
 import operator
+import re
 
 """ Utility functions
 """
@@ -453,7 +454,7 @@ class Norm(Expression):
 class Abs(Expression):
     def __init__(self, x):
         self.arg = x
-        self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(args)
+        self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(arg)
     
     def __str__(self): return "abs(%s)" % self.arg
 

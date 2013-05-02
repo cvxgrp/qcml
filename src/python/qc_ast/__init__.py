@@ -8,4 +8,4 @@ from qc_ast import Objective, RelOp, Program, Node, NodeTransformer, SOC, SOCPro
 from qc_expression import isparameter, isconstant, isadd, ismul, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
-    ToVector, ToMatrix, Atom, Sum, Norm, Abs
+    ToVector, ToMatrix, Atom, Sum, Norm, Abs, Expression
