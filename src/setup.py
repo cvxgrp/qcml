@@ -9,9 +9,10 @@ setup(
                 'scoop.qc_ply',
                 'scoop.qc_atoms',
                 'scoop.qc_ast',
-                'scoop.codegen', 
-                'scoop.atoms', 
-                'scoop.expression',
+                'scoop.qc_codegen',
+                'scoop.codegen',    # old
+                'scoop.atoms',      # old
+                'scoop.expression', # old
                 'scoop.test'],
     package_dir={'scoop': 'python'},
         url='http://github.com/cvxgrp/scoop',
