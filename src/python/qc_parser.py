@@ -74,12 +74,12 @@ class QCParser(object):
         if('\n' != text[-1]):
             text += '\n'
         
-        try:
-            return self.parser.parse(text, debug=False)
-        except QCError:
-            pass
-        except Exception as e:
-            self._print_err(e, False)
+        # try:
+        return self.parser.parse(text, debug=False)
+        # except QCError:
+        #     pass
+        # except Exception as e:
+        #     self._print_err(e, False)
     
     def _print_err(self, msg, raise_error=True):
         """ Prints a QCML parse error.

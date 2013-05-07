@@ -127,18 +127,18 @@ class QCRewriter(NodeTransformer):
             # return Constant(0)
         return v
         
-    def visit_RelOp(self, node):
-        # visit children
-        self.generic_visit(node)
-        
-        # convert all constraints so they are 
-        #  == 0 or <= 0
-        if node.op == '==':
-            return RelOp('==', node.left - node.right, Constant(0))
-        if node.op == '<=':
-            return RelOp('<=', node.left - node.right, Constant(0))
-        if node.op == '>=':
-            return RelOp('<=', node.right - node.left, Constant(0))
+    # def visit_RelOp(self, node):
+    #     # visit children
+    #     self.generic_visit(node)
+    #     
+    #     # convert all constraints so they are 
+    #     #  == 0 or <= 0
+    #     if node.op == '==':
+    #         return RelOp('==', node.left - node.right, Constant(0))
+    #     if node.op == '<=':
+    #         return RelOp('<=', node.left - node.right, Constant(0))
+    #     if node.op == '>=':
+    #         return RelOp('<=', node.right - node.left, Constant(0))
     
     def visit_Program(self, node):
         # load the current state

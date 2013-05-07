@@ -13,17 +13,17 @@ import operator
     their rewrite rules
 """
 def norm(args):
-        sign = Positive()
-        if all(ispositive(e) for e in args): vexity = reduce(operator.add, map(increasing, args), Convex())
-        elif all(isnegative(e) for e in args): vexity = reduce(operator.add, map(decreasing, args), Convex())
-        else: vexity = reduce(operator.add, map(nonmonotone, args), Convex())
+    sign = Positive()
+    if all(ispositive(e) for e in args): vexity = reduce(operator.add, map(increasing, args), Convex())
+    elif all(isnegative(e) for e in args): vexity = reduce(operator.add, map(decreasing, args), Convex())
+    else: vexity = reduce(operator.add, map(nonmonotone, args), Convex())
 
-        if len(args) == 1:
-            shape = Scalar()
-        else:
-            shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
-        
-        return (sign, vexity, shape)
+    if len(args) == 1:
+        shape = Scalar()
+    else:
+        shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
+
+    return (sign, vexity, shape)
 
 def abs_(x):
     sign = Positive()
@@ -38,7 +38,10 @@ def abs_(x):
 """
 @annotate('norm')
 def norm_rewrite(p, args):
-    shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
+    if len(args) == 1:
+        shape = Scalar()
+    else:
+        shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
     
     v = Variable(create_varname(), shape)
     

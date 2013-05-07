@@ -32,6 +32,8 @@ class CodegenExpr(object):
             return self.arg
         if isinstance(self,Ones):
             return Ones(self.n, -self.coeff)
+        if isinstance(self,Mul):
+            return Mul(-self.left, self.right)
         return Negate(self)
     
     def __mul__(self,other):

@@ -82,9 +82,13 @@ def constant_folding(lhs,rhs,op,isop,do_op):
     return op(left, right)
         
 def constant_folding_add(lhs,rhs):
+    if isconstant(lhs) and lhs.value == 0:
+        return rhs
     return constant_folding(lhs, rhs, Add, isadd, operator.add)
 
 def constant_folding_mul(lhs,rhs):
+    if isconstant(lhs) and lhs.value == 1:
+        return rhs
     return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
     
 def distribute(lhs, rhs):
@@ -144,25 +148,25 @@ class Expression(Node):
             else:
                 raise TypeError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
         else:
-            return RelOp('==', self, other)
+            return RelOp('==', self - other, Constant(0))
     
     def __le__(self, other):
         if isconstant(self) and isconstant(other):
             if self.value <= other.value:
                 return None
             else:
-                raise TypeError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
+                raise TypeError("Boolean constraint %s <= %s is trivially infeasible." % (self, other))
         else:
-            return RelOp('<=', self, other)
+            return RelOp('<=', self - other, Constant(0))
     
     def __ge__(self, other):
         if isconstant(self) and isconstant(other):
             if self.value >= other.value:
                 return None
             else:
-                raise TypeError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
+                raise TypeError("Boolean constraint %s >= %s is trivially infeasible." % (self, other))
         else:
-            return RelOp('>=', self, other)
+            return RelOp('<=', other - self, Constant(0))
 
 class Constant(Expression):
     """ Constant AST node.

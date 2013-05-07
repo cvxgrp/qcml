@@ -1,4 +1,4 @@
-from scoop import QCParser, QCRewriter, CVXCodegen, CVXOPTCodegen
+from scoop import QCParser, QCRewriter, CVXCodegen, CVXOPTCodegen, ECOSCodegen
 
 import cvxopt as o
 
@@ -25,23 +25,39 @@ if __name__ == "__main__":
     # minimize c'*x + b
     # subject to
     """
+    
+    """
+    dimensions m n
+    variable z
+    parameter b(m)
+    parameter gamma positive
+    parameter A(m,n)
+    variable x(n)
+    parameter c(m)
+    
+    
+    variables y(31) a(1,5)
+    
+    # square(x) <= 1
+    
+    minimize sum(square(A*x - b))
+    """
+    
+    n = 2      # number of features
+    m = 100   # number of examples
+    X = o.normal(m,n, -2)
+    Y = o.normal(m,n, 2)
+    gamma = 1
+    
     p = QCParser()
     y = p.parse("""
         dimensions m n
-        variable z
-        parameter b(m)
+        variable a(n)
+        variable b
+        parameter X(m,n)      # positive samples
+        parameter Y(m,n)      # negative samples
         parameter gamma positive
-        parameter A(m,n)
-        variable x(n)
-        parameter c(m)
-        
-        
-        variables y(31) a(1,5)
-        
-        # square(x) <= 1
-        
-        minimize sum(square(A*x - b))
-
+        minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
         """)
     
     if y:
@@ -51,8 +67,14 @@ if __name__ == "__main__":
 
         print y
         # TODO: before codegen, need to check DCP compliance and that objective is scalar
-        codegen = CVXOPTCodegen(visit.replaced_expressions())
+        codegen = ECOSCodegen(visit.replaced_expressions())
         codegen.visit(y)
+        codegen.prettyprint(True)
+        
         f = codegen.codegen()
-        s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
-        print s['x']
+        #s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
+        s = f(m=m,n=n,X=X,Y=Y,gamma=gamma)
+        
+        print s
+        print s['a']
+        print s['b']

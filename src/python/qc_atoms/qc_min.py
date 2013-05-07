@@ -7,6 +7,7 @@ from scoop.qc_ast import Scalar, Vector, Matrix, \
     Variable, Objective, Program, Constant, \
     SOC, SOCProd
 from utils import create_varname, annotate
+import operator
 
 #import scoop as s
 
