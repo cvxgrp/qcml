@@ -1,4 +1,4 @@
-from qc_ast import NodeTransformer, Constant, Variable, RelOp
+from qc_ast import NodeTransformer, Constant, Variable, RelOp, SOC, SOCProd
 from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
@@ -118,7 +118,7 @@ class QCRewriter(NodeTransformer):
         
         if not v:
             #if self.rewrite_norm:
-            return self._apply_rewrite_rule(node, abs_rewrite, node.arglist)
+            return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
             # each constraint can only have a single Abs
             # so although Abs(x) + Abs(y) <= z is a valid constraint, we
             #   can't turn it into an SOC unless one of them is rewritten
@@ -151,7 +151,12 @@ class QCRewriter(NodeTransformer):
         node.new_variables = QCRewriter.new_variables
         node.constraints += filter(None, self.new_constraints)
         # remove any redundant constraints by converting to set
-        node.constraints = list(set(node.constraints))
+        unique_constraints = set(node.constraints)
+        # convert to a list but place the linear constraints at the front of the list
+        linear_constraints = [x for x in unique_constraints if isinstance(x,RelOp)]
+        soc_constraints = [x for x in unique_constraints if (isinstance(x,SOC) or isinstance(x,SOCProd))]
+        node.constraints = linear_constraints + soc_constraints
+        
         # only include the variables and parameters that are used
         node.variables = self.variables
         node.parameters = self.parameters

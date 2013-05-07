@@ -40,9 +40,7 @@ if __name__ == "__main__":
         
         # square(x) <= 1
         
-        minimize z + sum(A*x - b) + sum(square(A*x - b)) + gamma*gamma*norm1(x) + z
-        
-        z <= b
+        minimize sum(square(A*x - b))
 
         """)
     
@@ -56,4 +54,5 @@ if __name__ == "__main__":
         codegen = CVXOPTCodegen(visit.replaced_expressions())
         codegen.visit(y)
         f = codegen.codegen()
-        print f(m=1,n=1,A=o.matrix(1,(1,1)),b=1,gamma=0.1)
+        s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
+        print s['x']

@@ -1,4 +1,4 @@
-from scoop.qc_ast import NodeVisitor, isscalar
+from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 from codegen import Constant, ScalarParameter, Parameter, Eye, Ones
 
 
@@ -8,8 +8,8 @@ class CVXOPTCodegen(NodeVisitor):
         Actually, need some way to insert different code generation..
         Or, make this an easy to repeat template (like the one above)
     """
-    offset = 2*' '
-    constraint = 4*' '
+    offset = 4*' '
+    constraint = 8*' '
      # the lookup is for adding comments
      # we can actually pass the lookup from the rewriter to the code generator
      # however, i am not doing that at the moment
@@ -31,10 +31,13 @@ class CVXOPTCodegen(NodeVisitor):
             
             You have to modify *this* source code to make a malicious program.
         """
-        self.prog = ""
+        self.prog = []
         self.varlength = {}
         self.varstart = {}
         self.expr_stack = []
+        self.num_lineqs = "0"
+        self.num_lps = "0"
+        self.num_conic = "0"
     
     def codegen(self):
         return self.solve
@@ -61,36 +64,64 @@ class CVXOPTCodegen(NodeVisitor):
         self.varstart = dict(self.varstart)
         # varlength contains the vector lengths as strings
         self.varlength = dict(self.varlength)
+        
+        # full length of optimization variable
+        varlength = start
+        
+        # constraints, local copy to instantiate sparse matrices
+        num_lineqs = "0"
+        num_lps = "0"
+        cone_list = []
+        num_conic = "0"
+        for c in node.constraints:
+            if isinstance(c, RelOp):
+                if c.op == '==':
+                    num_lineqs = num_lineqs + "+" + c.shape.size_str()
+                else:
+                    num_lps = num_lps + "+" + c.shape.size_str()
+            if isinstance(c, SOC):
+                cone_len = node.right.shape.size_str()
+                for e in node.left:
+                    cone_len = cone_len + '+' + e.shape.size_str()
+                
+                num_conic = num_conic + '+' + cone_len
+                cone_list.append("[%s]" % cone_len)
+            if isinstance(c, SOCProd):     
+                cone_list.append("%s*[%s]" % (c.shape.size_str(), len(c.arglist) + 1))
+                num_conic = num_conic + "+%s*%s" % (c.shape.size_str(), len(c.arglist) + 1)
     
-        self.prog = \
-"""
-def solve(%s):
-  \"""
-  Default solves scalar problem
-       find x
-       s.t. x <= 0
-  \"""
-  import cvxopt as _o
-  import cvxopt.solvers
-
-  _c = _o.matrix(0, (%s,1), tc='d')
-  _G = _o.matrix(1, (1,%s), tc='d')
-  _h = _o.matrix(1, (1,1), tc='d')
-  _dims = {'l':1, 'q':[], 's':[]}
-  _A = _o.matrix(1,(0,%s), tc='d')
-  _b = _o.matrix(1,(0,1), tc='d')
-""" % (', '.join(dims + params), start, start, start)
-    
+        self.prog = ["def solve(%s):" % ', '.join(dims + params)]
+        self.prog += map(lambda x: self.offset + x, [
+        "\"\"\"",
+        "Default solves scalar problem",
+        "     find x",
+        "     s.t. x <= 0",
+        "\"\"\"",
+        "import cvxopt as _o",
+        "import cvxopt.solvers",
+        "",
+        "_c = _o.matrix(0, (%s,1), tc='d')" % varlength,
+        "_h = _o.matrix(0, (%s,1), tc='d')" % num_conic,
+        "_b = _o.matrix(0, (%s,1), tc='d')" % num_lineqs,
+        "_G = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (num_conic, varlength),
+        "_A = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (num_lineqs, varlength),
+        "_dims = {'l': %s, 'q': %s, 's': []}" % (num_lps, '+'.join(map(str,cone_list))),
+        ])
+        
         self.generic_visit(node)
-        self.prog += self.offset + "return _o.solvers.conelp(_c, _G, _h, _dims, _A, _b)\n"
+        
+        self.prog += map(lambda x: self.offset + x, [
+            "print _G",
+            "print _h"
+        ])
+        self.prog.append(self.offset + "return _o.solvers.conelp(_c, _G, _h, _dims, _A, _b)")
+        
         #self.prog += self.offset + "return sol\n"
     
-        print self.varlength
-        print self.varstart
-        print self.prog
+        print '\n'.join( self.prog )
         #self.code = compile(self.prog, '', 'exec')
     
-        exec self.prog in locals()
+        exec '\n'.join(self.prog) in locals()
         self.solve = solve
         
     def visit_Variable(self, node):
@@ -182,46 +213,115 @@ def solve(%s):
         
     
     def visit_Objective(self, node):
-        self.prog += "\n"
-        self.prog += self.offset + "# stuffing the objective vector\n"
+        self.prog.append("")
+        self.prog.append(self.offset + "# stuffing the objective vector")
         
         self.generic_visit(node)
         
         obj = self.expr_stack.pop()
-        for k,v in obj.iteritems():
-            # ignore constants
-            if k == '1':
-                continue
-            start = self.varstart[k]
-            length = self.varlength[k]
-            self.prog += self.offset + \
-                "_c[%s:%s] = %s\n" % (
-                    start,
-                    start + "+" + length,
-                    v.trans()
-                )
+        if not node.sense == 'find':
+            for k,v in obj.iteritems():
+                # ignore constants
+                if k == '1':
+                    continue
+                start = self.varstart[k]
+                length = self.varlength[k]
+                if node.sense == 'minimize':
+                    objective_c = v.trans()
+                elif node.sense == 'maximize':
+                    objective_c = (-v).trans()
+                self.prog.append(self.offset + \
+                    "_c[%s:%s] = %s" % (
+                        start,
+                        start + "+" + length,
+                        objective_c
+                    ))
         
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
-        self.prog += "\n"
+        self.prog.append("")
     
     def visit_RelOp(self, node):
         # TODO: in rewriter, force relop to be a - b <= 0
         # and a - b == 0
+        self.prog.append(self.offset + "# for the constraint %s" % (node))
+        
+        if node.op == '==':
+            start = self.num_lineqs
+            self.num_lineqs = self.num_lineqs + "+" + node.shape.size_str()
+        else:
+            start = self.num_lps
+            self.num_lps = self.num_lps + "+" + node.shape.size_str()
+
         self.generic_visit(node)
+        
         right = self.expr_stack.pop()
         left = self.expr_stack.pop()
         
         # right should be all 0's
-        print left
+        assert (str(right['1']) == '0'), "Expected '0' on the righthand side, but got %s." % right['1']
+        
+        # copy into the appropriate block
+        for k,v in left.iteritems():
+            if k == '1':
+                if node.op == '==':
+                    self.prog.append(self.offset + "_b[%s:%s] = %s" % (start, self.num_lineqs, -v))
+                else:
+                    self.prog.append(self.offset + "_h[%s:%s] = %s" % (start, self.num_lps, -v))
+            else:
+                xstart = self.varstart[k]
+                xend = xstart + '+' + self.varlength[k]
+                if node.op == '==':
+                    self.prog.append(self.offset + "_A[%s:%s, %s:%s] = %s" % (start, self.num_lineqs, xstart, xend, v))
+                else:
+                    self.prog.append(self.offset + "_G[%s:%s, %s:%s] = %s" % (start, self.num_lps, xstart, xend, v))
+        
+        self.prog.append("")
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
     
  
     def visit_SOC(self, node):
+        # TODO!!!!!
+        self.prog.append( self.offset + "# for the SOC constraint %s" % (node) )
+        
+        # we assume linear constraints have already been handled
+        start = self.num_lps + "+" + self.num_conic
+        self.num_conic = self.num_conic + '+' + node.right.shape.size_str()
+        for e in node.left:
+            self.num_conic = self.num_conic + '+' + e.shape.size_str()
+        
         self.generic_visit(node)
+        
+        t = self.expr_stack.pop()
+        args = self.expr_stack
+        
         print self.expr_stack
         self.expr_stack = []
 
     def visit_SOCProd(self, node):
+        self.prog.append( self.offset + "# for the SOC product constraint %s" % (node) )
+        
+        # we assume linear constraints have already been handled
+        start = self.num_lps + "+" + self.num_conic
+        stride = len(node.arglist) + 1
+        self.num_conic = self.num_conic + "+%s*%s" % (node.shape.size_str(), stride)
+        
         self.generic_visit(node)
-        print self.expr_stack
-        self.expr_stack = []
+        
+        # copy into the appropriate block
+        count = 0
+        while self.expr_stack:
+            e = self.expr_stack.pop()
+            conestart = start + "+" + str(count)
+            count += 1
+            for k,v in e.iteritems():
+                if k == '1':
+                    self.prog.append( self.offset + \
+                        "_h[%s:%s:%s] = %s" % (conestart, self.num_conic, stride, v))
+                else:
+                    xstart = self.varstart[k]
+                    xend = xstart + '+' + self.varlength[k]
+                    self.prog.append( self.offset + \
+                        "_G[%s:%s:%s, %s:%s] = %s" % (conestart, self.num_conic, stride, xstart, xend, -v))
+        
+        self.prog.append("")
+        assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack

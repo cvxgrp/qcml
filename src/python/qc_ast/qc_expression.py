@@ -471,7 +471,7 @@ class Norm(Expression):
 class Abs(Expression):
     def __init__(self, x):
         self.arg = x
-        self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(arg)
+        self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(self.arg)
         self.isknown = False
     
     def __str__(self): return "abs(%s)" % self.arg

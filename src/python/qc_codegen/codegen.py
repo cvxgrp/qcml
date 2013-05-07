@@ -119,7 +119,7 @@ class Eye(CodegenExpr):
         self.isknown = True
         self.isscalar = False
         
-    def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s))" % (self.coeff, self.n, self.n)
+    def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
 
 class Ones(CodegenExpr):
     def __init__(self, n, coeff, transpose = False):
@@ -131,9 +131,9 @@ class Ones(CodegenExpr):
         
     def __str__(self): 
         if self.transpose:
-            return "_o.matrix(%s,(1,%s))" % (self.coeff, self.n)
+            return "_o.matrix(%s,(1,%s), tc='d')" % (self.coeff, self.n)
         else:
-            return "_o.matrix(%s,(%s,1))" % (self.coeff, self.n)
+            return "_o.matrix(%s,(%s,1), tc='d')" % (self.coeff, self.n)
 
 class Add(CodegenExpr):
     def __init__(self, left, right):
