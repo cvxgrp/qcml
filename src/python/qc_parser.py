@@ -1,5 +1,5 @@
 from qc_ply import yacc
-from qc_lex import QCLexer
+from qc_lexer import QCLexer
 from qc_ast import isconstant, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
@@ -97,7 +97,6 @@ class QCParser(object):
         current_token = self.lex.lexer.lexmatch.lastgroup
         lexpos = self.lex.lexer.lexpos
         if current_token == 't_NL':
-            print "arr"
             offset = 2
             lexpos -= 20
         else:
@@ -142,10 +141,15 @@ class QCParser(object):
     def p_program(self,p):
         """program : lines objective lines
                    | empty"""
-        constraints = p[1]
+        if p[1] is not None:
+            constraints = p[1]
+        else:
+            constraints = []
+            
         if p[3] is not None:
             constraints += p[3]
-        constraints = filter(None, constraints)
+        
+        constraints = filter(None, constraints)   
         p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
     
     def p_lines_line(self,p):
@@ -376,7 +380,10 @@ class QCParser(object):
     
     def p_expression_sum(self,p):
         'expression : SUM LPAREN expression RPAREN'
-        p[0] = Sum(p[3])
+        if isscalar(p[3]):
+            p[0] = p[3]
+        else:
+            p[0] = Sum(p[3])
     
     def p_expression_abs(self,p):
         'expression : ABS LPAREN expression RPAREN'

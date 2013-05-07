@@ -1,4 +1,4 @@
-from scoop.qc_vexity import Convex, Concave, Affine, Nonconvex
+from scoop.qc_ast import Convex, Concave, Affine, Nonconvex
 #from nose.tools import assert_raises
 #import operator
 

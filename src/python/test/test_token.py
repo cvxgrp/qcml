@@ -1,95 +1,118 @@
-# from scoop.tokens import scanner, precedence
-# from scoop.atoms import macros
-# 
-# # these should lex properly, but may be nonsensicla
-# test_strings = [
-#     "minimize A*x + b - c' + square(x)",
-#     "maximize find parameter nonnegative nonpositive",
-#     "subject to 3*2 - 1 ==<=>= 0.3 0",
-#     "variable m scalar negative parameter matrix A positive",
-#     "norm ( ) norm(x) norm2(x) norm1 (x)",
-#     "[--total geo_mean(k,s) ;]",
-#     "",
-#     "parameter xvectorpositive",
-#     "parameter x vectorpositive",
-#     "variable x vector#hello"
-# ]
-# 
-# # these might fail
-# fail_strings = [
-#     "<=="
-# ]
-# 
-# # expected success tokens
-# test_tokens = [
-#     ["MINIMIZE", "IDENTIFIER", "MULT_OP", "IDENTIFIER", "PLUS_OP", "IDENTIFIER",
-#      "UMINUS", "IDENTIFIER", "TRANSPOSE", "PLUS_OP", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN"],
-#     ["MAXIMIZE", "FIND", "PARAMETER", "POSITIVE", "NEGATIVE"],
-#     ["SUBJECT_TO", "CONSTANT", "MULT_OP", "CONSTANT", "UMINUS", "CONSTANT", "EQ", "LEQ", "GEQ", "CONSTANT", "CONSTANT"],
-#     ["VARIABLE", "IDENTIFIER", "SCALAR", "NEGATIVE", "PARAMETER", "MATRIX", "IDENTIFIER", "POSITIVE"],
-#     ["MACRO", "LPAREN", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN", "MACRO", "LPAREN", "IDENTIFIER", "RPAREN"],
-#     ["LBRACE", "UMINUS", "UMINUS", "IDENTIFIER", "MACRO", "LPAREN", "IDENTIFIER", "COMMA", "IDENTIFIER", "RPAREN", "SEMI", "RBRACE"],
-#     [],
-#     ["PARAMETER", "IDENTIFIER"],
-#     ["PARAMETER", "IDENTIFIER", "IDENTIFIER"],
-#     ["VARIABLE", "IDENTIFIER", "VECTOR"]
-# ]
-# 
-# # expected identifiers
-# test_id = [
-#     ["_A","_x", "_b", "_c", "_x"],
-#     [],
-#     [],
-#     ["_m", "_A"],
-#     ["_x", "_x", "_x"],
-#     ["_total", "_k", "_s"],
-#     [],
-#     ["_xvectorpositive"],
-#     ["_x", "_vectorpositive"],
-#     ["_x"]
-# ]
-# 
-# # expected macros
-# test_macros = [
-#     [macros['square']],
-#     [],
-#     [],
-#     [],
-#     [macros['norm'], macros['norm'], macros['norm2'], macros['norm1']],
-#     [macros['geo_mean']],
-#     [],
-#     [],
-#     [],
-#     []
-# ]
-# 
-# def test_scanner():
-#     for s,exp in zip(test_strings, test_tokens):
-#         yield check_lex, scanner.scan, s, exp
-#     for s,exp in zip(test_strings, test_id):
-#         yield check_id, scanner.scan, s, exp
-#     for s,exp in zip(test_strings, test_macros):
-#         yield check_macro, scanner.scan, s, exp
-#     
-# 
-# def check_lex(f, s, expected):
-#     tok_list, remainder = f(s)
-#     print tok_list
-#     assert(not remainder)
-#     assert( all(t[0] == e for t,e in zip(tok_list, expected)) )
-# 
-# def check_id(f, s, expected):
-#     tok_list, remainder = f(s)
-#     print tok_list
-#     print s
-#     print expected
-#     assert(not remainder)
-#     ids = filter(lambda x: x[0] is "IDENTIFIER", tok_list)
-#     assert( all(t[1] == e for t,e in zip(ids, expected)) )
-# 
-# def check_macro(f, s, expected):
-#     tok_list, remainder = f(s)
-#     print tok_list
-#     assert(not remainder)
-#     ids = filter(lambda x: x[0] is "MACRO", tok_list)
-#     assert( all(t[1] is e for t,e in zip(ids, expected)) )
+import scoop.qc_lex as s
+
+
+lexer = s.QCLexer()
+lexer.build()
+lex = lexer.lexer
+
+# these should lex properly, but may be nonsensicla
+test_strings = [
+    "minimize A*x + b - c' + square(x)",
+    "maximize find parameter nonnegative nonpositive",
+    "subject to 3*2 - 1 ==<=>= 0.3 0",
+    "variable m negative parameter A positive",
+    "norm ( ) norm(x) norm2(x) norm1 (x)",
+    "[--total geo_mean(k,s) ;]",
+    "",
+    "parameter xvectorpositive",
+    "parameter x vectorpositive",
+    "variable x#hello",
+    "dimensions a b c variables d e f(n)"
+]
+
+# these might fail
+fail_strings = [
+    "<=="
+]
+
+# expected success tokens
+test_tokens = [
+    ["SENSE", "ID", "TIMES", "ID", "PLUS", "ID",
+     "MINUS", "ID", "TRANSPOSE", "PLUS", "ATOM", "LPAREN", "ID", "RPAREN"],
+    ["SENSE", "SENSE", "PARAMETER", "SIGN", "SIGN"],
+    ["SUBJ", "TO", "INTEGER", "TIMES", "INTEGER", "MINUS", "INTEGER", "EQ", "LEQ", "GEQ", "CONSTANT", "INTEGER"],
+    ["VARIABLE", "ID", "SIGN", "PARAMETER", "ID", "SIGN"],
+    ["NORM", "LPAREN", "RPAREN", "NORM", "LPAREN", "ID", "RPAREN", "NORM", "LPAREN", "ID", "RPAREN", "ATOM", "LPAREN", "ID", "RPAREN"],
+    ["LBRACE", "MINUS", "MINUS", "ID", "ATOM", "LPAREN", "ID", "COMMA", "ID", "RPAREN", "SEMI", "RBRACE"],
+    [],
+    ["PARAMETER", "ID"],
+    ["PARAMETER", "ID", "ID"],
+    ["VARIABLE", "ID"],
+    ["DIMENSIONS", "ID", "ID", "ID", "VARIABLES", "ID", "ID", "ID", "LPAREN", "ID", "RPAREN"]
+]
+
+# expected identifiers
+test_id = [
+    ["A","x", "b", "c", "x"],
+    [],
+    [],
+    ["m", "A"],
+    ["x", "x", "x"],
+    ["total", "k", "s"],
+    [],
+    ["xvectorpositive"],
+    ["x", "vectorpositive"],
+    ["x"]
+]
+
+# expected atoms
+test_atoms = [
+    ['square'],
+    [],
+    [],
+    [],
+    ['norm', 'norm', 'norm2', 'norm1'],
+    ['geo_mean'],
+    [],
+    [],
+    [],
+    []
+]
+
+def test_scanner():
+    for s,exp in zip(test_strings, test_tokens):
+        yield check_lex, s, exp
+    for s,exp in zip(test_strings, test_id):
+        yield check_id, s, exp
+    for s,exp in zip(test_strings, test_atoms):
+        yield check_atom, s, exp
+    
+
+def check_lex(s, expected):
+    lex.input(s)
+    
+    tok_list = []
+    while True:
+        tok = lex.token()
+        if not tok: break
+        print tok
+        tok_list.append(tok)
+    
+    assert( all(t.type == e for t,e in zip(tok_list, expected)) )    
+    #assert(not remainder)
+
+def check_id(s, expected):
+    lex.input(s)
+    
+    tok_list = []
+    while True:
+        tok = lex.token()
+        if not tok: break
+        tok_list.append(tok)
+        
+    ids = filter(lambda x: x.type == "ID", tok_list)
+    print ids
+    assert( all(t.value == e for t,e in zip(ids, expected)) )
+
+def check_atom(s, expected):
+    lex.input(s)
+    
+    tok_list = []
+    while True:
+        tok = lex.token()
+        if not tok: break
+        tok_list.append(tok)
+    
+    ids = filter(lambda x: x.type == "ATOM" or x.type == "NORM", tok_list)
+    print ids
+    assert( all(t.value == e for t,e in zip(ids, expected)) )

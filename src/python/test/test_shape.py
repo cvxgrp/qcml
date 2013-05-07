@@ -1,4 +1,4 @@
-from scoop.qc_shape import Scalar, Vector, Matrix
+from scoop.qc_ast import Scalar, Vector, Matrix
 from nose.tools import assert_raises
 import operator
 

@@ -1,4 +1,4 @@
-from scoop.qc_sign import Positive, Negative, Neither
+from scoop.qc_ast import Positive, Negative, Neither
 #from nose.tools import assert_raises
 #import operator
 

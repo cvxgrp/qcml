@@ -57,6 +57,9 @@ class Shape(object):
     
     def __neg__(self): return self
 
+    def size_str(self):
+        return "%s" % ('*'.join(map(str, self.dimensions)))
+
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, ', '.join(map(str, self.dimensions)))
     
@@ -99,6 +102,8 @@ class Matrix(Shape):
                 raise TypeError("Cannot multiply %s and %s; incompatible sizes." % (self, other))
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
+    
+    def size_str(self): return "%s*%s" % (self.row, self.col)
     
     def transpose(self):
         return Matrix(self.col, self.row)
@@ -145,6 +150,8 @@ class Vector(Matrix):
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
     
+    def size_str(self): return "%s" % self.row
+    
     def transpose(self):
         return Matrix(1, self.row)
         
@@ -173,6 +180,8 @@ class Scalar(Vector):
             return Matrix(other.row, other.col)
         else:
             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
+    
+    def size_str(self): return "1"
     
     def transpose(self):
         return self

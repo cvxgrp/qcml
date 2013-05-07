@@ -80,7 +80,45 @@ class Node(object):
                     nodenames=nodenames,
                     _my_node_name=child_name)
 
-class NodeTransformer(object):
+class NodeVisitor(object):
+    """
+    A node visitor base class that walks the abstract syntax tree and calls a
+    visitor function for every node found.  This function may return a value
+    which is forwarded by the `visit` method.
+
+    This class is meant to be subclassed, with the subclass adding visitor
+    methods.
+
+    Per default the visitor functions for the nodes are ``'visit_'`` +
+    class name of the node.  So a `TryFinally` node visit function would
+    be `visit_TryFinally`.  This behavior can be changed by overriding
+    the `visit` method.  If no visitor function exists for a node
+    (return value `None`) the `generic_visit` visitor is used instead.
+
+    Don't use the `NodeVisitor` if you want to apply changes to nodes during
+    traversing.  For this a special visitor exists (`NodeTransformer`) that
+    allows modifications.
+    """
+    def visit(self, node):
+        """ Visit a node. 
+        """
+        method = 'visit_' + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        return visitor(node)
+        
+    def generic_visit(self, node):
+        """ Called if no explicit visitor function exists for a 
+            node. Implements preorder visiting of the node.
+        """
+        for c_name, c in node.children():
+            if isinstance(c, list):
+                for elem in c:
+                    if isinstance(elem, Node):
+                        elem = self.visit(elem)
+            elif isinstance(c, Node):
+                self.visit(c)
+
+class NodeTransformer(NodeVisitor):
     """ A base NodeTransformer class for visiting c_ast nodes. 
         Subclass it and define your own visit_XXX methods, where
         XXX is the class name you want to visit with these 
@@ -112,14 +150,7 @@ class NodeTransformer(object):
                 NodeTransformer.generic_visit(self, node)
         *   Modeled after Python's own AST visiting facilities
             (the ast module of Python 3.0)
-    """
-    def visit(self, node):
-        """ Visit a node. 
-        """
-        method = 'visit_' + node.__class__.__name__
-        visitor = getattr(self, method, self.generic_visit)
-        return visitor(node)
-        
+    """        
     def generic_visit(self, node):
         """ Called if no explicit visitor function exists for a 
             node. Implements preorder visiting of the node.

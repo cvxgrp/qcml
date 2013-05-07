@@ -38,7 +38,9 @@ def abs_(x):
 """
 @annotate('norm')
 def norm_rewrite(p, args):
-    v = Variable(create_varname(), p.shape)
+    shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
+    
+    v = Variable(create_varname(), shape)
     
     if isscalar(v):
         constraints = [SOC(v, [args[0]])]
@@ -49,7 +51,7 @@ def norm_rewrite(p, args):
 
 @annotate('abs')
 def abs_rewrite(p, x):
-    v = Variable(create_varname(), p.shape)
+    v = Variable(create_varname(), x.shape)
     constraints = [SOCProd(v, [x])]
     
     return (v, constraints)

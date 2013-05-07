@@ -1,6 +1,7 @@
 # atoms from separate files
 
 import qc_geo_mean
+import qc_inv_pos
 import qc_max
 import qc_min
 import qc_neg

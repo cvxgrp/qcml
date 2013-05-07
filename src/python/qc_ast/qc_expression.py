@@ -100,6 +100,8 @@ def distribute(lhs, rhs):
             distribute(lhs,rhs.left), 
             distribute(lhs,rhs.right)
         )
+    elif isnegate(rhs):
+        return constant_folding_mul(negate_node(lhs), rhs.expr)
     else: 
         return constant_folding_mul(lhs,rhs)
 
@@ -111,6 +113,9 @@ def isadd(x):
 
 def ismul(x):
     return isinstance(x, Mul)
+
+def isnegate(x):
+    return isinstance(x, Negate)
 
 def isparameter(x):
     return isinstance(x, Parameter)
@@ -173,6 +178,7 @@ class Constant(Expression):
         else:
             self.sign = Negative()
         self.shape = Scalar()
+        self.isknown = True # whether or not the expression is known at runtime
             
     def __str__(self): return str(self.value)
     
@@ -193,6 +199,7 @@ class Parameter(Expression):
         self.vexity = Affine()
         self.sign = sign
         self.shape = shape
+        self.isknown = True
     
     def __str__(self): return str(self.value)
     
@@ -213,6 +220,7 @@ class Variable(Expression):
         self.vexity = Affine()
         self.sign = Neither()
         self.shape = shape
+        self.isknown = False
         
     def __str__(self): return str(self.value)
     
@@ -237,6 +245,7 @@ class ToVector(Variable):
         self.value = expr
         self.sign = expr.sign
         self.vexity = expr.vexity
+        self.isknown = expr.isknown
         if isvector(expr):
             self.shape = expr.shape
         else:
@@ -274,6 +283,7 @@ class ToMatrix(Parameter):
         self.value = expr
         self.sign = expr.sign
         self.vexity = expr.vexity
+        self.isknown = expr.isknown
         if ismatrix(expr):
             self.shape = expr.shape
         else:
@@ -309,6 +319,7 @@ class Add(Expression):
         self.sign = left.sign + right.sign
         self.vexity = left.vexity + right.vexity
         self.shape = left.shape + right.shape
+        self.isknown = left.isknown & right.isknown
     
     def __str__(self): return "%s + %s" % (self.left, self.right)
 
@@ -326,6 +337,7 @@ class Sum(Expression):
         self.sign = x.sign
         self.vexity = x.vexity
         self.shape = Scalar()
+        self.isknown = x.isknown
     
     def __str__(self): return "sum(%s)" % self.arg
 
@@ -352,7 +364,8 @@ class Mul(Expression):
             
         self.sign = left.sign * right.sign
         self.shape = left.shape * right.shape
-        if isparameter(self.left) or isconstant(self.left):
+        self.isknown = left.isknown & right.isknown
+        if left.isknown:
             if isaffine(self.right):
                 self.vexity = Affine()
             elif (isconvex(self.right) and ispositive(self.left)) or (isconcave(self.right) and isnegative(self.left)):
@@ -364,7 +377,7 @@ class Mul(Expression):
         else:
             # do i raise an error? do i complain about non-dcp compliance?
             self.vexity = Nonconvex()
-            raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be Constant or Parameter)" % (repr(left), repr(right)))
+            raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be known Constant or Parameter)" % (repr(left), repr(right)))
 
     # we omit parenthesis since multiply is distributed out
     def __str__(self): return "%s*%s" % (self.left, self.right)
@@ -383,6 +396,7 @@ class Negate(Expression):
         self.sign = -expr.sign
         self.vexity = -expr.vexity
         self.shape = expr.shape
+        self.isknown = expr.isknown
     
     # we omit the parenthesis since negate is distributed out
     def __str__(self): return "-%s" % self.expr
@@ -402,6 +416,7 @@ class Transpose(Parameter,Expression):
         self.sign = expr.sign
         self.vexity = expr.vexity
         self.shape = expr.shape.transpose()
+        self.isknown = expr.isknown
     
     def __str__(self): return "%s'" % self.value
 
@@ -421,6 +436,7 @@ class Atom(Expression):
     def __init__(self,name,arguments):
         self.name = name
         self.arglist = arguments
+        self.isknown = False    # disallow taking functions of parameters
         # get the attributes of the atom
         try:
             self.sign, self.vexity, self.shape = scoop.atoms[self.name].attributes(*self.arglist)
@@ -441,6 +457,7 @@ class Norm(Expression):
     def __init__(self, args):
         self.arglist = args
         self.sign, self.vexity, self.shape = scoop.qc_atoms.norm(args)
+        self.isknown = False
     
     def __str__(self): return "norm([%s])" % ('; '.join(map(str,self.arglist)))
 
@@ -455,6 +472,7 @@ class Abs(Expression):
     def __init__(self, x):
         self.arg = x
         self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(arg)
+        self.isknown = False
     
     def __str__(self): return "abs(%s)" % self.arg
 

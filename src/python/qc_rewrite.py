@@ -1,4 +1,4 @@
-from qc_ast import NodeTransformer, Constant, Variable
+from qc_ast import NodeTransformer, Constant, Variable, RelOp
 from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
@@ -59,6 +59,9 @@ class QCRewriter(NodeTransformer):
         self.variables = {}
         self.parameters = {}
         self._existing_expression = {}
+    
+    def replaced_expressions(self):
+        return self._existing_expression
     
     def _apply_rewrite_rule(self, node, f, *args):
         (v, constraints) = f(node,*args)
@@ -123,7 +126,19 @@ class QCRewriter(NodeTransformer):
             # self.norm_node = node
             # return Constant(0)
         return v
-
+        
+    def visit_RelOp(self, node):
+        # visit children
+        self.generic_visit(node)
+        
+        # convert all constraints so they are 
+        #  == 0 or <= 0
+        if node.op == '==':
+            return RelOp('==', node.left - node.right, Constant(0))
+        if node.op == '<=':
+            return RelOp('<=', node.left - node.right, Constant(0))
+        if node.op == '>=':
+            return RelOp('<=', node.right - node.left, Constant(0))
     
     def visit_Program(self, node):
         # load the current state

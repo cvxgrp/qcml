@@ -30,5 +30,7 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
 
+from qc_codegen import CVXCodegen, CVXOPTCodegen
+
 import qc_atoms
 atoms = qc_atoms.atoms
