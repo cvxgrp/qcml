@@ -1,5 +1,5 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from codegen import Eye, Ones, Transpose, Codegen
+from codegen import PythonCodegen, Ones, Eye, Transpose
 from dimensions import Dimension
 
 def cvxopt_eye(self):
@@ -14,11 +14,14 @@ def cvxopt_ones(self):
 def cvxopt_trans(self):
     return "(%s).trans()" % self.arg
     
-Ones.__str__ = cvxopt_ones
-Eye.__str__ = cvxopt_eye
-Transpose.__str__ = cvxopt_trans
 
-class CVXOPTCodegen(Codegen):
+class CVXOPTCodegen(PythonCodegen):
+    def __init__(self):
+        Ones.__str__ = cvxopt_ones
+        Eye.__str__ = cvxopt_eye
+        Transpose.__str__ = cvxopt_trans
+        super(CVXOPTCodegen,self).__init__()
+        
     def function_prototype(self, dims, params):
         return ["def solve(%s):" % ', '.join(dims + params)]
     

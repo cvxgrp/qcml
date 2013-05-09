@@ -2,8 +2,32 @@ from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 from dimensions import Dimension
 
 # define code generation objects
-# these are for cvxopt...
 # TODO: can change behavior of these by changing __str__ definition
+""" CodegenExpr object.
+    Used to construct coefficients of affine expressions.
+    
+    The behavior can be changed by redefining __str__ definition. These classes
+    are *final*. You should not subclass them (undefined behavior will occur).
+    
+    Note that by setting the __str__ function, e.g., Ones.__str__ = some_func,
+    it is a *global* change to all Ones objects.
+    
+    To allow interchangeability with different codegens, the __str__ function
+    is set in the __init__() function of subclasses of the Codegen object.
+    
+    However, this means that *two* Codegen objects cannot exist simultaneously,
+    as the __str__ function on, say, Ones, is overwritten by the latest
+    Codegen object.
+    
+    This is not an issue as long as code generators are only created to generate
+    the code and not stored for later use.
+    
+    TODO: Possibly figure out how to redefine __str__ without this happening.
+    TODO: Or, better, figure out how to modify operators to return the appropriate
+        subclass.
+    
+    Neither approaches above seem very likely.
+"""
 class CodegenExpr(object):
     # operations only occur on objects with the same shape    
     def __add__(self, other):
@@ -167,7 +191,6 @@ class Transpose(CodegenExpr):
     
     # def __str__(self): return "(%s).trans()" % self.arg
 
-
 """ Codegen template.
 
     Actually, this is *not* a code generator.
@@ -219,10 +242,6 @@ class Codegen(NodeVisitor):
         self.num_lps = Dimension(0)
         self.num_conic = Dimension(0)
         self.comment = '#'
-    
-    def codegen(self):
-        exec '\n'.join(self.prog) in locals()
-        return solve
     
     def prettyprint(self,lineno=False):
         """ Pretty prints the source code, possibly with line numbers
@@ -543,3 +562,10 @@ class Codegen(NodeVisitor):
         
         self.prog.append("")
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
+
+""" Python codegen mixin
+"""
+class PythonCodegen(Codegen):
+    def codegen(self):
+        exec '\n'.join(self.prog) in locals()
+        return solve

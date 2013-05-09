@@ -1,14 +1,8 @@
-from codegen import Eye, Ones, Transpose, Codegen
-from cvxopt import CVXOPTCodegen, cvxopt_eye, cvxopt_ones, cvxopt_trans
+from cvxopt import CVXOPTCodegen
 from dimensions import Dimension
 from scoop.qc_ast import RelOp, SOC, SOCProd
 
-
-Ones.__str__ = cvxopt_ones
-Eye.__str__ = cvxopt_eye
-Transpose.__str__ = cvxopt_trans
-
-class ECOSCodegen(CVXOPTCodegen):    
+class ECOSCodegen(CVXOPTCodegen):
     def function_preamble(self):
         return [
         "\"\"\"",

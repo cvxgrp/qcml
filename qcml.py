@@ -62,11 +62,11 @@ if __name__ == "__main__":
     
     p.rewrite()
     p.codegen("ecos")
+    p.prettyprint()
+    #s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
     
-    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
-    
-    
-    #p.prettyprint()
+    p.codegen("matlab")
+    p.prettyprint()
         
     # if y:
     #     #y.show()

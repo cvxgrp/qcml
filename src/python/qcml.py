@@ -1,12 +1,13 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen
+from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen
 
 class QCML(object):
     codegen_objects = {
         "cvx": CVXCodegen,
         "cvxopt": CVXOPTCodegen, 
-        "ecos": ECOSCodegen
+        "ecos": ECOSCodegen,
+        "matlab": MatlabCodegen
     }
     
     python_solvers = set(["cvxopt", "ecos"])
@@ -62,9 +63,9 @@ class QCML(object):
         def codegen_err():
             print "QCML codegen: Invalid code generator. Must be one of: ", codegen_objects.keys()
             
-        self.__codegen = self.codegen_objects.get(mode, codegen_err)()
         if self.__problem_tree is not None:
             if self.rewritten:
+                self.__codegen = self.codegen_objects.get(mode, codegen_err)()
                 self.__codegen.visit(self.__problem_tree)
             
                 if self.debug:
