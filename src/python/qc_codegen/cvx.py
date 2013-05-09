@@ -7,41 +7,49 @@ class CVXCodegen(NodeVisitor):
      # the lookup is for adding comments
      # we can actually pass the lookup from the rewriter to the code generator
      # however, i am not doing that at the moment
-    def __init__(self, comments):
-        self.mappings = {v:k for k, v in comments.items()}
+     
+    def __init__(self):
+        self.prog = []
+    
+    def prettyprint(self,lineno=False):
+        """ Pretty prints the source code, possibly with line numbers
+        """
+        if lineno:
+            print '\n'.join( map(lambda x: "%4s    %s" % (x[0],x[1]), zip( range(1,len(self.prog)+1), self.prog ))  )
+        else:
+            print '\n'.join(self.prog)
     
     def visit_Program(self, node):
-        print "cvx_begin"      
+        self.prog.append("cvx_begin")    
         for v in node.variables.values():
-            print self.offset, "variable %s(%s)" % (v, ', '.join(map(str, v.shape.dimensions)))
-        print
+            self.prog.append(self.offset + "variable %s(%s)" % (v, ', '.join(map(str, v.shape.dimensions))))
+        self.prog.append("")
         
         for v in node.new_variables.values():
-            print self.offset, "variable %s(%s) %% = %s" \
-                % (v, ', '.join(map(str, v.shape.dimensions)), self.mappings[v])
-        print
+            self.prog.append(self.offset + "variable %s(%s)" % (v, ', '.join(map(str, v.shape.dimensions))))
+        self.prog.append("")
         
         self.generic_visit(node)
-        print "cvx_end"
+        self.prog.append("cvx_end")
 
     def visit_Objective(self, node):
-        print self.offset, "%s (%s)" % (node.sense, node.expr)
-        print self.offset, "subject to"
+        self.prog.append(self.offset + "%s (%s)" % (node.sense, node.expr))
+        self.prog.append(self.offset + "subject to")
     
     def visit_RelOp(self, node):
         if node.op == '<=':
-            print self.constraint, "%s + %s <= 0" % (node.left, Negate(node.right))
+            self.prog.append(self.constraint + "%s <= 0" % (node.left))
         elif node.op == '>=':
-            print self.constraint, "%s + %s <= 0" % (node.right, Negate(node.left))
+            self.prog.append(self.constraint + "%s <= 0" % (node.right))
         else:
-            print self.constraint, "%s + %s == 0" % (node.left, Negate(node.right))
+            self.prog.append(self.constraint + "%s == 0" % (node.left))
     
     def visit_SOC(self, node):
-        print self.constraint, node
+        self.prog.append(self.constraint + str(node))
     
     def visit_SOCProd(self, node):
         if len(node.arglist) == 1:
-            print self.constraint, "abs(%s) <= %s" % (node.arglist[0], node.right)
+            self.prog.append(self.constraint + "abs(%s) <= %s" % (node.arglist[0], node.right))
         else:
-            print self.constraint, "norms([%s])' <= %s" % ('; '.join(map(lambda x: "(%s)'" % x, node.arglist)), node.right)
+            self.prog.append(self.constraint + "norms([%s])' <= %s" % ('; '.join(map(lambda x: "(%s)'" % x, node.arglist)), node.right))
 

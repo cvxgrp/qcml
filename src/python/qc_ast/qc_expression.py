@@ -18,7 +18,7 @@ def negate_node(x):
             return x.expr
         else:
             return Negate(x)
-            
+
     if isconstant(x):
         return Constant(-x.value)
     elif isadd(x):
@@ -84,11 +84,15 @@ def constant_folding(lhs,rhs,op,isop,do_op):
 def constant_folding_add(lhs,rhs):
     if isconstant(lhs) and lhs.value == 0:
         return rhs
+    if isconstant(rhs) and rhs.value == 0:
+        return lhs
     return constant_folding(lhs, rhs, Add, isadd, operator.add)
 
 def constant_folding_mul(lhs,rhs):
     if isconstant(lhs) and lhs.value == 1:
         return rhs
+    if isconstant(rhs) and rhs.value == 1:
+        return lhs
     return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
     
 def distribute(lhs, rhs):

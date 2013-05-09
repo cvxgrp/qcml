@@ -27,10 +27,8 @@
 # Evaluator.neg = MethodType(op_neg, None, Evaluator)
 
 
-from qc_parser import QCParser
+from qcml import QCML
+
 from qc_rewrite import QCRewriter
-
-from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen
-
 import qc_atoms
 atoms = qc_atoms.atoms

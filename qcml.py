@@ -1,4 +1,4 @@
-from scoop import QCParser, QCRewriter, CVXCodegen, CVXOPTCodegen, ECOSCodegen
+from scoop import QCML
 
 import cvxopt as o
 
@@ -49,8 +49,8 @@ if __name__ == "__main__":
     Y = o.normal(m,n, 2)
     gamma = 1
     
-    p = QCParser()
-    y = p.parse("""
+    p = QCML()
+    p.parse("""
         dimensions m n
         variable a(n)
         variable b
@@ -58,23 +58,30 @@ if __name__ == "__main__":
         parameter Y(m,n)      # negative samples
         parameter gamma positive
         minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        """)
+    """)
     
-    if y:
-        y.show()
-        visit = QCRewriter()
-        visit.visit(y)
-
-        print y
-        # TODO: before codegen, need to check DCP compliance and that objective is scalar
-        codegen = ECOSCodegen(visit.replaced_expressions())
-        codegen.visit(y)
-        codegen.prettyprint(True)
+    p.rewrite()
+    p.codegen("ecos")
+    
+    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
+    
+    
+    #p.prettyprint()
         
-        f = codegen.codegen()
-        #s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
-        s = f(m=m,n=n,X=X,Y=Y,gamma=gamma)
-        
-        print s
-        print s['a']
-        print s['b']
+    # if y:
+    #     #y.show()
+    #     visit.visit(y)
+    # 
+    #     print y
+    #     # TODO: before codegen, need to check DCP compliance and that objective is scalar
+    #     codegen = ECOSCodegen(visit.replaced_expressions())
+    #     codegen.visit(y)
+    #     codegen.prettyprint(True)
+    #     
+    #     f = codegen.codegen()
+    #     #s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
+    #     s = f(m=m,n=n,X=X,Y=Y,gamma=gamma)
+    #     
+    #     print s
+    #     print s['a']
+    #     print s['b']

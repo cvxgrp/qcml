@@ -60,9 +60,6 @@ class QCRewriter(NodeTransformer):
         self.parameters = {}
         self._existing_expression = {}
     
-    def replaced_expressions(self):
-        return self._existing_expression
-    
     def _apply_rewrite_rule(self, node, f, *args):
         (v, constraints) = f(node,*args)
         if isinstance(v, Variable):
@@ -161,12 +158,6 @@ class QCRewriter(NodeTransformer):
         node.variables = self.variables
         node.parameters = self.parameters
         
-        print node.variables
-        print node.parameters
-        print node.new_variables
-        node.show()
-        
-        print QCRewriter.lookup
         
         # save state
         self._existing_expression = QCRewriter.lookup

@@ -50,6 +50,7 @@ class QCParser(object):
         
         To perform code generation, we walk the rewritten tree
     """
+
     def __init__(self):
         self.lex = QCLexer();
         self.lex.build();
