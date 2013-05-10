@@ -141,17 +141,22 @@ class QCParser(object):
     
     def p_program(self,p):
         """program : lines objective lines
-                   | empty"""
+                   | lines objective"""
         if p[1] is not None:
             constraints = p[1]
         else:
             constraints = []
-            
-        if p[3] is not None:
-            constraints += p[3]
+        
+        if len(p) > 3:
+            if p[3] is not None:
+                constraints += p[3]
         
         constraints = filter(None, constraints)   
         p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
+    
+    def p_program_empty(self,p):
+        'program : empty'
+        pass
     
     def p_lines_line(self,p):
         """lines : declaration NL"""
@@ -404,10 +409,6 @@ class QCParser(object):
     
     def p_arglist_expr(self, p):
         'arglist : expression'
-        p[0] = [p[1]]
-    
-    def p_dimlist_constant(self,p):
-        'dimlist : INTEGER'
         p[0] = [p[1]]
     
     # (Super ambiguous) error rule for syntax errors

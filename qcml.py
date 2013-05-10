@@ -58,6 +58,7 @@ if __name__ == "__main__":
         parameter Y(m,n)      # negative samples
         parameter gamma positive
         minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
+        abs(a) <= 1
     """)
     
     p.rewrite()
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     p.prettyprint()
     #s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
     
-    p.codegen("matlab")
+    p.codegen("matlab",cone_size=10,m=2,n=2)
     p.prettyprint()
         
     # if y:

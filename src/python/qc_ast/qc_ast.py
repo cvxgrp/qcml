@@ -329,8 +329,8 @@ class SOC(Node):
 
     def children(self):
         nodelist = []
-        if self.left is not None: nodelist.append(("left", self.left))
         if self.right is not None: nodelist.append(("right", self.right))
+        if self.left is not None: nodelist.append(("left", self.left))
         return tuple(nodelist)
 
     attr_names = ('is_dcp', 'shape')
@@ -377,8 +377,8 @@ class SOCProd(Node):
 
     def children(self):
         nodelist = []
-        if self.arglist is not None: nodelist.append(("arglist", self.arglist))
         if self.right is not None: nodelist.append(("right", self.right))
+        if self.arglist is not None: nodelist.append(("arglist", self.arglist))
         return tuple(nodelist)
 
     attr_names = ('is_dcp', 'shape')

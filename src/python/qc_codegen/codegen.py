@@ -49,14 +49,14 @@ class CodegenExpr(object):
         return self + (-other)
         
     def __neg__(self):
-        if isinstance(self, Constant):
-            return Constant(-self.value)
-        if isinstance(self, Parameter):
-            return Parameter("-" + self.value)
-        if isinstance(self,Eye):
-            return Eye(self.n, -self.coeff)
         if isinstance(self,Negate):
             return self.arg
+        if isinstance(self,Transpose):
+            return Transpose(-self.arg)
+        if isinstance(self, Constant):
+            return Constant(-self.value)
+        if isinstance(self,Eye):
+            return Eye(self.n, -self.coeff)
         if isinstance(self,Ones):
             return Ones(self.n, -self.coeff)
         if isinstance(self,Mul):
@@ -100,13 +100,15 @@ class CodegenExpr(object):
         return Mul(self, other)
 
     def trans(self):
-        if isinstance(self, Constant):
+        if self.isscalar:
             return self
         if isinstance(self, Eye):
             return self
         if isinstance(self, Ones):
             self.transpose = not self.transpose
             return self
+        if isinstance(self,Transpose):
+            return self.arg
             
         return Transpose(self)
     
@@ -234,14 +236,18 @@ class Codegen(NodeVisitor):
         """ Walks the tree and creates the data structures.
             Calls the solver.
         """
-        self.prog = []
+        self.prog = []          # the full program
+        self.body = []          # just the stuffing components
         self.varlength = {}
         self.varstart = {}
+        self.num_vars = Dimension(0)
         self.expr_stack = []
         self.num_lineqs = Dimension(0)
         self.num_lps = Dimension(0)
         self.num_conic = Dimension(0)
+        self.cone_list = []
         self.comment = '#'
+        self.dimension_map = None
     
     def prettyprint(self,lineno=False):
         """ Pretty prints the source code, possibly with line numbers
@@ -299,47 +305,28 @@ class Codegen(NodeVisitor):
         self.varlength += [(k,Dimension(v.shape.size_str())) for k,v in node.new_variables.items()]
     
         self.varstart = []
-        start = Dimension(0)
         for k,v in self.varlength:
-            self.varstart.append( (k, start) )
-            start += v
+            self.varstart.append( (k, self.num_vars) )
+            self.num_vars += v
     
         # varstart contains the start indicies as strings
         self.varstart = dict(self.varstart)
         # varlength contains the vector lengths as strings
         self.varlength = dict(self.varlength)
         
-        # full length of optimization variable
-        varlength = start
+        # visit all the node
+        self.generic_visit(node)
         
-        # constraints, local copy to instantiate sparse matrices
-        num_lineqs = Dimension(0)
-        num_lps = Dimension(0)
-        cone_list = []
-        num_conic = Dimension(0)
-        for c in node.constraints:
-            if isinstance(c, RelOp):
-                if c.op == '==':
-                    num_lineqs += Dimension(c.shape.size_str())
-                else:
-                    num_lps += Dimension(c.shape.size_str())
-            if isinstance(c, SOC):
-                cone_len = Dimension(c.right.shape.size_str())
-                for e in c.left:
-                    cone_len += Dimension(e.shape.size_str())
-                    
-                num_conic += cone_len
-                cone_list.append( ("1", str(cone_len)) )
-            if isinstance(c, SOCProd):     
-                cone_list.append( (c.shape.size_str(), str(len(c.arglist) + 1)) )
-                num_conic += Dimension(None, {c.shape.size_str(): len(c.arglist) + 1})
-        # TODO: the above code can be done by walking the tree. we just have to ensure that the code we emit when walking the tree is buffered somewhere else before printing
-            
+        # now, write the program    
         self.prog = self.function_prototype(dims, params)
         self.prog += map(lambda x: self.offset + x, self.function_preamble())
-        self.prog += map(lambda x: self.offset + x, self.function_datastructures(varlength, num_lineqs, num_lps, num_conic, cone_list))
+        self.prog += map(lambda x: self.offset + x,[
+            "%s '%s' has shape %s" % (self.comment, v, v.shape) for v in node.parameters.values()
+        ])
+        self.prog.append("")
+        self.prog += map(lambda x: self.offset + x, self.function_datastructures())
         
-        self.generic_visit(node)
+        self.prog += self.body
         
         self.prog += map(lambda x: self.offset + x, 
             self.function_solve() + self.function_recover(node.variables.keys()))
@@ -355,7 +342,7 @@ class Codegen(NodeVisitor):
         if n == "1":
             lineq = {k: Constant(1)}
         else:
-            lineq = {k: Eye(n,Constant(1))}
+            lineq = {k: Eye(Dimension(n),Constant(1))}
         
         self.expr_stack.append(lineq)
     
@@ -405,7 +392,8 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
         
         for k in arg.keys():
-            arg[k] =  Ones(node.arg.shape.size_str(), Constant(1), True) * arg[k]
+            n = Dimension(node.arg.shape.size_str())
+            arg[k] = Ones(n, Constant(1), True) * arg[k]
             
         self.expr_stack.append(arg)
     
@@ -434,8 +422,8 @@ class Codegen(NodeVisitor):
         
     
     def visit_Objective(self, node):
-        self.prog.append("")
-        self.prog.append(self.offset + "%s stuffing the objective vector" % self.comment)
+        self.body.append("")
+        self.body.append(self.offset + "%s stuffing the objective vector" % self.comment)
         
         self.generic_visit(node)
         
@@ -451,16 +439,16 @@ class Codegen(NodeVisitor):
                     objective_c = v.trans()
                 elif node.sense == 'maximize':
                     objective_c = (-v).trans()
-                self.prog.append(self.offset + \
+                self.body.append(self.offset + \
                     self.function_stuff_c(start, start+length, objective_c))
 
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
-        self.prog.append("")
+        self.body.append("")
     
     def visit_RelOp(self, node):
         # TODO: in rewriter, force relop to be a - b <= 0
         # and a - b == 0
-        self.prog.append(self.offset + "%s for the constraint %s" % (self.comment, node))
+        self.body.append(self.offset + "%s for the constraint %s" % (self.comment, node))
         
         if node.op == '==':
             start = self.num_lineqs
@@ -468,6 +456,7 @@ class Codegen(NodeVisitor):
         else:            
             start = self.num_lps            
             self.num_lps += Dimension(node.shape.size_str())            
+            
 
         self.generic_visit(node)
         
@@ -481,86 +470,93 @@ class Codegen(NodeVisitor):
         for k,v in left.iteritems():
             if k == '1':
                 if node.op == '==':
-                    self.prog.append(self.offset + self.function_stuff_b(start, self.num_lineqs, -v))
+                    self.body.append(self.offset + self.function_stuff_b(start, self.num_lineqs, -v))
                 else:
-                    self.prog.append(self.offset + self.function_stuff_h(start, self.num_lps, -v))
+                    self.body.append(self.offset + self.function_stuff_h(start, self.num_lps, -v))
             else:
                 xstart = self.varstart[k]
                 xend = xstart + self.varlength[k]
                 if node.op == '==':
                     string = self.function_stuff_A(start, self.num_lineqs, xstart, xend, v)
-                    self.prog.append(self.offset + string)
+                    self.body.append(self.offset + string)
                 else:
                     string = self.function_stuff_G(start, self.num_lps, xstart, xend, v)
-                    self.prog.append(self.offset + string)
+                    self.body.append(self.offset + string)
         
-        self.prog.append("")
+        self.body.append("")
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
     
  
     def visit_SOC(self, node):
-        self.prog.append( self.offset + "%s for the SOC constraint %s" % (self.comment, node) )
+        self.body.append( self.offset + "%s for the SOC constraint %s" % (self.comment, node) )
         
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
         
         start += [start[-1] + Dimension(node.right.shape.size_str())]
-        self.num_conic += Dimension(node.right.shape.size_str())
+        cone_length = Dimension(node.right.shape.size_str())
         for e in node.left:
             start += [start[-1] + Dimension(e.shape.size_str())]
-            self.num_conic += Dimension(e.shape.size_str())
+            cone_length += Dimension(e.shape.size_str())
+        
+        self.num_conic += cone_length
+        self.cone_list.append( ("1", str(cone_length)) )
         
         self.generic_visit(node)
         
+        # print node.left
+        # print self.expr_stack
         # copy into the appropriate block
         count = 0
         while self.expr_stack:
             e = self.expr_stack.pop()
-            conestart = start[count]
-            coneend = start[count+1]
-            count += 1
+            coneend = start.pop()
+            conestart = start[-1]   # peek at top
+            
             for k,v in e.iteritems():
                 if k == '1':
-                    self.prog.append( self.offset + \
+                    self.body.append( self.offset + \
                         self.function_stuff_h(conestart, coneend, v))
                 else:
                     xstart = self.varstart[k]
                     xend = xstart + self.varlength[k]
-                    self.prog.append( self.offset + \
+                    self.body.append( self.offset + \
                         self.function_stuff_G(conestart, coneend, xstart, xend, -v))
         
-        self.prog.append("")
+        self.body.append("")
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
     def visit_SOCProd(self, node):
-        self.prog.append( self.offset + "%s for the SOC product constraint %s" % (self.comment, node) )
+        self.body.append( self.offset + "%s for the SOC product constraint %s" % (self.comment, node) )
         
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
         stride = len(node.arglist) + 1
         self.num_conic += Dimension(None, {node.shape.size_str(): stride})
         
+        self.cone_list.append( (node.shape.size_str(), str(len(node.arglist) + 1)) )
+        
         self.generic_visit(node)
         
         # copy into the appropriate block
-        count = 0
+        count = stride - 1
         coneend = self.num_conic + self.num_lps
         
         while self.expr_stack:
             e = self.expr_stack.pop()
             conestart = start + Dimension(count)
-            count += 1
+            count -= 1
             for k,v in e.iteritems():
                 if k == '1':
-                    self.prog.append( self.offset + \
+                    self.body.append( self.offset + \
                         self.function_stuff_h(conestart, coneend, v, stride))
                 else:
                     xstart = self.varstart[k]
                     xend = xstart + self.varlength[k]
-                    self.prog.append( self.offset + \
+                    self.body.append( self.offset + \
                         self.function_stuff_G(conestart, coneend, xstart, xend, -v, stride))
         
-        self.prog.append("")
+        self.body.append("")
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
 """ Python codegen mixin

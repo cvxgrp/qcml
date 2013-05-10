@@ -36,7 +36,7 @@ class CVXOPTCodegen(PythonCodegen):
         "import cvxopt.solvers",
         ""]
     
-    def function_datastructures(self, varlength, num_lineqs, num_lps, num_conic, cone_list):
+    def function_datastructures(self):
         """
             varlength
                 length of x variable (as Dimension)
@@ -57,14 +57,14 @@ class CVXOPTCodegen(PythonCodegen):
                 return "[%s]" % sz
             else:
                 return "%s*[%s]" % (num, sz)
-        cone_list_str = map(cone_tuple_to_str, cone_list)
+        cone_list_str = map(cone_tuple_to_str, self.cone_list)
         return [
-        "_c = _o.matrix(0, (%s,1), tc='d')" % varlength,
-        "_h = _o.matrix(0, (%s,1), tc='d')" % (num_conic + num_lps),
-        "_b = _o.matrix(0, (%s,1), tc='d')" % num_lineqs,
-        "_G = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (num_conic + num_lps, varlength),
-        "_A = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (num_lineqs, varlength),
-        "_dims = {'l': %s, 'q': %s, 's': []}" % (num_lps, '+'.join(map(str,cone_list_str)))]
+        "_c = _o.matrix(0, (%s,1), tc='d')" % self.num_vars,
+        "_h = _o.matrix(0, (%s,1), tc='d')" % (self.num_conic + self.num_lps),
+        "_b = _o.matrix(0, (%s,1), tc='d')" % self.num_lineqs,
+        "_G = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (self.num_conic + self.num_lps, self.num_vars),
+        "_A = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (self.num_lineqs, self.num_vars),
+        "_dims = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, '+'.join(map(str,cone_list_str)))]
     
     def function_solve(self):
         return ["_sol = _o.solvers.conelp(_c, _G, _h, _dims, _A, _b)"]

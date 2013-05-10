@@ -59,13 +59,13 @@ class QCML(object):
         else:
             print "QCML rewrite: No problem currently parsed."
     
-    def codegen(self,mode="cvx"):
+    def codegen(self,mode="cvx", **kwargs):
         def codegen_err():
             print "QCML codegen: Invalid code generator. Must be one of: ", codegen_objects.keys()
-            
+        
         if self.__problem_tree is not None:
             if self.rewritten:
-                self.__codegen = self.codegen_objects.get(mode, codegen_err)()
+                self.__codegen = self.codegen_objects.get(mode, codegen_err)(**kwargs)
                 self.__codegen.visit(self.__problem_tree)
             
                 if self.debug:
