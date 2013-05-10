@@ -56,17 +56,18 @@ if __name__ == "__main__":
         variable b
         parameter X(m,n)      # positive samples
         parameter Y(m,n)      # negative samples
+        parameter Z(m,n)
         parameter gamma positive
         minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        abs(a) <= 1
+        norm(X*a,Y*a,Z*a) <= 1
     """)
     
     p.rewrite()
-    p.codegen("ecos")
-    p.prettyprint()
+    # p.codegen("ecos")
+    # p.prettyprint()
     #s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
     
-    p.codegen("matlab",cone_size=10,m=2,n=2)
+    p.codegen("matlab",cone_size=5,m=100,n=10)
     p.prettyprint()
         
     # if y:

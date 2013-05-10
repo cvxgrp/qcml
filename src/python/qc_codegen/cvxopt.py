@@ -53,7 +53,7 @@ class CVXOPTCodegen(PythonCodegen):
         """
         def cone_tuple_to_str(x):
             num, sz = x
-            if num == '1':
+            if str(num) == '1':
                 return "[%s]" % sz
             else:
                 return "%s*[%s]" % (num, sz)

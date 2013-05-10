@@ -65,6 +65,9 @@ class Shape(object):
     
     def transpose(self):
         raise NotImplementedError("Transpose not implemented for %s" % self)
+    
+    def slice(self, begin, end, dim):
+        raise NotImplementedError("Slice not implemented for %s" % self)
 
 
 # XXX / TODO: slicing
@@ -107,6 +110,15 @@ class Matrix(Shape):
     
     def transpose(self):
         return Matrix(self.col, self.row)
+    
+    def slice(self, begin, end, dim):
+        if end - begin == 1 and dim == 1:
+            # degrade
+            return Vector(self.row)
+        else:
+            if dim == 0: return Matrix(end-begin, self.col)
+            if dim == 1: return Matrix(self.row, end-begin)
+            raise TypeError("Cannot slice dim = %d in a Matrix." % (dim+1))
             
 class Rank1Matrix(Matrix):
     """ Class for carrying around Rank 1 matrix. Not sure if it will be useful.
@@ -154,6 +166,14 @@ class Vector(Matrix):
     
     def transpose(self):
         return Matrix(1, self.row)
+    
+    def slice(self, begin, end, dim):
+        if end - begin == 1 and dim == 0:
+            # degrade
+            return Scalar()
+        else:
+            if dim == 0: return Vector(end-begin)
+            raise TypeError("Cannot slice dim = %d in a Matrix." % (dim+1))
         
 class Scalar(Vector):
     def __init__(self):
@@ -186,3 +206,6 @@ class Scalar(Vector):
     def transpose(self):
         return self
     
+    def slice(self, begin, end, dim):
+        raise TypeError("Cannot slice a scalar.")
+        

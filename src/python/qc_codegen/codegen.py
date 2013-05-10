@@ -38,7 +38,7 @@ class CodegenExpr(object):
         if isinstance(other,Constant) and other.value == 0:
             return self
         if isinstance(self,Eye) and isinstance(other,Eye):
-            return Eye(self.n, self.coeff + other.coeff)
+            return Eye(self.n, self.m, self.coeff + other.coeff)
         if isinstance(self,Ones) and isinstance(other,Ones) and (self.transpose == other.transpose):
             return Ones(self.n, self.coeff + other.coeff, self.transpose)
         if str(self) == str(other):
@@ -56,7 +56,7 @@ class CodegenExpr(object):
         if isinstance(self, Constant):
             return Constant(-self.value)
         if isinstance(self,Eye):
-            return Eye(self.n, -self.coeff)
+            return Eye(self.n, self.m, -self.coeff)
         if isinstance(self,Ones):
             return Ones(self.n, -self.coeff)
         if isinstance(self,Mul):
@@ -72,13 +72,13 @@ class CodegenExpr(object):
             return self
         
         if isinstance(self,Eye) and other.isknown and other.isscalar:
-            return Eye(self.n, self.coeff * other)
+            return Eye(self.n, self.m, self.coeff * other)
         if isinstance(other,Eye) and self.isknown and self.isscalar:
-            return Eye(other.n, other.coeff * self)
+            return Eye(other.n, other.m, other.coeff * self)
             
         if isinstance(self,Eye) and isinstance(other,Eye):
             # (a*I) * (b*I) = (a*b*I)
-            return Eye(self.n, self.coeff * other.coeff)
+            return Eye(self.n, self.m, self.coeff * other.coeff)
         if isinstance(self,Eye) and isinstance(self.coeff, Constant) and self.coeff.value == 1:
             # I*x = x
             return other
@@ -103,14 +103,43 @@ class CodegenExpr(object):
         if self.isscalar:
             return self
         if isinstance(self, Eye):
-            return self
+            return Eye(self.m, self.n, self.coeff)
         if isinstance(self, Ones):
             self.transpose = not self.transpose
             return self
         if isinstance(self,Transpose):
             return self.arg
+        if isinstance(self, Slice):
+            self.transpose = not self.transpose
+            return self
             
         return Transpose(self)
+    
+    # only used during code generation
+    # for vertical slicing
+    def slice(self, begin, end):
+        if self.isscalar:
+            return self
+            
+        if isinstance(self,Eye):
+            return Eye(end-begin, self.m, self.coeff)
+        if isinstance(self,Ones):
+            if not self.transpose:
+                self.n = end - begin
+            return self
+        if isinstance(self,Negate):
+            return Negate(self.arg.slice(begin, end))
+        if isinstance(self,Add):
+            return Add(self.left.slice(begin,end), self.right.slice(begin,end))
+        if isinstance(self,Mul):
+            return Mul(self.left.slice(begin,end), self.right)
+        if isinstance(self,Transpose):
+            return Slice(self.arg, begin, end, transpose=True)
+        if isinstance(self, Slice):
+            # a(2:5)(1:2)
+            return Slice(self.arg, self.begin + begin, self.begin + end)
+        
+        return Slice(self, begin, end)
     
     def __repr__(self): return str(self)
 
@@ -144,8 +173,9 @@ class Negate(CodegenExpr):
     def __str__(self): return "-(%s)" % self.arg
 
 class Eye(CodegenExpr):
-    def __init__(self, n, coeff):
+    def __init__(self, n, m, coeff):
         self.n = n
+        self.m = m
         self.coeff = coeff
         self.isknown = True
         self.isscalar = False
@@ -192,6 +222,17 @@ class Transpose(CodegenExpr):
         self.isscalar = arg.isscalar
     
     # def __str__(self): return "(%s).trans()" % self.arg
+
+class Slice(CodegenExpr):
+    def __init__(self, arg, begin, end, transpose=False):
+        self.arg = arg
+        self.begin = begin
+        self.end = end
+        self.transpose = transpose
+        self.isknown = arg.isknown
+        self.isscalar = arg.isscalar
+    
+    # def __str__(self): return "(%s)[%s:%s]" % (self.arg, self.begin, self.end)
 
 """ Codegen template.
 
@@ -342,7 +383,7 @@ class Codegen(NodeVisitor):
         if n == "1":
             lineq = {k: Constant(1)}
         else:
-            lineq = {k: Eye(Dimension(n),Constant(1))}
+            lineq = {k: Eye(Dimension(n),Dimension(n), Constant(1))}
         
         self.expr_stack.append(lineq)
     
@@ -500,10 +541,10 @@ class Codegen(NodeVisitor):
             cone_length += Dimension(e.shape.size_str())
         
         self.num_conic += cone_length
-        self.cone_list.append( ("1", str(cone_length)) )
+        self.cone_list.append( (Dimension(1), str(cone_length)) )
         
         self.generic_visit(node)
-        
+                
         # print node.left
         # print self.expr_stack
         # copy into the appropriate block
@@ -512,6 +553,7 @@ class Codegen(NodeVisitor):
             e = self.expr_stack.pop()
             coneend = start.pop()
             conestart = start[-1]   # peek at top
+            
             
             for k,v in e.iteritems():
                 if k == '1':
@@ -534,7 +576,7 @@ class Codegen(NodeVisitor):
         stride = len(node.arglist) + 1
         self.num_conic += Dimension(None, {node.shape.size_str(): stride})
         
-        self.cone_list.append( (node.shape.size_str(), str(len(node.arglist) + 1)) )
+        self.cone_list.append( (Dimension(node.shape.size_str()), str(len(node.arglist) + 1)) )
         
         self.generic_visit(node)
         
@@ -546,7 +588,7 @@ class Codegen(NodeVisitor):
             e = self.expr_stack.pop()
             conestart = start + Dimension(count)
             count -= 1
-            for k,v in e.iteritems():
+            for k,v in e.iteritems():                
                 if k == '1':
                     self.body.append( self.offset + \
                         self.function_stuff_h(conestart, coneend, v, stride))

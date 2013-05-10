@@ -434,7 +434,43 @@ class Transpose(Parameter,Expression):
         return tuple(nodelist)
 
     attr_names = ('vexity', 'sign', 'shape')
+    
+class Slice(Parameter,Variable,Expression):
+    """ Can only be applied to parameters or variables.
+    
+        At the moment, assumes that begin and end are of type int
+    """
+    def __init__(self, expr, begin, end, dim):
+        assert (type(begin) is int), "Expected beginning index to be an integer"
+        assert (type(end) is int), "Expected end index to be an integer"
+        assert (begin < end), "Beginning slice should be less than end"
+        
+        self.value = expr
+        self.sign = expr.sign
+        self.vexity = expr.vexity
+        self.shape = expr.shape.slice(begin, end, dim)
+        self.isknown = expr.isknown
+    
+        self.slice_dim = dim
+        self.begin = begin
+        self.end = end
 
+    def __str__(self): 
+        if isinstance(self.value.shape, Scalar):
+            return "%s" % self.value
+        if isinstance(self.value.shape, Vector):
+            return "%s(%s:%s)" % (self.value, self.begin, self.end)
+
+        dims = len(self.value.shape.dimensions)*[':']
+        dims[self.slice_dim] = "%s:%s" % (self.begin, self.end)
+        return "%s(%s)" % (self.value, ','.join(dims))
+            
+    def children(self):
+        nodelist = []
+        if self.value is not None: nodelist.append(("value", self.value))
+        return tuple(nodelist)
+
+    attr_names = ('vexity', 'sign', 'shape')
 
 class Atom(Expression): 
     """ Atom AST node.

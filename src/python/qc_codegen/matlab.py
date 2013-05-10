@@ -1,13 +1,14 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from scoop.qc_ast import Variable, Vector
-from codegen import Eye, Ones, Transpose, Codegen, Constant
+from scoop.qc_ast import Variable, Vector, Scalar
+import scoop.qc_ast as ast
+from codegen import Eye, Ones, Transpose, Slice, Codegen, Constant, Parameter
 from dimensions import Dimension
 
 def matlab_eye(self):
     if isinstance(self.coeff, Constant) and self.coeff.value == 1:
-        return "eye(%s,%s)" % (self.n, self.n)
+        return "eye(%s,%s)" % (self.n, self.m)
     else:
-        return "%s*eye(%s,%s)" % (self.coeff, self.n, self.n)
+        return "%s*eye(%s,%s)" % (self.coeff, self.n, self.m)
         
 def matlab_ones(self):
     if self.transpose:
@@ -23,6 +24,16 @@ def matlab_ones(self):
 def matlab_trans(self):
     return "(%s)'" % self.arg
 
+def matlab_slice(self):
+    if isinstance(self.arg, Parameter):
+        if self.transpose:
+            return "%s(:,%s+1:%s)'" % (self.arg, self.begin, self.end)
+        else:
+            return "%s(%s+1:%s,:)" % (self.arg, self.begin, self.end)
+    else:
+        print type(self.arg)
+        raise Exception("Slice didn't do what I thought it would....")
+
 class MatlabCodegen(Codegen):
     def __init__(self, cone_size=None, **kwargs):
         """
@@ -37,6 +48,7 @@ class MatlabCodegen(Codegen):
         Ones.__str__ = matlab_ones
         Eye.__str__ = matlab_eye
         Transpose.__str__ = matlab_trans
+        Slice.__str__ = matlab_slice
         
         self.comment = '%'
         self.args = kwargs
@@ -57,6 +69,15 @@ class MatlabCodegen(Codegen):
             raise Exception("MatlabCodegen: Dimensions need to be defined for Matlab.")
         super(MatlabCodegen,self).visit_Program(node)
         Dimension.lookup = None    # reset the lookup table
+        
+    def visit_Slice(self, node):
+        self.generic_visit(node)
+        e = self.expr_stack.pop()
+        a = {}
+        for k,v in e.iteritems():
+            a[k] = v.slice(node.begin, node.end)
+                
+        self.expr_stack.append(a)
         
     def function_prototype(self, dims, params):
         # maybe put params into a sparse structure?
@@ -88,7 +109,7 @@ class MatlabCodegen(Codegen):
         """
         def cone_tuple_to_str(x):
             num, sz = x
-            if num == '1':
+            if str(num) == '1':
                 return "%s" % sz
             else:
                 return "%s*ones(%s,1)" % (sz, num)
@@ -143,97 +164,134 @@ class MatlabCodegen(Codegen):
         """Creates a new, temporary variable name"""
         name = 's' + str(self.new_soc_vars)
         self.new_soc_vars += 1
-        return Variable(name, Vector(n))
+        return Variable(name, n)
+    
+    def __slice(self, node, begin, end):
+        if isinstance(node, ast.Slice): 
+            new_begin = node.begin + begin
+            new_end = node.begin + end
+            
+            return ast.Slice(node.value, new_begin, new_end, 0)
+        
+        if isinstance(node, ast.Mul):
+            slice_left = self.__slice(node.left, begin, end)
+            return ast.Mul(slice_left, node.right)
+        
+        return ast.Slice(node, begin, end, 0)
             
     def visit_SOC(self, node):
         if self.cone_size is not None:
             # look at the size of the SOC
-        
             cone_length = 1
             for e in node.left:
                 dim = Dimension(e.shape.size_str())
                 # convert dimension to integer
                 cone_length += int(str(dim))
-            #print cone_length
             
-            # if cone_length > self.cone_size:
-            #     pass
-                # print self.varstart
-                # print self.varlength
+            if cone_length > self.cone_size:
+                # maximum number of elements on the lhs
+                max_lhs = self.cone_size - 1
+                
+                # collect the new arguments
+                new_args = []
+                old_args = []
+                cum = 0
+                create_new = True
+                for e in node.left:
+                    if create_new:
+                        dim = int(str( Dimension(e.shape.size_str()) ))
+                        # if the dimension of the current expression doesn't
+                        # exceed the max allowable, just push onto argument stack
+                        if cum + dim <= max_lhs:
+                            new_args.append(e)
+                        else:
+                            # if it exceeds, only push the slice up to max_lhs
+                            new_args.append(self.__slice(e, 0, max_lhs - cum))
+                            # save the rest of the expression for another cone
+                            old_args.append(self.__slice(e, max_lhs - cum, dim))
+                    
+                        if cum + dim >= max_lhs:
+                            create_new = False                        
+                    else:
+                        # just push into the old args
+                        old_args.append(e)
+                    cum += dim
+                    
                 # create a new variable
-            if cone_length < self.cone_size:
+                new_var = self.__create_variable(Scalar())                        
+
+                # now add to varlength, varstart, and num_vars
+                self.varlength[new_var.value] = Dimension(1)
+                self.varstart[new_var.value] = self.num_vars
+                self.num_vars += Dimension(1)
+                
+                # process the old cone
+                old_args.append(new_var)
+                self.visit_SOC(ast.SOC(node.right, old_args))
+                
+                # the new cone now has the right size
+                node.left = new_args
+                node.right = new_var
+                
+            elif cone_length < self.cone_size:
                 # create a new variable and append to the node
                 new_length = self.cone_size - cone_length
-                new_var = self.__create_variable(new_length)
+                new_var = self.__create_variable(Vector(new_length))
                 node.left.append(new_var)
                 
                 # now add to varlength, varstart, and num_vars
                 self.varlength[new_var.value] = Dimension(new_length)
                 self.varstart[new_var.value] = self.num_vars
                 self.num_vars += Dimension(new_length)
-                
+                        
         super(MatlabCodegen,self).visit_SOC(node)
         
-        # self.prog.append( self.offset + "%s for the SOC constraint %s" % (self.comment, node) )
-        # 
-        # # we assume linear constraints have already been handled
-        # start = [self.num_lps + self.num_conic]
-        # 
-        # start += [start[-1] + Dimension(node.right.shape.size_str())]
-        # self.num_conic += Dimension(node.right.shape.size_str())
-        # for e in node.left:
-        #     start += [start[-1] + Dimension(e.shape.size_str())]
-        #     self.num_conic += Dimension(e.shape.size_str())
-        # 
-        # self.generic_visit(node)
-        # 
-        # # copy into the appropriate block
-        # count = 0
-        # while self.expr_stack:
-        #     e = self.expr_stack.pop()
-        #     conestart = start[count]
-        #     coneend = start[count+1]
-        #     count += 1
-        #     for k,v in e.iteritems():
-        #         if k == '1':
-        #             self.prog.append( self.offset + \
-        #                 self.function_stuff_h(conestart, coneend, v))
-        #         else:
-        #             xstart = self.varstart[k]
-        #             xend = xstart + self.varlength[k]
-        #             self.prog.append( self.offset + \
-        #                 self.function_stuff_G(conestart, coneend, xstart, xend, -v))
-        # 
-        # self.prog.append("")
-        # assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
+    def visit_SOCProd(self, node):
+        if self.cone_size is not None:
+            # look at the size of the SOC
+        
+            cone_length = 1 + len(node.arglist)
+            #print cone_length
+            
+            if cone_length > self.cone_size:
+                # maximum number of elements on the lhs
+                max_lhs = self.cone_size - 1
+                
+                # collect the new arguments
+                new_args = []
+                old_args = []
+                count = 0
+                for e in node.arglist:
+                    if count < max_lhs:
+                        new_args.append(e)
+                    else:
+                        old_args.append(e)
+                    count += 1
+                    
+                new_var = self.__create_variable(node.shape)                        
 
-    # def visit_SOCProd(self, node):
-    #     self.prog.append( self.offset + "%s for the SOC product constraint %s" % (self.comment, node) )
-    #     
-    #     # we assume linear constraints have already been handled
-    #     start = self.num_lps + self.num_conic
-    #     stride = len(node.arglist) + 1
-    #     self.num_conic += Dimension(None, {node.shape.size_str(): stride})
-    #     
-    #     self.generic_visit(node)
-    #     
-    #     # copy into the appropriate block
-    #     count = 0
-    #     coneend = self.num_conic + self.num_lps
-    #     
-    #     while self.expr_stack:
-    #         e = self.expr_stack.pop()
-    #         conestart = start + Dimension(count)
-    #         count += 1
-    #         for k,v in e.iteritems():
-    #             if k == '1':
-    #                 self.prog.append( self.offset + \
-    #                     self.function_stuff_h(conestart, coneend, v, stride))
-    #             else:
-    #                 xstart = self.varstart[k]
-    #                 xend = xstart + self.varlength[k]
-    #                 self.prog.append( self.offset + \
-    #                     self.function_stuff_G(conestart, coneend, xstart, xend, -v, stride))
-    #     
-    #     self.prog.append("")
-    #     assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
+                # now add to varlength, varstart, and num_vars
+                self.varlength[new_var.value] = Dimension(node.shape.row)
+                self.varstart[new_var.value] = self.num_vars
+                self.num_vars += Dimension(node.shape.row)
+
+                # process the old cone
+                old_args.append(new_var)
+                self.visit_SOCProd(ast.SOCProd(node.right, old_args))
+                
+                # the new cone now has the right size
+                node.arglist = new_args
+                node.right = new_var
+            elif cone_length < self.cone_size:
+                # create a new variable and append to the node
+                new_length = self.cone_size - cone_length
+                for i in range(new_length):
+                    new_var = self.__create_variable(node.shape)
+                    node.arglist.append(new_var)
+                
+                    # now add to varlength, varstart, and num_vars
+                    self.varlength[new_var.value] = Dimension(node.shape.row)
+                    self.varstart[new_var.value] = self.num_vars
+                    self.num_vars += Dimension(node.shape.row)
+            
+        super(MatlabCodegen,self).visit_SOCProd(node)
