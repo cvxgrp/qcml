@@ -1,16 +1,17 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen
+from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen
 
 class QCML(object):
     codegen_objects = {
         "cvx": CVXCodegen,
         "cvxopt": CVXOPTCodegen, 
         "ecos": ECOSCodegen,
-        "matlab": MatlabCodegen
+        "matlab": MatlabCodegen,
+        "pdos": PDOSCodegen
     }
     
-    python_solvers = set(["cvxopt", "ecos"])
+    python_solvers = set(["cvxopt", "ecos", "pdos"])
     
     def __init__(self, debug = False):
         self.debug = debug
@@ -31,6 +32,13 @@ class QCML(object):
         else:
             print "QCML prettyprint: No code generated yet."
     
+    def print_canon(self):
+        if self.rewritten:
+            print self.__problem_tree
+        else:
+            self.rewrite()
+            print self.__problem_tree
+    
     def parse(self,text):
         self.__problem_tree = self.__parser.parse(text)
         if self.debug:
@@ -50,7 +58,6 @@ class QCML(object):
         if self.rewritten:
             # already rewritten
             return
-        # almost idempotent, except that norm(x) <= t gets rewritten
         if self.__problem_tree is not None:
             self.__problem_tree = self.__rewriter.visit(self.__problem_tree)
             if self.debug:

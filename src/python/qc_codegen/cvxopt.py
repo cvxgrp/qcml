@@ -27,11 +27,6 @@ class CVXOPTCodegen(PythonCodegen):
     
     def function_preamble(self):
         return [
-        "\"\"\"",
-        "Default solves scalar problem",
-        "     find x",
-        "     s.t. x <= 0",
-        "\"\"\"",
         "import cvxopt as _o",
         "import cvxopt.solvers",
         ""]

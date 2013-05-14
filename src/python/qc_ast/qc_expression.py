@@ -93,6 +93,10 @@ def constant_folding_mul(lhs,rhs):
         return rhs
     if isconstant(rhs) and rhs.value == 1:
         return lhs
+    if isconstant(lhs) and lhs.value == 0:
+        return Constant(0)
+    if isconstant(rhs) and rhs.value == 0:
+        return Constant(0)
     return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
     
 def distribute(lhs, rhs):
@@ -503,7 +507,7 @@ class Norm(Expression):
         self.sign, self.vexity, self.shape = scoop.qc_atoms.norm(args)
         self.isknown = False
     
-    def __str__(self): return "norm([%s])" % ('; '.join(map(str,self.arglist)))
+    def __str__(self): return "norm(%s)" % (', '.join(map(str,self.arglist)))
 
     def children(self):
         nodelist = []

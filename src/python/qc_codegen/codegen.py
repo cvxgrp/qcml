@@ -38,7 +38,7 @@ class CodegenExpr(object):
         if isinstance(other,Constant) and other.value == 0:
             return self
         if isinstance(self,Eye) and isinstance(other,Eye):
-            return Eye(self.n, self.m, self.coeff + other.coeff)
+            return Eye(self.n, self.coeff + other.coeff)
         if isinstance(self,Ones) and isinstance(other,Ones) and (self.transpose == other.transpose):
             return Ones(self.n, self.coeff + other.coeff, self.transpose)
         if str(self) == str(other):
@@ -56,7 +56,7 @@ class CodegenExpr(object):
         if isinstance(self, Constant):
             return Constant(-self.value)
         if isinstance(self,Eye):
-            return Eye(self.n, self.m, -self.coeff)
+            return Eye(self.n, -self.coeff)
         if isinstance(self,Ones):
             return Ones(self.n, -self.coeff)
         if isinstance(self,Mul):
@@ -72,13 +72,13 @@ class CodegenExpr(object):
             return self
         
         if isinstance(self,Eye) and other.isknown and other.isscalar:
-            return Eye(self.n, self.m, self.coeff * other)
+            return Eye(self.n, self.coeff * other)
         if isinstance(other,Eye) and self.isknown and self.isscalar:
-            return Eye(other.n, other.m, other.coeff * self)
+            return Eye(other.n, other.coeff * self)
             
         if isinstance(self,Eye) and isinstance(other,Eye):
             # (a*I) * (b*I) = (a*b*I)
-            return Eye(self.n, self.m, self.coeff * other.coeff)
+            return Eye(self.n, self.coeff * other.coeff)
         if isinstance(self,Eye) and isinstance(self.coeff, Constant) and self.coeff.value == 1:
             # I*x = x
             return other
@@ -103,7 +103,7 @@ class CodegenExpr(object):
         if self.isscalar:
             return self
         if isinstance(self, Eye):
-            return Eye(self.m, self.n, self.coeff)
+            return self
         if isinstance(self, Ones):
             self.transpose = not self.transpose
             return self
@@ -121,8 +121,6 @@ class CodegenExpr(object):
         if self.isscalar:
             return self
             
-        if isinstance(self,Eye):
-            return Eye(end-begin, self.m, self.coeff)
         if isinstance(self,Ones):
             if not self.transpose:
                 self.n = end - begin
@@ -173,9 +171,8 @@ class Negate(CodegenExpr):
     def __str__(self): return "-(%s)" % self.arg
 
 class Eye(CodegenExpr):
-    def __init__(self, n, m, coeff):
+    def __init__(self, n, coeff):
         self.n = n
-        self.m = m
         self.coeff = coeff
         self.isknown = True
         self.isscalar = False
@@ -383,7 +380,7 @@ class Codegen(NodeVisitor):
         if n == "1":
             lineq = {k: Constant(1)}
         else:
-            lineq = {k: Eye(Dimension(n),Dimension(n), Constant(1))}
+            lineq = {k: Eye(Dimension(n), Constant(1))}
         
         self.expr_stack.append(lineq)
     

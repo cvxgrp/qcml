@@ -114,7 +114,7 @@ class NodeVisitor(object):
             if isinstance(c, list):
                 for elem in c:
                     if isinstance(elem, Node):
-                        elem = self.visit(elem)
+                        self.visit(elem)
             elif isinstance(c, Node):
                 self.visit(c)
 

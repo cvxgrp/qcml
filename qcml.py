@@ -45,8 +45,8 @@ if __name__ == "__main__":
     
     n = 2      # number of features
     m = 100   # number of examples
-    X = o.normal(m,n, -2)
-    Y = o.normal(m,n, 2)
+    X = o.normal(m,n, -1)
+    Y = o.normal(m,n, 1)
     gamma = 1
     
     p = QCML()
@@ -57,18 +57,26 @@ if __name__ == "__main__":
         parameter X(m,n)      # positive samples
         parameter Y(m,n)      # negative samples
         parameter Z(m,n)
+        parameter W(m,n)
         parameter gamma positive
         minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        norm(X*a,Y*a,Z*a) <= 1
+        # norm(X*a,Y*a,Z*a, W*a) <= 1
     """)
     
     p.rewrite()
-    # p.codegen("ecos")
-    # p.prettyprint()
-    #s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
     
-    p.codegen("matlab",cone_size=5,m=100,n=10)
+    p.codegen("ecos")
+    p.prettyprint(True)
+    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
+    
+    p.codegen("pdos")
+    p.prettyprint(True)
+    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
+    
+    p.codegen("matlab",cone_size=3,m=100,n=10)
     p.prettyprint()
+    
+
         
     # if y:
     #     #y.show()

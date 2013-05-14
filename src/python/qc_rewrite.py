@@ -1,4 +1,4 @@
-from qc_ast import NodeTransformer, Constant, Variable, RelOp, SOC, SOCProd
+from qc_ast import NodeTransformer, Constant, Variable, RelOp, SOC, SOCProd, Norm
 from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
@@ -98,14 +98,14 @@ class QCRewriter(NodeTransformer):
         v = self._existing_rewrite(node)
         
         if not v:
-            #if self.rewrite_norm:
-            return self._apply_rewrite_rule(node, norm_rewrite, node.arglist)
+            if self.rewrite_norm:
+                return self._apply_rewrite_rule(node, norm_rewrite, node.arglist)
             # each constraint can only have a single Norm
             # so although Norm(x) + Norm(y) <= z is a valid constraint, we
             #   can't turn it into an SOC unless one of them is rewritten
-            # self.rewrite_norm = True
-            # self.norm_node = node
-            # return Constant(0)
+            self.rewrite_norm = True
+            self.norm_node = node
+            return Constant(0)
         return v
     
     def visit_Abs(self, node):
@@ -114,15 +114,27 @@ class QCRewriter(NodeTransformer):
         v = self._existing_rewrite(node)
         
         if not v:
-            #if self.rewrite_norm:
-            return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
+            if self.rewrite_norm:
+                return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
             # each constraint can only have a single Abs
             # so although Abs(x) + Abs(y) <= z is a valid constraint, we
             #   can't turn it into an SOC unless one of them is rewritten
-            # self.rewrite_norm = True
-            # self.norm_node = node
-            # return Constant(0)
+            self.rewrite_norm = True
+            self.norm_node = node
+            return Constant(0)
         return v
+    
+    def visit_Add(self, node):
+        self.generic_visit(node)
+        return (node.left + node.right)
+    
+    def visit_Mul(self, node):
+        self.generic_visit(node)
+        return (node.left * node.right)
+    
+    def visit_Negate(self, node):
+        self.generic_visit(node)
+        return (-node.expr)
         
     # def visit_RelOp(self, node):
     #     # visit children
@@ -163,49 +175,29 @@ class QCRewriter(NodeTransformer):
         self._existing_expression = QCRewriter.lookup
         self._new_variables = QCRewriter.new_variables
         return node
-#
-# 5/1: stuff below is outdated now....
-#
-
-    # def visit_RelOp(self, node):
-    #     # visit children
-    #     self.generic_visit(node)
-    #     
-    #     if node.op == '==':
-    #         return RelOp('<=')
             
     
-    # def visit_Objective(self, node):
-    #     self.rewrite_norm = True
-    #     self.generic_visit(node)
-    #     
-    #     return node
-    #     
-    # def visit_RelOp(self, node):
-    #     self.rewrite_norm = False
-    #     self.norm_node = None
-    #     self.generic_visit(node)
-    #     
-    #     return node
+    def visit_Objective(self, node):
+        self.rewrite_norm = True
+        self.generic_visit(node)
         
+        return node
         
-    # possible uses of Norm or Abs
-    #   affine + norm(affine) <= affine
-    # RelOp( left = Add, Right = Add )
-    #
-    # norm(affine) <= affine
-    # RelOp(left = Norm, Right = Add)
-    #
-    # let's rewrite all RelOp's so they look like
-    # norm(affine) <= affine
-    # 0 <= affine
-    # or
-    # 0 == affine
-    # affine >= norm(affine)
-    # affine >= 0
-    # etc.
-    #
-    # then, after rewriting, if "<=" and left is Norm / Abs, emit SOC
-    # if ">=" and right is Norm / Abs, emit SOC
-    #
-    # only rewrite Norm when it appears in the objective
+    def visit_RelOp(self, node):
+        self.rewrite_norm = False
+        self.norm_node = None
+        self.generic_visit(node)
+        
+        if self.norm_node is not None:
+            print self.norm_node
+            if isinstance(self.norm_node, Norm):
+                if len(self.norm_node.arglist) == 1:
+                    return SOC(-node.left, self.norm_node.arglist)
+                else:
+                    return SOCProd(-node.left, self.norm_node.arglist)
+            else:   # abs
+                return SOCProd(-node.left, [self.norm_node.arg])
+        else:
+            return node
+        
+      
