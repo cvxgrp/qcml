@@ -1,33 +1,66 @@
-Second-order Cone Optimization Parser (SCOOP)
-=============================================
+Quadratic Cone Modeling Language (QCML)
+=======================================
+
+**This repository is currently a work in progress and is in transition between
+an older implementation (SCOOP) and a newer implementation (QCML). If you
+wish to use this in your project, please contact
+[us](mailto:echu508@stanford.edu).**
 
 This project is a modular convex optimization framework for solving
 *second-order cone* optimization problems (SOCP). It separates the parsing
-and canonicalization phase from the generation and solve phase. This allows
-the use of a unified (domain-specific) language in the front end to target
-different use cases.
+and canonicalization phase from the code generation and solve phase. This
+allows the use of a unified (domain-specific) language in the front end to
+target different use cases.
 
-(XXX: a term rewriting / macro expansion language)
+For instance, a simple portfolio optimization problem can be specified as a Python string as follows:
+
+    """
+    dimensions m n
+    
+    variable x(n)
+    parameter mu(n)
+    parameter gamma
+    parameter F(n,m)
+    parameter D(n,n)
+    maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
+        sum(x) == 1
+        x >= 0
+    """
+    
+Our tool parses the problem and rewrites it, after which it can generate
+Python code of external source code. The basic workflow is as follows
+(assuming `s` stores a problem specification).
+
+    p.parse(s)
+    p.rewrite()
+    p.codegen("cvxopt")
+    solution = p.solver(m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+
+The last line calls the (Python) solver generated in the codegen step. This
+solver requires that the user specify the dimensions and parameters in their
+optimization model. For rapid prototyping, we provide the convenience
+function:
+
+    solution = p.solve(s, m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+
+This functions wraps all four steps above into a single call.
 
 Prerequisites
 =============
-This project requires:
+For the most basic usage, this project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
 * [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
-* [PDOS](http://github.com/cvxgrp/pdos) -- be sure to install the Python module
-* [NUMPY](http://www.numpy.org/)
 
-For unit testing, we use [Nose](http://nose.readthedocs.org).
+For (some) unit testing, we use [Nose](http://nose.readthedocs.org).
 
 Depending on the type of code you generate, you may also need:
 
 * Matlab
 * [CVX](http://cvxr.com)
+* [PDOS](http://github.com/cvxgrp/pdos)
+* [ECOS](http://github.com/ifa-ethz/ecos)
 
-<!-- * `ECOS`
-* `gcc` (or similar compiler)
-* CUDA -->
 
 Installation
 ============
@@ -40,9 +73,10 @@ After installation, if you have [Nose](http://nose.readthedocs.org) installed, t
 
     nosetests scoop
     
-should run the simple unit tests.
+should run the simple unit tests. These tests are not exhaustive at the moment. Although the project name is QCML, this module refers to itself by its old name, `scoop`. This unfortunate turn of events will be rectified.
 
-A sample script showing the usage of SCOOP can be found in `main.py`. Running `python main.py` after installing SCOOP will display a rewritten problem.
+The only working sample scripts are `qcml.py` and `main.py`. The others refer to the old implementation. The `main.py` script takes command line arguments and emits Matlab code used to call ECOS.
+
 
 Features
 ========
@@ -84,47 +118,81 @@ instance with fixed dimensions.
 
 In prototyping mode, the dimensions and the problem data may change with each invocation of the generated function. In deployment mode, problem dimensions are fixed, but problem data is allowed to change.
 
+The valid choice of solvers are:
+
+* `"cvx"` -- emits Matlab source code that calls CVX
+* `"cvxopt"` -- emits Python source code that calls CVXOPT
+* `"ecos"` -- emits Python source code that calls ECOS
+* `"matlab"` -- emits Matlab source code that calls ECOS
+* `"PDOS"` -- emits Python source code that calls PDOS
+
+When these solvers are supplied as arguments to the code generator, it produces code of the appropriate language (Python or Matlab). If it generates Python code, `exec` is called to create the function bytecode dynamically, allowing you to call the solver.
+
 Use as embedded language
 ------------------------
-Although SCOOP's original intent was to be used to parse files with problems specified in SCOOP's language, its Python API has been exposed for use in Python. It operates similarly to a safe `eval` in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking SCOOP to generate a solver in a more efficient langauge, such as in C or CUDA.
+Although QCML's original intent was to be used to parse files with problems specified in QCML, its Python API has been exposed for use in Python. It operates similarly to a safe `eval` in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking QCML to generate a solver in a more efficient langauge, such as in C or CUDA.
 
 Example
 =======
 As an example, consider the Lasso problem,
 
     # this entire line is a comment!
-    variable x vector
-    parameter A matrix
-    parameter lambda scalar positive
+    dimensions m n
+    variable x(n)
+    parameter A(m,n)
+    parameter lambda positive
     
     minimize sum(square(A*x - 4)) + lambda*norm(x)
     
-Note that variables and parameters are abstract, their shape is denoted only
-by a shape (`scalar`, `vector`, or `matrix`). SCOOP canonicalizes this
-problem to an SOCP.
+Note that dimenions are named, but abstract (they do not refer to any
+numbrs). Similarly, variables and parameters are abstract, their shape is
+denoted only by references to named dimensions. Although matrix variable
+*declarations* are possible, QCML's behavior is undefined (and may possibly
+fail). Matrix variables (along with `for` loops, concatenation, and slicing)
+are planned for a future release.
+<!-- 
+Some currently available keywords are:
+
+* `dimension`, `dimensions`
+* `variable`, `variables`
+* `parameter`, `parameters`
+* `positive`, `nonnegative`
+* `negative`, `nonpositive`
+* `minimize`
+* `maximize` 
+-->
+
+QCML canonicalizes this problem to an SOCP.
 
 Inside Python, the code might look like
 
-    from scoop import Scoop
+    from scoop import QCML
     if __name__ == '__main__':
-        p = Scoop()
+        p = QCML()
   
-        map (p.run, 
-        ["# this entire line is a comment!",
-         "variable x vector",
-         "parameter A matrix",
-         "parameter lambda scalar positive",
-         ""
-         "minimize sum(square(A*x - 4)) + lambda*norm(x)"])
-    
-        print p
-
-Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following two lines will create a solver function `f` and call the solver, with the parameter arguments supplied.
+        p.parse(""" 
+          # this entire line is a comment!
+          dimension n
+          dimension m
+          variable x(n)
+          parameter A(m,n)
+          parameter lambda positive
         
-    f = p.generate()
-    f(A = spmatrix, lambda = 0.01)
+          minimize sum(square(A*x - 4)) + lambda*norm(x)
+        """)
+    
+        p.rewrite()
+        p.prettyprint()
 
-Parameter dimensions and sparsity patterns are assumed to be unknown *until* the generated function is run. That is, after the code has been parsed and a function generated, the user will not be able to know that parameters have the wrong dimensions or storage format until attempting to run the function. This is by design.
+Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following three lines will create a solver function `f` and call the solver, with the parameter arguments supplied.
+        
+    p.codegen("cvcxopt")  # this creates a solver in Python calling CVXOPT
+    f = p.solver
+    f(A = spmatrix, lambda = 0.01)
+    
+Note that this is not possible with one of the Matlab code generators.
+
+<!-- Parameter dimensions and sparsity patterns are assumed to be unknown *until* the generated function is run. That is, after the code has been parsed and a function generated, the user will not be able to know that parameters have the wrong dimensions or storage format until attempting to run the function. This is by design.
 
 Once the user feels that the model is sufficient and wishes to scale to a problem with more data, the following line might conceivably generate source code to solve a problem instance (with fixed dimensions and sparsity pattern).
 
@@ -135,7 +203,7 @@ The argument corresponding to the variable name gives the length of the vector, 
 Note that SCOOP is stateful, so one could use Python as a templating language and declare multiple variables
 
     for i in range(n):
-      p.run("variable x%d scalar" % i)
+      p.run("variable x%d scalar" % i) -->
 
 
 <!-- Scientific computing mode
@@ -144,7 +212,7 @@ Parse tree only produces a list of linear functions. These are repeatedly evalua
 
 Operators and atoms
 ===================
-SCOOP provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as *macros*. Whenever the parser encounters an atom, it simply expands its definition.
+QCML provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as *macros*. Whenever the parser encounters an atom, it simply expands its definition.
 
 Operators
 ---------
@@ -196,7 +264,6 @@ In no particular order, the future of this project...
 
 * CUDA and GPU support for large-scale solvers
 * C code generation
-* CVX code generation for verificaton
 * test cases
 * example suite
 * user guide

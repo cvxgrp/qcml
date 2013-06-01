@@ -1,116 +1,65 @@
-from scoop import Scoop
-import cvxopt as o
-import numpy as npy
-import time
+#/usr/bin/python
+from scoop import QCML
+import argparse
 
-if __name__ == '__main__':
-    
-    print "Creating data."
-    n = 1000    # number of variables
-    m = 30      # number of factors
+parser = argparse.ArgumentParser(description="generate code for testing")
+parser.add_argument('-m', nargs=1, default=[1],type=int,dest='m', help="problem dimension")
+parser.add_argument('-n', nargs=1, default=[1],type=int,dest='n', help="size of variable")
+parser.add_argument('-q', nargs=1, default=[None],type=int,dest='q', help="cone size")
+parser.add_argument('--cvx', help="solve the problem using CVX", action="store_true")
 
-    mu = o.exp(o.normal(n))
-    D = o.spdiag(o.sqrt(o.uniform(n,b=2.0)))
-    F = o.normal(n,m)
-    gamma = 1
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--svm", help="solve the SVM problem", action="store_true")
+group.add_argument("--portfolio", help="solve the portfolio problem", action="store_true")
+
+args = parser.parse_args()
+
+p = QCML()
+m = args.m[0]
+n = args.n[0]
+q = args.q[0]
+
+if args.svm:
     
-    p = Scoop()
-    
-    # a Scoop model is specified by strings
-    #   the parser parses each model line by line and builds an internal
-    #   representation of an SOCP
-    p.rewrite(
-        """
-        variable x vector
-        parameter mu vector
+    p.parse("""
+        dimensions m n
+        variable a(n)
+        variable b
+        parameter X(m,n)      # positive samples
+        parameter Y(m,n)      # negative samples
         parameter gamma positive
-        parameter F matrix
-        parameter D matrix
+    
+        minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
+    """)
+    
+    p.rewrite()
+    if args.cvx:
+        p.codegen("cvx")
+    else:
+        p.codegen("matlab",cone_size=q,m=m,n=n)
+    p.prettyprint()
+
+elif args.portfolio:
+    p.parse("""
+        dimensions m n
+        
+        variable x(n)
+        parameter mu(n)
+        parameter gamma
+        parameter F(n,m)
+        parameter D(n,n)
         maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
             sum(x) == 1
             x >= 0
-        """
-    )
+    """)
     
-    # solve the problem with x of length 5
-    p.generate_delite(x = 5)
+    p.rewrite()
+    if args.cvx:
+        p.codegen("cvx")
+    else:
+        p.codegen("matlab",cone_size=q,m=m,n=n)
+    p.prettyprint()
     
-    f = p.generate_ecos()
-    t1 = time.time()
-    sol = f(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    t2 = time.time()
-    print 'took %0.3f ms' % ((t2 - t1)*1000.0)
-    
-    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8)
-    t1 = time.time()
-    sol3 = f5(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    t2 = time.time()
-    print 'took %0.3f ms' % ((t2 - t1)*1000.0)
-    
-    # f2 = p.generate()
-#     t1 = time.time()
-#     sol2 = f2(x = n, mu = mu, D = D, F = F, gamma = gamma)
-#     t2 = time.time()
-#     print 'took %0.3f ms' % ((t2 - t1)*1000.0)
-    
-    
-    
-    """
-    
-    # you can also add to the problem spec line by line if you wanted to
-    # but you have to be careful to reference variables or parameters that
-    # you have previously declared
-    p.rewrite("x >= 0")
-    
-    npy.savetxt('mu', npy.matrix(mu))
-    (Dp,Di,Dx) = D.CCS
-    npy.savetxt('Dx', npy.matrix(Dx))
-    npy.savetxt('F', npy.matrix(F))
-    
-    print p
-    
-    raw_input("press ENTER to continue....")
-    
-    # # generate a solver where the size of a second-order cone is *fixed* to 
-    # # length 3
-    # f = p.generate_fixed_soc(3)
-    # # solve the problem with x of length 5
-    # sol1 = f(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    # 
-    # # generate a generic solver (CVXOPT) for the second-order cone program
-    # f2 = p.generate()
-    # # solve the problem with x of length 5
-    # sol2 = f2(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    
-    # generate a function to spit out the raw data
-    f3 = p.generate_matrix()
-    (c, G, h, free_lens, lp_lens, soc_lens) = f3(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    npy.savetxt('Gj', npy.matrix(G.J))
-    npy.savetxt('Gi', npy.matrix(G.I))
-    npy.savetxt('Gx', npy.matrix(G.V))
-    
-    # generate a function to spit out the raw data
-    f4 = p.generate_fixed_matrix(3)
-    (c, G, h, free_lens, lp_lens, soc_lens) = f4(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    (Gp,Gi,Gx) = G.CCS
-    npy.savetxt('Gj_fx', npy.matrix(G.J))
-    npy.savetxt('Gi_fx', npy.matrix(G.I))
-    npy.savetxt('Gx_fx', npy.matrix(G.V))
-    
-    # now, use a first order solver to solve the problem
-    f5 = p.generate_pdos(VERBOSE=True,NORMALIZE=True,ALPHA=1.8)
-    sol3 = f5(x = n, mu = mu, D = D, F = F, gamma = gamma)
-    
-    # compare the solutions
-    # print sol1['x']
-    # print sol2['x']
-    # print sol3['x']
-    #print sol['x']
 
-    # raw_input("now solve the same problem with different length variable; press ENTER to continue....")
-    # # now try solving the same problem but with different length x's
-    # for l in range(1,10):
-    #     sol = f2(x = l)
-    #     print sol['x']
-    """
-    
+else:
+    print "you must decide whether you want to solve the SVM or Portfolio problem."
