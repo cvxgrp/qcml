@@ -141,18 +141,23 @@ class QCParser(object):
     
     def p_program(self,p):
         """program : lines objective lines
-                   | lines objective"""
+                   | lines objective
+                   | lines"""
         if p[1] is not None:
             constraints = p[1]
         else:
             constraints = []
         
-        if len(p) > 3:
+        plen = len(p)
+        if plen > 3:
             if p[3] is not None:
                 constraints += p[3]
         
-        constraints = filter(None, constraints)   
-        p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
+        constraints = filter(None, constraints)
+        if plen > 2:
+            p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
+        else:
+            p[0] = Program(Objective('find',Constant(0)), constraints, self._variables, self._parameters, self._dimensions)
     
     def p_program_empty(self,p):
         'program : empty'

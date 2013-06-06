@@ -6,7 +6,6 @@ class ECOSCodegen(CVXOPTCodegen):
     def function_preamble(self):
         return [
         "import cvxopt as _o",
-        "import cvxopt.solvers",
         "import ecos"
         ""]
     
