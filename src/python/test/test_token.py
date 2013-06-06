@@ -1,4 +1,4 @@
-import scoop.qc_lex as s
+import scoop.qc_lexer as s
 
 
 lexer = s.QCLexer()

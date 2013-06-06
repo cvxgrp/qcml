@@ -179,6 +179,10 @@ class QCParser(object):
                      | SENSE expression NL subject_to NL'''
         p[0] = Objective(p[1],p[2])
     
+    def p_empty_objective(self,p):
+        'objective : empty'
+        pass
+    
     def p_subject_to(self,p):
         'subject_to : SUBJ TO'
         pass

@@ -1,3 +1,25 @@
+from scoop import QCML
+from nose.tools import assert_raises
+
+def parse(s):
+    p = QCML()
+    p.parse(s)
+    pass
+    
+# check keywords: variable, parameters, and dimensions
+def test_keywords():
+    # ensure that these are valid statements
+    yield parse, "variable x\n"
+    yield parse, "dimension m"
+    yield parse, "parameter A positive"
+    yield parse, "variables x y z"
+    yield parse, "parameters A b c"
+    yield parse, "dimensions m n f"
+    #yield parse, ("dimensions n\n", "variable x(n)\n", "parameter A(n,n) nonnegative")
+    
+    # ensure that these fail
+    #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])
+
 # from nose.tools import assert_raises, with_setup
 # from scoop import Scoop
 # from scoop.expression import isscalar, isvector, ismatrix, Sign, AFFINE
