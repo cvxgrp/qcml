@@ -19,7 +19,7 @@ For instance, a simple portfolio optimization problem can be specified as a Pyth
     
     variable x(n)
     parameter mu(n)
-    parameter gamma
+    parameter gamma positive
     parameter F(n,m)
     parameter D(n,n)
     maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
