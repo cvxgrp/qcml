@@ -1,0 +1,371 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>QCML by cvxgrp</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">QCML</h1>
+        <p class="header">Quadratic cone modeling language</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/cvxgrp/qcml/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/cvxgrp/qcml/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/cvxgrp/qcml">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/cvxgrp">cvxgrp</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a name="quadratic-cone-modeling-language-qcml" class="anchor" href="#quadratic-cone-modeling-language-qcml"><span class="octicon octicon-link"></span></a>Quadratic Cone Modeling Language (QCML)</h1>
+
+<p><strong>This repository is currently a work in progress and is in transition between
+an older implementation (SCOOP) and a newer implementation (QCML). If you
+wish to use this in your project, please contact
+<a href="mailto:echu508@stanford.edu">us</a>.</strong></p>
+
+<p>This project is a modular convex optimization framework for solving
+<em>second-order cone</em> optimization problems (SOCP). It separates the parsing
+and canonicalization phase from the code generation and solve phase. This
+allows the use of a unified (domain-specific) language in the front end to
+target different use cases.</p>
+
+<p>For instance, a simple portfolio optimization problem can be specified as a Python string as follows:</p>
+
+<pre><code>"""
+dimensions m n
+
+variable x(n)
+parameter mu(n)
+parameter gamma
+parameter F(n,m)
+parameter D(n,n)
+maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
+    sum(x) == 1
+    x &gt;= 0
+"""
+</code></pre>
+
+<p>Our tool parses the problem and rewrites it, after which it can generate
+Python code of external source code. The basic workflow is as follows
+(assuming <code>s</code> stores a problem specification).</p>
+
+<pre><code>p.parse(s)
+p.rewrite()
+p.codegen("cvxopt")
+solution = p.solver(m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+</code></pre>
+
+<p>The last line calls the (Python) solver generated in the codegen step. This
+solver requires that the user specify the dimensions and parameters in their
+optimization model. For rapid prototyping, we provide the convenience
+function:</p>
+
+<pre><code>solution = p.solve(s, m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+</code></pre>
+
+<p>This functions wraps all four steps above into a single call.</p>
+
+<h1>
+<a name="prerequisites" class="anchor" href="#prerequisites"><span class="octicon octicon-link"></span></a>Prerequisites</h1>
+
+<p>For the most basic usage, this project requires:</p>
+
+<ul>
+<li>Python 2.7.2+ (no Python 3 support yet)</li>
+<li><a href="http://abel.ee.ucla.edu/cvxopt/">CVXOPT</a></li>
+</ul><p>For (some) unit testing, we use <a href="http://nose.readthedocs.org">Nose</a>.</p>
+
+<p>Depending on the type of code you generate, you may also need:</p>
+
+<ul>
+<li>Matlab</li>
+<li><a href="http://cvxr.com">CVX</a></li>
+<li><a href="http://github.com/cvxgrp/pdos">PDOS</a></li>
+<li><a href="http://github.com/ifa-ethz/ecos">ECOS</a></li>
+</ul><h1>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h1>
+
+<p>Installation should be as easy as</p>
+
+<pre><code>cd src
+python setup.py install
+</code></pre>
+
+<p>After installation, if you have <a href="http://nose.readthedocs.org">Nose</a> installed, then typing</p>
+
+<pre><code>nosetests scoop
+</code></pre>
+
+<p>should run the simple unit tests. These tests are not exhaustive at the moment. Although the project name is QCML, this module refers to itself by its old name, <code>scoop</code>. This unfortunate turn of events will be rectified.</p>
+
+<p>The only working sample scripts are <code>qcml.py</code> and <code>main.py</code>. The others refer to the old implementation. The <code>main.py</code> script takes command line arguments and emits Matlab code used to call ECOS.</p>
+
+<h1>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h1>
+
+<h2>
+<a name="parsing-and-canonicalization" class="anchor" href="#parsing-and-canonicalization"><span class="octicon octicon-link"></span></a>Parsing and canonicalization</h2>
+
+<p>The parser/canonicalizer canoncializes SOCP-representable <em>convex</em>
+optimization problems into standard form:</p>
+
+<pre><code>minimize c'*x
+subject to
+  G*x + s == h
+  A*x == b
+  s in Q
+</code></pre>
+
+<p>where <code>Q</code> is a product cone of second-order cones (i.e., <code>Q = { (t,y) | ||y||
+&lt;= t }</code>), and <code>x</code>, <code>s</code> are the optimization variables. The
+parser/canonicalizer guarantees that all problems will adhere to the
+disciplined convex programming (DCP) ruleset and that the problem has the form</p>
+
+<pre><code>minimize aff
+subject to
+  aff == 0
+  norm(aff) &lt;= aff
+</code></pre>
+
+<p>where <code>aff</code> is any affine expression. This can also be a maximization or
+feasibility problem. If a problem is entered directly in this form, the
+parser/canonicalizer will not modify it; in other words, the
+parser/canonicalizer is <em>idempotent</em> with respect to SOCPs.</p>
+
+<h2>
+<a name="generation-and-solve" class="anchor" href="#generation-and-solve"><span class="octicon octicon-link"></span></a>Generation and solve</h2>
+
+<p>The generator/solver can be used in prototyping or deployment mode. In
+prototyping mode (or solve mode), a <em>function</em> is generated which, when
+supplied with the problem parameters, will call an interior-point solver to
+solve the problem. In deployment mode (or code generation mode), <em>source
+code</em> (in a target language) is generated which solves a particular problem
+instance with fixed dimensions.</p>
+
+<p>In prototyping mode, the dimensions and the problem data may change with each invocation of the generated function. In deployment mode, problem dimensions are fixed, but problem data is allowed to change.</p>
+
+<p>The valid choice of solvers are:</p>
+
+<ul>
+<li>
+<code>"cvx"</code> -- emits Matlab source code that calls CVX</li>
+<li>
+<code>"cvxopt"</code> -- emits Python source code that calls CVXOPT</li>
+<li>
+<code>"ecos"</code> -- emits Python source code that calls ECOS</li>
+<li>
+<code>"matlab"</code> -- emits Matlab source code that calls ECOS</li>
+<li>
+<code>"PDOS"</code> -- emits Python source code that calls PDOS</li>
+</ul><p>When these solvers are supplied as arguments to the code generator, it produces code of the appropriate language (Python or Matlab). If it generates Python code, <code>exec</code> is called to create the function bytecode dynamically, allowing you to call the solver.</p>
+
+<h2>
+<a name="use-as-embedded-language" class="anchor" href="#use-as-embedded-language"><span class="octicon octicon-link"></span></a>Use as embedded language</h2>
+
+<p>Although QCML's original intent was to be used to parse files with problems specified in QCML, its Python API has been exposed for use in Python. It operates similarly to a safe <code>eval</code> in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking QCML to generate a solver in a more efficient langauge, such as in C or CUDA.</p>
+
+<h1>
+<a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h1>
+
+<p>As an example, consider the Lasso problem,</p>
+
+<pre><code># this entire line is a comment!
+dimensions m n
+variable x(n)
+parameter A(m,n)
+parameter lambda positive
+
+minimize sum(square(A*x - 4)) + lambda*norm(x)
+</code></pre>
+
+<p>Note that dimenions are named, but abstract (they do not refer to any
+numbrs). Similarly, variables and parameters are abstract, their shape is
+denoted only by references to named dimensions. Although matrix variable
+<em>declarations</em> are possible, QCML's behavior is undefined (and may possibly
+fail). Matrix variables (along with <code>for</code> loops, concatenation, and slicing)
+are planned for a future release.</p>
+
+
+
+<p>QCML canonicalizes this problem to an SOCP.</p>
+
+<p>Inside Python, the code might look like</p>
+
+<pre><code>from scoop import QCML
+if __name__ == '__main__':
+    p = QCML()
+
+    p.parse(""" 
+      # this entire line is a comment!
+      dimension n
+      dimension m
+      variable x(n)
+      parameter A(m,n)
+      parameter lambda positive
+
+      minimize sum(square(A*x - 4)) + lambda*norm(x)
+    """)
+
+    p.rewrite()
+    p.prettyprint()
+</code></pre>
+
+<p>Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following three lines will create a solver function <code>f</code> and call the solver, with the parameter arguments supplied.</p>
+
+<pre><code>p.codegen("cvcxopt")  # this creates a solver in Python calling CVXOPT
+f = p.solver
+f(A = spmatrix, lambda = 0.01)
+</code></pre>
+
+<p>Note that this is not possible with one of the Matlab code generators.</p>
+
+
+
+
+
+<h1>
+<a name="operators-and-atoms" class="anchor" href="#operators-and-atoms"><span class="octicon octicon-link"></span></a>Operators and atoms</h1>
+
+<p>QCML provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as <em>macros</em>. Whenever the parser encounters an atom, it simply expands its definition.</p>
+
+<h2>
+<a name="operators" class="anchor" href="#operators"><span class="octicon octicon-link"></span></a>Operators</h2>
+
+<p>The standard linear operators are:</p>
+
+<ul>
+<li>infix operators
+
+<ul>
+<li><code>+</code></li>
+<li><code>-</code></li>
+<li>
+<code>*</code>, lhs <em>must</em> be a parameter</li>
+</ul>
+</li>
+<li>prefix operators
+
+<ul>
+<li>
+<code>-</code>, unary minus / negate</li>
+</ul>
+</li>
+<li>vector operators (map vectors to scalars)
+
+<ul>
+<li><code>sum(x)</code></li>
+<li>
+<code>sum(x,y,..)</code>, defined as <code>x + y + ...</code>
+</li>
+</ul>
+</li>
+</ul><p>The operators used for constructing second-order cones are:</p>
+
+<ul>
+<li>scalar operators (map scalars to scalars)
+
+<ul>
+<li><code>abs(x)</code></li>
+</ul>
+</li>
+<li>vector operators (map vectors to scalars)
+
+<ul>
+<li><code>norm(x)</code></li>
+<li>
+<code>norm2(x)</code>, equivalent to <code>norm(x)</code>
+</li>
+</ul>
+</li>
+</ul><h2>
+<a name="atoms" class="anchor" href="#atoms"><span class="octicon octicon-link"></span></a>Atoms</h2>
+
+<p>The atoms we provide are:</p>
+
+<ul>
+<li>scalar atoms (map scalars to scalars)
+
+<ul>
+<li>
+<code>pos(x)</code>, defined as <code>max(x, 0)</code>
+</li>
+<li>
+<code>neg(x)</code>, defined as <code>max(-x, 0)</code>
+</li>
+<li><code>square(x)</code></li>
+<li><code>inv_pos(x)</code></li>
+<li><code>geo_mean(x,y)</code></li>
+<li><code>sqrt(x)</code></li>
+</ul>
+</li>
+<li>vector atoms (map vectors to scalars)
+
+<ul>
+<li>
+<code>max(x)</code>, the max elem of <code>x</code>
+</li>
+<li>
+<code>max(x,y,..)</code>, the max vector consisting of max elements across rows</li>
+<li>
+<code>min(x)</code>, the min elem of <code>x</code>,</li>
+<li>
+<code>min(x,y,..)</code>, the min vector consisting of min elements across rows</li>
+<li>
+<code>quad_over_lin(x,y)</code>, if <code>y</code> is a vector, returns element-wise operator</li>
+<li>
+<code>norm1(x)</code>, defined as <code>sum(abs(x))</code>
+</li>
+<li>
+<code>norm1(x,y,..)</code>, defined as <code>abs(x) + abs(y) + ...</code>
+</li>
+<li>
+<code>norm_inf(x)</code>, defined as <code>max(abs(x))</code>
+</li>
+<li>
+<code>norm_inf(x,y,...)</code>, defined as <code>max(abs(x),abs(y),...)</code>
+</li>
+</ul>
+</li>
+</ul><h1>
+<a name="roadmap" class="anchor" href="#roadmap"><span class="octicon octicon-link"></span></a>Roadmap</h1>
+
+<p>In no particular order, the future of this project...</p>
+
+<ul>
+<li>CUDA and GPU support for large-scale solvers</li>
+<li>C code generation</li>
+<li>test cases</li>
+<li>example suite</li>
+<li>user guide</li>
+<li>a solver based on scientific computing (just walks parse trees)</li>
+<li>a lex/yacc C API?</li>
+</ul><h1>
+<a name="support" class="anchor" href="#support"><span class="octicon octicon-link"></span></a>Support</h1>
+
+<p>This project is supported in large part by an XDATA grant, supported by the Air Force Research Laboratory grant FA8750-12-2-0306.</p>
+
+
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
