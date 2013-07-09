@@ -3,9 +3,9 @@ from scoop import QCML
 import cvxopt as o
 
 if __name__ == "__main__":
-    
+
     """
-    
+
     # 82 + 6/3 == 1
     # dimension p
     # 8 + gamma <= 5
@@ -17,15 +17,15 @@ if __name__ == "__main__":
     # (b + b + b)*(x + z + b) == 0
     # -5 == 5
     # -(x + 1) == 0
-    # A'*x - b == 0 
+    # A'*x - b == 0
     # --x == 0
     # x'*x <= 1
     # quad_over_lin(x,z) <= 1
-    # 
+    #
     # minimize c'*x + b
     # subject to
     """
-    
+
     """
     dimensions m n
     variable z
@@ -34,22 +34,22 @@ if __name__ == "__main__":
     parameter A(m,n)
     variable x(n)
     parameter c(m)
-    
-    
+
+
     variables y(31) a(1,5)
-    
+
     # square(x) <= 1
-    
+
     minimize sum(square(A*x - b))
     """
-    
+
     n = 2      # number of features
     m = 100   # number of examples
     X = o.normal(m,n, -1)
     Y = o.normal(m,n, 1)
     gamma = 1
-    
-    p = QCML()
+
+    p = QCML(debug=True)
     p.parse("""
         dimensions m n
         variable a(n)
@@ -59,39 +59,43 @@ if __name__ == "__main__":
         parameter Z(m,n)
         parameter W(m,n)
         parameter gamma positive
-        minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
+        variables t0_(n) z
+        minimize square(norm(t0_)) - sqrt(z)
+            t0_ + z == 1
+        #minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
         # norm(X*a,Y*a,Z*a, W*a) <= 1
     """)
-    
-    p.rewrite()
-    
-    p.codegen("cvxopt")
-    p.prettyprint(True)
-    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
-    
-    p.codegen("pdos")
-    p.prettyprint(True)
-    s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
-    
-    p.codegen("matlab",cone_size=3,m=100,n=10)
-    p.prettyprint()
-    
 
-        
+    p.rewrite()
+
+    p.print_canon()
+    p.codegen("cvx")
+    p.prettyprint(True)
+    # s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
+#
+#     p.codegen("pdos")
+#     p.prettyprint(True)
+#     s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
+#
+#     p.codegen("matlab",cone_size=3,m=100,n=10)
+#     p.prettyprint()
+
+
+
     # if y:
     #     #y.show()
     #     visit.visit(y)
-    # 
+    #
     #     print y
     #     # TODO: before codegen, need to check DCP compliance and that objective is scalar
     #     codegen = ECOSCodegen(visit.replaced_expressions())
     #     codegen.visit(y)
     #     codegen.prettyprint(True)
-    #     
+    #
     #     f = codegen.codegen()
     #     #s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
     #     s = f(m=m,n=n,X=X,Y=Y,gamma=gamma)
-    #     
+    #
     #     print s
     #     print s['a']
     #     print s['b']
