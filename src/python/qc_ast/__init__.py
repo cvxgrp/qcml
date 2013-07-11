@@ -10,3 +10,4 @@ from qc_expression import isparameter, isconstant, isadd, ismul, \
     Constant, Parameter, Variable, \
     Add, Negate, Mul, Transpose, Slice, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs, Expression
+from qc_dimension import Dimension

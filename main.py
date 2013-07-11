@@ -32,7 +32,7 @@ if args.svm:
         minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
     """)
 
-    p.rewrite()
+    p.canonicalize()
     if args.cvx:
         p.codegen("cvx")
     else:
@@ -53,7 +53,7 @@ elif args.portfolio:
             x >= 0
     """)
 
-    p.rewrite()
+    p.canonicalize()
     if args.cvx:
         p.codegen("cvx")
     else:

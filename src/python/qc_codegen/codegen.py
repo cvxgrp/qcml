@@ -1,5 +1,4 @@
-from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from dimensions import Dimension
+from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, Dimension
 
 # define code generation objects
 # TODO: can change behavior of these by changing __str__ definition

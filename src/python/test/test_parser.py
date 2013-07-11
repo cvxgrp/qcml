@@ -5,17 +5,54 @@ def parse(s):
     p = QCML()
     p.parse(s)
     pass
+
+keyword_list = [
+    "variable x\n",
+    "dimension m",
+    "parameter A positive",
+    "variables x y z",
+    "parameters A b c",
+    "dimensions m n f"
+]
+
+problem_list = [
+"""
+    dimensions n
+    variable x(n)
+    parameter A(n,n) nonnegative
+""",
+"""
+    dimensions n
+    variable x(n)
+    find x
+""",
+""" dimensions n
+    variable x(n)
+    parameter lambda positive
+    minimize lambda*sum(x) + sum(square(x))
+    subject to
+
+""",
+""" dimensions n
+    variable x(n)
+    parameter lambda positive
+    x >= 0
+    minimize lambda*sum(x) + sum(square(x))
+    subject to
+        x <= 4
+"""
+]
     
 # check keywords: variable, parameters, and dimensions
 def test_keywords():
     # ensure that these are valid statements
-    yield parse, "variable x\n"
-    yield parse, "dimension m"
-    yield parse, "parameter A positive"
-    yield parse, "variables x y z"
-    yield parse, "parameters A b c"
-    yield parse, "dimensions m n f"
-    #yield parse, ("dimensions n\n", "variable x(n)\n", "parameter A(n,n) nonnegative")
+    for keyword in keyword_list:
+        yield parse, keyword
+
+def test_problem():
+    # ensure that these are valid problems
+    for problem in problem_list:
+        yield parse, problem
     
     # ensure that these fail
     #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])

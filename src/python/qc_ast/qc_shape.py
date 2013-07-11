@@ -1,3 +1,4 @@
+from qc_dimension import Dimension
 
 # public utility functions
 def isvector(x):
@@ -38,7 +39,10 @@ def _ismatrix(x):
 #             raise TypeError("Cannot stack '%s' and '%s', since they are not the same shape." % (x, y))
 #             
 #     return reduce(_stack, args)
-    
+
+def create_dimension(x):
+    if isinstance(x, Dimension): return x
+    else: return Dimension(x)
         
 class Shape(object):
     def __init__(self, dimensions):
@@ -47,7 +51,7 @@ class Shape(object):
             dimensions:
                 A list of strings and integers
         """
-        self.dimensions = dimensions
+        self.dimensions = map(create_dimension,dimensions)
     
     __sub__ = None
     __eq__ = None
@@ -74,8 +78,8 @@ class Shape(object):
 
 class Matrix(Shape):
     def __init__(self, row, col):
-        self.row = row
-        self.col = col
+        self.row = create_dimension(row)
+        self.col = create_dimension(col)
         super(Matrix, self).__init__([row, col])
     
 

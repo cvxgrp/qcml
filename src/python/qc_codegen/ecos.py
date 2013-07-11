@@ -1,5 +1,4 @@
 from cvxopt import CVXOPTCodegen
-from dimensions import Dimension
 from scoop.qc_ast import RelOp, SOC, SOCProd
 
 class ECOSCodegen(CVXOPTCodegen):

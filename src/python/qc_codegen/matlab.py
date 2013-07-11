@@ -3,7 +3,6 @@
 from scoop.qc_ast import Variable, Vector, Scalar
 import scoop.qc_ast as ast
 from codegen import Eye, Ones, Transpose, Slice, Codegen, Constant, Parameter
-from dimensions import Dimension
 
 def matlab_eye(self):
     if isinstance(self.coeff, Constant) and self.coeff.value == 1:
@@ -70,12 +69,12 @@ class MatlabCodegen(Codegen):
         # check to make sure dimensions are defined
         dimensions_defined = map(lambda x: x in node.dimensions, self.args.keys())
         if dimensions_defined and all(dimensions_defined):
-            Dimension.lookup = self.args    # set the dimension lookup table
+            ast.Dimension.lookup = self.args  # set the dimension lookup table
             node.dimensions = []            # empty out the dimension list
         else:
             raise Exception("MatlabCodegen: Dimensions need to be defined for Matlab.")
         super(MatlabCodegen,self).visit_Program(node)
-        Dimension.lookup = None    # reset the lookup table
+        ast.Dimension.lookup = None    # reset the lookup table
         
     def visit_Slice(self, node):
         self.generic_visit(node)
@@ -230,7 +229,7 @@ class MatlabCodegen(Codegen):
             # look at the size of the SOC
             cone_length = 1
             for e in node.left:
-                dim = Dimension(e.shape.size_str())
+                dim = ast.Dimension(e.shape.size_str())
                 # convert dimension to integer
                 cone_length += int(str(dim))
             
@@ -245,7 +244,7 @@ class MatlabCodegen(Codegen):
                 create_new = True
                 for e in node.left:
                     if create_new:
-                        dim = int(str( Dimension(e.shape.size_str()) ))
+                        dim = int(str( ast.Dimension(e.shape.size_str()) ))
                         # if the dimension of the current expression doesn't
                         # exceed the max allowable, just push onto argument stack
                         if cum + dim <= max_lhs:
@@ -267,9 +266,9 @@ class MatlabCodegen(Codegen):
                 new_var = self.__create_variable(Scalar())                        
 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = Dimension(1)
+                self.varlength[new_var.value] = ast.Dimension(1)
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += Dimension(1)
+                self.num_vars += ast.Dimension(1)
                 
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOC(ast.SOC(new_var, new_args))
@@ -287,9 +286,9 @@ class MatlabCodegen(Codegen):
                 node.left.append(new_var)
                 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = Dimension(new_length)
+                self.varlength[new_var.value] = ast.Dimension(new_length)
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += Dimension(new_length)
+                self.num_vars += ast.Dimension(new_length)
                         
         super(MatlabCodegen,self).visit_SOC(node)
         
@@ -316,9 +315,9 @@ class MatlabCodegen(Codegen):
                 new_var = self.__create_variable(node.shape)                        
 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = Dimension(node.shape.row)
+                self.varlength[new_var.value] = ast.Dimension(node.shape.row)
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += Dimension(node.shape.row)
+                self.num_vars += ast.Dimension(node.shape.row)
                 
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOCProd(ast.SOCProd(new_var, new_args))
@@ -337,8 +336,8 @@ class MatlabCodegen(Codegen):
                     node.arglist.append(new_var)
             
                     # now add to varlength, varstart, and num_vars
-                    self.varlength[new_var.value] = Dimension(node.shape.row)
+                    self.varlength[new_var.value] = ast.Dimension(node.shape.row)
                     self.varstart[new_var.value] = self.num_vars
-                    self.num_vars += Dimension(node.shape.row)
+                    self.num_vars += ast.Dimension(node.shape.row)
             
         super(MatlabCodegen,self).visit_SOCProd(node)

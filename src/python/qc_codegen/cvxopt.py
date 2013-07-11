@@ -1,6 +1,5 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 from codegen import PythonCodegen, Ones, Eye, Transpose
-from dimensions import Dimension
 
 def cvxopt_eye(self):
     return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)

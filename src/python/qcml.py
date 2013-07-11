@@ -15,7 +15,7 @@ class QCML(object):
 
     def __init__(self, debug = False):
         self.debug = debug
-        self.rewritten = False
+        self.canonical = False
 
         self.__parser = QCParser()
         self.__rewriter = QCRewriter()
@@ -33,10 +33,10 @@ class QCML(object):
             print "QCML prettyprint: No code generated yet."
 
     def print_canon(self):
-        if self.rewritten:
+        if self.canonical:
             print self.__problem_tree
         else:
-            self.rewrite()
+            self.canonicalize()
             print self.__problem_tree
 
     def parse(self,text):
@@ -50,7 +50,7 @@ class QCML(object):
             self.__problem_tree = None
         else:
             self.problem = text + "\n"
-            self.rewritten = False
+            self.canonical = False
 
     def append(self, text):
         if self.problem is not None:
@@ -59,15 +59,15 @@ class QCML(object):
         else:
             print "QCML append: No problem currently parsed."
 
-    def rewrite(self):
-        if self.rewritten:
-            # already rewritten
+    def canonicalize(self):
+        if self.canonical:
+            # already canonicalized
             return
         if self.__problem_tree is not None:
             self.__problem_tree = self.__rewriter.visit(self.__problem_tree)
             if self.debug:
                 print self.__problem_tree
-            self.rewritten = True
+            self.canonical = True
         else:
             print "QCML rewrite: No problem currently parsed."
 
@@ -76,7 +76,7 @@ class QCML(object):
             print "QCML codegen: Invalid code generator. Must be one of: ", codegen_objects.keys()
 
         if self.__problem_tree is not None:
-            if self.rewritten:
+            if self.canonical:
                 self.__codegen = self.codegen_objects.get(mode, codegen_err)(**kwargs)
                 self.__codegen.visit(self.__problem_tree)
 
@@ -94,7 +94,7 @@ class QCML(object):
 
     def create_solver(self,text,mode="cvxopt"):
         self.parse(text)
-        self.rewrite()
+        self.canonicalize()
         self.codegen(mode)
 
         return self.solver

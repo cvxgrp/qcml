@@ -18,8 +18,6 @@ def _find_column(data,pos):
     column = (pos - last_cr) + 1
     return column
 
-# XXX/TODO: the functions above may be better placed in a separate file. a
-# "rewrite" file?
 
 def create_shape_from_dims(dims):
     """ Creates a shape from a dimension list.
@@ -50,6 +48,14 @@ class QCParser(object):
 
         To perform code generation, we walk the rewritten tree
     """
+    
+    # operator precedence
+    precedence = (
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'TIMES', 'DIVIDE'),
+        ('right', 'UMINUS'),
+        ('left', 'TRANSPOSE')
+    )
 
     def __init__(self):
         self.lex = QCLexer();
@@ -71,9 +77,8 @@ class QCParser(object):
             rewritten. a problem is just a collection of ASTs
         """
 
-        # append a newline if one doesn't exist at the end
-        if('\n' != text[-1]):
-            text += '\n'
+        # always append a newline to the end
+        text += '\n'
 
         # try:
         return self.parser.parse(text, debug=False)
@@ -132,76 +137,50 @@ class QCParser(object):
     def _name_exists(self,s):
         return (s in self._variables.keys() or s in self._parameters.keys() or s in self._dimensions)
 
-    precedence = (
-        ('left', 'PLUS', 'MINUS'),
-        ('left', 'TIMES', 'DIVIDE'),
-        ('right', 'UMINUS'),
-        ('left', 'TRANSPOSE')
-    )
-
+    # only a single objective allowed per program
     def p_program(self,p):
-        """program : lines objective lines
-                   | lines objective
-                   | lines"""
-        if p[1] is not None:
-            constraints = p[1]
-        else:
-            constraints = []
-
-        plen = len(p)
-        if plen > 3:
-            if p[3] is not None:
-                constraints += p[3]
-
-        constraints = filter(None, constraints)
-        if plen > 2:
-            p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
-        else:
-            p[0] = Program(Objective('find',Constant(0)), constraints, self._variables, self._parameters, self._dimensions)
-
+        '''program : statements objective statements
+                   | statements objective'''
+        constraints = p[1]
+        if len(p) > 3: constraints.extend(p[3])
+        p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
+    
+    def p_program_find(self,p):
+        'program : statements'
+        p[0] = Program(Objective('find', Constant(0)), p[1], self._variables, self._parameters, self._dimensions)
+    
     def p_program_empty(self,p):
         'program : empty'
         pass
+    
+    def p_statements_empty(self,p):
+        'statements : NL'
+        p[0] = []
+    
+    def p_statements_statement(self,p):
+        'statements : statement NL'
+        p[0] = p[1]
+    
+    def p_statements_many_statement(self,p):
+        'statements : statements statement NL'
+        p[0] = []
+        if p[1] is not None: p[0].extend(p[1])
+        if p[2] is not None: p[0].extend(p[2])
 
-    def p_lines_line(self,p):
-        """lines : declaration NL"""
-        if(p[1] is not None):
-            p[0] = p[1]
-
-    def p_lines_many_line(self,p):
-        'lines : lines declaration NL'
-        if(p[1] is not None and p[2] is not None):
-            p[0] = p[1] + p[2]
-        elif(p[1] is None and p[2] is not None):
-            p[0] = p[2]
-        elif(p[1] is not None and p[2] is None):
-            p[0] = p[1]
-        else:
-            pass
-
-    def p_objective(self,p):
-        '''objective : SENSE expression NL
-                     | SENSE expression NL subject_to NL'''
-        p[0] = Objective(p[1],p[2])
-
-    def p_subject_to(self,p):
-        'subject_to : SUBJ TO'
-        pass
-
-
-    def p_declaration(self,p):
-        """declaration : create
-                       | constraint
-                       | empty
+    def p_statement(self,p):
+        """statement : create
+                     | constraint
         """
         # create returns None
         # constraint returns a list of constraints
-        p[0] = p[1]
+        if p[1] is not None: p[0] = p[1]
+        else: p[0] = []
 
+    def p_objective(self,p):
+        '''objective : SENSE expression NL
+                     | SENSE expression NL SUBJ TO NL'''
+        p[0] = Objective(p[1],p[2])
 
-    def p_empty(self,p):
-        'empty : '
-        pass
 
     def p_create_dimension(self,p):
         """create : DIMENSION ID"""
@@ -368,10 +347,8 @@ class QCParser(object):
 
     def p_expression_transpose(self,p):
         'expression : expression TRANSPOSE'
-        if isscalar(p[1]):
-            p[0] = p[1]
-        else:
-            p[0] = Transpose(p[1])
+        if isscalar(p[1]): p[0] = p[1]
+        else: p[0] = Transpose(p[1])
 
     def p_expression_constant(self,p):
         """expression : CONSTANT
@@ -391,10 +368,8 @@ class QCParser(object):
 
     def p_expression_sum(self,p):
         'expression : SUM LPAREN expression RPAREN'
-        if isscalar(p[3]):
-            p[0] = p[3]
-        else:
-            p[0] = Sum(p[3])
+        if isscalar(p[3]): p[0] = p[3]
+        else: p[0] = Sum(p[3])
 
     def p_expression_abs(self,p):
         'expression : ABS LPAREN expression RPAREN'
@@ -415,6 +390,10 @@ class QCParser(object):
     def p_arglist_expr(self, p):
         'arglist : expression'
         p[0] = [p[1]]
+    
+    def p_empty(self,p):
+        'empty : '
+        pass
 
     # (Super ambiguous) error rule for syntax errors
     def p_error(self,p):
