@@ -156,8 +156,6 @@ class Parameter(CodegenExpr):
         self.isknown = True
         self.isscalar = False
 
-    def __str__(self): return self.value
-
 class ScalarParameter(Parameter):
     def __init__(self,value):
         super(ScalarParameter, self).__init__(value)

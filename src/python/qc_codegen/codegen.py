@@ -169,7 +169,7 @@ class Codegen(NodeVisitor):
 
 
     def visit_Variable(self, node):
-        n = node.shape.size_str()
+        n = node.shape.row
         if node.value in self.orig_varnames:
             k = '_' + node.value
         else:

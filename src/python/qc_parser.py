@@ -303,13 +303,9 @@ class QCParser(object):
             p[0] = p[1] - p[3]
 
     def p_expression_divide(self,p):
-        '''expression : expression DIVIDE expression'''
-        if isconstant(p[1]) and isconstant(p[3]):
-            p[0] = Constant(p[1].value/p[3].value)
-        elif isconstant(p[3]):
-            p[0] = Constant(1.0/p[3].value) * p[1]
-        else:
-            self._print_err(p[2],"Cannot divide by non-constant '%s' on RHS." % p[3])
+        '''expression : expression DIVIDE CONSTANT
+                      | expression DIVIDE INTEGER'''
+        p[0] = Constant(1.0/p[3]) * p[1]
 
     def p_expression_multiply(self,p):
         'expression : expression TIMES expression'

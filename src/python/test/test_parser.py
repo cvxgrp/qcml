@@ -17,14 +17,14 @@ keyword_list = [
 
 problem_list = [
 """
-    dimensions n
-    variable x(n)
-    parameter A(n,n) nonnegative
+    dimensions length_of_car
+    variable x(length_of_car)
+    parameter A(length_of_car,length_of_car) nonnegative
 """,
 """
     dimensions n
-    variable x(n)
-    find x
+    variable foolishness(n)
+    find foolishness
 """,
 """ dimensions n
     variable x(n)
