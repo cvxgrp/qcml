@@ -3,7 +3,7 @@ from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, is
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 
-import scoop
+import qcml
 import operator
 import re
 
@@ -487,7 +487,7 @@ class Atom(Expression):
         self.isknown = False    # disallow taking functions of parameters
         # get the attributes of the atom
         try:
-            self.sign, self.vexity, self.shape = scoop.atoms[self.name].attributes(*self.arglist)
+            self.sign, self.vexity, self.shape = qcml.atoms[self.name].attributes(*self.arglist)
         except TypeError as e:
             msg = re.sub(r'attributes\(\)', r'%s' % self.name, str(e))
             raise TypeError(msg)
@@ -504,7 +504,7 @@ class Atom(Expression):
 class Norm(Expression):
     def __init__(self, args):
         self.arglist = args
-        self.sign, self.vexity, self.shape = scoop.qc_atoms.norm(args)
+        self.sign, self.vexity, self.shape = qcml.qc_atoms.norm(args)
         self.isknown = False
 
     def __str__(self): return "norm(%s)" % (', '.join(map(str,self.arglist)))
@@ -519,7 +519,7 @@ class Norm(Expression):
 class Abs(Expression):
     def __init__(self, x):
         self.arg = x
-        self.sign, self.vexity, self.shape = scoop.qc_atoms.abs_(self.arg)
+        self.sign, self.vexity, self.shape = qcml.qc_atoms.abs_(self.arg)
         self.isknown = False
 
     def __str__(self): return "abs(%s)" % self.arg

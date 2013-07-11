@@ -1,4 +1,4 @@
-from scoop.qc_ast import Scalar, Vector, Matrix, \
+from qcml.qc_ast import Scalar, Vector, Matrix, \
     ispositive, isnegative, \
     isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
@@ -31,7 +31,7 @@ def abs_(x):
     elif isnegative(x): vexity = Convex() + decreasing(x)
     else: vexity = Convex() + nonmonotone(x)
     shape = x.shape
-    
+
     return (sign, vexity, shape)
 
 """ Rewrite rules
@@ -42,19 +42,19 @@ def norm_rewrite(p, args):
         shape = Scalar()
     else:
         shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
-    
+
     v = Variable(create_varname(), shape)
-    
+
     if isscalar(v):
         constraints = [SOC(v, [args[0]])]
     else:
         constraints = [SOCProd(v, args)]
-    
+
     return (v, constraints)
 
 @annotate('abs')
 def abs_rewrite(p, x):
     v = Variable(create_varname(), x.shape)
     constraints = [SOCProd(v, [x])]
-    
+
     return (v, constraints)

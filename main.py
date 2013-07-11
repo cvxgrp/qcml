@@ -1,5 +1,5 @@
 #/usr/bin/python
-from scoop import QCML
+from qcml import QCML
 import argparse
 
 parser = argparse.ArgumentParser(description="generate code for testing")

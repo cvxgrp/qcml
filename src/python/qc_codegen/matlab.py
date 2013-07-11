@@ -1,7 +1,7 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
-from scoop.qc_ast import Variable, Vector, Scalar
-import scoop.qc_ast as ast
+from qcml.qc_ast import Variable, Vector, Scalar
+import qcml.qc_ast as ast
 from codegen import Eye, Ones, Transpose, Slice, Codegen, Constant, Parameter
 
 def matlab_eye(self):
@@ -9,13 +9,13 @@ def matlab_eye(self):
         return "speye(%s,%s)" % (self.n, self.n)
     else:
         return "%s*speye(%s,%s)" % (self.coeff, self.n, self.n)
-        
+
 def matlab_ones(self):
     if self.transpose:
         sz = "1,%s" % self.n
     else:
         sz = "%s,1" % self.n
-    
+
     if isinstance(self.coeff, Constant) and self.coeff.value == 1:
         return "ones(%s)" % sz
     else:
@@ -45,26 +45,26 @@ class MatlabCodegen(Codegen):
         """
             cone_size
                 fixed size of SOC cone. must be 3 or greater
-            
+
             kwargs
                 dictionary of problem dimensions
         """
         super(MatlabCodegen,self).__init__()
-        
+
         Ones.__str__ = matlab_ones
         Eye.__str__ = matlab_eye
         Transpose.__str__ = matlab_trans
         Slice.__str__ = matlab_slice
-        
+
         self.comment = '%'
         self.args = kwargs
         if cone_size is not None:
             self.cone_size = max(3,cone_size)
         else:
             self.cone_size = None
-        
+
         self.new_soc_vars = 0
-        
+
     def visit_Program(self, node):
         # check to make sure dimensions are defined
         dimensions_defined = map(lambda x: x in node.dimensions, self.args.keys())
@@ -75,20 +75,20 @@ class MatlabCodegen(Codegen):
             raise Exception("MatlabCodegen: Dimensions need to be defined for Matlab.")
         super(MatlabCodegen,self).visit_Program(node)
         ast.Dimension.lookup = None    # reset the lookup table
-        
+
     def visit_Slice(self, node):
         self.generic_visit(node)
         e = self.expr_stack.pop()
         a = {}
         for k,v in e.iteritems():
             a[k] = v.slice(node.begin, node.end)
-                
+
         self.expr_stack.append(a)
-        
+
     def function_prototype(self, dims, params):
         # maybe put params into a sparse structure?
         return [""] #["function result = solve(%s)" % ', '.join(dims + params)]
-    
+
     def function_preamble(self):
         return [
         "%",
@@ -97,7 +97,7 @@ class MatlabCodegen(Codegen):
         "%",
         "%% dimensions are: %s" % self.args,
         ""]
-    
+
     def function_datastructures(self):
         """
             varlength
@@ -127,7 +127,7 @@ class MatlabCodegen(Codegen):
         "solver.G = sparse(%s,%s);" % (self.num_conic + self.num_lps, self.num_vars),
         "solver.A = sparse(%s,%s);" % (self.num_lineqs, self.num_vars),
         "solver.dims = struct('l', %s, 'q', [%s], 's', []);" % (self.num_lps, '; '.join(map(str,cone_list_str)))]
-    
+
     def function_solve(self):
         # if self.cone_size is not None:
         #     return ["[cnew, Gnew, hnew, dimsnew,Anew] = prob2fixedcones(solver.c, solver.G, solver.h, solver.dims, solver.A, %s)" % self.cone_size,
@@ -168,62 +168,62 @@ class MatlabCodegen(Codegen):
             "[primal_sol dual_sol info] = ecos(solver.c,solver.G,solver.h,solver.dims,solver.A,solver.b);"
             ""
         ]
-    
+
     def function_recover(self,keys):
         # recover the old variables
         recover = [
-            "%s = x(%s+1:%s);" % (k, self.varstart['_'+k], self.varstart['_'+k]+self.varlength['_'+k]) 
+            "%s = x(%s+1:%s);" % (k, self.varstart['_'+k], self.varstart['_'+k]+self.varlength['_'+k])
                 for k in keys
         ]
-        
+
         return [""]
         #     "% do the reverse mapping",
         #     "%s" % ('\n').join(recover)
         # ]
-    
+
     def function_stuff_c(self, start, end, expr):
         return "solver.c(%s+1:%s) = %s;" % (start, end, expr)
-    
+
     def function_stuff_b(self, start, end, expr):
         return "solver.b(%s+1:%s) = %s;" % (start, end, expr)
-    
+
     def function_stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
             return "solver.h(%s+1:%s:%s) = %s;" % (start, stride, end, expr)
         else:
             return "solver.h(%s+1:%s) = %s;" % (start, end, expr)
-    
+
     def function_stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         if row_stride is not None:
             return "solver.G(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
         else:
             return "solver.G(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
-    
+
     def function_stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         if row_stride is not None:
             return "solver.A(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
         else:
             return "solver.A(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
-    
+
     def __create_variable(self, n):
         """Creates a new, temporary variable name"""
         name = 's' + str(self.new_soc_vars)
         self.new_soc_vars += 1
         return Variable(name, n)
-    
+
     def __slice(self, node, begin, end):
-        if isinstance(node, ast.Slice): 
+        if isinstance(node, ast.Slice):
             new_begin = node.begin + begin
             new_end = node.begin + end
-            
+
             return ast.Slice(node.value, new_begin, new_end, 0)
-        
+
         if isinstance(node, ast.Mul):
             slice_left = self.__slice(node.left, begin, end)
             return ast.Mul(slice_left, node.right)
-        
+
         return ast.Slice(node, begin, end, 0)
-            
+
     def visit_SOC(self, node):
         if self.cone_size is not None:
             # look at the size of the SOC
@@ -232,11 +232,11 @@ class MatlabCodegen(Codegen):
                 dim = ast.Dimension(e.shape.size_str())
                 # convert dimension to integer
                 cone_length += int(str(dim))
-            
+
             while cone_length > self.cone_size:
                 # maximum number of elements on the lhs
                 max_lhs = self.cone_size - 1
-                
+
                 # collect the new arguments
                 new_args = []
                 old_args = []
@@ -254,55 +254,55 @@ class MatlabCodegen(Codegen):
                             new_args.append(self.__slice(e, 0, max_lhs - cum))
                             # save the rest of the expression for another cone
                             old_args.append(self.__slice(e, max_lhs - cum, dim))
-                    
+
                         if cum + dim >= max_lhs:
-                            create_new = False                        
+                            create_new = False
                     else:
                         # just push into the old args
                         old_args.append(e)
                     cum += dim
-                    
+
                 # create a new variable
-                new_var = self.__create_variable(Scalar())                        
+                new_var = self.__create_variable(Scalar())
 
                 # now add to varlength, varstart, and num_vars
                 self.varlength[new_var.value] = ast.Dimension(1)
                 self.varstart[new_var.value] = self.num_vars
                 self.num_vars += ast.Dimension(1)
-                
+
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOC(ast.SOC(new_var, new_args))
-                
+
                 # process the old cone
                 old_args.append(new_var)
-            
+
                 node.left = old_args
                 cone_length -= (max_lhs - 1) # the extra "1" is the rhs
-                
+
             if cone_length < self.cone_size:
                 # create a new variable and append to the node
                 new_length = self.cone_size - cone_length
                 new_var = self.__create_variable(Vector(new_length))
                 node.left.append(new_var)
-                
+
                 # now add to varlength, varstart, and num_vars
                 self.varlength[new_var.value] = ast.Dimension(new_length)
                 self.varstart[new_var.value] = self.num_vars
                 self.num_vars += ast.Dimension(new_length)
-                        
+
         super(MatlabCodegen,self).visit_SOC(node)
-        
+
     def visit_SOCProd(self, node):
         if self.cone_size is not None:
             # look at the size of the SOC
-        
+
             cone_length = 1 + len(node.arglist)
             #print cone_length
-            
+
             while cone_length > self.cone_size:
                 # maximum number of elements on the lhs
                 max_lhs = self.cone_size - 1
-            
+
                 # collect the new arguments
                 new_args = []
                 old_args = []
@@ -311,20 +311,20 @@ class MatlabCodegen(Codegen):
                     if count < max_lhs: new_args.append(e)
                     else: old_args.append(e)
                     count += 1
-                
-                new_var = self.__create_variable(node.shape)                        
+
+                new_var = self.__create_variable(node.shape)
 
                 # now add to varlength, varstart, and num_vars
                 self.varlength[new_var.value] = ast.Dimension(node.shape.row)
                 self.varstart[new_var.value] = self.num_vars
                 self.num_vars += ast.Dimension(node.shape.row)
-                
+
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOCProd(ast.SOCProd(new_var, new_args))
-                
+
                 # process the old cone
                 old_args.append(new_var)
-            
+
                 node.arglist = old_args
                 cone_length -= (max_lhs - 1) # the extra "1" is the rhs
 
@@ -334,10 +334,10 @@ class MatlabCodegen(Codegen):
                 for i in range(new_length):
                     new_var = self.__create_variable(node.shape)
                     node.arglist.append(new_var)
-            
+
                     # now add to varlength, varstart, and num_vars
                     self.varlength[new_var.value] = ast.Dimension(node.shape.row)
                     self.varstart[new_var.value] = self.num_vars
                     self.num_vars += ast.Dimension(node.shape.row)
-            
+
         super(MatlabCodegen,self).visit_SOCProd(node)

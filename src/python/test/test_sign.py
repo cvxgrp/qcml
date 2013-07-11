@@ -1,4 +1,4 @@
-from scoop.qc_ast import Positive, Negative, Neither
+from qcml.qc_ast import Positive, Negative, Neither
 #from nose.tools import assert_raises
 #import operator
 
@@ -12,7 +12,7 @@ def create_sign(s):
     else:
         sign = Neither()
     return sign
-    
+
 def make_sign(s):
     sign = create_sign(s)
     assert(str(sign) == s)
@@ -28,7 +28,7 @@ def sub_sign(s1,s2, exp):
     p2 = create_sign(s2)
     result = p1-p2
     assert(str(result) == exp)
-    
+
 def negate_sign(s, exp):
     p = create_sign(s)
     v = -p
@@ -54,7 +54,7 @@ def test_add():
     ]
     for s1,s2,exp in add_list:
         yield add_sign, s1,s2,exp
-            
+
 def test_sub():
     sub_list = [
         ('positive','positive', 'neither'),
@@ -94,7 +94,7 @@ def test_mul():
     ]
     for s1,s2,exp in mul_list:
         yield mul_sign, s1,s2,exp
-    
+
 
 # def equals(s1,s2):
 #     p1 = Sign(str.upper(s1))
@@ -102,23 +102,22 @@ def test_mul():
 #     result = (p1 == p2)
 #     exp = (s1 == s2)
 #     assert(result == exp)
-# 
+#
 # def not_equals(s1,s2):
 #     p1 = Sign(str.upper(s1))
 #     p2 = Sign(str.upper(s2))
 #     result = (p1 != p2)
 #     exp = (s1 != s2)
 #     assert(result == exp)
-#     
+#
 # def test_sign_bools():
 #     for s1 in signs:
 #         for s2 in signs:
 #             yield equals, s1, s2
 #             yield not_equals, s1, s2
-            
+
 def test_sign_creation():
     for s in signs:
         yield make_sign, s
-    
-    
-    
+
+

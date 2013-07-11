@@ -1,4 +1,4 @@
-from scoop import QCML
+from qcml import QCML
 
 import cvxopt as o
 

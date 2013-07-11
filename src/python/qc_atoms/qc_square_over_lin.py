@@ -1,4 +1,4 @@
-from scoop.qc_ast import Scalar, Vector, Matrix, \
+from qcml.qc_ast import Scalar, Vector, Matrix, \
     ispositive, isnegative, \
     isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
@@ -13,19 +13,19 @@ from utils import create_varname, annotate
 """ This is the square_over_lin atom.
 
         square_over_lin(x,y) = (x).^2 ./ y
-    
+
     If y is a vector, it computes the division elementwise.
-    
+
     It is a CONVEX atom. It is NONMONOTONE in the first argument, and
     DECREASING in the second argument.
-    
+
     If the first argument is POSITIVE, it is INCREASING in the first argument.
     If the first argument is NEGATIVE, it is DECRASING in the first argument.
-    
-    It returns a SCALAR expression if the second argument is SCALAR. 
-    Otherwise, it returns a VECTOR expression (sized to match the second 
+
+    It returns a SCALAR expression if the second argument is SCALAR.
+    Otherwise, it returns a VECTOR expression (sized to match the second
     arugment).
-    
+
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
@@ -36,7 +36,7 @@ def attributes(x,y):
     if ispositive(x): vexity += increasing(x) + decreasing(y)
     elif isnegative(x): vexity += decreasing(x) + decreasing(y)
     else: vexity += nonmonotone(x) + decreasing(y)
-    
+
     if isscalar(y):
         shape = x.shape
     elif isscalar(x):
@@ -45,21 +45,21 @@ def attributes(x,y):
         shape = x.shape
     else:
         raise TypeError("Cannot use square_over_lin with x, y disagreeing in length.")
-        
+
     return (sign, vexity, shape)
 
 @annotate('square_over_lin')
 def rewrite(p,x,y):
     """ Rewrite a quad_over_lin node
-        
+
         p
             the parent node
-        
+
         x, y
             the arguments
     """
     v = Variable(create_varname(), p.shape)
-    
+
     constraints = [
         SOCProd(y + v, [y - v, Constant(2.0)*x]),
         y >= Constant(0)
@@ -68,7 +68,7 @@ def rewrite(p,x,y):
     return (v, constraints)
 
     # v = Variable(create_varname(), shape)
-    #                 
+    #
     #     # declare the expansion in "SCOOP"
     #     if isscalar(shape):
     #         definition = [
@@ -78,7 +78,7 @@ def rewrite(p,x,y):
     #             Cone.SOC(y + v, [y - v, Constant(2.0)*x]),
     #             y >= Constant(0)
     #         ]
-    # 
+    #
     #     else:
     #         definition = [
     #             v, # declare the variable

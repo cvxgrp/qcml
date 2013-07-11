@@ -1,4 +1,4 @@
-from scoop.qc_ast import Scalar
+from qcml.qc_ast import Scalar
 import qc_max, qc_base
 from utils import annotate
 
@@ -7,14 +7,14 @@ import operator
 """ This is the norm_inf atom.
 
         norm_inf(x) = max(abs(x))
-    
+
     It is a CONVEX atom. It is NONMONOTONE in the first argument.
-    
+
     If the first argument is POSITIVE, it is INCREASING in the first argument.
     If the first argument is NEGATIVE, it is DECRASING in the first argument.
-    
+
     It returns a SCALAR expression.
-    
+
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
@@ -30,10 +30,10 @@ def attributes(*args):
 @annotate('norm_inf')
 def rewrite(p,*args):
     """ Rewrite a square node
-        
+
         p
             the parent node
-        
+
         x
             the argument
     """

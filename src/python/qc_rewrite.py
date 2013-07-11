@@ -4,44 +4,44 @@ from qc_atoms import atoms, norm_rewrite, abs_rewrite
 """ For rewriting atoms.
 
     Atoms need to have an AST node....
-    
+
     class Atom(Node): pass
-    
+
     They are "mini" programs with an objective and "sense".
-    
+
     Their "leaves" are left floating?
-    
+
     They're just inserted into the AST via the Visitor pattern...
-    
+
     e.g.,
-    
+
                +
            /       \
-       atom(expr)  expr  
-      
+       atom(expr)  expr
+
     becomes
-    
+
             +
         /       \
       expr     expr
-       
-    and other constraints, which are a function of the atom's arguments. 
-    
+
+    and other constraints, which are a function of the atom's arguments.
+
     The new expr on the lefthand side might contain new variables....
-    
+
     so calling
-    
+
         square :: Expression -> (Expression, [RelOp])
-    
+
     builds the expression tree and the relative operators.
-    
-    this means an "Atom" AST Node contains the DCP properties 
+
+    this means an "Atom" AST Node contains the DCP properties
     (Increasing, Decreasing, Positive, Negative, Convex, Concave, etc.).
     finally, it contains a string so we can lookup the rewriting function.
-    
+
     We also need to distinguish between an Atom that is rewritten and a
     builtin that is not rewritten (e.g., norm() <= affine and sum())
-         
+
 """
 
 # only rewrites the ATOM nodes
@@ -52,14 +52,14 @@ class QCRewriter(NodeTransformer):
     varcount = 0
     lookup = {}
     new_variables = {}
-    
+
     def __init__(self):
         self.new_constraints = []
         self._new_variables = {}
         self.variables = {}
         self.parameters = {}
         self._existing_expression = {}
-    
+
     def _apply_rewrite_rule(self, node, f, *args):
         (v, constraints) = f(node,*args)
         if isinstance(v, Variable):
@@ -68,25 +68,25 @@ class QCRewriter(NodeTransformer):
         # store the variable as pointing to the expression
         QCRewriter.lookup[str(node)] = v
         return v
-    
+
     def _existing_rewrite(self, node):
         return QCRewriter.lookup.get(str(node), None)
-        
+
     def visit_Variable(self, node):
         self.variables[node.value] = node
         return node
-    
+
     def visit_Parameter(self, node):
         self.parameters[node.value] = node
         return node
-    
+
     def visit_Atom(self, node):
         # visit children first (in case they are rewritten)
         self.generic_visit(node)
-        
+
         # now rewrite the current node
         v = self._existing_rewrite(node)
-        
+
         if not v:
             f = atoms[node.name].rewrite
             return self._apply_rewrite_rule(node, f, *node.arglist)
@@ -96,7 +96,7 @@ class QCRewriter(NodeTransformer):
         # visit / rewrite children first
         self.generic_visit(node)
         v = self._existing_rewrite(node)
-        
+
         if not v:
             if self.rewrite_norm:
                 return self._apply_rewrite_rule(node, norm_rewrite, node.arglist)
@@ -107,12 +107,12 @@ class QCRewriter(NodeTransformer):
             self.norm_node = node
             return Constant(0)
         return v
-    
+
     def visit_Abs(self, node):
         # visit / rewrite children first
         self.generic_visit(node)
         v = self._existing_rewrite(node)
-        
+
         if not v:
             if self.rewrite_norm:
                 return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
@@ -123,24 +123,24 @@ class QCRewriter(NodeTransformer):
             self.norm_node = node
             return Constant(0)
         return v
-    
+
     def visit_Add(self, node):
         self.generic_visit(node)
         return (node.left + node.right)
-    
+
     def visit_Mul(self, node):
         self.generic_visit(node)
         return (node.left * node.right)
-    
+
     def visit_Negate(self, node):
         self.generic_visit(node)
         return (-node.expr)
-        
+
     # def visit_RelOp(self, node):
     #     # visit children
     #     self.generic_visit(node)
-    #     
-    #     # convert all constraints so they are 
+    #
+    #     # convert all constraints so they are
     #     #  == 0 or <= 0
     #     if node.op == '==':
     #         return RelOp('==', node.left - node.right, Constant(0))
@@ -148,12 +148,12 @@ class QCRewriter(NodeTransformer):
     #         return RelOp('<=', node.left - node.right, Constant(0))
     #     if node.op == '>=':
     #         return RelOp('<=', node.right - node.left, Constant(0))
-    
+
     def visit_Program(self, node):
         # load the current state
         QCRewriter.lookup = self._existing_expression
         QCRewriter.new_variables = self._new_variables
-        
+
         # visit children first
         self.generic_visit(node)
         # now, update the variables and constraints
@@ -165,31 +165,30 @@ class QCRewriter(NodeTransformer):
         linear_constraints = [x for x in unique_constraints if isinstance(x,RelOp)]
         soc_constraints = [x for x in unique_constraints if (isinstance(x,SOC) or isinstance(x,SOCProd))]
         node.constraints = linear_constraints + soc_constraints
-        
+
         # only include the variables and parameters that are used
         node.variables = self.variables
         node.parameters = self.parameters
-        
-        
+
+
         # save state
         self._existing_expression = QCRewriter.lookup
         self._new_variables = QCRewriter.new_variables
         return node
-            
-    
+
+
     def visit_Objective(self, node):
         self.rewrite_norm = True
         self.generic_visit(node)
-        
+
         return node
-        
+
     def visit_RelOp(self, node):
         self.rewrite_norm = False
         self.norm_node = None
         self.generic_visit(node)
-        
+
         if self.norm_node is not None:
-            print self.norm_node
             if isinstance(self.norm_node, Norm):
                 if len(self.norm_node.arglist) == 1:
                     return SOC(-node.left, self.norm_node.arglist)
@@ -199,5 +198,4 @@ class QCRewriter(NodeTransformer):
                 return SOCProd(-node.left, [self.norm_node.arg])
         else:
             return node
-        
-      
+

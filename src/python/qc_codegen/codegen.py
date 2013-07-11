@@ -1,4 +1,4 @@
-from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, Dimension
+from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, Dimension
 from codegen_util import *
 
 """ Codegen template.

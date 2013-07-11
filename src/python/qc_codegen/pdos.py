@@ -1,5 +1,4 @@
 from cvxopt import CVXOPTCodegen
-from scoop.qc_ast import RelOp, SOC, SOCProd
 
 class PDOSCodegen(CVXOPTCodegen):
     def function_preamble(self):
@@ -8,7 +7,7 @@ class PDOSCodegen(CVXOPTCodegen):
         "import cvxopt.solvers",
         "import pdos_direct"
         ""]
-    
+
     def function_solve(self):
         return ["_dims['f'] = %s" % self.num_lineqs,
             "_b = _o.matrix([_b, _h])",
@@ -16,4 +15,3 @@ class PDOSCodegen(CVXOPTCodegen):
             "_opts = {'NORMALIZE': True, 'MAX_ITERS': 5000}",
             "_sol = pdos_direct.solve(_c, _A, _b, _dims, _opts)"]
 
-    

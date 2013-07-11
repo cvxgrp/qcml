@@ -1,4 +1,4 @@
-from scoop.qc_ast import Dimension
+from qcml.qc_ast import Dimension
 import operator
 
 def eq_dimension(dimension, lookup, expected):

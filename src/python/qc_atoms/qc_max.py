@@ -1,4 +1,4 @@
-from scoop.qc_ast import Scalar, Vector, Matrix, \
+from qcml.qc_ast import Scalar, Vector, Matrix, \
     ispositive, isnegative, \
     isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
@@ -14,12 +14,12 @@ import operator
 """ This is the max atom.
 
         max(x) = maximum element of x
-    
+
     It is a CONVEX atom. It is INCREASTING in the first argument.
-    
+
     It returns a SCALAR expression. If multiple arguments are supplied, it
     compares them elementwise and returns a VECTOR expression.
-    
+
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
@@ -35,21 +35,21 @@ def attributes(*args):
         else: sign = Neither()
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         vexity = reduce(operator.add, map(increasing, args), Convex())
-    
+
     return (sign, vexity, shape)
 
 @annotate('max')
 def rewrite(p,*args):
     """ Rewrite a quad_over_lin node
-        
+
         p
             the parent node
-        
+
         x, y
             the arguments
     """
     v = Variable(create_varname(), p.shape)
-    
+
     # declare the expansion in "SCOOP"
     constraints = map(lambda x: v >= x, args)
 

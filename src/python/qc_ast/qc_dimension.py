@@ -75,7 +75,7 @@ class Dimension(object):
     def __str_helper(self, in_dict):
         self.eval()
         const = self.__data.get('1',None)
-        if in_dict:
+        if not in_dict:
             # prints coeffs > 1 (ignores 0 coeff)
             terms = ["%s*%s" % (v,k) for k,v in self.__data.iteritems() if k != '1' and v > 1]
             # prints coeff == 1

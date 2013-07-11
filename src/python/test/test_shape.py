@@ -1,4 +1,4 @@
-from scoop.qc_ast import Scalar, Vector, Matrix
+from qcml.qc_ast import Scalar, Vector, Matrix
 from nose.tools import assert_raises
 import operator
 
@@ -21,7 +21,7 @@ def add_shape(s1,s2, exp,row,col):
 def sub_shape(s1,s2, exp,row,col):
     result = s1+s2
     assert(exp(result) and result.row == row and result.col == col)
-    
+
 def negate_shape(s):
     v = -s
     assert(v.row == s.row and v.col == s.col)
@@ -50,7 +50,7 @@ def test_add():
     ]
     for s1,s2,failure in fail_list:
         yield assert_raises, failure, add_shape, s1,s2,None,None,None
-            
+
 def test_sub():
     sub_list = [
         (Scalar(),Scalar(), isscalar_exact, 1, 1),
@@ -87,7 +87,7 @@ def test_mul():
         (Matrix('a','b'),Scalar(), ismatrix_exact, 'a','b'),
         (Matrix('a','b'),Matrix('b','a'), ismatrix_exact, 'a', 'a'),
         (Vector('a'), Matrix(1,'b'), ismatrix_exact, 'a', 'b')
-        
+
     ]
     for s1,s2,exp,r,c in mul_list:
         yield mul_shape, s1,s2,exp,r,c
@@ -103,7 +103,6 @@ def test_mul():
 #     stack_list = [
 #         (Scalar(), Scalar(), Vector(2,1))
 #     ]
-    
-    
-    
-    
+
+
+

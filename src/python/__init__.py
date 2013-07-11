@@ -27,7 +27,7 @@
 # Evaluator.neg = MethodType(op_neg, None, Evaluator)
 
 
-from qcml import QCML
+from qc_lang import QCML
 from qc_parser import QCError
 
 from qc_rewrite import QCRewriter

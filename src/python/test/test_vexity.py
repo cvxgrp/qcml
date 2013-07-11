@@ -1,4 +1,4 @@
-from scoop.qc_ast import Convex, Concave, Affine, Nonconvex
+from qcml.qc_ast import Convex, Concave, Affine, Nonconvex
 #from nose.tools import assert_raises
 #import operator
 
@@ -15,7 +15,7 @@ def create_vex(s):
     else:
         sign = Nonconvex()
     return sign
-    
+
 def make_vex(s):
     sign = create_vex(s)
     assert(str(sign) == s)
@@ -31,7 +31,7 @@ def sub_vex(s1,s2, exp):
     p2 = create_vex(s2)
     result = p1-p2
     assert(str(result) == exp)
-    
+
 def negate_vex(s, exp):
     p = create_vex(s)
     v = -p
@@ -58,7 +58,7 @@ def test_add():
     ]
     for s1,s2,exp in add_list:
         yield add_vex, s1,s2,exp
-        
+
 def test_sub():
     sub_list = [
         ('convex','convex', 'nonconvex'),
@@ -80,7 +80,7 @@ def test_sub():
     ]
     for s1,s2,exp in sub_list:
         yield sub_vex, s1,s2,exp
-            
+
 # def test_sub():
 #     s1 = Sign('POSITIVE')
 #     s2 = Sign('POSITIVE')
@@ -103,23 +103,22 @@ def test_negate():
 #     result = (p1 == p2)
 #     exp = (s1 == s2)
 #     assert(result == exp)
-# 
+#
 # def not_equals(s1,s2):
 #     p1 = Sign(str.upper(s1))
 #     p2 = Sign(str.upper(s2))
 #     result = (p1 != p2)
 #     exp = (s1 != s2)
 #     assert(result == exp)
-#     
+#
 # def test_sign_bools():
 #     for s1 in signs:
 #         for s2 in signs:
 #             yield equals, s1, s2
 #             yield not_equals, s1, s2
-            
+
 def test_vex_creation():
     for s in vexities:
         yield make_vex, s
-    
-    
-    
+
+

@@ -1,4 +1,4 @@
-import scoop.qc_lexer as s
+import qcml.qc_lexer as s
 
 
 lexer = s.QCLexer()
@@ -76,43 +76,43 @@ def test_scanner():
         yield check_id, s, exp
     for s,exp in zip(test_strings, test_atoms):
         yield check_atom, s, exp
-    
+
 
 def check_lex(s, expected):
     lex.input(s)
-    
+
     tok_list = []
     while True:
         tok = lex.token()
         if not tok: break
         print tok
         tok_list.append(tok)
-    
-    assert( all(t.type == e for t,e in zip(tok_list, expected)) )    
+
+    assert( all(t.type == e for t,e in zip(tok_list, expected)) )
     #assert(not remainder)
 
 def check_id(s, expected):
     lex.input(s)
-    
+
     tok_list = []
     while True:
         tok = lex.token()
         if not tok: break
         tok_list.append(tok)
-        
+
     ids = filter(lambda x: x.type == "ID", tok_list)
     print ids
     assert( all(t.value == e for t,e in zip(ids, expected)) )
 
 def check_atom(s, expected):
     lex.input(s)
-    
+
     tok_list = []
     while True:
         tok = lex.token()
         if not tok: break
         tok_list.append(tok)
-    
+
     ids = filter(lambda x: x.type == "ATOM" or x.type == "NORM", tok_list)
     print ids
     assert( all(t.value == e for t,e in zip(ids, expected)) )

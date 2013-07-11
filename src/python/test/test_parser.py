@@ -1,4 +1,4 @@
-from scoop import QCML, QCError
+from qcml import QCML, QCError
 from nose.tools import assert_raises
 
 def parse(s):

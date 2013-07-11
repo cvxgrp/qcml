@@ -2,11 +2,11 @@ import qc_geo_mean
 import qc_square
 import qc_sqrt
 import qc_square_over_lin
-from scoop.qc_ast import Variable, isconstant, Expression, Convex, Concave, increasing
+from qcml.qc_ast import Variable, isconstant, Expression, Convex, Concave, increasing
 from utils import create_varname, annotate
 
-import scoop
-from scoop.qc_ast import Atom, Constant
+import qcml
+from qcml.qc_ast import Atom, Constant
 
 square = qc_square.rewrite
 square_over_lin = qc_square_over_lin.rewrite
@@ -26,7 +26,7 @@ def id_attributes(x):
 def quad(p,x):
     v1, d1 = square(p,x)
     v2, d2 = square(p,v1)
-    
+
     return (v2, d1+d2)
 
 """ x^3
@@ -34,15 +34,15 @@ def quad(p,x):
 def cube(p,x):
     v1, d1 = square(p,x)
     v2, d2 = square_over_lin(p,v1,x)
-    
+
     return (v2, d1 + d2)
-    
+
 """ x^(1/4)
 """
 def one_fourth(p,x):
     v1, d1 = sqrt(p,x)
     v2, d2 = sqrt(p,v1)
-    
+
     return (v2, d1+d2)
 
 """ x^(3/4)
@@ -57,36 +57,36 @@ def three_fourths(p,x):
 """
 def four_thirds(p,x):
     v = Variable(create_varname(), p.shape)
-    
+
     var, d = three_fourths(p,v)
     d.append(x <= var)
-    
+
     return (v, d)
-    
+
 """ x^(3/2)
 """
 def three_halves(p,x):
     v1, d1 = sqrt(p,x)
     v2, d2 = square_over_lin(p,x,v1)
-    
+
     return (v2, d1 + d2)
-    
+
 """ x^(1/3)
 """
-def one_third(p,x):    
+def one_third(p,x):
     v = Variable(create_varname(), p.shape)
-    
+
     var, d = cube(p,v)
     d.append(x <= var)
 
     return (v, d)
-    
-    
+
+
 """ x^(2/3)
 """
 def two_thirds(p,x):
     v = Variable(create_varname(), p.shape)
-    
+
     var, d = three_halves(p,v)
     d.append(x <= var)
 
@@ -118,7 +118,7 @@ def attributes(x,p,q):
         rat = (p.value, q.value)
         def pow_rat_err(arg):
             raise TypeError("Nonexistent implementation for %s^(%s/%s)" % (arg.value, rat[0], rat[1]))
-        
+
         scoop.qc_atoms.pow_func, attributes = valid.get(rat, (None, pow_rat_err))
         return attributes(x)
 
@@ -129,5 +129,5 @@ def attributes(x,p,q):
 @annotate('pow_rat')
 def rewrite(node,x,p,q):
     return scoop.qc_atoms.pow_func(node, x)
-    
-       
+
+
