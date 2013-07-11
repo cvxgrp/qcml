@@ -338,8 +338,9 @@ class Codegen(NodeVisitor):
     
         # create variable ordering
         # "_" variables are original variables
-        self.varlength = [('_' + k,Dimension(v.shape.size_str())) for k,v in node.variables.items()]
-        self.varlength += [(k,Dimension(v.shape.size_str())) for k,v in node.new_variables.items()]
+        # XXX: at this moment, assumes that variables are vectors (not arrays)
+        self.varlength = [('_' + k,v.shape.row) for k,v in node.variables.items()]
+        self.varlength += [(k,v.shape.row) for k,v in node.new_variables.items()]
     
         self.varstart = []
         for k,v in self.varlength:
@@ -429,7 +430,7 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
         
         for k in arg.keys():
-            n = Dimension(node.arg.shape.size_str())
+            n = node.arg.shape.row
             arg[k] = Ones(n, Constant(1), True) * arg[k]
             
         self.expr_stack.append(arg)
@@ -489,10 +490,10 @@ class Codegen(NodeVisitor):
         
         if node.op == '==':
             start = self.num_lineqs
-            self.num_lineqs += Dimension(node.shape.size_str())
+            self.num_lineqs += node.shape.row
         else:            
             start = self.num_lps            
-            self.num_lps += Dimension(node.shape.size_str())            
+            self.num_lps += node.shape.row           
             
 
         self.generic_visit(node)
@@ -530,11 +531,11 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
         
-        start += [start[-1] + Dimension(node.right.shape.size_str())]
-        cone_length = Dimension(node.right.shape.size_str())
+        start += [start[-1] + node.right.shape.row]
+        cone_length = node.right.shape.row
         for e in node.left:
-            start += [start[-1] + Dimension(e.shape.size_str())]
-            cone_length += Dimension(e.shape.size_str())
+            start += [start[-1] + e.shape.row]
+            cone_length += e.shape.row
         
         self.num_conic += cone_length
         self.cone_list.append( (Dimension(1), str(cone_length)) )
@@ -572,7 +573,7 @@ class Codegen(NodeVisitor):
         stride = len(node.arglist) + 1
         self.num_conic += Dimension(None, {node.shape.size_str(): stride})
         
-        self.cone_list.append( (Dimension(node.shape.size_str()), str(len(node.arglist) + 1)) )
+        self.cone_list.append( (node.shape.row, str(len(node.arglist) + 1)) )
         
         self.generic_visit(node)
         
