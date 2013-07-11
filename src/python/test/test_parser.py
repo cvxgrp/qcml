@@ -29,6 +29,7 @@ problem_list = [
 """ dimensions n
     variable x(n)
     parameter lambda positive
+    # variable y
     minimize lambda*sum(x) + sum(square(x))
     subject to
 
@@ -40,6 +41,7 @@ problem_list = [
     minimize lambda*sum(x) + sum(square(x))
     subject to
         x <= 4
+        # bogus stuff
 """
 ]
 

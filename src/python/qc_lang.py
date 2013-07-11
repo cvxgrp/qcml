@@ -16,6 +16,7 @@ class QCML(object):
     def __init__(self, debug = False):
         self.debug = debug
         self.canonical = False
+        #self.instantiated = False
 
         self.__parser = QCParser()
         self.__rewriter = QCRewriter()
@@ -25,6 +26,8 @@ class QCML(object):
 
         self.problem = None
         self.solver = None
+
+        #self.__old_dims = set() # used to determine if new problem instance
 
     def prettyprint(self,lineno=False):
         if self.__codegen is not None:
@@ -51,6 +54,7 @@ class QCML(object):
         else:
             self.problem = text + "\n"
             self.canonical = False
+            self.instantiated = False
 
     def append(self, text):
         if self.problem is not None:
@@ -69,40 +73,54 @@ class QCML(object):
                 print self.__problem_tree
             self.canonical = True
         else:
-            print "QCML rewrite: No problem currently parsed."
+            print "QCML canonicalize: No problem currently parsed."
+
+    # def instantiate(self, dims=locals()):
+    #     if self.instantiated and set(dims.items()).issubset(self.__old_dims):
+    #         # already instantiated
+    #         return
+    #     if self.__problem_tree is not None:
+    #         self.__problem_tree = self.__dim_setter.visit(self.__problem_tree)
+    #         self.__old_dims = set(dims.items())
+    #     else:
+    #         print "QCML instantiate: No problem currently parsed."
 
     def codegen(self,mode="cvx", **kwargs):
+        if self.__problem_tree is None:
+            print "QCML codegen: No problem currently parsed."
+            return
+        if not self.canonical:
+            print "QCML codegen: No problem currently rewritten."
+            return
+        # if not self.instantiated:
+        #     print "QCML codegen: Problem dimensions not yet instantiated."
+        #     return
+
         def codegen_err():
             print "QCML codegen: Invalid code generator. Must be one of: ", codegen_objects.keys()
 
-        if self.__problem_tree is not None:
-            if self.canonical:
-                self.__codegen = self.codegen_objects.get(mode, codegen_err)(**kwargs)
-                self.__codegen.visit(self.__problem_tree)
+        self.__codegen = self.codegen_objects.get(mode, codegen_err)(**kwargs)
+        self.__codegen.visit(self.__problem_tree)
 
-                if self.debug:
-                    self.__codegen.prettyprint(True)
+        if self.debug:
+            self.__codegen.prettyprint(True)
 
-                if mode in self.python_solvers:
-                    self.solver = self.__codegen.codegen()
-                else:
-                    self.solver = None
-            else:
-                print "QCML codegen: No problem currently rewritten."
-        else:
-            print "QCML codegen: No problem currently parsed."
-
-    def create_solver(self,text,mode="cvxopt"):
-        self.parse(text)
-        self.canonicalize()
-        self.codegen(mode)
-
-        return self.solver
-
-    def solve(self, text, mode="cvxopt", **kwargs):
         if mode in self.python_solvers:
-            self.create_solver(text, mode)
-            return self.solver(**kwargs)
+            self.solver = self.__codegen.codegen()
         else:
-            print "QCML solve: Not a python solver."
+            self.solver = None
+
+    def solve(self, dims, params=None):
+        """
+            .solve(locals())
+            .solve(dims,params)
+        """
+        self.canonicalize()
+        #self.instantiate(dims)
+        self.codegen("cvxopt")
+
+        # if params is not supplied, it is set to the dims dictionary
+        if params is None: params = dims
+
+        return self.solver(dims, params)
 

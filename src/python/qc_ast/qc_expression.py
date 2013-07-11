@@ -190,7 +190,8 @@ class Constant(Expression):
         else:
             self.sign = Negative()
         self.shape = Scalar()
-        self.isknown = True # whether or not the expression is known at runtime
+        self.isknown = True # whether or not the expression is known at
+                            # runtime, used to keep track of "param" * "var"
 
     def __str__(self): return str(self.value)
 

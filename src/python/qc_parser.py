@@ -132,10 +132,6 @@ class QCParser(object):
         'program : empty'
         pass
 
-    def p_statements_empty(self,p):
-        'statements : NL'
-        p[0] = []
-
     def p_statements_statement(self,p):
         'statements : statement NL'
         p[0] = p[1]
@@ -149,6 +145,7 @@ class QCParser(object):
     def p_statement(self,p):
         """statement : create
                      | constraint
+                     | empty
         """
         # create returns None
         # constraint returns a list of constraints
