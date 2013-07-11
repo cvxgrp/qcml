@@ -34,7 +34,7 @@ if args.svm:
 
     p.canonicalize()
     if args.cvx:
-        p.codegen("cvx")
+        p.codegen("cvxopt")
     else:
         p.codegen("matlab",cone_size=q,m=m,n=n)
     p.prettyprint()
@@ -55,7 +55,7 @@ elif args.portfolio:
 
     p.canonicalize()
     if args.cvx:
-        p.codegen("cvx")
+        p.codegen("cvxopt")
     else:
         p.codegen("matlab",cone_size=q,m=m,n=n)
     p.prettyprint()

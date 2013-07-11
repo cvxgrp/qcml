@@ -28,6 +28,7 @@
 
 
 from qcml import QCML
+from qc_parser import QCError
 
 from qc_rewrite import QCRewriter
 import qc_atoms

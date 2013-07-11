@@ -6,7 +6,7 @@ from qc_ast import isconstant, \
     Objective, RelOp, Program, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
     Neither, Positive, Negative, Node, \
-    Shape, Scalar, Vector, Matrix, isscalar
+    Shape, Scalar, Vector, Matrix, isscalar, Dimension
 
 # our own exception class
 class QCError(Exception): pass
@@ -18,13 +18,10 @@ def _find_column(data,pos):
     column = (pos - last_cr) + 1
     return column
 
-
+# XXX: wish we had something better...
 def create_shape_from_dims(dims):
     """ Creates a shape from a dimension list.
     """
-    if not dims:
-        raise SyntaxError("Cannot create empty shape")
-
     if len(dims) == 1:
         if dims[0] == 1:
             return Scalar()
@@ -48,7 +45,7 @@ class QCParser(object):
 
         To perform code generation, we walk the rewritten tree
     """
-    
+
     # operator precedence
     precedence = (
         ('left', 'PLUS', 'MINUS'),
@@ -63,9 +60,7 @@ class QCParser(object):
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
 
-        self._dimensions = set()
-        self._variables = {}
-        self._parameters = {}
+        self.__defined_symbols = set()
 
     def parse(self, text):
         """ Parses QCML and returns an AST.
@@ -87,7 +82,7 @@ class QCParser(object):
         # except Exception as e:
         #     self._print_err(e, False)
 
-    def _print_err(self, msg, raise_error=True):
+    def _print_err(self, token, msg, raise_error=True):
         """ Prints a QCML parse error.
 
             msg:
@@ -99,34 +94,19 @@ class QCParser(object):
         # get the entire string we just tried to parse
         data = self.lex.lexer.lexdata
         s = data.split('\n')
-        # check if the current token is a newline
-        current_token = self.lex.lexer.lexmatch.lastgroup
-        lexpos = self.lex.lexer.lexpos
-        if current_token == 't_NL':
-            offset = 2
-            lexpos -= 20
-        else:
-            offset = 1
 
-        # if token:
-#             print token
-#             print token.type
-#
-#             num = token.lineno
-#             pos = _find_column(data, token.lexpos)
-#
-#         else:
-        num = self.lex.lexer.lineno - offset + 1
+        if token is not None:
+            num = token.lineno
+            col = _find_column(data,token.lexpos)
+        else:
+            num = self.lex.lexer.lineno
+            col = _find_column(data,self.lex.lexer.lexpos)
         line = s[num - 1]
 
         leader = 2*' '
         print "QCML error on line %s:" % num
-        #print
-        #print leader, """   ... """
-        #print leader, """   %s """ % s[ind - 1].lstrip().rstrip()
         print leader, """>> %s """ % line.lstrip().rstrip()
-        #print leader, """   %s """ % s[ind + 1].lstrip().rstrip()
-        #print leader, """   ... """
+        print leader, "  ", (col-1)*" ", "^"
         print
         print "Error:", msg
         print
@@ -134,8 +114,7 @@ class QCParser(object):
         if raise_error:
             raise QCError(msg)
 
-    def _name_exists(self,s):
-        return (s in self._variables.keys() or s in self._parameters.keys() or s in self._dimensions)
+    def _name_exists(self,s): return s in self.__defined_symbols
 
     # only a single objective allowed per program
     def p_program(self,p):
@@ -143,24 +122,24 @@ class QCParser(object):
                    | statements objective'''
         constraints = p[1]
         if len(p) > 3: constraints.extend(p[3])
-        p[0] = Program(p[2], constraints, self._variables, self._parameters, self._dimensions)
-    
+        p[0] = Program(p[2], constraints, self.lex.variables, self.lex.parameters, self.lex.dimensions)
+
     def p_program_find(self,p):
         'program : statements'
-        p[0] = Program(Objective('find', Constant(0)), p[1], self._variables, self._parameters, self._dimensions)
-    
+        p[0] = Program(Objective('find', Constant(0)), p[1], self.lex.variables, self.lex.parameters, self.lex.dimensions)
+
     def p_program_empty(self,p):
         'program : empty'
         pass
-    
+
     def p_statements_empty(self,p):
         'statements : NL'
         p[0] = []
-    
+
     def p_statements_statement(self,p):
         'statements : statement NL'
         p[0] = p[1]
-    
+
     def p_statements_many_statement(self,p):
         'statements : statements statement NL'
         p[0] = []
@@ -183,15 +162,17 @@ class QCParser(object):
 
 
     def p_create_dimension(self,p):
-        """create : DIMENSION ID"""
+        'create : DIMENSION ID'
         if self._name_exists(p[2]):
-            self._print_err("name '%s' already exists in namespace" % p[2])
+            self._print_err(p[2],"name '%s' already exists in namespace" % p[2])
         else:
-            self._dimensions.add(p[2])
+            self.lex.dimensions[p[2]] = Dimension(p[2])
+            self.__defined_symbols.add(p[2])
 
     def p_create_dimensions(self,p):
         'create : DIMENSIONS idlist'
-        self._dimensions = self._dimensions.union(p[2])
+        self.lex.dimensions.update({k:Dimension(k) for k in p[2]})
+        self.__defined_symbols.union(p[2])
 
     def p_create_identifier(self,p):
         """create : VARIABLE array
@@ -199,59 +180,56 @@ class QCParser(object):
         """
         (name, shape) = p[2]
         if(p[1] == 'variable'):
-            self._variables[name] = Variable(name, shape)
+            self.lex.variables[name] = Variable(name, shape)
         if(p[1] == 'parameter'):
-            self._parameters[name] = Parameter(name, shape, Neither())
+            self.lex.parameters[name] = Parameter(name, shape, Neither())
+        self.__defined_symbols.add(name)
 
     def p_create_identifiers(self,p):
         """create : VARIABLES arraylist
                   | PARAMETERS arraylist
         """
         if(p[1] == 'variables'):
-            for (name, shape) in p[2]:
-                self._variables[name] = Variable(name, shape)
+            self.lex.variables.update({name: Variable(name, shape) for (name,shape) in p[2]})
         if(p[1] == 'parameters'):
-            for (name, shape) in p[2]:
-                self._parameters[name] = Parameter(name, shape, Neither())
+            self.lex.parameters.update({name: Parameter(name, shape, Neither()) for (name,shape) in p[2]})
+        self.__defined_symbols.union([elem[0] for elem in p[2]])
 
     def p_create_signed_identifier(self,p):
         'create : PARAMETER array SIGN'
         (name, shape) = p[2]
         if p[3] == 'positive' or p[3] == 'nonnegative':
-            self._parameters[name] = Parameter(name, shape, Positive())
+            self.lex.parameters[name] = Parameter(name, shape, Positive())
         else:
-            self._parameters[name] = Parameter(name, shape, Negative())
+            self.lex.parameters[name] = Parameter(name, shape, Negative())
+        self.__defined_symbols.add(name)
 
     def p_array_identifier(self,p):
-        '''array : ID LPAREN dimlist RPAREN
-                 | ID'''
+        'array : ID LPAREN dimlist RPAREN'
         if self._name_exists(p[1]):
-            self._print_err("name '%s' already exists in namespace" % p[1])
+            self._print_err(p[1],"name '%s' already exists in namespace" % p[1])
         else:
-            if(len(p) == 2):
-                shape = Scalar()
-            else:
-                shape = create_shape_from_dims(p[3])
-            p[0] = (p[1],shape)
+            p[0] = (p[1], create_shape_from_dims(p[3]))
+
+    def p_array_identifier_scalar(self, p):
+        'array : ID'
+        if self._name_exists(p[1]):
+            self._print_err(p[1],"name '%s' already exists in namespace" % p[1])
+        else:
+            p[0] = (p[1],Scalar())
 
     # (for shape) id, id, id ...
     def p_dimlist_list(self,p):
-        'dimlist : dimlist COMMA ID'
-        if(p[3] in self._dimensions):
-            p[0] = p[1] + [p[3]]
-        else:
-            self._print_err("dimension '%s' not declared" % p[3])
+        'dimlist : dimlist COMMA DIM_ID'
+        p[0] = p[1] + [p[3]]
 
     def p_dimlist_list_int(self,p):
         'dimlist : dimlist COMMA INTEGER'
         p[0] = p[1] + [p[3]]
 
     def p_dimlist_id(self,p):
-        'dimlist : ID'
-        if(p[1] in self._dimensions):
-            p[0] = [p[1]]
-        else:
-            self._print_err("dimension '%s' not declared" % p[1])
+        'dimlist : DIM_ID'
+        p[0] = [p[1]]
 
     def p_dimlist_constant(self,p):
         'dimlist : INTEGER'
@@ -261,14 +239,14 @@ class QCParser(object):
     def p_idlist_list(self,p):
         '''idlist : idlist ID'''
         if self._name_exists(p[2]):
-            self._print_err("name '%s' already exists in namespace" % p[2])
+            self._print_err(p[2],"name '%s' already exists in namespace" % p[2])
         else:
             p[0] = p[1] + [p[2]]
 
     def p_idlist_id(self,p):
         'idlist : ID'
         if self._name_exists(p[1]):
-            self._print_err("name '%s' already exists in namespace" % p[1])
+            self._print_err(p[2],"name '%s' already exists in namespace" % p[1])
         else:
             p[0] = [p[1]]
 
@@ -291,8 +269,6 @@ class QCParser(object):
             p[0] = [p[1] <= p[3]]
         else:
             p[0] = [p[1] >= p[3]]
-
-        #p[0] = [RelOp(p[2],p[1],p[3])]
 
     # more generic chained constraint is
     #    constraint EQ expression
@@ -327,11 +303,13 @@ class QCParser(object):
             p[0] = p[1] - p[3]
 
     def p_expression_divide(self,p):
-        'expression : expression DIVIDE expression'
+        '''expression : expression DIVIDE expression'''
         if isconstant(p[1]) and isconstant(p[3]):
-            p[0] = Constant(p[1].value / p[3].value)
+            p[0] = Constant(p[1].value/p[3].value)
+        elif isconstant(p[3]):
+            p[0] = Constant(1.0/p[3].value) * p[1]
         else:
-            self._print_err("Cannot divide non-constants '%s' and '%s'" % (p[1],p[3]))
+            self._print_err(p[2],"Cannot divide by non-constant '%s' on RHS." % p[3])
 
     def p_expression_multiply(self,p):
         'expression : expression TIMES expression'
@@ -353,18 +331,14 @@ class QCParser(object):
     def p_expression_constant(self,p):
         """expression : CONSTANT
                       | INTEGER
-                      | ID"""
+                      | VAR_ID
+                      | PARAM_ID"""
         # these are leaves in the expression tree
-        if isinstance(p[1], float):
-            p[0] = Constant(p[1])
-        elif isinstance(p[1], int):
-            p[0] = Constant(float(p[1]))
-        elif p[1] in self._variables.keys():
-            p[0] = ToVector(self._variables[p[1]])
-        elif p[1] in self._parameters.keys():
-            p[0] = ToMatrix(self._parameters[p[1]])
-        else:
-            self._print_err("Unknown identifier '%s'" % p[1])
+        if isinstance(p[1], float): p[0] = Constant(p[1])
+        elif isinstance(p[1], int): p[0] = Constant(float(p[1]))
+        elif isinstance(p[1], Variable): p[0] = ToVector(p[1])
+        elif isinstance(p[1], Parameter): p[0] = ToMatrix(p[1])
+        else: self._print_err("Unknown identifier '%s'" % p[1])
 
     def p_expression_sum(self,p):
         'expression : SUM LPAREN expression RPAREN'
@@ -390,17 +364,12 @@ class QCParser(object):
     def p_arglist_expr(self, p):
         'arglist : expression'
         p[0] = [p[1]]
-    
+
     def p_empty(self,p):
         'empty : '
         pass
 
     # (Super ambiguous) error rule for syntax errors
     def p_error(self,p):
-        if(p is None):
-            self._print_err("End of file reached")
-        else:
-            if p.type != 'NL':
-                self._print_err("Syntax error at '%s'" % p.value)
-            else:
-                self._print_err("Syntax error at newline. Perhaps missing a constraint?")
+        if p is None: self._print_err(None, "End of file reached")
+        else: self._print_err(p, "Syntax error at '%s'" % p.value)

@@ -12,18 +12,20 @@ from qc_atoms import atoms
 
 class QCLexer:
     def __init__(self): # does nothing yet
-        pass
-        
+        self.dimensions = {}
+        self.variables = {}
+        self.parameters = {}
+
     def build(self, **kwargs):
         """ Builds the lexer from the specification. Must be
-            called after the lexer object is created. 
-            
+            called after the lexer object is created.
+
             This method exists separately, because the PLY
             manual warns against calling lex.lex inside
             __init__
         """
         self.lexer = lex.lex(module=self, **kwargs)
-        
+
     # Test it output
     def test(self,data):
         self.lexer.input(data)
@@ -31,7 +33,7 @@ class QCLexer:
              tok = self.lexer.token()
              if not tok: break
              print tok
-    
+
     # reserved keywords in the language
     reserved = dict([
         ('variable', 'VARIABLE'),
@@ -62,7 +64,7 @@ class QCLexer:
     tokens = [
         'INTEGER','CONSTANT', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQ', 'LEQ', 'GEQ',
         'COMMA', 'SEMI', 'TRANSPOSE', 'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN',
-        'ID', 'COMMENT', 'NL'
+        'ID', 'DIM_ID', 'VAR_ID', 'PARAM_ID', 'COMMENT', 'NL'
     ] + list(set(reserved.values()))
 
     t_PLUS      = r'\+'
@@ -80,7 +82,7 @@ class QCLexer:
     t_RBRACE    = r'\]'
     t_LPAREN    = r'\('
     t_RPAREN    = r'\)'
-    
+
     # for parsing constant floats
     # WARNING: this must appear before t_INTEGER
     def t_CONSTANT(self,t):
@@ -98,6 +100,26 @@ class QCLexer:
     def t_ID(self,t):
         r'[a-zA-Z][a-zA-Z_0-9]*'
         t.type = self.reserved.get(t.value, 'ID')
+        if t.type == 'ID':
+            # check to see if it's a dimension, variable, or parameter id
+            new_value = self.dimensions.get(t.value, None)
+            if new_value is not None:
+                t.type = 'DIM_ID'
+                t.value = new_value
+                return t
+
+            new_value = self.variables.get(t.value, None)
+            if new_value is not None:
+                t.type = 'VAR_ID'
+                t.value = new_value
+                return t
+
+            new_value = self.parameters.get(t.value, None)
+            if new_value is not None:
+                t.type = 'PARAM_ID'
+                t.value = new_value
+                return t
+
         return t
 
     def t_COMMENT(self,t):
@@ -118,4 +140,4 @@ class QCLexer:
     def t_error(self,t):
         print "QC_LEX: Illegal character '%s'" % t.value[0]
         t.lexer.skip(1)
-        
+
