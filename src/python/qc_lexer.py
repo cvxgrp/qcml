@@ -12,7 +12,7 @@ from qc_atoms import atoms
 
 class QCLexer:
     def __init__(self): # does nothing yet
-        self.dimensions = {}
+        self.dimensions = set()
         self.variables = {}
         self.parameters = {}
 
@@ -102,10 +102,8 @@ class QCLexer:
         t.type = self.reserved.get(t.value, 'ID')
         if t.type == 'ID':
             # check to see if it's a dimension, variable, or parameter id
-            new_value = self.dimensions.get(t.value, None)
-            if new_value is not None:
+            if t.value in self.dimensions:
                 t.type = 'DIM_ID'
-                t.value = new_value
                 return t
 
             new_value = self.variables.get(t.value, None)

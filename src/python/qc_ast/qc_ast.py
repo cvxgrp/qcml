@@ -1,7 +1,7 @@
 # Built from PyCParser's AST and Python's AST
 
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave
-from qc_shape import scalar, isscalar
+from qc_shape import Scalar, isscalar
 import sys, operator
 
 
@@ -304,7 +304,7 @@ class SOC(Node):
     def __init__(self, t, args):
         self.left = args
         self.right = t
-        self.shape = scalar()
+        self.shape = Scalar()
 
         if not isscalar(self.right):
             raise TypeError("Cannot form SOC constraint with vector '%s' right-hand side." % self.right)

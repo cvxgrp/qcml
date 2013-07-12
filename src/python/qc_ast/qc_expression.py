@@ -1,7 +1,7 @@
 from qc_ast import Node, RelOp
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
-from qc_shape import scalar, vector, matrix, isvector, ismatrix, isscalar
+from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 
 import qcml
 import operator
@@ -189,7 +189,7 @@ class Constant(Expression):
             self.sign = Positive()
         else:
             self.sign = Negative()
-        self.shape = scalar()
+        self.shape = Scalar()
         self.isknown = True # whether or not the expression is known at
                             # runtime, used to keep track of "param" * "var"
 
@@ -349,7 +349,7 @@ class Sum(Expression):
         self.arg = x
         self.sign = x.sign
         self.vexity = x.vexity
-        self.shape = scalar()
+        self.shape = Scalar()
         self.isknown = x.isknown
 
     def __str__(self): return "sum(%s)" % self.arg

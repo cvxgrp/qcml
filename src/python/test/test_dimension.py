@@ -1,3 +1,4 @@
+"""
 from qcml.qc_ast import Dimension
 import operator
 
@@ -28,3 +29,4 @@ def test_add():
     ]
     for dimension,lookup,expected in add_list:
         yield eq_dimension, dimension, lookup, expected
+"""

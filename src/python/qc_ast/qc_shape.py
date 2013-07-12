@@ -1,12 +1,33 @@
+import itertools
+
+# wrapper for checking if hasattr "shape"
+def useshape(shape_fn):
+    def wrapped(x):
+        if hasattr(x, 'shape'): return shape_fn(x.shape)
+        else: return shape_fn(x)
+    return wrapped
+
 # public utility functions
+@useshape
 def isvector(x):
-    return x.shape.col == 1 and ismatrix(x)
+    return x.col == 1 and ismatrix(x)
 
+@useshape
 def isscalar(x):
-    return x.shape.row == 1 and isvector(x)
+    return x.row == 1 and isvector(x)
 
+@useshape
 def ismatrix(x):
-    return x.shape.num_dimensions <= 2
+    return x.num_dimensions <= 2
+
+# local utility functions
+def _strip_trailing_ones(elems):
+    elems = [elem for elem in itertools.dropwhile(lambda x: x == 1, reversed(elems))]
+    return elems[::-1]  # reverse the list
+
+def _int_or_str(x):
+    if isinstance(x,str) and x.isdigit(): return int(x)
+    return x
 
 class Shape(object):
     def __init__(self, dimensions = []):
@@ -15,36 +36,39 @@ class Shape(object):
             dimensions:
                 A list of strings and integers
         """
-        self.instantiated = False
-        self.__dimensions = dimensions
-        self.num_dimensions = len(dimensions)
+        # ensure that dimensions contains ints if possible
+        dimensions = map(_int_or_str, dimensions)
+        self.instantiated = all(type(elem) == int for elem in dimensions)
+        self.dimensions = _strip_trailing_ones(dimensions)
+        self.num_dimensions = len(self.dimensions)
 
         self._assign_row()
         self._assign_col()
 
     def _assign_row(self):
         self.row = 1
-        if self.num_dimensions >= 1: self.row = self.__dimensions[0]
+        if self.num_dimensions >= 1: self.row = self.dimensions[0]
 
     def _assign_col(self):
         self.col = 1
-        if self.num_dimensions >= 2: self.col = self.__dimensions[1]
+        if self.num_dimensions >= 2: self.col = self.dimensions[1]
 
-    def size_str(self):
-        if not self.instantiated:
-            return "%s" % ('*'.join(map(str, self.dimensions)))
+    def size(self):
+        if self.instantiated:
+            return reduce(lambda x,y: x*y, self.dimensions, 1)
         else:
-            return "%s" % reduce(lambda x,y: x*y, self.__dimensions, 1)
+            raise ValueError("Cannot compute size of abstract dimension")
 
     def __str__(self):
         return "%s([%s])" % (self.__class__.__name__, ', '.join(map(str, self.dimensions)))
 
     def eval(self, dimension_dictionary):
+        # dimension_dictionary is a dictionary of {string: int}
         if not self.instantiated:
             try:
                 # makes the abstract labels concrete numbers
-                self.__dimensions = \
-                    [dimension_dictionary.get(k, int(k)) for k in self.__dimensions]
+                self.dimensions = \
+                    [dimension_dictionary.get(k, k) for k in self.dimensions]
                 self._assign_row()
                 self._assign_col()
                 self.instantiated = True
@@ -60,30 +84,60 @@ class Shape(object):
             raise ValueError("Cannot slice an abstract dimension.")
         if dim >= self.num_dimensions:
             raise ValueError("Slice dimension exceeds array dimension.")
-        current_length = self.__dimensions[dim]
+        current_length = self.dimensions[dim]
 
         if end >= current_length:
             raise ValueError("Cannot slice beyond current shape length.")
 
         # create a new "slice"
-        new_dims = list(self.__dimensions)
+        new_dims = list(self.dimensions)
         new_dims[dim] = end - begin
+        # drop trailing ones to maintain minimal list
+        new_dims = _strip_trailing_ones(new_dims)
         return Shape(new_dims)
 
+    def __eq__(self, other):
+        if not (self.instantiated and other.instantiated):
+            raise ValueError("Cannot compare abstract dimensions.")
+
+        return self.dimensions == other.dimensions
+
+    def __add__(self, other):
+        if not (self.instantiated and other.instantiated):
+            raise ValueError("Cannot add abstract dimensions.")
+
+        if self == other: return Shape(self.dimensions)
+        if isscalar(self): return Shape(other.dimensions)
+        if isscalar(other): return Shape(self.dimensions)
+
+        raise TypeError("Cannot add %s and %s; incompatible sizes." % (self, other))
 
 
-        # _swap(self.row, self.col)
-#         _swap(self.__dimensions[0], self.__dimensions[1])
+    def __mul__(self, other):
+        if not (self.instantiated and other.instantiated):
+            raise ValueError("Cannot multiply abstract dimensions.")
 
-""" Convenience functions for creating shapes.
+        if not (ismatrix(self) and ismatrix(other)):
+            raise TypeError("Cannot multiply non-matrices.")
+
+        if self.col == other.row: return Matrix(self.row, other.col)
+        if isscalar(self): return Matrix(other.row, other.col)
+        if isscalar(other): return Matrix(self.row, self.col)
+
+        raise TypeError("Cannot multiply %s and %s; incompatible sizes." % (self, other))
+
+    def __neg__(self): return self
+
+""" Convenience functions for creating shapes. Uppercase to "fake" class
+    creation.
 """
-def scalar():
+def Scalar():
     return Shape()
 
-def vector(n):
+def Vector(n):
     return Shape([n])
 
-def matrix(m,n):
+def Matrix(m,n):
     return Shape([m,n])
 
 

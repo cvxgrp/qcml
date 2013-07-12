@@ -1,4 +1,4 @@
-from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, Dimension
+from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 from codegen_util import *
 
 """ Codegen template.
@@ -44,11 +44,11 @@ class Codegen(NodeVisitor):
         self.body = []          # just the stuffing components
         self.varlength = {}
         self.varstart = {}
-        self.num_vars = Dimension(0)
+        self.num_vars = 0
         self.expr_stack = []
-        self.num_lineqs = Dimension(0)
-        self.num_lps = Dimension(0)
-        self.num_conic = Dimension(0)
+        self.num_lineqs = 0
+        self.num_lps = 0
+        self.num_conic = 0
         self.cone_list = []
         self.comment = '#'
         self.dimension_map = None
@@ -75,16 +75,16 @@ class Codegen(NodeVisitor):
         """
         pass
 
-    def function_datastructures(self, varlength, num_lineqs, num_lps, num_conic, cone_list):
+    def function_datastructures(self):
         """
             varlength
-                length of x variable (as Dimension)
+                length of x variable (as int)
             num_lineqs
-                number of linear equality constraints (as Dimension)
+                number of linear equality constraints (as int)
             num_lps
-                number of linear inequality constraints (as Dimension)
+                number of linear inequality constraints (as int)
             num_conic
-                number of SOC constraints (as Dimension)
+                number of SOC constraints (as int)
             cone_list
                 list of *tuple* of SOC dimensions; tuple is (num, sz), with num
                 being the multiplicity of the cone size, e.g. (2, 3) means *two*
@@ -169,7 +169,7 @@ class Codegen(NodeVisitor):
 
 
     def visit_Variable(self, node):
-        n = node.shape.row
+        n = node.shape.size()
         if node.value in self.orig_varnames:
             k = '_' + node.value
         else:
@@ -178,7 +178,7 @@ class Codegen(NodeVisitor):
         if n == "1":
             lineq = {k: Constant(1)}
         else:
-            lineq = {k: Eye(Dimension(n), Constant(1))}
+            lineq = {k: Eye(n, Constant(1))}
 
         self.expr_stack.append(lineq)
 
@@ -335,7 +335,7 @@ class Codegen(NodeVisitor):
             cone_length += e.shape.row
 
         self.num_conic += cone_length
-        self.cone_list.append( (Dimension(1), str(cone_length)) )
+        self.cone_list.append( (1, str(cone_length)) )
 
         self.generic_visit(node)
 
@@ -367,7 +367,7 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
         stride = len(node.arglist) + 1
-        self.num_conic += Dimension(None, {node.shape.size_str(): stride})
+        self.num_conic += stride * node.shape.size()
 
         self.cone_list.append( (node.shape.row, str(len(node.arglist) + 1)) )
 
@@ -379,7 +379,7 @@ class Codegen(NodeVisitor):
 
         while self.expr_stack:
             e = self.expr_stack.pop()
-            conestart = start + Dimension(count)
+            conestart = start + count
             count -= 1
             for k,v in e.iteritems():
                 if k == '1':

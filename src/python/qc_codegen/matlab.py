@@ -101,13 +101,13 @@ class MatlabCodegen(Codegen):
     def function_datastructures(self):
         """
             varlength
-                length of x variable (as Dimension)
+                length of x variable (as int)
             num_lineqs
-                number of linear equality constraints (as Dimension)
+                number of linear equality constraints (as int)
             num_lps
-                number of linear inequality constraints (as Dimension)
+                number of linear inequality constraints (as int)
             num_conic
-                number of SOC constraints (as Dimension)
+                number of SOC constraints (as int)
             cone_list
                 list of *tuple* of SOC dimensions; tuple is (num, sz), with num
                 being the multiplicity of the cone size, e.g. (2, 3) means *two*

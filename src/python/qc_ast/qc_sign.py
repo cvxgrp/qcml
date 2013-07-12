@@ -17,10 +17,16 @@ class Sign(object):
         else: self.value = -1           # negative
 
     def __add__(self,other):
-        return Sign(self.value + other.value)
+        val = self.value + other.value
+        if val == 2: return Positive()
+        if val == -2: return Negative()
+        return Neither()
 
     def __sub__(self,other):
-        return Sign(self.value - other.value)
+        val = self.value - other.value
+        if val == 2: return Positive()
+        if val == -2: return Negative()
+        return Neither()
 
     def __mul__(self,other):
         return Sign(self.value * other.value)
@@ -33,8 +39,11 @@ class Sign(object):
         if self.value > 0: return "positive"
         if self.value < 0: return "negative"
 
-def positive(): return Sign(1)
+""" Convenience functions for creating signs. Uppercase to "fake" class
+    creation.
+"""
+def Positive(): return Sign(1)
 
-def negative(): return Sign(-1)
+def Negative(): return Sign(-1)
 
-def neither(): return Sign(0)
+def Neither(): return Sign(0)

@@ -1,5 +1,5 @@
-from qc_shape import Shape, scalar, vector, matrix, isvector, ismatrix, isscalar
-from qc_sign import positive, negative, neither, ispositive, isnegative
+from qc_shape import Shape, Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_vexity import Affine, Convex, Concave, Nonconvex, \
     isconvex, isconcave, isaffine, \
     increasing, decreasing, nonmonotone

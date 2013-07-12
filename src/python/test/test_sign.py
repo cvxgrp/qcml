@@ -21,6 +21,8 @@ def add_sign(s1,s2, exp):
     p1 = create_sign(s1)
     p2 = create_sign(s2)
     result = p1+p2
+    print result
+    print exp
     assert(str(result) == exp)
 
 def sub_sign(s1,s2, exp):

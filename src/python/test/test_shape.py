@@ -1,19 +1,6 @@
-""" No need to test shapes for the time being
-from qcml.qc_ast import Scalar, Vector, Matrix
+from qcml.qc_ast import Shape, Scalar, Vector, Matrix, isvector, isscalar, ismatrix
 from nose.tools import assert_raises
 import operator
-
-# tests for whether they are *exactly* these objects (or subclasses thereof)
-def isvector_exact(x):
-    return isinstance(x, Vector)
-
-def isscalar_exact(x):
-    return isinstance(x, Scalar)
-
-def ismatrix_exact(x):
-    return isinstance(x, Matrix)
-
-shapes = [Scalar(), Vector('n'), Matrix('m','n')]
 
 def add_shape(s1,s2, exp,row,col):
     result = s1+s2
@@ -33,69 +20,69 @@ def mul_shape(s1,s2, exp,row,col):
 
 def test_add():
     add_list = [
-        (Scalar(),Scalar(), isscalar_exact, 1, 1),
-        (Scalar(),Vector('n'), isvector_exact, 'n', 1),
-        (Vector('n'),Scalar(), isvector_exact, 'n', 1),
-        (Vector('m'),Vector('m'), isvector_exact, 'm', 1),
-        (Scalar(), Matrix('a','b'), ismatrix_exact, 'a', 'b'),
-        (Matrix('a','b'), Scalar(), ismatrix_exact, 'a', 'b'),
-        (Matrix('a','b'),Matrix('a','b'), ismatrix_exact, 'a','b'),
+        (Scalar(),Scalar(), isscalar, 1, 1),
+        (Scalar(),Vector(5), isvector, 5, 1),
+        (Vector(5),Scalar(), isvector, 5, 1),
+        (Vector(10),Vector(10), isvector, 10, 1),
+        (Scalar(), Matrix(3,2), ismatrix, 3, 2),
+        (Matrix(3,2), Scalar(), ismatrix, 3, 2),
+        (Matrix(3,2),Matrix(3,2), ismatrix, 3,2),
     ]
     for s1,s2,exp,r,c in add_list:
         yield add_shape, s1,s2,exp,r,c
     fail_list = [
-        (Vector('n'), Vector('m'), TypeError),
-        (Matrix('a','b'),Vector('x'), TypeError),
-        (Matrix('a','c'),Matrix('d','b'), TypeError), # disallowed for now
-        (Vector('x'),Matrix('a','b'), TypeError)
+        (Vector(5), Vector(10), TypeError),
+        (Matrix(3,2),Vector(4), TypeError),
+        (Matrix(3,6),Matrix(7,2), TypeError), # disallowed for now
+        (Vector(4),Matrix(3,2), TypeError)
     ]
     for s1,s2,failure in fail_list:
         yield assert_raises, failure, add_shape, s1,s2,None,None,None
 
 def test_sub():
     sub_list = [
-        (Scalar(),Scalar(), isscalar_exact, 1, 1),
-        (Scalar(),Vector('n'), isvector_exact, 'n', 1),
-        (Vector('n'),Scalar(), isvector_exact, 'n', 1),
-        (Vector('m'),Vector('m'), isvector_exact, 'm', 1),
-        (Scalar(), Matrix('a','b'), ismatrix_exact, 'a', 'b'),
-        (Matrix('a','b'), Scalar(), ismatrix_exact, 'a', 'b'),
-        (Matrix('a','b'),Matrix('a','b'), ismatrix_exact, 'a','b'),
+        (Scalar(),Scalar(), isscalar, 1, 1),
+        (Scalar(),Vector(5), isvector, 5, 1),
+        (Vector(5),Scalar(), isvector, 5, 1),
+        (Vector(10),Vector(10), isvector, 10, 1),
+        (Scalar(), Matrix(3,2), ismatrix, 3, 2),
+        (Matrix(3,2), Scalar(), ismatrix, 3, 2),
+        (Matrix(3,2),Matrix(3,2), ismatrix, 3,2),
     ]
     for s1,s2,exp,r,c in sub_list:
         yield sub_shape, s1,s2,exp,r,c
     fail_list = [
-        (Vector('n'), Vector('m'), TypeError),
-        (Matrix('a','b'),Vector('x'), TypeError),
-        (Matrix('a','c'),Matrix('d','b'), TypeError), # disallowed for now
-        (Vector('x'),Matrix('a','b'), TypeError)
+        (Vector(5), Vector(10), TypeError),
+        (Matrix(3,2),Vector(4), TypeError),
+        (Matrix(3,6),Matrix(7,2), TypeError), # disallowed for now
+        (Vector(4),Matrix(3,2), TypeError)
     ]
     for s1,s2,failure in fail_list:
         yield assert_raises, failure, sub_shape, s1,s2,None,None,None
 
 
 def test_negate():
-    for s in shapes:
+    for s in [Scalar(), Vector(5), Matrix(10,5)]:
         yield negate_shape, s
 
 def test_mul():
     mul_list = [
-        (Scalar(),Scalar(), isscalar_exact, 1, 1),
-        (Scalar(),Vector('x'), isvector_exact, 'x', 1),
-        (Scalar(),Matrix('a','b'), ismatrix_exact, 'a', 'b'),
-        (Vector('x'),Scalar(), isvector_exact, 'x', 1),
-        (Matrix('a','x'),Vector('x'), isvector_exact, 'a', 1),
-        (Matrix('a','b'),Scalar(), ismatrix_exact, 'a','b'),
-        (Matrix('a','b'),Matrix('b','a'), ismatrix_exact, 'a', 'a'),
-        (Vector('a'), Matrix(1,'b'), ismatrix_exact, 'a', 'b')
+        (Scalar(),Scalar(), isscalar, 1, 1),
+        (Scalar(),Vector(4), isvector, 4, 1),
+        (Scalar(),Matrix(3,2), ismatrix, 3, 2),
+        (Vector(4),Scalar(), isvector, 4, 1),
+        (Matrix(3,4),Vector(4), isvector, 3, 1),
+        (Matrix(3,2),Scalar(), ismatrix, 3,2),
+        (Matrix(3,2),Matrix(2,3), ismatrix, 3, 3),
+        (Vector(3), Matrix(1,2), ismatrix, 3, 2)
 
     ]
     for s1,s2,exp,r,c in mul_list:
         yield mul_shape, s1,s2,exp,r,c
     fail_list = [
-        (Vector('x'),Vector('y'), TypeError),
-        (Vector('x'),Matrix('a','b'), TypeError),
-        (Matrix('a','b'),Matrix('a','b'), TypeError),
+        (Vector(4),Vector(3), TypeError),
+        (Vector(4),Matrix(3,2), TypeError),
+        (Matrix(3,2),Matrix(3,2), TypeError),
     ]
     for s1,s2,failure in fail_list:
         yield assert_raises, failure, mul_shape, s1,s2,None,None,None
@@ -104,7 +91,11 @@ def test_mul():
 #     stack_list = [
 #         (Scalar(), Scalar(), Vector(2,1))
 #     ]
-"""
 
+def test_eval():
+    s = Shape(['m','n','p','q',1,5,1,1,1])
+    shape_dict = {'m':3, 'n':6, 'p':2, 'q':3}
+    s.eval(shape_dict)
+    assert(s.dimensions == [3,6,2,3,1,5])
 
 

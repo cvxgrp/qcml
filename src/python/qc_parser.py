@@ -6,7 +6,7 @@ from qc_ast import isconstant, \
     Objective, RelOp, Program, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
     Neither, Positive, Negative, Node, \
-    Shape, Scalar, Vector, Matrix, isscalar, Dimension
+    Shape, Scalar, Vector, Matrix, isscalar
 
 # our own exception class
 class QCError(Exception): pass
@@ -17,25 +17,6 @@ def _find_column(data,pos):
       last_cr = 0
     column = (pos - last_cr) + 1
     return column
-
-# XXX: wish we had something better...
-def create_shape_from_dims(dims):
-    """ Creates a shape from a dimension list.
-    """
-    if len(dims) == 1:
-        if dims[0] == 1:
-            return Scalar()
-        else:
-            return Vector(dims[0])
-    elif len(dims) == 2:
-        if dims[0] == 1 and dims[1] == 1:
-            return Scalar()
-        elif dims[1] == 1:
-            return Vector(dims[0])
-        else:
-            return Matrix(dims[0], dims[1])
-    else:
-        return Shape(dims)
 
 class QCParser(object):
     """ QCParser parses QCML but does not perform rewriting.
@@ -59,8 +40,6 @@ class QCParser(object):
         self.lex.build();
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
-
-        self.__defined_symbols = set()
 
     def parse(self, text):
         """ Parses QCML and returns an AST.
@@ -114,7 +93,10 @@ class QCParser(object):
         if raise_error:
             raise QCError(msg)
 
-    def _name_exists(self,s): return s in self.__defined_symbols
+    def _name_exists(self,s):
+        return (s in self.lex.dimensions) or \
+               (s in self.lex.variables.keys()) or \
+               (s in self.lex.parameters.keys())
 
     # only a single objective allowed per program
     def p_program(self,p):
@@ -163,13 +145,11 @@ class QCParser(object):
         if self._name_exists(p[2]):
             self._print_err(p[2],"name '%s' already exists in namespace" % p[2])
         else:
-            self.lex.dimensions[p[2]] = Dimension(p[2])
-            self.__defined_symbols.add(p[2])
+            self.lex.dimensions.add(p[2])
 
     def p_create_dimensions(self,p):
         'create : DIMENSIONS idlist'
-        self.lex.dimensions.update({k:Dimension(k) for k in p[2]})
-        self.__defined_symbols.union(p[2])
+        self.lex.dimensions.update(p[2])
 
     def p_create_identifier(self,p):
         """create : VARIABLE array
@@ -180,7 +160,6 @@ class QCParser(object):
             self.lex.variables[name] = Variable(name, shape)
         if(p[1] == 'parameter'):
             self.lex.parameters[name] = Parameter(name, shape, Neither())
-        self.__defined_symbols.add(name)
 
     def p_create_identifiers(self,p):
         """create : VARIABLES arraylist
@@ -190,7 +169,6 @@ class QCParser(object):
             self.lex.variables.update({name: Variable(name, shape) for (name,shape) in p[2]})
         if(p[1] == 'parameters'):
             self.lex.parameters.update({name: Parameter(name, shape, Neither()) for (name,shape) in p[2]})
-        self.__defined_symbols.union([elem[0] for elem in p[2]])
 
     def p_create_signed_identifier(self,p):
         'create : PARAMETER array SIGN'
@@ -199,14 +177,13 @@ class QCParser(object):
             self.lex.parameters[name] = Parameter(name, shape, Positive())
         else:
             self.lex.parameters[name] = Parameter(name, shape, Negative())
-        self.__defined_symbols.add(name)
 
     def p_array_identifier(self,p):
         'array : ID LPAREN dimlist RPAREN'
         if self._name_exists(p[1]):
             self._print_err(p[1],"name '%s' already exists in namespace" % p[1])
         else:
-            p[0] = (p[1], create_shape_from_dims(p[3]))
+            p[0] = (p[1], Shape(p[3]))
 
     def p_array_identifier_scalar(self, p):
         'array : ID'
