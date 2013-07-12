@@ -1,7 +1,7 @@
 from qc_ast import Node, RelOp
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
-from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from qc_shape import scalar, vector, matrix, isvector, ismatrix, isscalar
 
 import qcml
 import operator
@@ -189,7 +189,7 @@ class Constant(Expression):
             self.sign = Positive()
         else:
             self.sign = Negative()
-        self.shape = Scalar()
+        self.shape = scalar()
         self.isknown = True # whether or not the expression is known at
                             # runtime, used to keep track of "param" * "var"
 
@@ -349,7 +349,7 @@ class Sum(Expression):
         self.arg = x
         self.sign = x.sign
         self.vexity = x.vexity
-        self.shape = Scalar()
+        self.shape = scalar()
         self.isknown = x.isknown
 
     def __str__(self): return "sum(%s)" % self.arg
@@ -461,12 +461,12 @@ class Slice(Parameter,Variable,Expression):
         self.end = end
 
     def __str__(self):
-        if isinstance(self.value.shape, Scalar):
+        if isscalar(self.value):
             return "%s" % self.value
-        if isinstance(self.value.shape, Vector):
+        if isvector(self.value):
             return "%s(%s:%s)" % (self.value, self.begin, self.end)
 
-        dims = len(self.value.shape.dimensions)*[':']
+        dims = self.value.shape.num_dimensions*[':']
         dims[self.slice_dim] = "%s:%s" % (self.begin, self.end)
         return "%s(%s)" % (self.value, ','.join(dims))
 

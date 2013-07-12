@@ -115,8 +115,8 @@ class QCML(object):
             .solve(locals())
             .solve(dims,params)
         """
-        self.canonicalize()
         #self.instantiate(dims)
+        self.canonicalize()
         self.codegen("cvxopt")
 
         # if params is not supplied, it is set to the dims dictionary

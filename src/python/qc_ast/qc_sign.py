@@ -1,70 +1,40 @@
+
 def ispositive(x):
-    return isinstance(x.sign, Positive)
+    return x.sign.value > 0
 
 def isnegative(x):
-    return isinstance(x.sign, Negative)
+    return x.sign.value < 0
 
-def isneither(x):
-    return isinstance(x.sign, Neither)
+# @staticmethod
+# def isneither(x):
+#     return isinstance(x.sign, Neither)
 
 class Sign(object):
-    def __add__(self,other): return self
-    def __sub__(self,other): return self
-    def __mul__(self,other): return self
-    def __neg__(self): return self
-    def __str__(self): return "neither"
+    def __init__(self, value=0):
+        # uses math to keep track of the sign
+        if value == 0: self.value = 0   # neither
+        elif value > 0: self.value = 1  # positive
+        else: self.value = -1           # negative
 
-class Neither(Sign): pass
-
-class Positive(Sign):
     def __add__(self,other):
-        if isinstance(other,Positive):
-            return self
-        else:
-            return Neither()
-    
+        return Sign(self.value + other.value)
+
     def __sub__(self,other):
-        if isinstance(other,Negative):
-            return self
-        else:
-            return Neither()
-    
-    def __mul__(self,other): 
-        if isinstance(other,Positive):
-            return self
-        elif isinstance(other,Negative):
-            return other
-        else:
-            return Neither()
-    
-    def __neg__(self): return Negative()
+        return Sign(self.value - other.value)
 
-    def __str__(self): return "positive"
+    def __mul__(self,other):
+        return Sign(self.value * other.value)
 
-class Negative(Sign):
-    def __add__(self,other):
-        if isinstance(other,Negative):
-            return self
-        else:
-            return Neither()
-    
-    def __sub__(self,other):
-        if isinstance(other,Positive):
-            return self
-        else:
-            return Neither()
-    
-    def __mul__(self,other): 
-        if isinstance(other,Positive):
-            return self
-        elif isinstance(other,Negative):
-            return Positive()
-        else:
-            return Neither()
-    
-    def __neg__(self): return Positive()
+    def __neg__(self):
+        return Sign(-self.value)
 
-    def __str__(self): return "negative"
+    def __str__(self):
+        if self.value ==0: return "neither"
+        if self.value > 0: return "positive"
+        if self.value < 0: return "negative"
 
-    
+def positive(): return Sign(1)
 
+def negative(): return Sign(-1)
+
+def neither(): return Sign(0)

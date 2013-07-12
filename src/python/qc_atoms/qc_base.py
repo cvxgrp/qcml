@@ -1,7 +1,7 @@
-from qcml.qc_ast import Scalar, Vector, Matrix, \
+from qcml.qc_ast import Shape, scalar, vector, matrix, \
     ispositive, isnegative, \
-    isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
+    isscalar, isvector, ismatrix, \
     Positive, Negative, \
     Convex, Concave, Affine, \
     Variable, Objective, Program, Constant, \
@@ -19,9 +19,9 @@ def norm(args):
     else: vexity = reduce(operator.add, map(nonmonotone, args), Convex())
 
     if len(args) == 1:
-        shape = Scalar()
+        shape = scalar()
     else:
-        shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
+        shape = reduce(operator.add, map(lambda x: x.shape, args), scalar())
 
     return (sign, vexity, shape)
 

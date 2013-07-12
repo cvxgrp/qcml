@@ -1,6 +1,5 @@
-from qcml.qc_ast import Scalar, Vector, Matrix, \
+from qcml.qc_ast import Shape \
     ispositive, isnegative, \
-    isvector, ismatrix, isscalar, \
     increasing, decreasing, nonmonotone, \
     Positive, Negative, Neither, \
     Convex, Concave, Affine, \
