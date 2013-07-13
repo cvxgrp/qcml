@@ -31,7 +31,7 @@ def attributes(*args):
         vexity = Concave() + increasing(args[0])
     else:
         if any(isnegative(e) for e in args): sign = Negative()
-        if all(positive(e) for e in args): sign = Positive()
+        if all(ispositive(e) for e in args): sign = Positive()
         else: sign = Neither()
         shape = reduce(operator.add, map(lambda x: x.shape, args))
         vexity = reduce(operator.add, map(increasing, args), Concave())

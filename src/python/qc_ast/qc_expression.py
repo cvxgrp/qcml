@@ -23,10 +23,11 @@ def isnegate(x):
 def isparameter(x):
     return isinstance(x, Parameter)
 
+
 class AbstractExpression(Node):
     """ AbstractExpression AST node.
 
-        Abstract class.
+        Abstract base class.
     """
     def __neg__(self): return negate_node(self)
 
@@ -36,26 +37,11 @@ class AbstractExpression(Node):
 
     def __mul__(self,other): return distribute(self, other)
 
-    def __eq__(self, other):
-        if isconstant(self) and isconstant(other):
-            if self.value == other.value: return None
-            raise ValueError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
-        else:
-            return RelOp('==', self - other, Constant(0))
+    def __eq__(self, other): return _compare(self, other, operator.__eq__, '==')
 
-    def __le__(self, other):
-        if isconstant(self) and isconstant(other):
-            if self.value <= other.value: return None
-            raise ValueError("Boolean constraint %s <= %s is trivially infeasible." % (self, other))
-        else:
-            return RelOp('<=', self - other, Constant(0))
+    def __le__(self, other): return _compare(self, other, operator.__le__, '<=')
 
-    def __ge__(self, other):
-        if isconstant(self) and isconstant(other):
-            if self.value >= other.value: return None
-            raise ValueError("Boolean constraint %s >= %s is trivially infeasible." % (self, other))
-        else:
-            return RelOp('<=', other - self, Constant(0))
+    def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
 
 class Constant(AbstractExpression):
     """ Constant AST node.
@@ -64,7 +50,7 @@ class Constant(AbstractExpression):
         the sign of the float.
     """
     def __init__(self, value):
-        self.value = value  # this is a float
+        self.value = value  # value is a float
         self.vexity = Affine()
         if float(value) >= 0.0: self.sign = Positive()
         else: self.sign = Negative()
@@ -87,7 +73,7 @@ class Parameter(AbstractExpression):
         shape are supplied from QCML.
     """
     def __init__(self, value, shape, sign):
-        self.value = value
+        self.value = value  # value is a str
         self.vexity = Affine()
         self.sign = sign
         self.shape = shape
@@ -108,7 +94,7 @@ class Variable(AbstractExpression):
         Neither positive nor negative. Its shape is supplied from QCML.
     """
     def __init__(self, value, shape):
-        self.value = value
+        self.value = value  # value is a str
         self.vexity = Affine()
         self.sign = Neither()
         self.shape = shape
@@ -134,21 +120,10 @@ class ToVector(Variable):
     """
 
     def __init__(self, expr):
-        self.value = expr
-        self.sign = expr.sign
-        self.vexity = expr.vexity
-        self.isknown = expr.isknown
         if isvector(expr):
-            self.shape = expr.shape
+            super(ToVector, self).__init__(expr, expr.shape)
         else:
-            # otherwise, construct a vector from the *first* dimension of the
-            # subsequent expression (whether or not it can be done)
-            #
-            # we verify validity externally
-            if len(expr.shape.dimensions) == 1:
-                self.shape = Vector(expr.shape.dimensions[0])
-            else:
-                raise TypeError("Cannot construct a vector node from %s" % repr(expr))
+            raise TypeError("Cannot construct a vector node from %s" % repr(expr))
 
     def children(self):
         nodelist = []
@@ -172,21 +147,10 @@ class ToMatrix(Parameter):
     """
 
     def __init__(self, expr):
-        self.value = expr
-        self.sign = expr.sign
-        self.vexity = expr.vexity
-        self.isknown = expr.isknown
         if ismatrix(expr):
-            self.shape = expr.shape
+            super(ToMatrix, self).__init__(expr, expr.shape, expr.sign)
         else:
-            # otherwise, construct a vector from the *first* dimension of the
-            # subsequent expression (whether or not it can be done)
-            #
-            # we verify validity externally
-            if len(expr.shape.dimensions) == 2:
-                self.shape = Matrix(expr.shape.dimensions[0], expr.shape.dimensions[1])
-            else:
-                raise TypeError("Cannot construct a matrix node from %s" % repr(expr))
+            raise TypeError("Cannot construct a matrix node from %s" % repr(expr))
 
     def children(self):
         nodelist = []
@@ -303,15 +267,11 @@ class Negate(AbstractExpression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Transpose(Parameter,AbstractExpression):
+class Transpose(Parameter):
     """ Can only be applied to parameters
     """
     def __init__(self, expr):
-        self.value = expr
-        self.sign = expr.sign
-        self.vexity = expr.vexity
-        self.shape = expr.shape.transpose()
-        self.isknown = expr.isknown
+        super(Transpose, self).__init__(expr, expr.shape.transpose(), expr.sign)
 
     def __str__(self): return "%s'" % self.value
 
@@ -322,7 +282,7 @@ class Transpose(Parameter,AbstractExpression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Slice(Parameter,Variable,AbstractExpression):
+class Slice(Parameter,Variable):
     """ Can only be applied to parameters or variables.
 
         At the moment, assumes that begin and end are of type int
@@ -332,11 +292,7 @@ class Slice(Parameter,Variable,AbstractExpression):
         assert (type(end) is int), "Expected end index to be an integer"
         assert (begin < end), "Beginning slice should be less than end"
 
-        self.value = expr
-        self.sign = expr.sign
-        self.vexity = expr.vexity
-        self.shape = expr.shape.slice(begin, end, dim)
-        self.isknown = expr.isknown
+        super(Slice, self).__init__(expr, expr.slice(begin, end, dim), expr.sign)
 
         self.slice_dim = dim
         self.begin = begin
@@ -533,3 +489,12 @@ def _constant_folding(lhs,rhs,op,isop,do_op):
         right = op(lhs,rhs.right)
 
     return op(left, right)
+
+""" Simplifying comparisons
+"""
+def _compare(x,y,op,op_str):
+    if isconstant(x) and isconstant(y):
+        if op(x.value, y.value): return None
+        raise ValueError("Boolean constraint %s %s %s is trivially infeasible." %(x,op_str,y))
+    else:
+        return RelOp(op_str, x - y, Constant(0))

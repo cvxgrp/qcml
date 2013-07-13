@@ -11,6 +11,8 @@ class Node(object):
         """
         pass
 
+    attr_names = () # attribute names to show
+
     def show(self, buf=sys.stdout, offset=0, attrnames=False, nodenames=False, _my_node_name=None):
         """ Pretty print the Node and all its attributes and
             children (recursively) to a buffer.

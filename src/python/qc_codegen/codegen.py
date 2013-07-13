@@ -1,5 +1,5 @@
 from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from codegen_util import *
+from expr import *
 
 """ Codegen template.
 """

@@ -119,7 +119,7 @@ def attributes(x,p,q):
         def pow_rat_err(arg):
             raise TypeError("Nonexistent implementation for %s^(%s/%s)" % (arg.value, rat[0], rat[1]))
 
-        scoop.qc_atoms.pow_func, attributes = valid.get(rat, (None, pow_rat_err))
+        qcml.qc_atoms.pow_func, attributes = valid.get(rat, (None, pow_rat_err))
         return attributes(x)
 
     else:
@@ -128,6 +128,6 @@ def attributes(x,p,q):
 # pow_rat(x,p,q) = x.^(p/q)
 @annotate('pow_rat')
 def rewrite(node,x,p,q):
-    return scoop.qc_atoms.pow_func(node, x)
+    return qcml.qc_atoms.pow_func(node, x)
 
 

@@ -1,4 +1,4 @@
-from qcml.qc_ast import Constant, ispositive
+from qcml.qc_ast import Constant, isnegative
 import qc_max
 from utils import annotate
 

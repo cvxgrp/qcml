@@ -308,7 +308,7 @@ class QCParser(object):
         elif isinstance(p[1], int): p[0] = Constant(float(p[1]))
         elif isinstance(p[1], Variable): p[0] = ToVector(p[1])
         elif isinstance(p[1], Parameter): p[0] = ToMatrix(p[1])
-        else: self._print_err("Unknown identifier '%s'" % p[1])
+        else: self._print_err(p[1], "Unknown identifier '%s'" % p[1])
 
     def p_expression_sum(self,p):
         'expression : SUM LPAREN expression RPAREN'

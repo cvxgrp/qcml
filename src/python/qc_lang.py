@@ -118,7 +118,7 @@ class QCML(object):
             else: return
         if self.state is ParseState.CODEGEN and self.__dims:
             def codegen_err(dims, **kwargs):
-                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", codegen_objects.keys())
+                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", self.codegen_objects.keys())
 
             self.__codegen = self.codegen_objects.get(mode, codegen_err)(self.__dims, **kwargs)
             self.__codegen.visit(self.__problem_tree)
