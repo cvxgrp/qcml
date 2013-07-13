@@ -41,15 +41,12 @@ def matlab_slice(self):
         raise Exception("Slice didn't do what I thought it would....")
 
 class MatlabCodegen(Codegen):
-    def __init__(self, cone_size=None, **kwargs):
+    def __init__(self, dims, cone_size=None):
         """
             cone_size
                 fixed size of SOC cone. must be 3 or greater
-
-            kwargs
-                dictionary of problem dimensions
         """
-        super(MatlabCodegen,self).__init__()
+        super(MatlabCodegen,self).__init__(dims)
 
         Ones.__str__ = matlab_ones
         Eye.__str__ = matlab_eye
@@ -57,7 +54,6 @@ class MatlabCodegen(Codegen):
         Slice.__str__ = matlab_slice
 
         self.comment = '%'
-        self.args = kwargs
         if cone_size is not None:
             self.cone_size = max(3,cone_size)
         else:
@@ -65,27 +61,27 @@ class MatlabCodegen(Codegen):
 
         self.new_soc_vars = 0
 
-    def visit_Program(self, node):
-        # check to make sure dimensions are defined
-        dimensions_defined = map(lambda x: x in node.dimensions, self.args.keys())
-        if dimensions_defined and all(dimensions_defined):
-            ast.Dimension.lookup = self.args  # set the dimension lookup table
-            node.dimensions = []            # empty out the dimension list
-        else:
-            raise Exception("MatlabCodegen: Dimensions need to be defined for Matlab.")
-        super(MatlabCodegen,self).visit_Program(node)
-        ast.Dimension.lookup = None    # reset the lookup table
+    # def visit_Program(self, node):
+    #     # check to make sure dimensions are defined
+    #     dimensions_defined = map(lambda x: x in node.dimensions, self.args.keys())
+    #     if dimensions_defined and all(dimensions_defined):
+    #         ast.Dimension.lookup = self.args  # set the dimension lookup table
+    #         node.dimensions = []            # empty out the dimension list
+    #     else:
+    #         raise Exception("MatlabCodegen: Dimensions need to be defined for Matlab.")
+    #     super(MatlabCodegen,self).visit_Program(node)
+    #     ast.Dimension.lookup = None    # reset the lookup table
 
     def visit_Slice(self, node):
         self.generic_visit(node)
         e = self.expr_stack.pop()
         a = {}
         for k,v in e.iteritems():
-            a[k] = v.slice(node.begin, node.end)
+            a[k] = v.eval(self.dims).slice(node.begin, node.end)
 
         self.expr_stack.append(a)
 
-    def function_prototype(self, dims, params):
+    def function_prototype(self):
         # maybe put params into a sparse structure?
         return [""] #["function result = solve(%s)" % ', '.join(dims + params)]
 
@@ -95,7 +91,7 @@ class MatlabCodegen(Codegen):
         "% Solves the optimization problem",
         "%     TODO",
         "%",
-        "%% dimensions are: %s" % self.args,
+        "%% dimensions are: %s" % self.dims,
         ""]
 
     def function_datastructures(self):
@@ -229,9 +225,8 @@ class MatlabCodegen(Codegen):
             # look at the size of the SOC
             cone_length = 1
             for e in node.left:
-                dim = ast.Dimension(e.shape.size_str())
-                # convert dimension to integer
-                cone_length += int(str(dim))
+                dim = e.shape.eval(self.dims).size()
+                cone_length += dim
 
             while cone_length > self.cone_size:
                 # maximum number of elements on the lhs
@@ -244,7 +239,7 @@ class MatlabCodegen(Codegen):
                 create_new = True
                 for e in node.left:
                     if create_new:
-                        dim = int(str( ast.Dimension(e.shape.size_str()) ))
+                        dim = e.shape.eval(self.dims).size()
                         # if the dimension of the current expression doesn't
                         # exceed the max allowable, just push onto argument stack
                         if cum + dim <= max_lhs:
@@ -266,9 +261,9 @@ class MatlabCodegen(Codegen):
                 new_var = self.__create_variable(Scalar())
 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = ast.Dimension(1)
+                self.varlength[new_var.value] = 1
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += ast.Dimension(1)
+                self.num_vars += 1
 
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOC(ast.SOC(new_var, new_args))
@@ -286,9 +281,9 @@ class MatlabCodegen(Codegen):
                 node.left.append(new_var)
 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = ast.Dimension(new_length)
+                self.varlength[new_var.value] = new_length
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += ast.Dimension(new_length)
+                self.num_vars += new_length
 
         super(MatlabCodegen,self).visit_SOC(node)
 
@@ -312,12 +307,12 @@ class MatlabCodegen(Codegen):
                     else: old_args.append(e)
                     count += 1
 
-                new_var = self.__create_variable(node.shape)
+                new_var = self.__create_variable(node.shape.eval(self.dims))
 
                 # now add to varlength, varstart, and num_vars
-                self.varlength[new_var.value] = ast.Dimension(node.shape.row)
+                self.varlength[new_var.value] = node.shape.eval(self.dims).size()
                 self.varstart[new_var.value] = self.num_vars
-                self.num_vars += ast.Dimension(node.shape.row)
+                self.num_vars += node.shape.eval(self.dims).size()
 
                 # process the new cone, which has the right size
                 super(MatlabCodegen,self).visit_SOCProd(ast.SOCProd(new_var, new_args))
@@ -332,12 +327,12 @@ class MatlabCodegen(Codegen):
                 # create a new variable and append to the node
                 new_length = self.cone_size - cone_length
                 for i in range(new_length):
-                    new_var = self.__create_variable(node.shape)
+                    new_var = self.__create_variable(node.shape.eval(self.dims))
                     node.arglist.append(new_var)
 
                     # now add to varlength, varstart, and num_vars
-                    self.varlength[new_var.value] = ast.Dimension(node.shape.row)
+                    self.varlength[new_var.value] = node.shape.eval(self.dims).size()
                     self.varstart[new_var.value] = self.num_vars
-                    self.num_vars += ast.Dimension(node.shape.row)
+                    self.num_vars += node.shape.eval(self.dims).size()
 
         super(MatlabCodegen,self).visit_SOCProd(node)

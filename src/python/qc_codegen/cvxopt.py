@@ -19,15 +19,15 @@ def cvxopt_parameter(self):
 
 
 class CVXOPTCodegen(PythonCodegen):
-    def __init__(self):
+    def __init__(self, dims):
         Ones.__str__ = cvxopt_ones
         Eye.__str__ = cvxopt_eye
         Transpose.__str__ = cvxopt_trans
         Parameter.__str__ = cvxopt_parameter
-        super(CVXOPTCodegen,self).__init__()
+        super(CVXOPTCodegen,self).__init__(dims)
 
-    def function_prototype(self, dims, params):
-        return ["def solve(dims, params):"] # % ', '.join(dims + params)]
+    def function_prototype(self):
+        return ["def solve(params):"] # % ', '.join(dims + params)]
 
     def function_preamble(self):
         return [

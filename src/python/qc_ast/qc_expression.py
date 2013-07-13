@@ -1,121 +1,12 @@
-from qc_ast import Node, RelOp
+from qc_ast import RelOp
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from ast import Node
 
 import qcml
 import operator
 import re
-
-""" Utility functions
-"""
-def negate_node(x):
-    """ Negates an AST node"""
-
-    def _negate(x):
-        """ Ensures Negate(Negate(x)) is just x."""
-        if isinstance(x, Negate):
-            return x.expr
-        else:
-            return Negate(x)
-
-    if isconstant(x):
-        return Constant(-x.value)
-    elif isadd(x):
-        if isconstant(x.left):
-            return Add(Constant(-x.left.value), _negate(x.right))
-        else:
-            return Add(_negate(x.left), _negate(x.right))
-    elif ismul(x):
-        if isconstant(x.left):
-            return Mul(Constant(-x.left.value), x.right)
-        else:
-            return Mul(_negate(x.left), x.right)
-    else:
-        return _negate(x)
-
-def constant_folding(lhs,rhs,op,isop,do_op):
-    """ Generic code for constant folding. Only for associative operators.
-
-        op:
-            Operation node (must be AST Node subclass)
-
-        isop:
-            Function to check if a Node is this op
-
-        do_op:
-            Execute the operator (e.g, for Add node, this is operator.add)
-    """
-    if isconstant(lhs) and isconstant(rhs):
-        return Constant(do_op(lhs.value, rhs.value))
-
-    left = lhs
-    right = rhs
-    if isconstant(lhs) and isop(rhs):
-        # left is constant and right is the result of an add
-        # by convention, we'll put constants on the left leaf
-        if isconstant(rhs.left):
-            right = rhs.right
-            left = Constant(do_op(rhs.left.value,lhs.value))
-        else:
-            right = rhs
-            left = lhs
-    elif isconstant(rhs) and isop(lhs):
-        # right is constant and left is the result of an add
-        # by convention, we'll put constants on the left leaf
-        if isconstant(lhs.left):
-            right = lhs.right
-            left = Constant(do_op(lhs.left.value,rhs.value))
-    elif isop(lhs) and isop(rhs) and isconstant(lhs.left) and isconstant(rhs.left):
-        # if adding two add nodes with constants on both sides
-        left = Constant(do_op(lhs.left.value, rhs.left.value))
-        right = op(lhs.right, rhs.right)
-    elif isop(lhs) and isconstant(lhs.left):
-        # if there are constants on the lhs, move up tree
-        left = lhs.left
-        right = op(lhs.right, rhs)
-    elif isop(rhs) and isconstant(rhs.left):
-        # if there are constants on the rhs, move up tree
-        left = rhs.left
-        right = op(lhs,rhs.right)
-
-    return op(left, right)
-
-def constant_folding_add(lhs,rhs):
-    if isconstant(lhs) and lhs.value == 0:
-        return rhs
-    if isconstant(rhs) and rhs.value == 0:
-        return lhs
-    return constant_folding(lhs, rhs, Add, isadd, operator.add)
-
-def constant_folding_mul(lhs,rhs):
-    if isconstant(lhs) and lhs.value == 1:
-        return rhs
-    if isconstant(rhs) and rhs.value == 1:
-        return lhs
-    if isconstant(lhs) and lhs.value == 0:
-        return Constant(0)
-    if isconstant(rhs) and rhs.value == 0:
-        return Constant(0)
-    return constant_folding(lhs, rhs, Mul, ismul, operator.mul)
-
-def distribute(lhs, rhs):
-    """ Distribute multiply a*(x + y) = a*x + a*y
-    """
-    if isadd(lhs):
-        return constant_folding_add(
-            distribute(lhs.left, rhs),
-            distribute(lhs.right, rhs)
-        )
-    elif isadd(rhs):
-        return constant_folding_add(
-            distribute(lhs,rhs.left),
-            distribute(lhs,rhs.right)
-        )
-    elif isnegate(rhs):
-        return constant_folding_mul(negate_node(lhs), rhs.expr)
-    else:
-        return constant_folding_mul(lhs,rhs)
 
 def isconstant(x):
     return isinstance(x, Constant)
@@ -132,51 +23,41 @@ def isnegate(x):
 def isparameter(x):
     return isinstance(x, Parameter)
 
-class Expression(Node):
-    """ Expression AST node.
+class AbstractExpression(Node):
+    """ AbstractExpression AST node.
 
-        Abstract Expression class.
+        Abstract class.
     """
-    def __neg__(self):
-        return negate_node(self)
+    def __neg__(self): return negate_node(self)
 
-    def __sub__(self,other):
-        return constant_folding_add(self, -other)
+    def __sub__(self,other): return constant_folding_add(self, -other)
 
-    def __add__(self,other):
-        return constant_folding_add(self,other)
+    def __add__(self,other): return constant_folding_add(self,other)
 
-    def __mul__(self,other):
-        return distribute(self, other)
+    def __mul__(self,other): return distribute(self, other)
 
     def __eq__(self, other):
         if isconstant(self) and isconstant(other):
-            if self.value == other.value:
-                return None
-            else:
-                raise TypeError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
+            if self.value == other.value: return None
+            raise ValueError("Boolean constraint %s == %s is trivially infeasible." % (self, other))
         else:
             return RelOp('==', self - other, Constant(0))
 
     def __le__(self, other):
         if isconstant(self) and isconstant(other):
-            if self.value <= other.value:
-                return None
-            else:
-                raise TypeError("Boolean constraint %s <= %s is trivially infeasible." % (self, other))
+            if self.value <= other.value: return None
+            raise ValueError("Boolean constraint %s <= %s is trivially infeasible." % (self, other))
         else:
             return RelOp('<=', self - other, Constant(0))
 
     def __ge__(self, other):
         if isconstant(self) and isconstant(other):
-            if self.value >= other.value:
-                return None
-            else:
-                raise TypeError("Boolean constraint %s >= %s is trivially infeasible." % (self, other))
+            if self.value >= other.value: return None
+            raise ValueError("Boolean constraint %s >= %s is trivially infeasible." % (self, other))
         else:
             return RelOp('<=', other - self, Constant(0))
 
-class Constant(Expression):
+class Constant(AbstractExpression):
     """ Constant AST node.
 
         Contains a floating point number. It is Affine; its sign depends on
@@ -185,10 +66,8 @@ class Constant(Expression):
     def __init__(self, value):
         self.value = value  # this is a float
         self.vexity = Affine()
-        if float(value) >= 0.0:
-            self.sign = Positive()
-        else:
-            self.sign = Negative()
+        if float(value) >= 0.0: self.sign = Positive()
+        else: self.sign = Negative()
         self.shape = Scalar()
         self.isknown = True # whether or not the expression is known at
                             # runtime, used to keep track of "param" * "var"
@@ -201,7 +80,7 @@ class Constant(Expression):
 
     attr_names = ('value', 'vexity', 'sign')
 
-class Parameter(Expression):
+class Parameter(AbstractExpression):
     """ Parameter AST node.
 
         Contains a representation of Parameters. It is Affine; its sign and
@@ -222,7 +101,7 @@ class Parameter(Expression):
 
     attr_names = ('value', 'vexity', 'sign','shape')
 
-class Variable(Expression):
+class Variable(AbstractExpression):
     """ Variable AST node.
 
         Contains a representation of Variables. It is Affine; its sign is
@@ -316,13 +195,14 @@ class ToMatrix(Parameter):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-""" Expression AST nodes
+""" AbstractExpression AST nodes
 
     What follows are nodes that are used to form expressions.
 """
-class Add(Expression):
+class Add(AbstractExpression):
     def __init__(self, left, right):
         if isconstant(right):
+            # put constants on the "left" of the AST
             self.right = left
             self.left = right
         else:
@@ -344,7 +224,7 @@ class Add(Expression):
 
     attr_names = ('vexity', 'sign','shape')
 
-class Sum(Expression):
+class Sum(AbstractExpression):
     def __init__(self, x):
         self.arg = x
         self.sign = x.sign
@@ -362,7 +242,7 @@ class Sum(Expression):
     attr_names = ('vexity', 'sign','shape')
 
 
-class Mul(Expression):
+class Mul(AbstractExpression):
     """ Assumes the lefthand side is a Constant or a Parameter.
 
         Effectively a unary operator.
@@ -375,15 +255,17 @@ class Mul(Expression):
             self.left = left
             self.right = right
 
-        self.sign = left.sign * right.sign
-        self.shape = left.shape * right.shape
-        self.isknown = left.isknown & right.isknown
-        if left.isknown:
+        self.sign = self.left.sign * self.right.sign
+        self.shape = self.left.shape * self.right.shape
+        self.isknown = self.left.isknown & self.right.isknown
+        if self.left.isknown:
             if isaffine(self.right):
                 self.vexity = Affine()
-            elif (isconvex(self.right) and ispositive(self.left)) or (isconcave(self.right) and isnegative(self.left)):
+            elif (isconvex(self.right) and ispositive(self.left)) or \
+                 (isconcave(self.right) and isnegative(self.left)):
                 self.vexity = Convex()
-            elif (isconcave(self.right) and ispositive(self.left)) or (isconvex(self.right) and isnegative(self.left)):
+            elif (isconcave(self.right) and ispositive(self.left)) or \
+                 (isconvex(self.right) and isnegative(self.left)):
                 self.vexity = Concave()
             else:
                 self.vexity = Nonconvex()
@@ -403,7 +285,7 @@ class Mul(Expression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Negate(Expression):
+class Negate(AbstractExpression):
     def __init__(self, expr):
         self.expr = expr
         self.sign = -expr.sign
@@ -421,7 +303,7 @@ class Negate(Expression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Transpose(Parameter,Expression):
+class Transpose(Parameter,AbstractExpression):
     """ Can only be applied to parameters
     """
     def __init__(self, expr):
@@ -440,7 +322,7 @@ class Transpose(Parameter,Expression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Slice(Parameter,Variable,Expression):
+class Slice(Parameter,Variable,AbstractExpression):
     """ Can only be applied to parameters or variables.
 
         At the moment, assumes that begin and end are of type int
@@ -477,7 +359,7 @@ class Slice(Parameter,Variable,Expression):
 
     attr_names = ('vexity', 'sign', 'shape')
 
-class Atom(Expression):
+class Atom(AbstractExpression):
     """ Atom AST node.
 
         Stores the name of the atom and its arguments
@@ -502,7 +384,7 @@ class Atom(Expression):
 
     attr_names = ('name', 'vexity', 'sign', 'shape')
 
-class Norm(Expression):
+class Norm(AbstractExpression):
     def __init__(self, args):
         self.arglist = args
         self.sign, self.vexity, self.shape = qcml.qc_atoms.norm(args)
@@ -517,7 +399,7 @@ class Norm(Expression):
 
     attr_names = ('vexity', 'sign','shape')
 
-class Abs(Expression):
+class Abs(AbstractExpression):
     def __init__(self, x):
         self.arg = x
         self.sign, self.vexity, self.shape = qcml.qc_atoms.abs_(self.arg)
@@ -532,7 +414,7 @@ class Abs(Expression):
 
     attr_names = ('vexity', 'sign','shape')
 
-class Vstack(Expression):
+class Vstack(AbstractExpression):
     """ Vstack AST node.
 
         Forms the vertical concatenation: [x; y; z].
@@ -551,3 +433,103 @@ class Vstack(Expression):
         return tuple(nodelist)
 
     attr_names = ('vexity', 'sign', 'shape')
+
+
+""" Utility functions for expressions.
+"""
+def negate_node(x):
+    """ Negates an AST node"""
+
+    def _negate(x):
+        """ Ensures Negate(Negate(x)) is just x."""
+        if isnegate(x): return x.expr
+        else: return Negate(x)
+
+    if isconstant(x): return Constant(-x.value)
+    if isadd(x):
+        if isconstant(x.left): return Add(Constant(-x.left.value), _negate(x.right))
+        return Add(_negate(x.left), _negate(x.right))
+    if ismul(x):
+        if isconstant(x.left): return Mul(Constant(-x.left.value), x.right)
+        return Mul(_negate(x.left), x.right)
+    return _negate(x)
+
+def constant_folding_add(lhs,rhs):
+    if isconstant(lhs) and lhs.value == 0: return rhs
+    if isconstant(rhs) and rhs.value == 0: return lhs
+    return _constant_folding(lhs, rhs, Add, isadd, operator.add)
+
+def constant_folding_mul(lhs,rhs):
+    if isconstant(lhs) and lhs.value == 1: return rhs
+    if isconstant(rhs) and rhs.value == 1: return lhs
+    if isconstant(lhs) and lhs.value == 0: return Constant(0)
+    if isconstant(rhs) and rhs.value == 0: return Constant(0)
+    return _constant_folding(lhs, rhs, Mul, ismul, operator.mul)
+
+def distribute(lhs, rhs):
+    """ Distribute multiply a*(x + y) = a*x + a*y
+    """
+    if isadd(lhs):
+        return constant_folding_add(
+            distribute(lhs.left, rhs),
+            distribute(lhs.right, rhs)
+        )
+    elif isadd(rhs):
+        return constant_folding_add(
+            distribute(lhs,rhs.left),
+            distribute(lhs,rhs.right)
+        )
+    elif isnegate(rhs):
+        return constant_folding_mul(negate_node(lhs), rhs.expr)
+    else:
+        return constant_folding_mul(lhs,rhs)
+
+""" Constant folding...
+    TODO: explain how this works...
+"""
+def _constant_folding(lhs,rhs,op,isop,do_op):
+    """ Generic code for constant folding. Only for associative operators.
+
+        op:
+            Operation node (must be AST Node subclass)
+
+        isop:
+            Function to check if a Node is this op
+
+        do_op:
+            Execute the operator (e.g, for Add node, this is operator.add)
+    """
+    if isconstant(lhs) and isconstant(rhs):
+        return Constant(do_op(lhs.value, rhs.value))
+
+    left = lhs
+    right = rhs
+    if isconstant(lhs) and isop(rhs):
+        # left is constant and right is the result of an add
+        # by convention, we'll put constants on the left leaf
+        if isconstant(rhs.left):
+            right = rhs.right
+            left = Constant(do_op(rhs.left.value,lhs.value))
+        else:
+            right = rhs
+            left = lhs
+    elif isconstant(rhs) and isop(lhs):
+        # right is constant and left is the result of an add
+        # by convention, we'll put constants on the left leaf
+        if isconstant(lhs.left):
+            right = lhs.right
+            left = Constant(do_op(lhs.left.value,rhs.value))
+    elif isop(lhs) and isop(rhs) and isconstant(lhs.left) and isconstant(rhs.left):
+        # if adding two add nodes with constants on both sides
+        left = Constant(do_op(lhs.left.value, rhs.left.value))
+        right = op(lhs.right, rhs.right)
+    elif isop(lhs) and isconstant(lhs.left):
+        # if there are constants on the lhs, move up tree
+        left = lhs.left
+        right = op(lhs.right, rhs)
+    elif isop(rhs) and isconstant(rhs.left):
+        # if there are constants on the rhs, move up tree
+        left = rhs.left
+        right = op(lhs,rhs.right)
+
+    return op(left, right)

@@ -1,49 +1,47 @@
+from use import use
+from abc import ABCMeta
 
+@use('sign')
 def ispositive(x):
-    return x.sign.value > 0
+    return isinstance(x, Positive)
 
+@use('sign')
 def isnegative(x):
-    return x.sign.value < 0
+    return isinstance(x, Negative)
 
-# @staticmethod
-# def isneither(x):
-#     return isinstance(x.sign, Neither)
-
-class Sign(object):
-    def __init__(self, value=0):
-        # uses math to keep track of the sign
-        if value == 0: self.value = 0   # neither
-        elif value > 0: self.value = 1  # positive
-        else: self.value = -1           # negative
+class AbstractSign(object):
+    """ Sign is an abstract base class and should never be created.
+    """
 
     def __add__(self,other):
-        val = self.value + other.value
-        if val == 2: return Positive()
-        if val == -2: return Negative()
+        if ispositive(self) and ispositive(other): return Positive()
+        if isnegative(self) and isnegative(other): return Negative()
         return Neither()
 
     def __sub__(self,other):
-        val = self.value - other.value
-        if val == 2: return Positive()
-        if val == -2: return Negative()
+        if ispositive(self) and isnegative(other): return Positive()
+        if isnegative(self) and ispositive(other): return Negative()
         return Neither()
 
     def __mul__(self,other):
-        return Sign(self.value * other.value)
+        if ispositive(self) and ispositive(other): return Positive()
+        if ispositive(self) and isnegative(other): return Negative()
+        if isnegative(self) and isnegative(other): return Positive()
+        if isnegative(self) and ispositive(other): return Negative()
+        return Neither()
 
     def __neg__(self):
-        return Sign(-self.value)
+        if ispositive(self): return Negative()
+        if isnegative(self): return Positive()
+        return Neither()
 
     def __str__(self):
-        if self.value ==0: return "neither"
-        if self.value > 0: return "positive"
-        if self.value < 0: return "negative"
+        if ispositive(self): return "positive"
+        if isnegative(self): return "negative"
+        return "neither"
 
-""" Convenience functions for creating signs. Uppercase to "fake" class
-    creation.
-"""
-def Positive(): return Sign(1)
+class Neither(AbstractSign): pass
 
-def Negative(): return Sign(-1)
+class Positive(AbstractSign): pass
 
-def Neither(): return Sign(0)
+class Negative(AbstractSign): pass

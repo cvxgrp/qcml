@@ -2,7 +2,7 @@ import qc_geo_mean
 import qc_square
 import qc_sqrt
 import qc_square_over_lin
-from qcml.qc_ast import Variable, isconstant, Expression, Convex, Concave, increasing
+from qcml.qc_ast import Variable, isconstant, Convex, Concave, increasing
 from utils import create_varname, annotate
 
 import qcml

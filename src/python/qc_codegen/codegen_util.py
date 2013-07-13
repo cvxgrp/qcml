@@ -26,6 +26,7 @@
     TODO: Possibly figure out how to redefine __str__ without this happening.
     TODO: Or, better, figure out how to modify operators to return the appropriate
         subclass.
+    TODO: Add test cases to CodegenExpr
 
     Neither approaches above seem very likely.
 """
@@ -155,6 +156,8 @@ class Parameter(CodegenExpr):
         self.value = value
         self.isknown = True
         self.isscalar = False
+
+    def __str__(self): return self.value
 
 class ScalarParameter(Parameter):
     def __init__(self,value):

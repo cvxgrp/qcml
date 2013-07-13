@@ -93,9 +93,11 @@ if __name__ == "__main__":
     """)
 
     # p.canonicalize()
-    #
-    # p.print_canon()
-    # p.codegen("cvx")
+    # p.set_dims({'n': n, 'm': m})
+    # p.codegen("cvxopt")
+    # #
+    # # p.print_canon()
+    # # p.codegen("cvx")
     # p.prettyprint(True)
 
     s = p.solve(locals())

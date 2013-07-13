@@ -33,12 +33,10 @@ class Codegen(NodeVisitor):
     """
     offset = 4*' '
     constraint = 8*' '
-     # the lookup is for adding comments
-     # we can actually pass the lookup from the rewriter to the code generator
-     # however, i am not doing that at the moment
-    def __init__(self):
+
+    def __init__(self, dims = None):
         """ Walks the tree and creates the data structures.
-            Calls the solver.
+            Creates the solver.
         """
         self.prog = []          # the full program
         self.body = []          # just the stuffing components
@@ -51,7 +49,7 @@ class Codegen(NodeVisitor):
         self.num_conic = 0
         self.cone_list = []
         self.comment = '#'
-        self.dimension_map = None
+        self.dims = dims    # dimension map
 
     def prettyprint(self,lineno=False):
         """ Pretty prints the source code, possibly with line numbers
@@ -61,7 +59,7 @@ class Codegen(NodeVisitor):
         else:
             print '\n'.join(self.prog)
 
-    def function_prototype(self, dims, params):
+    def function_prototype(self):
         """ Gives the function prototype of the generated function.
             TODO: There may be more than one function generated....
             TODO: Supply function name...
@@ -128,8 +126,17 @@ class Codegen(NodeVisitor):
         pass
 
     def visit_Program(self, node):
-        dims = map(str, node.dimensions)    # also includes unused dimensions
-        params = map(str, node.parameters)
+        if self.dims is None:
+            raise ValueError("Needed to define the dimensions of the code generator.")
+
+        # def set_all_dims(x):
+        #     return {k: v.shape.eval(self.dims) for k,v in x.iteritems()}
+        # #dims = map(str, node.dimensions)    # also includes unused dimensions
+        # # params = map(str, node.parameters)
+        #
+        # node.variables = set_all_dims(node.variables)
+        # node.new_variables = set_all_dims(node.new_variables)
+        # node.params = set_all_dims(node.params)
 
         # keep track of original variables
         self.orig_varnames = set(node.variables.keys())
@@ -137,27 +144,32 @@ class Codegen(NodeVisitor):
         # create variable ordering
         # "_" variables are original variables
         # XXX: at this moment, assumes that variables are vectors (not arrays)
-        self.varlength = [('_' + k,v.shape.row) for k,v in node.variables.items()]
-        self.varlength += [(k,v.shape.row) for k,v in node.new_variables.items()]
+        # varlength contains the vector lengths as ints
+        self.varlength = {'_' + k: v.shape.eval(self.dims).size() \
+            for k,v in node.variables.iteritems()
+        }
+        self.varlength.update({k: v.shape.eval(self.dims).size() \
+            for k,v in node.new_variables.iteritems()
+        })
 
         self.varstart = []
-        for k,v in self.varlength:
+        for k,v in self.varlength.iteritems():
             self.varstart.append( (k, self.num_vars) )
             self.num_vars += v
 
-        # varstart contains the start indicies as strings
+        # varstart contains the start indicies as ints
         self.varstart = dict(self.varstart)
-        # varlength contains the vector lengths as strings
-        self.varlength = dict(self.varlength)
 
         # visit all the node
         self.generic_visit(node)
 
         # now, write the program
-        self.prog = self.function_prototype(dims, params)
+        self.prog = self.function_prototype()
         self.prog += map(lambda x: self.offset + x, self.function_preamble())
         self.prog += map(lambda x: self.offset + x,[
-            "%s '%s' has shape %s" % (self.comment, v, v.shape) for v in node.parameters.values()
+            "%s '%s' has shape %s" % \
+            (self.comment, v, v.shape.eval(self.dims)) \
+            for v in node.parameters.values()
         ])
         self.prog.append("")
         self.prog += map(lambda x: self.offset + x, self.function_datastructures())
@@ -169,13 +181,13 @@ class Codegen(NodeVisitor):
 
 
     def visit_Variable(self, node):
-        n = node.shape.size()
+        n = node.shape.eval(self.dims).size()
         if node.value in self.orig_varnames:
             k = '_' + node.value
         else:
             k = node.value
 
-        if n == "1":
+        if n == 1:
             lineq = {k: Constant(1)}
         else:
             lineq = {k: Eye(n, Constant(1))}
@@ -228,7 +240,7 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
 
         for k in arg.keys():
-            n = node.arg.shape.row
+            n = node.arg.shape.eval(self.dims).size()
             arg[k] = Ones(n, Constant(1), True) * arg[k]
 
         self.expr_stack.append(arg)
@@ -287,10 +299,10 @@ class Codegen(NodeVisitor):
 
         if node.op == '==':
             start = self.num_lineqs
-            self.num_lineqs += node.shape.row
+            self.num_lineqs += node.shape.eval(self.dims).size()
         else:
             start = self.num_lps
-            self.num_lps += node.shape.row
+            self.num_lps += node.shape.eval(self.dims).size()
 
 
         self.generic_visit(node)
@@ -328,11 +340,11 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
 
-        start += [start[-1] + node.right.shape.row]
-        cone_length = node.right.shape.row
+        start += [start[-1] + node.right.shape.eval(self.dims).size()]
+        cone_length = node.right.shape.eval(self.dims).size()
         for e in node.left:
-            start += [start[-1] + e.shape.row]
-            cone_length += e.shape.row
+            start += [start[-1] + e.shape.eval(self.dims).size()]
+            cone_length += e.shape.eval(self.dims).size()
 
         self.num_conic += cone_length
         self.cone_list.append( (1, str(cone_length)) )
@@ -367,9 +379,9 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
         stride = len(node.arglist) + 1
-        self.num_conic += stride * node.shape.size()
+        self.num_conic += stride * node.shape.eval(self.dims).size()
 
-        self.cone_list.append( (node.shape.row, str(len(node.arglist) + 1)) )
+        self.cone_list.append( (node.shape.eval(self.dims).size(), str(len(node.arglist) + 1)) )
 
         self.generic_visit(node)
 
@@ -400,8 +412,4 @@ class PythonCodegen(Codegen):
     def codegen(self):
         # execute bytecode to create the "solve" function
         exec '\n'.join(self.prog) in locals()
-        # TOOD?: wrap the solve function so that params dict is unwrapped
-        # def wrapper(params):
-        #     solve(**params)
-        # return the wrapped function
         return solve

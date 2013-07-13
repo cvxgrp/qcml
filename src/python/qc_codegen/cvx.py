@@ -8,7 +8,8 @@ class CVXCodegen(NodeVisitor):
      # we can actually pass the lookup from the rewriter to the code generator
      # however, i am not doing that at the moment
 
-    def __init__(self):
+    def __init__(self, dims = None):
+        # second argument is ignored
         self.prog = []
 
     def prettyprint(self,lineno=False):

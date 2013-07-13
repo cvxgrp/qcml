@@ -1,22 +1,32 @@
 import itertools
+from use import use
 
-# wrapper for checking if hasattr "shape"
-def useshape(shape_fn):
-    def wrapped(x):
-        if hasattr(x, 'shape'): return shape_fn(x.shape)
-        else: return shape_fn(x)
-    return wrapped
+""" Shape class (and its helpers)
+    This exposes the class Shape, and the three Shape constructors: Scalar,
+    Vector, and Matrix.
+
+    TODO: Scalar, Vector, and Matrix could be represented as subclasses of
+    Shape. This was the original implementation but was rejected because we
+    had to catch cases such as (1,n) * (n,1) --> 1.
+
+    Since Shapes are determined by their dimensions (i.e., a (3,1) matrix is
+    a vector), it is easier to determine whether something is a matrix,
+    vector, or scalar from the dimension data than from the class itself.
+
+    Otherwise, the design of this module ought to be similar to qc_sign and
+    qc_vexity.
+"""
 
 # public utility functions
-@useshape
+@use('shape')
 def isvector(x):
     return x.col == 1 and ismatrix(x)
 
-@useshape
+@use('shape')
 def isscalar(x):
     return x.row == 1 and isvector(x)
 
-@useshape
+@use('shape')
 def ismatrix(x):
     return x.num_dimensions <= 2
 
@@ -38,6 +48,7 @@ class Shape(object):
         """
         # ensure that dimensions contains ints if possible
         dimensions = map(_int_or_str, dimensions)
+        # if all ints, the shape is already instantiated
         self.instantiated = all(type(elem) == int for elem in dimensions)
         self.dimensions = _strip_trailing_ones(dimensions)
         self.num_dimensions = len(self.dimensions)
@@ -60,7 +71,10 @@ class Shape(object):
             raise ValueError("Cannot compute size of abstract dimension")
 
     def __str__(self):
-        return "%s([%s])" % (self.__class__.__name__, ', '.join(map(str, self.dimensions)))
+        if ismatrix(self): return "Matrix(%s,%s)" % (self.row, self.col)
+        if isvector(self): return "Vector(%s)" % self.row
+        if isscalar(self): return "Scalar()"
+        return "Shape([%s])" % (', '.join(map(str, self.dimensions)))
 
     def eval(self, dimension_dictionary):
         # dimension_dictionary is a dictionary of {string: int}
@@ -74,12 +88,26 @@ class Shape(object):
                 self.instantiated = True
             except ValueError:
                 raise Exception("Couldn't find corresponding dimension definition.")
+        # returns self so we can chain .eval(...).size(), etc.
+        # allows us to do javascript style programming
+        return self
 
     def transpose(self):
         # blindly swaps rows and cols, creates a new Shape
-        return Shape([self.col, self.row])
+        if ismatrix(self):
+            return Shape([self.col, self.row])
+        raise ValueError("Cannot transpose non-matrix.")
 
     def slice(self, begin, end, dim):
+        """ XXX: Can only handle concrete slices.
+            Abstract slices, such as
+                x(0:n-2)
+                A(5:n,0:m-n)
+            where m,n are dimensions cannot be handled at the moment.
+
+            It is debatable whether we need to support this. We can revisit
+            this discussion at a future time.
+        """
         if not self.instantiated:
             raise ValueError("Cannot slice an abstract dimension.")
         if dim >= self.num_dimensions:
@@ -97,15 +125,9 @@ class Shape(object):
         return Shape(new_dims)
 
     def __eq__(self, other):
-        if not (self.instantiated and other.instantiated):
-            raise ValueError("Cannot compare abstract dimensions.")
-
         return self.dimensions == other.dimensions
 
     def __add__(self, other):
-        if not (self.instantiated and other.instantiated):
-            raise ValueError("Cannot add abstract dimensions.")
-
         if self == other: return Shape(self.dimensions)
         if isscalar(self): return Shape(other.dimensions)
         if isscalar(other): return Shape(self.dimensions)
@@ -114,9 +136,6 @@ class Shape(object):
 
 
     def __mul__(self, other):
-        if not (self.instantiated and other.instantiated):
-            raise ValueError("Cannot multiply abstract dimensions.")
-
         if not (ismatrix(self) and ismatrix(other)):
             raise TypeError("Cannot multiply non-matrices.")
 
@@ -139,217 +158,3 @@ def Vector(n):
 
 def Matrix(m,n):
     return Shape([m,n])
-
-
-# from qc_dimension import Dimension
-#
-# # public utility functions
-# def isvector(x):
-#     return isinstance(x.shape, Vector)
-#
-# def isscalar(x):
-#     return isinstance(x.shape, Scalar)
-#
-# def ismatrix(x):
-#     return isinstance(x.shape, Matrix)
-#
-# # _isvector, _isscalar, and _ismatrix are local functions. compare to above
-# def _isvector(x):
-#     return isinstance(x, Vector) or (_ismatrix(x) and (x.col == 1))
-#
-# def _isscalar(x):
-#     return isinstance(x, Scalar) or (_isvector(x) and (x.row == 1))
-#
-# def _ismatrix(x):
-#     return isinstance(x, Matrix)
-#
-# # def stack(args):
-# #     """ Stacks the shapes.
-# #
-# #         args
-# #             list of shapes to stack
-# #     """
-# #     def _stack(x,y):
-# #         new_dimensions = []
-# #         if len(x.dimensions) == len(y.dimensions):
-# #             if x.dimensions[-1] == y.dimensions[-1]:
-# #                 for (e1,e2) in zip(x.dimensions[0:-1], y.dimensions[0:-1]):
-# #                     new_dimensions.append(str(e1) + ' + ' + str(e2))
-# #                 return Shape(new_dimensions)
-# #             else:
-# #                 raise TypeError("Cannot stack '%s' and '%s', since they do not agree in last dimension." % (x, y))
-# #         else:
-# #             raise TypeError("Cannot stack '%s' and '%s', since they are not the same shape." % (x, y))
-# #
-# #     return reduce(_stack, args)
-#
-# class Shape(object):
-#     def __init__(self, dimensions):
-#         """ Initializes an object
-#
-#             dimensions:
-#                 A list of strings and integers
-#         """
-#         self.dimensions = dimensions
-#
-#     __sub__ = None
-#     __eq__ = None
-#     __ne__ = None
-#     __add__ = None
-#     __mul__ = None
-#
-#     def __neg__(self): return self
-#
-#     def size_str(self):
-#         return "%s" % ('*'.join(map(str, self.dimensions)))
-#
-#     def __str__(self):
-#         return "%s(%s)" % (self.__class__.__name__, ', '.join(map(str, self.dimensions)))
-#
-#
-#
-#     def transpose(self):
-#         raise NotImplementedError("Transpose not implemented for %s" % self)
-#
-#     def slice(self, begin, end, dim):
-#         raise NotImplementedError("Slice not implemented for %s" % self)
-#
-#
-# # XXX / TODO: slicing
-#
-# class Matrix(Shape):
-#     def __init__(self, row, col):
-#         self.row = Dimension(row)
-#         self.col = Dimension(col)
-#         super(Matrix, self).__init__([row, col])
-#
-#
-#     def __add__(self, other):
-#         if _isscalar(other):
-#             return Matrix(self.row, self.col)
-#         elif _ismatrix(other):
-#             if self.row == other.row and self.col == other.col:
-#                 return Matrix(self.row, self.col)
-#             else:
-#                 raise TypeError("Cannot add / compare %s and %s; incompatible sizes." % (self, other))
-#         else:
-#             raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
-#
-#     def __mul__(self, other):
-#         if _isscalar(other):
-#             return Matrix(self.row, self.col)
-#         elif _ismatrix(other):
-#             if self.col == other.row:
-#                 if other.col == 1 and self.row == 1:
-#                     return Scalar()
-#                 elif other.col == 1:
-#                     return Vector(self.row)
-#                 else:
-#                     return Matrix(self.row, other.col)
-#             else:
-#                 raise TypeError("Cannot multiply %s and %s; incompatible sizes." % (self, other))
-#         else:
-#             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
-#
-#     def size_str(self): return "%s*%s" % (self.row, self.col)
-#
-#     def transpose(self):
-#         return Matrix(self.col, self.row)
-#
-#     def slice(self, begin, end, dim):
-#         if end - begin == 1 and dim == 1:
-#             # degrade
-#             return Vector(self.row)
-#         else:
-#             if dim == 0: return Matrix(end-begin, self.col)
-#             if dim == 1: return Matrix(self.row, end-begin)
-#             raise TypeError("Cannot slice dim = %d in a Matrix." % (dim+1))
-#
-# class Rank1Matrix(Matrix):
-#     """ Class for carrying around Rank 1 matrix. Not sure if it will be useful.
-#     """
-#     def __init__(self, left, right):
-#         self.left = left
-#         self.right = right
-#         super(Rank1Matrix, self).__init__(left.row, right.col)
-#
-#     def transpose(self):
-#         return Rank1Matrix(self.col, self.row)
-#
-# class Vector(Matrix):
-#     def __init__(self, row):
-#         super(Vector, self).__init__(row, 1)
-#
-#     def __add__(self, other):
-#         if _isscalar(other):
-#             return Vector(self.row)
-#         elif _isvector(other):
-#             if self.row == other.row:
-#                 return Vector(self.row)
-#             else:
-#                 raise TypeError("Cannot add / compare %s and %s; incompatible sizes." % (self, other))
-#         else:
-#             raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
-#
-#     __sub__ = __add__
-#
-#     def __mul__(self, other):
-#         # exludes Vector * Matrix (this should never happen, since we won't
-#         # have Matrix variables)
-#         if _isscalar(other):
-#             return Vector(self.row)
-#         elif _ismatrix(other):
-#             if other.row == 1:
-#                 # rank 1 multiply
-#                 return Rank1Matrix(self, other)
-#             else:
-#                 raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
-#         else:
-#             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
-#
-#     def size_str(self): return "%s" % self.row
-#
-#     def transpose(self):
-#         return Matrix(1, self.row)
-#
-#     def slice(self, begin, end, dim):
-#         if end - begin == 1 and dim == 0:
-#             # degrade
-#             return Scalar()
-#         else:
-#             if dim == 0: return Vector(end-begin)
-#             raise TypeError("Cannot slice dim = %d in a Matrix." % (dim+1))
-#
-# class Scalar(Vector):
-#     def __init__(self):
-#         super(Scalar, self).__init__(1)
-#
-#     def __add__(self, other):
-#         if _isscalar(other):
-#             return Scalar()
-#         elif _isvector(other):
-#             return Vector(other.row)
-#         elif _ismatrix(other):
-#             return Matrix(other.row, other.col)
-#         else:
-#             raise TypeError("No addition / compare operator implemented for '%s + %s'." % (self,other))
-#
-#     __sub__ = __add__
-#
-#     def __mul__(self, other):
-#         if _isscalar(other):
-#             return Scalar()
-#         elif _isvector(other):
-#             return Vector(other.row)
-#         elif _ismatrix(other):
-#             return Matrix(other.row, other.col)
-#         else:
-#             raise TypeError("No multiply operator implemented for '%s * %s'." % (self,other))
-#
-#     def size_str(self): return "1"
-#
-#     def transpose(self):
-#         return self
-#
-#     def slice(self, begin, end, dim):
-#         raise TypeError("Cannot slice a scalar.")
