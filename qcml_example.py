@@ -2,32 +2,6 @@ from qcml import QCML
 
 import cvxopt as o
 
-def another_test(m,n):
-    p = QCML(debug=False)
-    p.parse("""
-        dimensions m n
-        variable a(n)
-        variable b
-        parameter X(m,n)      # positive samples
-        parameter Y(m,n)      # negative samples
-        parameter Z(m,n)
-        parameter W(m,n)
-        parameter gamma positive
-        variables t0_(n) z
-        minimize square(norm(t0_)) - sqrt(z)
-            t0_ + z == 1
-        #minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        # norm(X*a,Y*a,Z*a, W*a) <= 1
-    """)
-
-    p.canonicalize()
-
-    p.print_canon()
-    p.codegen("cvx")
-    p.prettyprint(True)
-
-    s = p.solve(locals())
-
 if __name__ == "__main__":
 
     """
