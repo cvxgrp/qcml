@@ -1,41 +1,41 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>QCML by cvxgrp</title>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="QCML : Quadratic cone modeling language" />
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>QCML</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
-        <h1 class="header">QCML</h1>
-        <p class="header">Quadratic cone modeling language</p>
 
-        <ul>
-          <li class="download"><a class="buttons" href="https://github.com/cvxgrp/qcml/zipball/master">Download ZIP</a></li>
-          <li class="download"><a class="buttons" href="https://github.com/cvxgrp/qcml/tarball/master">Download TAR</a></li>
-          <li><a class="buttons github" href="https://github.com/cvxgrp/qcml">View On GitHub</a></li>
-        </ul>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/cvxgrp/qcml">View on GitHub</a>
 
-        <p class="header">This project is maintained by <a class="header name" href="https://github.com/cvxgrp">cvxgrp</a></p>
+          <h1 id="project_title">QCML</h1>
+          <h2 id="project_tagline">Quadratic cone modeling language</h2>
 
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/cvxgrp/qcml/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/cvxgrp/qcml/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
 
-      </header>
-      <section>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
         <h1>
 <a name="quadratic-cone-modeling-language-qcml" class="anchor" href="#quadratic-cone-modeling-language-qcml"><span class="octicon octicon-link"></span></a>Quadratic Cone Modeling Language (QCML)</h1>
 
-<p><strong>This repository is currently a work in progress and is in transition between
-an older implementation (SCOOP) and a newer implementation (QCML). If you
-wish to use this in your project, please contact
+<p><strong>This repository is currently a work in progress
+If you wish to use this in your project, please contact
 <a href="mailto:echu508@stanford.edu">us</a>.</strong></p>
 
 <p>This project is a modular convex optimization framework for solving
@@ -44,7 +44,8 @@ and canonicalization phase from the code generation and solve phase. This
 allows the use of a unified (domain-specific) language in the front end to
 target different use cases.</p>
 
-<p>For instance, a simple portfolio optimization problem can be specified as a Python string as follows:</p>
+<p>For instance, a simple portfolio optimization problem can be specified as a
+Python string as follows:</p>
 
 <pre><code>"""
 dimensions m n
@@ -65,20 +66,24 @@ Python code of external source code. The basic workflow is as follows
 (assuming <code>s</code> stores a problem specification).</p>
 
 <pre><code>p.parse(s)
-p.rewrite()
+p.canonicalize()
+p.set_dims({'m': m, 'n': n})
 p.codegen("cvxopt")
-solution = p.solver(m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+solution = p.solver({'gamma':1,'F':F,'D':D})
 </code></pre>
 
-<p>The last line calls the (Python) solver generated in the codegen step. This
-solver requires that the user specify the dimensions and parameters in their
+<p>The third line sets the dimensions of the problem and the last line calls
+the (Python) solver generated in the codegen step. This
+solver requires that the user specify the parameters in their
 optimization model. For rapid prototyping, we provide the convenience
 function:</p>
 
-<pre><code>solution = p.solve(s, m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+<pre><code>solution = p.solve(locals())
 </code></pre>
 
-<p>This functions wraps all four steps above into a single call.</p>
+<p>This functions wraps the last four steps above into a single call and
+assumes that all parameters and dimensions are defined in the local
+namespace.</p>
 
 <h1>
 <a name="prerequisites" class="anchor" href="#prerequisites"><span class="octicon octicon-link"></span></a>Prerequisites</h1>
@@ -97,7 +102,10 @@ function:</p>
 <li><a href="http://cvxr.com">CVX</a></li>
 <li><a href="http://github.com/cvxgrp/pdos">PDOS</a></li>
 <li><a href="http://github.com/ifa-ethz/ecos">ECOS</a></li>
-</ul><h1>
+</ul><p>PDOS is an experimental first-order solver, and we recommend CVXOPT or ECOS
+over it.</p>
+
+<h1>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h1>
 
 <p>Installation should be as easy as</p>
@@ -106,14 +114,18 @@ function:</p>
 python setup.py install
 </code></pre>
 
-<p>After installation, if you have <a href="http://nose.readthedocs.org">Nose</a> installed, then typing</p>
+<p>After installation, if you have <a href="http://nose.readthedocs.org">Nose</a> installed,
+then typing</p>
 
 <pre><code>nosetests scoop
 </code></pre>
 
-<p>should run the simple unit tests. These tests are not exhaustive at the moment. Although the project name is QCML, this module refers to itself by its old name, <code>scoop</code>. This unfortunate turn of events will be rectified.</p>
+<p>should run the simple unit tests. These tests are not exhaustive at the
+moment.</p>
 
-<p>The only working sample scripts are <code>qcml.py</code> and <code>main.py</code>. The others refer to the old implementation. The <code>main.py</code> script takes command line arguments and emits Matlab code used to call ECOS.</p>
+<p>The only working sample scripts are <code>qcml_example.py</code> and <code>main.py</code>.
+The others refer to an older implementation. The <code>main.py</code> script takes
+command line arguments and emits Matlab code used to call ECOS.</p>
 
 <h1>
 <a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h1>
@@ -157,7 +169,11 @@ solve the problem. In deployment mode (or code generation mode), <em>source
 code</em> (in a target language) is generated which solves a particular problem
 instance with fixed dimensions.</p>
 
-<p>In prototyping mode, the dimensions and the problem data may change with each invocation of the generated function. In deployment mode, problem dimensions are fixed, but problem data is allowed to change.</p>
+<p>In prototyping mode, the problem data may change with each invocation of
+the generated function. If problem dimensions change, you must set the
+dimensions of the QCML object and codegen the Python function again.
+In deployment mode, the problem dimensions are fixed,
+but problem data is allowed to change.</p>
 
 <p>The valid choice of solvers are:</p>
 
@@ -172,12 +188,20 @@ instance with fixed dimensions.</p>
 <code>"matlab"</code> -- emits Matlab source code that calls ECOS</li>
 <li>
 <code>"PDOS"</code> -- emits Python source code that calls PDOS</li>
-</ul><p>When these solvers are supplied as arguments to the code generator, it produces code of the appropriate language (Python or Matlab). If it generates Python code, <code>exec</code> is called to create the function bytecode dynamically, allowing you to call the solver.</p>
+</ul><p>When these solvers are supplied as arguments to the code generator,
+it produces code of the appropriate language (Python or Matlab).
+If it generates Python code, <code>exec</code> is called to create the function
+bytecode dynamically, allowing you to call the solver.</p>
 
 <h2>
 <a name="use-as-embedded-language" class="anchor" href="#use-as-embedded-language"><span class="octicon octicon-link"></span></a>Use as embedded language</h2>
 
-<p>Although QCML's original intent was to be used to parse files with problems specified in QCML, its Python API has been exposed for use in Python. It operates similarly to a safe <code>eval</code> in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking QCML to generate a solver in a more efficient langauge, such as in C or CUDA.</p>
+<p>Although QCML's original intent was to be used to parse files with problems
+specified in QCML, its Python API has been exposed for use in Python. It
+operates similarly to a safe <code>eval</code> in Python. Problems can be passed as
+strings to the API and prototyping functions can be used to evaluate the
+model before asking QCML to generate a solver in a more efficient langauge,
+such as in C or CUDA.</p>
 
 <h1>
 <a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h1>
@@ -210,7 +234,7 @@ are planned for a future release.</p>
 if __name__ == '__main__':
     p = QCML()
 
-    p.parse(""" 
+    p.parse("""
       # this entire line is a comment!
       dimension n
       dimension m
@@ -221,15 +245,20 @@ if __name__ == '__main__':
       minimize sum(square(A*x - 4)) + lambda*norm(x)
     """)
 
-    p.rewrite()
+    p.canonicalize()
+    p.set_dims({'m':m, 'n':n})
     p.prettyprint()
 </code></pre>
 
-<p>Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following three lines will create a solver function <code>f</code> and call the solver, with the parameter arguments supplied.</p>
+<p>Thsis will canonicalize the problem and build an internal problem parse
+tree inside Python. Once the problem has been canonicalized, the user can
+decide to either generate a function to prototype problems or generate source
+code. For instance, the following three lines will create a solver function
+<code>f</code> and call the solver, with the parameter arguments supplied.</p>
 
-<pre><code>p.codegen("cvcxopt")  # this creates a solver in Python calling CVXOPT
+<pre><code>p.codegen("cvxopt")  # this creates a solver in Python calling CVXOPT
 f = p.solver
-f(A = spmatrix, lambda = 0.01)
+f({'A': A, 'lambda':0.01})
 </code></pre>
 
 <p>Note that this is not possible with one of the Matlab code generators.</p>
@@ -241,7 +270,11 @@ f(A = spmatrix, lambda = 0.01)
 <h1>
 <a name="operators-and-atoms" class="anchor" href="#operators-and-atoms"><span class="octicon octicon-link"></span></a>Operators and atoms</h1>
 
-<p>QCML provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as <em>macros</em>. Whenever the parser encounters an atom, it simply expands its definition.</p>
+<p>QCML provides a set of linear operators and atoms for use with modeling.
+Since an SOCP only consists of affine functions and second-order cone
+inequalities, we only provide linear operators and operators for constructing
+second-order cones. All other atoms are implemented as <em>macros</em>. Whenever the
+parser encounters an atom, it simply expands its definition.</p>
 
 <h2>
 <a name="operators" class="anchor" href="#operators"><span class="octicon octicon-link"></span></a>Operators</h2>
@@ -256,6 +289,8 @@ f(A = spmatrix, lambda = 0.01)
 <li><code>-</code></li>
 <li>
 <code>*</code>, lhs <em>must</em> be a parameter</li>
+<li>
+<code>\</code>, rhs and lhs <em>must</em> be numeric constants</li>
 </ul>
 </li>
 <li>prefix operators
@@ -347,25 +382,31 @@ f(A = spmatrix, lambda = 0.01)
 <p>In no particular order, the future of this project...</p>
 
 <ul>
+<li>C code generation for ECOS</li>
 <li>CUDA and GPU support for large-scale solvers</li>
-<li>C code generation</li>
 <li>test cases</li>
 <li>example suite</li>
 <li>user guide</li>
 <li>a solver based on scientific computing (just walks parse trees)</li>
-<li>a lex/yacc C API?</li>
 </ul><h1>
 <a name="support" class="anchor" href="#support"><span class="octicon octicon-link"></span></a>Support</h1>
 
-<p>This project is supported in large part by an XDATA grant, supported by the Air Force Research Laboratory grant FA8750-12-2-0306.</p>
+<p>This project is supported in large part by an XDATA grant, supported by the
+Air Force Research Laboratory grant FA8750-12-2-0306.</p>
 
 
       </section>
-      <footer>
-        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">QCML maintained by <a href="https://github.com/cvxgrp">cvxgrp</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
       </footer>
     </div>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-		
+
+    
+
   </body>
 </html>
