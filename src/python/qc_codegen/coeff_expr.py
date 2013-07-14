@@ -1,23 +1,23 @@
 # define code generation objects
 # TODO: can change behavior of these by changing __str__ definition
-""" CodegenExpr object.
+""" CoeffExpr object.
     Used to construct coefficients of affine expressions.
 
-    Allows us to create abstract objects to represent Ones, Eye, etc. and
+    Allows us to create abstract objects to represent OnesCoeff, EyeCoeff, etc. and
     perform basic addition, multiplication, etc. on them. Assumes that the
     coefficient math has already passed DCP checking.
 
     The behavior can be changed by redefining __str__ definition. These classes
     are *final*. You should not subclass them (undefined behavior will occur).
 
-    Note that by setting the __str__ function, e.g., Ones.__str__ = some_func,
-    it is a *global* change to all Ones objects.
+    Note that by setting the __str__ function, e.g., OnesCoeff.__str__ = some_func,
+    it is a *global* change to all OnesCoeff objects.
 
     To allow interchangeability with different codegens, the __str__ function
     is set in the __init__() function of subclasses of the Codegen object.
 
     However, this means that *two* Codegen objects cannot exist simultaneously,
-    as the __str__ function on, say, Ones, is overwritten by the latest
+    as the __str__ function on, say, OnesCoeff, is overwritten by the latest
     Codegen object.
 
     This is not an issue as long as code generators are only created to generate
@@ -29,9 +29,9 @@
 
     Neither approaches above seem very likely.
 
-    TODO: Add test cases to CodegenExpr
+    TODO: AddCoeff test cases to CoeffExpr
 """
-class CodegenExpr(object):
+class CoeffExpr(object):
     # operations only occur on objects with the same shape
     def __add__(self, other): return codegen_add(self, other)
 
@@ -49,7 +49,7 @@ class CodegenExpr(object):
 
     def __repr__(self): return str(self)
 
-class Constant(CodegenExpr):
+class ConstantCoeff(CoeffExpr):
     def __init__(self, value):
         self.value = value
         self.isknown = True
@@ -57,7 +57,7 @@ class Constant(CodegenExpr):
 
     def __str__(self): return str(self.value)
 
-class Parameter(CodegenExpr):
+class ParameterCoeff(CoeffExpr):
     def __init__(self, value):
         self.value = value
         self.isknown = True
@@ -65,12 +65,12 @@ class Parameter(CodegenExpr):
 
     def __str__(self): return self.value
 
-class ScalarParameter(Parameter):
+class ScalarParameterCoeff(ParameterCoeff):
     def __init__(self,value):
-        super(ScalarParameter, self).__init__(value)
+        super(ScalarParameterCoeff, self).__init__(value)
         self.isscalar = True
 
-class Negate(CodegenExpr):
+class NegateCoeff(CoeffExpr):
     def __init__(self, arg):
         self.arg = arg
         self.isknown = arg.isknown
@@ -78,7 +78,7 @@ class Negate(CodegenExpr):
 
     def __str__(self): return "-(%s)" % self.arg
 
-class Eye(CodegenExpr):
+class EyeCoeff(CoeffExpr):
     def __init__(self, n, coeff):
         self.n = n
         self.coeff = coeff
@@ -87,7 +87,7 @@ class Eye(CodegenExpr):
 
     # def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
 
-class Ones(CodegenExpr):
+class OnesCoeff(CoeffExpr):
     def __init__(self, n, coeff, transpose = False):
         self.n = n
         self.coeff = coeff
@@ -101,7 +101,7 @@ class Ones(CodegenExpr):
     #     else:
     #         return "_o.matrix(%s,(%s,1), tc='d')" % (self.coeff, self.n)
 
-class Add(CodegenExpr):
+class AddCoeff(CoeffExpr):
     def __init__(self, left, right):
         self.left = left
         self.right = right
@@ -110,7 +110,7 @@ class Add(CodegenExpr):
 
     def __str__(self): return "%s + %s" % (self.left, self.right)
 
-class Mul(CodegenExpr):
+class MulCoeff(CoeffExpr):
     def __init__(self, left, right):
         self.left = left
         self.right = right
@@ -120,7 +120,7 @@ class Mul(CodegenExpr):
     def __str__(self): return "%s * %s" % (self.left, self.right)
 
 
-class Transpose(CodegenExpr):
+class TransposeCoeff(CoeffExpr):
     def __init__(self, arg):
         self.arg = arg
         self.isknown = arg.isknown
@@ -128,7 +128,7 @@ class Transpose(CodegenExpr):
 
     # def __str__(self): return "(%s).trans()" % self.arg
 
-class Slice(CodegenExpr):
+class SliceCoeff(CoeffExpr):
     def __init__(self, arg, begin, end, transpose=False):
         self.arg = arg
         self.begin = begin
@@ -144,106 +144,106 @@ class Slice(CodegenExpr):
     Code structure documents the simplifications that occur.
 """
 def codegen_add(x,y):
-    if isinstance(x, Constant) and isinstance(y, Constant):
-        return Constant(x.value + y.value)
-    if isinstance(x, Constant) and x.value == 0:
+    if isinstance(x, ConstantCoeff) and isinstance(y, ConstantCoeff):
+        return ConstantCoeff(x.value + y.value)
+    if isinstance(x, ConstantCoeff) and x.value == 0:
         return y
-    if isinstance(y,Constant) and y.value == 0:
+    if isinstance(y,ConstantCoeff) and y.value == 0:
         return x
-    if isinstance(x,Eye) and isinstance(y,Eye):
-        return Eye(x.n, x.coeff + y.coeff)
-    if isinstance(x,Ones) and isinstance(y,Ones) and (x.transpose == y.transpose):
-        return Ones(x.n, x.coeff + y.coeff, x.transpose)
+    if isinstance(x,EyeCoeff) and isinstance(y,EyeCoeff):
+        return EyeCoeff(x.n, x.coeff + y.coeff)
+    if isinstance(x,OnesCoeff) and isinstance(y,OnesCoeff) and (x.transpose == y.transpose):
+        return OnesCoeff(x.n, x.coeff + y.coeff, x.transpose)
     if str(x) == str(y):
-        return Constant(2.0) * x
-    return Add(x, y)
+        return ConstantCoeff(2.0) * x
+    return AddCoeff(x, y)
 
 def codegen_negate(x):
-    if isinstance(x,Negate):
+    if isinstance(x,NegateCoeff):
         return x.arg
-    if isinstance(x,Transpose):
-        return Transpose(-x.arg)
-    if isinstance(x, Constant):
-        return Constant(-x.value)
-    if isinstance(x,Eye):
-        return Eye(x.n, -x.coeff)
-    if isinstance(x,Ones):
-        return Ones(x.n, -x.coeff)
-    if isinstance(x,Mul):
-        return Mul(-x.left, x.right)
-    return Negate(x)
+    if isinstance(x,TransposeCoeff):
+        return TransposeCoeff(-x.arg)
+    if isinstance(x, ConstantCoeff):
+        return ConstantCoeff(-x.value)
+    if isinstance(x,EyeCoeff):
+        return EyeCoeff(x.n, -x.coeff)
+    if isinstance(x,OnesCoeff):
+        return OnesCoeff(x.n, -x.coeff)
+    if isinstance(x,MulCoeff):
+        return MulCoeff(-x.left, x.right)
+    return NegateCoeff(x)
 
 def codegen_mul(x,y):
-    if isinstance(x, Constant) and isinstance(y, Constant):
-        return Constant(x.value * y.value)
-    if isinstance(x,Constant) and x.value == 1:
+    if isinstance(x, ConstantCoeff) and isinstance(y, ConstantCoeff):
+        return ConstantCoeff(x.value * y.value)
+    if isinstance(x,ConstantCoeff) and x.value == 1:
         return y
-    if isinstance(y,Constant) and y.value == 1:
+    if isinstance(y,ConstantCoeff) and y.value == 1:
         return x
 
-    if isinstance(x,Eye) and y.isknown and y.isscalar:
-        return Eye(x.n, x.coeff * y)
-    if isinstance(y,Eye) and x.isknown and x.isscalar:
-        return Eye(y.n, y.coeff * x)
+    if isinstance(x,EyeCoeff) and y.isknown and y.isscalar:
+        return EyeCoeff(x.n, x.coeff * y)
+    if isinstance(y,EyeCoeff) and x.isknown and x.isscalar:
+        return EyeCoeff(y.n, y.coeff * x)
 
-    if isinstance(x,Eye) and isinstance(y,Eye):
+    if isinstance(x,EyeCoeff) and isinstance(y,EyeCoeff):
         # (a*I) * (b*I) = (a*b*I)
-        return Eye(x.n, x.coeff * y.coeff)
-    if isinstance(x,Eye) and isinstance(x.coeff, Constant) and x.coeff.value == 1:
+        return EyeCoeff(x.n, x.coeff * y.coeff)
+    if isinstance(x,EyeCoeff) and isinstance(x.coeff, ConstantCoeff) and x.coeff.value == 1:
         # I*x = x
         return y
-    if isinstance(y,Eye) and isinstance(y.coeff, Constant) and y.coeff.value == 1:
+    if isinstance(y,EyeCoeff) and isinstance(y.coeff, ConstantCoeff) and y.coeff.value == 1:
         # x*I = x
         return x
-    if isinstance(x,Eye) and isinstance(x.coeff, Constant) and x.coeff.value == -1:
+    if isinstance(x,EyeCoeff) and isinstance(x.coeff, ConstantCoeff) and x.coeff.value == -1:
         return -y
-    if isinstance(y,Eye) and isinstance(y.coeff, Constant) and y.coeff.value == -1:
+    if isinstance(y,EyeCoeff) and isinstance(y.coeff, ConstantCoeff) and y.coeff.value == -1:
         return -x
-    if isinstance(x,Ones) and x.transpose and isinstance(y,Ones) and not y.transpose:
+    if isinstance(x,OnesCoeff) and x.transpose and isinstance(y,OnesCoeff) and not y.transpose:
         # ones^T ones
-        return Parameter(x.n) * x.coeff * y.coeff
-    if isinstance(x,Ones) and y.isknown and y.isscalar:
-        return Ones(x.n, x.coeff*y, x.transpose)
-    if isinstance(y,Ones) and x.isknown and x.isscalar:
-        return Ones(y.n, y.coeff*x, y.transpose)
+        return ParameterCoeff(x.n) * x.coeff * y.coeff
+    if isinstance(x,OnesCoeff) and y.isknown and y.isscalar:
+        return OnesCoeff(x.n, x.coeff*y, x.transpose)
+    if isinstance(y,OnesCoeff) and x.isknown and x.isscalar:
+        return OnesCoeff(y.n, y.coeff*x, y.transpose)
 
-    return Mul(x, y)
+    return MulCoeff(x, y)
 
 def codegen_transpose(x):
     if x.isscalar:
         return x
-    if isinstance(x, Eye):
+    if isinstance(x, EyeCoeff):
         return x
-    if isinstance(x, Ones):
+    if isinstance(x, OnesCoeff):
         x.transpose = not x.transpose
         return x
-    if isinstance(x,Transpose):
+    if isinstance(x,TransposeCoeff):
         return x.arg
-    if isinstance(x, Slice):
+    if isinstance(x, SliceCoeff):
         x.transpose = not x.transpose
         return x
 
-    return Transpose(x)
+    return TransposeCoeff(x)
 
 
 def codegen_slice(x, begin, end):
     if x.isscalar:
         return x
 
-    if isinstance(x,Ones):
+    if isinstance(x,OnesCoeff):
         if not x.transpose:
             x.n = end - begin
         return x
-    if isinstance(x,Negate):
-        return Negate(x.arg.slice(begin, end))
-    if isinstance(x,Add):
-        return Add(x.left.slice(begin,end), x.right.slice(begin,end))
-    if isinstance(x,Mul):
-        return Mul(x.left.slice(begin,end), x.right)
-    if isinstance(x,Transpose):
-        return Slice(x.arg, begin, end, transpose=True)
-    if isinstance(x, Slice):
+    if isinstance(x,NegateCoeff):
+        return NegateCoeff(x.arg.slice(begin, end))
+    if isinstance(x,AddCoeff):
+        return AddCoeff(x.left.slice(begin,end), x.right.slice(begin,end))
+    if isinstance(x,MulCoeff):
+        return MulCoeff(x.left.slice(begin,end), x.right)
+    if isinstance(x,TransposeCoeff):
+        return SliceCoeff(x.arg, begin, end, transpose=True)
+    if isinstance(x, SliceCoeff):
         # a(2:5)(1:2)
-        return Slice(x.arg, x.begin + begin, x.begin + end)
+        return SliceCoeff(x.arg, x.begin + begin, x.begin + end)
 
-    return Slice(x, begin, end)
+    return SliceCoeff(x, begin, end)

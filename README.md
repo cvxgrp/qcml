@@ -1,9 +1,8 @@
 Quadratic Cone Modeling Language (QCML)
 =======================================
 
-**This repository is currently a work in progress and is in transition between
-an older implementation (SCOOP) and a newer implementation (QCML). If you
-wish to use this in your project, please contact
+**This repository is currently a work in progress
+If you wish to use this in your project, please contact
 [us](mailto:echu508@stanford.edu).**
 
 This project is a modular convex optimization framework for solving
@@ -12,11 +11,12 @@ and canonicalization phase from the code generation and solve phase. This
 allows the use of a unified (domain-specific) language in the front end to
 target different use cases.
 
-For instance, a simple portfolio optimization problem can be specified as a Python string as follows:
+For instance, a simple portfolio optimization problem can be specified as a
+Python string as follows:
 
     """
     dimensions m n
-    
+
     variable x(n)
     parameter mu(n)
     parameter gamma positive
@@ -26,24 +26,28 @@ For instance, a simple portfolio optimization problem can be specified as a Pyth
         sum(x) == 1
         x >= 0
     """
-    
+
 Our tool parses the problem and rewrites it, after which it can generate
 Python code of external source code. The basic workflow is as follows
 (assuming `s` stores a problem specification).
 
     p.parse(s)
-    p.rewrite()
+    p.canonicalize()
+    p.set_dims({'m': m, 'n': n})
     p.codegen("cvxopt")
-    solution = p.solver(m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+    solution = p.solver({'gamma':1,'F':F,'D':D})
 
-The last line calls the (Python) solver generated in the codegen step. This
-solver requires that the user specify the dimensions and parameters in their
+The third line sets the dimensions of the problem and the last line calls
+the (Python) solver generated in the codegen step. This
+solver requires that the user specify the parameters in their
 optimization model. For rapid prototyping, we provide the convenience
 function:
 
-    solution = p.solve(s, m=m,n=n,mu=mu,gamma=1,F=F,D=D)
+    solution = p.solve(locals())
 
-This functions wraps all four steps above into a single call.
+This functions wraps the last four steps above into a single call and
+assumes that all parameters and dimensions are defined in the local
+namespace.
 
 Prerequisites
 =============
@@ -61,6 +65,8 @@ Depending on the type of code you generate, you may also need:
 * [PDOS](http://github.com/cvxgrp/pdos)
 * [ECOS](http://github.com/ifa-ethz/ecos)
 
+PDOS is an experimental first-order solver, and we recommend CVXOPT or ECOS
+over it.
 
 Installation
 ============
@@ -68,14 +74,18 @@ Installation should be as easy as
 
     cd src
     python setup.py install
-    
-After installation, if you have [Nose](http://nose.readthedocs.org) installed, then typing
+
+After installation, if you have [Nose](http://nose.readthedocs.org) installed,
+then typing
 
     nosetests scoop
-    
-should run the simple unit tests. These tests are not exhaustive at the moment. Although the project name is QCML, this module refers to itself by its old name, `scoop`. This unfortunate turn of events will be rectified.
 
-The only working sample scripts are `qcml.py` and `main.py`. The others refer to the old implementation. The `main.py` script takes command line arguments and emits Matlab code used to call ECOS.
+should run the simple unit tests. These tests are not exhaustive at the
+moment.
+
+The only working sample scripts are `qcml_example.py` and `main.py`.
+The others refer to an older implementation. The `main.py` script takes
+command line arguments and emits Matlab code used to call ECOS.
 
 
 Features
@@ -91,7 +101,7 @@ optimization problems into standard form:
       G*x + s == h
       A*x == b
       s in Q
-      
+
 where `Q` is a product cone of second-order cones (i.e., `Q = { (t,y) | ||y||
 <= t }`), and `x`, `s` are the optimization variables. The
 parser/canonicalizer guarantees that all problems will adhere to the
@@ -116,7 +126,11 @@ solve the problem. In deployment mode (or code generation mode), *source
 code* (in a target language) is generated which solves a particular problem
 instance with fixed dimensions.
 
-In prototyping mode, the dimensions and the problem data may change with each invocation of the generated function. In deployment mode, problem dimensions are fixed, but problem data is allowed to change.
+In prototyping mode, the problem data may change with each invocation of
+the generated function. If problem dimensions change, you must set the
+dimensions of the QCML object and codegen the Python function again.
+In deployment mode, the problem dimensions are fixed,
+but problem data is allowed to change.
 
 The valid choice of solvers are:
 
@@ -126,11 +140,19 @@ The valid choice of solvers are:
 * `"matlab"` -- emits Matlab source code that calls ECOS
 * `"PDOS"` -- emits Python source code that calls PDOS
 
-When these solvers are supplied as arguments to the code generator, it produces code of the appropriate language (Python or Matlab). If it generates Python code, `exec` is called to create the function bytecode dynamically, allowing you to call the solver.
+When these solvers are supplied as arguments to the code generator,
+it produces code of the appropriate language (Python or Matlab).
+If it generates Python code, `exec` is called to create the function
+bytecode dynamically, allowing you to call the solver.
 
 Use as embedded language
 ------------------------
-Although QCML's original intent was to be used to parse files with problems specified in QCML, its Python API has been exposed for use in Python. It operates similarly to a safe `eval` in Python. Problems can be passed as strings to the API and prototyping functions can be used to evaluate the model before asking QCML to generate a solver in a more efficient langauge, such as in C or CUDA.
+Although QCML's original intent was to be used to parse files with problems
+specified in QCML, its Python API has been exposed for use in Python. It
+operates similarly to a safe `eval` in Python. Problems can be passed as
+strings to the API and prototyping functions can be used to evaluate the
+model before asking QCML to generate a solver in a more efficient langauge,
+such as in C or CUDA.
 
 Example
 =======
@@ -141,16 +163,16 @@ As an example, consider the Lasso problem,
     variable x(n)
     parameter A(m,n)
     parameter lambda positive
-    
+
     minimize sum(square(A*x - 4)) + lambda*norm(x)
-    
+
 Note that dimenions are named, but abstract (they do not refer to any
 numbrs). Similarly, variables and parameters are abstract, their shape is
 denoted only by references to named dimensions. Although matrix variable
 *declarations* are possible, QCML's behavior is undefined (and may possibly
 fail). Matrix variables (along with `for` loops, concatenation, and slicing)
 are planned for a future release.
-<!-- 
+<!--
 Some currently available keywords are:
 
 * `dimension`, `dimensions`
@@ -159,7 +181,7 @@ Some currently available keywords are:
 * `positive`, `nonnegative`
 * `negative`, `nonpositive`
 * `minimize`
-* `maximize` 
+* `maximize`
 -->
 
 QCML canonicalizes this problem to an SOCP.
@@ -169,27 +191,32 @@ Inside Python, the code might look like
     from scoop import QCML
     if __name__ == '__main__':
         p = QCML()
-  
-        p.parse(""" 
+
+        p.parse("""
           # this entire line is a comment!
           dimension n
           dimension m
           variable x(n)
           parameter A(m,n)
           parameter lambda positive
-        
+
           minimize sum(square(A*x - 4)) + lambda*norm(x)
         """)
-    
-        p.rewrite()
+
+        p.canonicalize()
+        p.set_dims({'m':m, 'n':n})
         p.prettyprint()
 
-Thsis will canonicalize the problem and build an internal problem parse tree inside Python. Once the problem has been canonicalized, the user can decide to either generate a function to prototype problems or generate source code. For instance, the following three lines will create a solver function `f` and call the solver, with the parameter arguments supplied.
-        
-    p.codegen("cvcxopt")  # this creates a solver in Python calling CVXOPT
+Thsis will canonicalize the problem and build an internal problem parse
+tree inside Python. Once the problem has been canonicalized, the user can
+decide to either generate a function to prototype problems or generate source
+code. For instance, the following three lines will create a solver function
+`f` and call the solver, with the parameter arguments supplied.
+
+    p.codegen("cvxopt")  # this creates a solver in Python calling CVXOPT
     f = p.solver
-    f(A = spmatrix, lambda = 0.01)
-    
+    f({'A': A, 'lambda':0.01})
+
 Note that this is not possible with one of the Matlab code generators.
 
 <!-- Parameter dimensions and sparsity patterns are assumed to be unknown *until* the generated function is run. That is, after the code has been parsed and a function generated, the user will not be able to know that parameters have the wrong dimensions or storage format until attempting to run the function. This is by design.
@@ -212,7 +239,11 @@ Parse tree only produces a list of linear functions. These are repeatedly evalua
 
 Operators and atoms
 ===================
-QCML provides a set of linear operators and atoms for use with modeling. Since an SOCP only consists of affine functions and second-order cone inequalities, we only provide linear operators and operators for constructing second-order cones. All other atoms are implemented as *macros*. Whenever the parser encounters an atom, it simply expands its definition.
+QCML provides a set of linear operators and atoms for use with modeling.
+Since an SOCP only consists of affine functions and second-order cone
+inequalities, we only provide linear operators and operators for constructing
+second-order cones. All other atoms are implemented as *macros*. Whenever the
+parser encounters an atom, it simply expands its definition.
 
 Operators
 ---------
@@ -222,12 +253,13 @@ The standard linear operators are:
   * `+`
   * `-`
   * `*`, lhs *must* be a parameter
+  * `\`, rhs and lhs *must* be numeric constants
 * prefix operators
   * `-`, unary minus / negate
 * vector operators (map vectors to scalars)
   * `sum(x)`
   * `sum(x,y,..)`, defined as `x + y + ...`
-  
+
 The operators used for constructing second-order cones are:
 
 * scalar operators (map scalars to scalars)
@@ -262,17 +294,17 @@ Roadmap
 =======
 In no particular order, the future of this project...
 
+* C code generation for ECOS
 * CUDA and GPU support for large-scale solvers
-* C code generation
 * test cases
 * example suite
 * user guide
 * a solver based on scientific computing (just walks parse trees)
-* a lex/yacc C API?
 
 Support
 =======
-This project is supported in large part by an XDATA grant, supported by the Air Force Research Laboratory grant FA8750-12-2-0306.
+This project is supported in large part by an XDATA grant, supported by the
+Air Force Research Laboratory grant FA8750-12-2-0306.
 
 
 <!-- Syntax
@@ -355,9 +387,9 @@ Assuming the example text is saved to a file called `example.prob`, running `./e
     h_ = zeros(29, 1);
     dims.q = [2,2,2,2,2,3,11];
     dims.l = 5;
-    
+
     [x_codegen, y_, info_] = ecos(full(c_), G_, h_, dims, A_, full(b_));
-    
+
     t1z0 = x_codegen(1:1);
     t1z1 = x_codegen(2:2);
     t2 = x_codegen(3:3);
@@ -373,7 +405,7 @@ Assuming the example text is saved to a file called `example.prob`, running `./e
     t8 = x_codegen(52:52);
     t0 = x_codegen(53:53);
     ecos_optval = 1*info_.pcost;
-    
+
 This file can be run inside Matlab and assumes that the parameters named `A`,
 `b`, and `lambda` exist in the namespace. It doesn't check if `lambda` is
 actually positive. -->

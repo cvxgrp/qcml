@@ -1,5 +1,5 @@
 from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from expr import *
+from coeff_expr import *
 
 """ Codegen template.
 """
@@ -182,27 +182,25 @@ class Codegen(NodeVisitor):
 
     def visit_Variable(self, node):
         n = node.shape.eval(self.dims).size()
-        if node.value in self.orig_varnames:
-            k = '_' + node.value
-        else:
-            k = node.value
+        if node.value in self.orig_varnames: k = '_' + node.value
+        else: k = node.value
 
         if n == 1:
-            lineq = {k: Constant(1)}
+            lineq = {k: ConstantCoeff(1)}
         else:
-            lineq = {k: Eye(n, Constant(1))}
+            lineq = {k: EyeCoeff(n, ConstantCoeff(1))}
 
         self.expr_stack.append(lineq)
 
     def visit_Parameter(self, node):
         if isscalar(node):
-            self.expr_stack.append({'1':ScalarParameter(node.value)})
+            self.expr_stack.append({'1':ScalarParameterCoeff(node.value)})
         else:
-            self.expr_stack.append({'1':Parameter(node.value)})
+            self.expr_stack.append({'1':ParameterCoeff(node.value)})
 
 
     def visit_Constant(self, node):
-        self.expr_stack.append({'1':Constant(node.value)})
+        self.expr_stack.append({'1':ConstantCoeff(node.value)})
 
     def visit_Transpose(self, node):
         self.generic_visit(node)
@@ -241,7 +239,7 @@ class Codegen(NodeVisitor):
 
         for k in arg.keys():
             n = node.arg.shape.eval(self.dims).size()
-            arg[k] = Ones(n, Constant(1), True) * arg[k]
+            arg[k] = OnesCoeff(n, ConstantCoeff(1), True) * arg[k]
 
         self.expr_stack.append(arg)
 

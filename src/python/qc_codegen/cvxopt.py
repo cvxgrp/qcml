@@ -1,5 +1,5 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from codegen import PythonCodegen, Ones, Eye, Transpose, Parameter
+from codegen import PythonCodegen, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff
 
 def cvxopt_eye(self):
     return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
@@ -20,10 +20,10 @@ def cvxopt_parameter(self):
 
 class CVXOPTCodegen(PythonCodegen):
     def __init__(self, dims):
-        Ones.__str__ = cvxopt_ones
-        Eye.__str__ = cvxopt_eye
-        Transpose.__str__ = cvxopt_trans
-        Parameter.__str__ = cvxopt_parameter
+        OnesCoeff.__str__ = cvxopt_ones
+        EyeCoeff.__str__ = cvxopt_eye
+        TransposeCoeff.__str__ = cvxopt_trans
+        ParameterCoeff.__str__ = cvxopt_parameter
         super(CVXOPTCodegen,self).__init__(dims)
 
     def function_prototype(self):

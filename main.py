@@ -33,10 +33,11 @@ if args.svm:
     """)
 
     p.canonicalize()
+    p.set_dims({'m':m,'n':n})
     if args.cvx:
         p.codegen("cvxopt")
     else:
-        p.codegen("matlab",cone_size=q,m=m,n=n)
+        p.codegen("matlab",cone_size=q)
     p.prettyprint()
 
 elif args.portfolio:
@@ -54,10 +55,11 @@ elif args.portfolio:
     """)
 
     p.canonicalize()
+    p.set_dims({'m':m,'n':n})
     if args.cvx:
         p.codegen("cvxopt")
     else:
-        p.codegen("matlab",cone_size=q,m=m,n=n)
+        p.codegen("matlab",cone_size=q)
     p.prettyprint()
 
 

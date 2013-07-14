@@ -2,10 +2,11 @@
 
 from qcml.qc_ast import Variable, Vector, Scalar
 import qcml.qc_ast as ast
-from codegen import Eye, Ones, Transpose, Slice, Codegen, Constant, Parameter
+from codegen import EyeCoeff, OnesCoeff, TransposeCoeff, SliceCoeff, Codegen,\
+    ConstantCoeff, ParameterCoeff
 
 def matlab_eye(self):
-    if isinstance(self.coeff, Constant) and self.coeff.value == 1:
+    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
         return "speye(%s,%s)" % (self.n, self.n)
     else:
         return "%s*speye(%s,%s)" % (self.coeff, self.n, self.n)
@@ -16,7 +17,7 @@ def matlab_ones(self):
     else:
         sz = "%s,1" % self.n
 
-    if isinstance(self.coeff, Constant) and self.coeff.value == 1:
+    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
         return "ones(%s)" % sz
     else:
         return "%s*ones(%s)" % (self.coeff, sz)
@@ -25,12 +26,12 @@ def matlab_trans(self):
     return "(%s)'" % self.arg
 
 def matlab_slice(self):
-    if isinstance(self.arg, Parameter):
+    if isinstance(self.arg, ParameterCoeff):
         if self.transpose:
             return "%s(:,%s+1:%s)'" % (self.arg, self.begin, self.end)
         else:
             return "%s(%s+1:%s,:)" % (self.arg, self.begin, self.end)
-    elif isinstance(self.arg, Eye):
+    elif isinstance(self.arg, EyeCoeff):
         h = self.end - self.begin
         n = int(str(self.arg.n))
         start = self.begin - 1
@@ -48,10 +49,10 @@ class MatlabCodegen(Codegen):
         """
         super(MatlabCodegen,self).__init__(dims)
 
-        Ones.__str__ = matlab_ones
-        Eye.__str__ = matlab_eye
-        Transpose.__str__ = matlab_trans
-        Slice.__str__ = matlab_slice
+        OnesCoeff.__str__ = matlab_ones
+        EyeCoeff.__str__ = matlab_eye
+        TransposeCoeff.__str__ = matlab_trans
+        SliceCoeff.__str__ = matlab_slice
 
         self.comment = '%'
         if cone_size is not None:
