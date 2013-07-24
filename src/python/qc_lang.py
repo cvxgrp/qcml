@@ -10,6 +10,7 @@ def profile(f):
         result = f(*args, **kwargs)
         elapsed = time.clock() - start
         print f.__name__, "took", elapsed, "secs"
+        return result
     return wrap
 
 class ParseState(object):
@@ -37,9 +38,6 @@ class QCML(object):
         "pdos": PDOSCodegen
     }
 
-    python_solvers = set(["cvxopt", "ecos", "pdos"])
-
-
     def __init__(self, debug = False):
         self.debug = debug
         self.state = ParseState.PARSE
@@ -48,12 +46,10 @@ class QCML(object):
         self.__codegen = None
         self.__dims = {}
 
-        self.__old_mode = ""    # used to determine if codegen mode has changed
+        self.__old_mode = ""   # used to determine if codegen mode has changed
 
         self.problem = None
-        self.solver = None
-
-        #self.__old_dims = set() # used to determine if new problem instance
+        self.solver = None      # TODO: consider making "private"
 
     def prettyprint(self,lineno=False):
         if self.state is ParseState.COMPLETE:
@@ -64,8 +60,7 @@ class QCML(object):
     @profile
     def parse(self,text):
         self.__problem_tree = QCParser().parse(text)
-        if self.debug:
-            self.__problem_tree.show()
+        if self.debug: self.__problem_tree.show()
 
         if not self.__problem_tree.is_dcp:
             raise Exception("QCML parse: The problem is not DCP compliant.")
@@ -87,8 +82,7 @@ class QCML(object):
         if self.state > ParseState.CANONICALIZE: return
         if self.state is ParseState.CANONICALIZE:
             self.__problem_tree = QCRewriter().visit(self.__problem_tree)
-            if self.debug:
-                print self.__problem_tree
+            if self.debug: print self.__problem_tree
             self.state = ParseState.CODEGEN
         else:
             raise Exception("QCML canonicalize: No problem currently parsed.")
@@ -126,10 +120,7 @@ class QCML(object):
             if self.debug:
                 self.__codegen.prettyprint(True)
 
-            if mode in self.python_solvers:
-                self.solver = profile( self.__codegen.codegen() )
-            else:
-                self.solver = None
+            self.solver = self.__codegen.codegen()
             self.state = ParseState.COMPLETE
             self.__old_mode = mode
         else:
@@ -156,4 +147,8 @@ class QCML(object):
         if params is None: params = dims
 
         return self.solver(params)
+
+    def prob2socp(self, dims, params=None):
+        # spits out the socp data matrices
+        pass
 

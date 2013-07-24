@@ -60,11 +60,21 @@ if __name__ == "__main__":
         parameter W(m,n)
         parameter gamma positive
         variables t0_(n) z
+
         minimize square(norm(t0_)) - sqrt(z)
             t0_ + z == 1
+            # x(:,i+1) == A(:,:,i)*x(:,i) + B*u(:,i) for i = 1,...,T
+            # sum_{ij in E}
+            #
+            # matrix X
+            # A*X is map(A*x, X)
+            # X*A
         #minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
         # norm(X*a,Y*a,Z*a, W*a) <= 1
     """)
+
+    # TODO: sum(norms(X))
+    # A*x
 
     # p.canonicalize()
     # p.set_dims({'n': n, 'm': m})
@@ -74,7 +84,7 @@ if __name__ == "__main__":
     # # p.codegen("cvx")
     # p.prettyprint(True)
 
-    s = p.solve(locals())
+    s = p.solve(dims, params)
 
 
 #

@@ -24,7 +24,7 @@ problem_list = [
 """
     dimensions n
     variable foolishness(n)
-    find foolishness
+    maximize foolishness
 """,
 """ dimensions n
     variable x(n)

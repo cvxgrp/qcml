@@ -8,6 +8,9 @@ from qc_ast import isconstant, \
     Neither, Positive, Negative, Node, \
     Shape, Scalar, Vector, Matrix, isscalar
 
+# TODO: dimlist, arraylist, and idlist are all very similar
+# i would like to merge them.
+
 # our own exception class
 class QCError(Exception): pass
 

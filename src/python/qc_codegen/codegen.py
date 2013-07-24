@@ -51,6 +51,11 @@ class Codegen(NodeVisitor):
         self.comment = '#'
         self.dims = dims    # dimension map
 
+    def codegen(self):
+        def not_implemented():
+            raise Exception("Code generator not implemented for %s" % (self.__class__.__name__))
+        return not_implemented
+
     def prettyprint(self,lineno=False):
         """ Pretty prints the source code, possibly with line numbers
         """
@@ -128,15 +133,6 @@ class Codegen(NodeVisitor):
     def visit_Program(self, node):
         if self.dims is None:
             raise ValueError("Needed to define the dimensions of the code generator.")
-
-        # def set_all_dims(x):
-        #     return {k: v.shape.eval(self.dims) for k,v in x.iteritems()}
-        # #dims = map(str, node.dimensions)    # also includes unused dimensions
-        # # params = map(str, node.parameters)
-        #
-        # node.variables = set_all_dims(node.variables)
-        # node.new_variables = set_all_dims(node.new_variables)
-        # node.params = set_all_dims(node.params)
 
         # keep track of original variables
         self.orig_varnames = set(node.variables.keys())
@@ -218,7 +214,6 @@ class Codegen(NodeVisitor):
             raise SyntaxError("unknown error occurred in parsing stage. multiply has non-const and non-param lefthand side.")
 
         self.generic_visit(node)
-
 
         right = self.expr_stack.pop()
         left = self.expr_stack.pop()

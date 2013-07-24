@@ -1,3 +1,6 @@
+# TODO: let's re-work the expression tree
+#
+
 from qc_ast import RelOp
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
@@ -466,9 +469,6 @@ def _constant_folding(lhs,rhs,op,isop,do_op):
         if isconstant(rhs.left):
             right = rhs.right
             left = Constant(do_op(rhs.left.value,lhs.value))
-        else:
-            right = rhs
-            left = lhs
     elif isconstant(rhs) and isop(lhs):
         # right is constant and left is the result of an add
         # by convention, we'll put constants on the left leaf

@@ -8,7 +8,7 @@ lex = lexer.lexer
 # these should lex properly, but may be nonsensicla
 test_strings = [
     "minimize A*x + b - c' + square(x)",
-    "maximize find parameter nonnegative nonpositive",
+    "maximize minimize parameter nonnegative nonpositive",
     "subject to 3*2 - 1 ==<=>= 0.3 0",
     "variable m negative parameter A positive",
     "norm ( ) norm(x) norm2(x) norm1 (x)",

@@ -17,6 +17,15 @@ from use import use
     qc_vexity.
 """
 
+# TODO: rewrite this module using string formatting, i.e. store all dimensions
+# as python strings, for instance
+#
+# x(m,n) has size "%(m)d * %(n)d".
+#
+# this lets us do away with the dictionary and allows us to eval the string
+#
+
+
 # public utility functions
 @use('shape')
 def isvector(x):
@@ -67,8 +76,7 @@ class Shape(object):
     def size(self):
         if self.instantiated:
             return reduce(lambda x,y: x*y, self.dimensions, 1)
-        else:
-            raise ValueError("Cannot compute size of abstract dimension")
+        raise ValueError("Cannot compute size of abstract dimension")
 
     def __str__(self):
         if ismatrix(self): return "Matrix(%s,%s)" % (self.row, self.col)
@@ -120,8 +128,6 @@ class Shape(object):
         # create a new "slice"
         new_dims = list(self.dimensions)
         new_dims[dim] = end - begin
-        # drop trailing ones to maintain minimal list
-        new_dims = _strip_trailing_ones(new_dims)
         return Shape(new_dims)
 
     def __eq__(self, other):

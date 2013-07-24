@@ -2,16 +2,13 @@
 The design of this module borrows heavily from the PLY manual and the
 pycparser library.
 """
-# import re
-# import expression as e
 import operator
 from qc_ply import lex
 from qc_atoms import atoms
-# from atoms import macros, abs_, norm, sum_
 
 
 class QCLexer:
-    def __init__(self): # does nothing yet
+    def __init__(self):
         self.dimensions = set()
         self.variables = {}
         self.parameters = {}
@@ -50,7 +47,6 @@ class QCLexer:
         ('nonpositive', 'SIGN'),
         ('minimize', 'SENSE'),
         ('maximize', 'SENSE'),
-        ('find', 'SENSE'),
         ('subject', 'SUBJ'),
         ('to', 'TO'),
         # builtin functions in the language

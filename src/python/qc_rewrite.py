@@ -44,6 +44,13 @@ from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """
 
+# TODO: turn Atom nodes into classes / objects with a "canonicalize" function,
+# a "size" function, etc. see Steven's CVXPY implementation, removes the need
+# for all these special cases, although we do have to be careful with
+# "repeated" expressions
+#
+# TODO: add a test case for repeated expressions
+
 # only rewrites the ATOM nodes
 # TODO: problem with rewriter is that atoms defined like square(square(x)) aren't properly handled....
 # i mean, their definition is handled fine, but the rewriting just inserts square(square(x)) unconditionally...
