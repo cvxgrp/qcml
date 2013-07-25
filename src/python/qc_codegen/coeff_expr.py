@@ -168,7 +168,7 @@ def codegen_negate(x):
     if isinstance(x,EyeCoeff):
         return EyeCoeff(x.n, -x.coeff)
     if isinstance(x,OnesCoeff):
-        return OnesCoeff(x.n, -x.coeff)
+        return OnesCoeff(x.n, -x.coeff, x.transpose)
     if isinstance(x,MulCoeff):
         return MulCoeff(-x.left, x.right)
     return NegateCoeff(x)

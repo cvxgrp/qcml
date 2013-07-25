@@ -49,7 +49,7 @@ if __name__ == "__main__":
     Y = o.normal(m,n, 1)
     gamma = 1
 
-    p = QCML(debug=False)
+    p = QCML(debug=True)
     p.parse("""
         dimensions m n
         variable a(n)
@@ -59,10 +59,10 @@ if __name__ == "__main__":
         parameter Z(m,n)
         parameter W(m,n)
         parameter gamma positive
-        variables t0_(n) z
+        variables x(n) z
 
-        minimize square(norm(t0_)) - sqrt(z)
-            t0_ + z == 1
+        minimize huber(sum(x)) - sqrt(z)
+            x + z == 5
             # x(:,i+1) == A(:,:,i)*x(:,i) + B*u(:,i) for i = 1,...,T
             # sum_{ij in E}
             #
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # TODO: sum(norms(X))
     # A*x
 
-    # p.canonicalize()
+    #p.canonicalize()
     # p.set_dims({'n': n, 'm': m})
     # p.codegen("cvxopt")
     # #
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # # p.codegen("cvx")
     # p.prettyprint(True)
 
-    s = p.solve(dims, params)
+    s = p.solve(locals())
 
 
 #

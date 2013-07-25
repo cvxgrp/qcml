@@ -3,7 +3,7 @@ import qc_square
 import qc_sqrt
 import qc_square_over_lin
 from qcml.qc_ast import Variable, isconstant, Convex, Concave, increasing
-from utils import create_varname, annotate
+from utils import create_variable, annotate
 
 import qcml
 from qcml.qc_ast import Atom, Constant
@@ -56,7 +56,7 @@ def three_fourths(p,x):
 """ x^(4/3)
 """
 def four_thirds(p,x):
-    v = Variable(create_varname(), p.shape)
+    v = create_variable(p.shape)
 
     var, d = three_fourths(p,v)
     d.append(x <= var)
@@ -74,7 +74,7 @@ def three_halves(p,x):
 """ x^(1/3)
 """
 def one_third(p,x):
-    v = Variable(create_varname(), p.shape)
+    v = create_variable(p.shape)
 
     var, d = cube(p,v)
     d.append(x <= var)
@@ -85,7 +85,7 @@ def one_third(p,x):
 """ x^(2/3)
 """
 def two_thirds(p,x):
-    v = Variable(create_varname(), p.shape)
+    v = create_variable(p.shape)
 
     var, d = three_halves(p,v)
     d.append(x <= var)

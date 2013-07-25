@@ -1,5 +1,38 @@
 # TODO: let's re-work the expression tree
+# would be nice if coeff_expr and qc_expression had the same underlying
+# structure (which they do not, at the moment)
 #
+# maybe use a dictionary structure indexed by variable?
+#
+# why did i switch to using an expression tree for the expression? because i
+# wanted a quick way to emit the function "applyA". but if the expression tree
+# is done as a dictionary, constant folding, etc. happens automagically....
+#
+# i also figured an expression tree would be "simpler", but constant folding
+# makes it that much harder....
+#
+# it's also easy enough to store the "coefficient" for variable 'x' as a
+# Python string '%(param_name)s + ...' and then eval it, except that it might
+# be unsafe....
+#
+# naw, we'll create a coefficient class or something to add, multiply, etc.
+# coefficients... then expressions are just dicts of coefficients
+#
+# this goes back to my old implementation....
+#
+# new implementation:
+#
+# (a*b + 1)*x + ... + ... + ... + ...
+# store expressions as {'x': ParameterExpression(a*b + 1), '...': ...}
+#
+# the "ParameterExpression" uses the proper import to create the right kind of
+# matrix during code generation
+#
+# what about slices, transposes, etc.? what about atoms?
+#
+# they can be classes / expressions too
+#
+# so we need a way to get the coefficients of an expression...
 
 from qc_ast import RelOp
 from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone

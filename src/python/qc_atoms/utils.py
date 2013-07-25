@@ -1,11 +1,17 @@
 import qcml
+from qcml.qc_ast import Variable
 
-def create_varname():
+def _create_varname():
     """Creates a new, temporary variable name"""
     name = 't' + str(qcml.QCRewriter.varcount)
     qcml.QCRewriter.varcount += 1
 
     return name
+
+def create_variable(shape):
+    v = Variable(_create_varname(), shape)
+    qcml.QCRewriter.new_variables[v.value] = v
+    return v
 
 def annotate(fn_name):
     def decorate(fn, *args):
@@ -28,8 +34,9 @@ def annotate(fn_name):
                 return (v,[])
             else:
                 (v,constraints) = fn(node, *other_args)
-                if isinstance(v, qcml.qc_ast.Variable):
-                    qcml.QCRewriter.new_variables[v.value] = v
+                # # TODO: this should be in "create_varname"
+                # if isinstance(v, qcml.qc_ast.Variable):
+                #     qcml.QCRewriter.new_variables[v.value] = v
                 #comment = ["# '%s' canonicalizes '%s'" % (v.name, expr_string)]
                 qcml.QCRewriter.lookup[expr] = v
                 return (v,constraints)

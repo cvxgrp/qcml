@@ -1,6 +1,7 @@
 # atoms from separate files
 
 import qc_geo_mean
+import qc_huber
 import qc_inv_pos
 import qc_max
 import qc_min
@@ -38,27 +39,27 @@ import qc_square
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
-    
+
     Atoms defined using other atoms....
         whenever "square(x)" is called in the AST, it should be replaced with
         "quad_over_lin(x,Constant(1.0))"
-        
+
         but the AST node should still be called "square"
-        
+
         but problem occurs when you have >= etc. in the Atom definition...
-        
+
         maybe rewrite will just replace AST nodes?
-        
+
         so you need to chain rewrites? like
-        
+
         x^4 = x^2*x^2 = quad_over_lin(x,1) * quad_over_lin(x,1)?
-        
+
         or should you just traverse the tree twice?
-        
+
         meh--every atom should just have an SOC definition
-        
+
         or can we just rewrite as we parse? nah. too crazy.
-        
+
     Eventually, atoms will be defined in QCML. We'll provide a mechanism to
     define atoms. Need some way to pre-parse and pre-load the "program" tree
     into a table.
@@ -67,6 +68,7 @@ atoms = \
     {
         # 'abs': abs_,
         'geo_mean': qc_geo_mean,
+        'huber': qc_huber,
         'inv_pos': qc_inv_pos,
         'max': qc_max,
         'min': qc_min,
@@ -86,7 +88,7 @@ atoms = \
 
 from qc_base import norm, norm_rewrite, abs_, abs_rewrite
 
-pow_func = None  
+pow_func = None
 
-    
+
 

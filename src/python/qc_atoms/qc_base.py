@@ -6,7 +6,7 @@ from qcml.qc_ast import Scalar, Vector, Matrix, \
     Convex, Concave, Affine, \
     Variable, Objective, Program, Constant, \
     SOC, SOCProd
-from utils import create_varname, annotate
+from utils import create_variable, annotate
 import operator
 
 """ These define the attributes of the *basic* atoms, norm and abs, along with
@@ -43,7 +43,7 @@ def norm_rewrite(p, args):
     else:
         shape = reduce(operator.add, map(lambda x: x.shape, args), Scalar())
 
-    v = Variable(create_varname(), shape)
+    v = create_variable(shape)
 
     if isscalar(v):
         constraints = [SOC(v, [args[0]])]
@@ -53,8 +53,10 @@ def norm_rewrite(p, args):
     return (v, constraints)
 
 @annotate('abs')
+# TODO: rewrite using linear constraints instead of SOC constraints
+# or have SOCProd realize that it can just create two linear constraints
 def abs_rewrite(p, x):
-    v = Variable(create_varname(), x.shape)
+    v = create_variable(x.shape)
     constraints = [SOCProd(v, [x])]
 
     return (v, constraints)

@@ -6,7 +6,7 @@ from qcml.qc_ast import Scalar, Vector, Matrix,\
     Convex, Concave, Affine, \
     Variable, Objective, Program, Constant, \
     SOC, SOCProd
-from utils import create_varname, annotate
+from utils import create_variable, annotate
 import operator
 
 #import scoop as s
@@ -48,7 +48,7 @@ def rewrite(p,*args):
         x, y
             the arguments
     """
-    v = Variable(create_varname(), p.shape)
+    v = create_variable(p.shape)
 
     # declare the expansion in "SCOOP"
     constraints = map(lambda x: v >= x, args)

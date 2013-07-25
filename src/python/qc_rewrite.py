@@ -69,8 +69,8 @@ class QCRewriter(NodeTransformer):
 
     def _apply_rewrite_rule(self, node, f, *args):
         (v, constraints) = f(node,*args)
-        if isinstance(v, Variable):
-            QCRewriter.new_variables[v.value] = v
+        # if isinstance(v, Variable):
+        #     QCRewriter.new_variables[v.value] = v
         self.new_constraints.extend(constraints)
         # store the variable as pointing to the expression
         QCRewriter.lookup[str(node)] = v

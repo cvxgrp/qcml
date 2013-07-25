@@ -3,14 +3,24 @@ from qcml.qc_ast import Constant, Parameter, Variable, Scalar
 a = Constant(1)
 b = Constant(2)
 c = Constant(3)
+x = Variable('x', Scalar())
+
+expressions = [
+    (a + b + x + c, '6 + x'),
+    (a*(x + b) + c, '5 + x'),
+    (a - x, '1 - x'),
+    (b - a*x + c, '5 - x'),
+    ((x-b) + (x + a), '-1 + 2*x')
+]
+
+def constant_fold(e, expected):
+    print str(e)
+    assert(str(e) == expected)
 
 def test_constant_folding():
-    a = Constant(1)
-    b = Constant(2)
-    c = Constant(3)
-    d = Variable('x', Scalar())
+    for expr, expected in expressions:
+        yield constant_fold, expr, expected
 
-    assert(str(a + b + d + c) == '6 + x')
 
 # from scoop.expression import Expression, Constant, Parameter, Variable, \
 #     CONVEX, AFFINE, CONCAVE, Sign
