@@ -1,4 +1,4 @@
-from qc_ast import NodeTransformer, Constant, Variable, RelOp, SOC, SOCProd, Norm
+from qc_ast import NodeTransformer, Number, Variable, RelOp, SOC, SOCProd, Norm
 from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
@@ -112,7 +112,7 @@ class QCRewriter(NodeTransformer):
             #   can't turn it into an SOC unless one of them is rewritten
             self.rewrite_norm = True
             self.norm_node = node
-            return Constant(0)
+            return Number(0)
         return v
 
     def visit_Abs(self, node):
@@ -128,7 +128,7 @@ class QCRewriter(NodeTransformer):
             #   can't turn it into an SOC unless one of them is rewritten
             self.rewrite_norm = True
             self.norm_node = node
-            return Constant(0)
+            return Number(0)
         return v
 
     def visit_Add(self, node):
@@ -150,11 +150,11 @@ class QCRewriter(NodeTransformer):
     #     # convert all constraints so they are
     #     #  == 0 or <= 0
     #     if node.op == '==':
-    #         return RelOp('==', node.left - node.right, Constant(0))
+    #         return RelOp('==', node.left - node.right, Number(0))
     #     if node.op == '<=':
-    #         return RelOp('<=', node.left - node.right, Constant(0))
+    #         return RelOp('<=', node.left - node.right, Number(0))
     #     if node.op == '>=':
-    #         return RelOp('<=', node.right - node.left, Constant(0))
+    #         return RelOp('<=', node.right - node.left, Number(0))
 
     def visit_Program(self, node):
         # load the current state

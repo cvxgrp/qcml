@@ -12,6 +12,13 @@ class CVXCodegen(NodeVisitor):
         # second argument is ignored
         self.prog = []
 
+    # TODO: this ought to be rolled into a master codegen class that
+    # CVXCodegen can subclass....
+    def codegen(self):
+        def not_implemented():
+            raise Exception("Code generator not implemented for %s" % (self.__class__.__name__))
+        return not_implemented
+
     def prettyprint(self,lineno=False):
         """ Pretty prints the source code, possibly with line numbers
         """

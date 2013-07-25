@@ -4,7 +4,7 @@ from qcml.qc_ast import Scalar, Vector, Matrix, \
     increasing, decreasing, nonmonotone, \
     Positive, Negative, Neither, \
     Convex, Concave, Affine, \
-    Variable, Objective, Program, Constant, \
+    Variable, Objective, Program, Number, \
     SOC, SOCProd
 from utils import create_variable, annotate
 import operator

@@ -14,7 +14,7 @@ def cvxopt_trans(self):
     return "(%s).trans()" % self.arg
 
 def cvxopt_parameter(self):
-    return "params['%s']" % self.value
+    return "_o.matrix(params['%s'])" % self.value
 
 
 
@@ -71,7 +71,7 @@ class CVXOPTCodegen(PythonCodegen):
     def function_recover(self,keys):
         # recover the old variables
         recover = [
-            "'%s' : _sol['x'][%s:%s]" % (k, self.varstart['_'+k], self.varstart['_'+k]+self.varlength['_'+k])
+            "'%s' : _sol['x'][%s:%s]" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
                 for k in keys
         ]
 

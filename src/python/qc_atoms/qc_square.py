@@ -1,7 +1,7 @@
 import qc_square_over_lin as sol
 from qcml.qc_ast import increasing, decreasing, nonmonotone, \
      Positive, Negative, ispositive, isnegative, \
-     Convex, Concave, Affine, Constant, Atom
+     Convex, Concave, Affine, Number, Atom
 from utils import annotate
 
 """ This is the square atom.
@@ -22,7 +22,7 @@ from utils import annotate
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return sol.attributes(x, Constant(1.0))
+    return sol.attributes(x, Number(1.0))
 
 @annotate('square')
 def rewrite(p,x):
@@ -34,6 +34,6 @@ def rewrite(p,x):
         x
             the argument
     """
-    return sol.rewrite(p,x,Constant(1.0))
+    return sol.rewrite(p,x,Number(1.0))
 
 

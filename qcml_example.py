@@ -1,6 +1,7 @@
 from qcml import QCML
 
 import cvxopt as o
+from cvxopt import solvers
 
 if __name__ == "__main__":
 
@@ -63,6 +64,7 @@ if __name__ == "__main__":
 
         minimize huber(sum(x)) - sqrt(z)
             x + z == 5
+            x + z == 5
             # x(:,i+1) == A(:,:,i)*x(:,i) + B*u(:,i) for i = 1,...,T
             # sum_{ij in E}
             #
@@ -76,13 +78,16 @@ if __name__ == "__main__":
     # TODO: sum(norms(X))
     # A*x
 
-    #p.canonicalize()
+    solvers.options['abstol'] = 1e-9
+    solvers.options['reltol'] = 1e-9
+
+    # p.canonicalize()
     # p.set_dims({'n': n, 'm': m})
-    # p.codegen("cvxopt")
-    # #
-    # # p.print_canon()
-    # # p.codegen("cvx")
-    # p.prettyprint(True)
+    # p.codegen("cvx")
+    #
+    # p.print_canon()
+    # p.codegen("cvx")
+    #p.prettyprint(True)
 
     s = p.solve(locals())
 

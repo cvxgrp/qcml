@@ -1,12 +1,12 @@
 from qc_ply import yacc
 from qc_lexer import QCLexer
 from qc_ast import isconstant, \
-    Constant, Parameter, Variable, \
+    Number, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
     Neither, Positive, Negative, Node, \
-    Shape, Scalar, Vector, Matrix, isscalar
+    Shape, Scalar, Vector, Matrix, isscalar, isnumber
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.
@@ -111,7 +111,7 @@ class QCParser(object):
 
     def p_program_find(self,p):
         'program : statements'
-        p[0] = Program(Objective('find', Constant(0)), p[1], self.lex.variables, self.lex.parameters, self.lex.dimensions)
+        p[0] = Program(Objective('find', Number(0)), p[1], self.lex.variables, self.lex.parameters, self.lex.dimensions)
 
     def p_program_empty(self,p):
         'program : empty'
@@ -263,26 +263,16 @@ class QCParser(object):
 
     def p_expression_add(self,p):
         'expression : expression PLUS expression'
-        # OK: performs constant folding
-        # does not simplify x + 3x = 4x
-        if str(p[1]) == str(p[3]):
-            # x + x = 2x
-            p[0] = Mul(Constant(2.0), p[1])
-        else:
-            p[0] = p[1] + p[3] # expression + epxression
+        p[0] = p[1] + p[3] # expression + epxression
 
     def p_expression_minus(self,p):
         'expression : expression MINUS expression'
-        # OK: performs constant folding
-        if str(p[1]) == str(p[3]):
-            p[0] = Constant(0)
-        else:
-            p[0] = p[1] - p[3]
+        p[0] = p[1] - p[3]
 
     def p_expression_divide(self,p):
         '''expression : expression DIVIDE CONSTANT
                       | expression DIVIDE INTEGER'''
-        p[0] = Constant(1.0/p[3]) * p[1]
+        p[0] = Number(1.0/p[3]) * p[1]
 
     def p_expression_multiply(self,p):
         'expression : expression TIMES expression'
@@ -307,8 +297,8 @@ class QCParser(object):
                       | VAR_ID
                       | PARAM_ID"""
         # these are leaves in the expression tree
-        if isinstance(p[1], float): p[0] = Constant(p[1])
-        elif isinstance(p[1], int): p[0] = Constant(float(p[1]))
+        if isinstance(p[1], float): p[0] = Number(p[1])
+        elif isinstance(p[1], int): p[0] = Number(float(p[1]))
         elif isinstance(p[1], Variable): p[0] = ToVector(p[1])
         elif isinstance(p[1], Parameter): p[0] = ToMatrix(p[1])
         else: self._print_err(p[1], "Unknown identifier '%s'" % p[1])

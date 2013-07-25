@@ -33,9 +33,27 @@
 # they can be classes / expressions too
 #
 # so we need a way to get the coefficients of an expression...
+#
+# so the only reason i need constant folding is so i can perform a pre-solve
+# when i rewrite atoms; if that's the case, i can request the "coeffs" of the
+# arguments to an atom
+#
+# (1 + a + b)*norm(x), this is valid...
+# this becomes
+# norm(x) + a*norm(x) + b*norm(x)
+#
+# for parameters, we want
+# (1 + a + b)*c to EXPAND to c + a*c + b*c
+#
+# for variables / expressions, we want
+# (1 + a + b)*x to NOT EXPAND
+#
+# OK. This suggests that we need to have ConstantExpressions and Expressions
+#
+# {'norm(x)': {'1':1, 'a':1, 'b':1}}
 
 from qc_ast import RelOp
-from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave, increasing, decreasing, nonmonotone
+from qc_vexity import Constant, Affine, Convex, Concave, isaffine, isconstant
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 from ast import Node
@@ -44,8 +62,8 @@ import qcml
 import operator
 import re
 
-def isconstant(x):
-    return isinstance(x, Constant)
+def isnumber(x):
+    return isinstance(x, Number)
 
 def isadd(x):
     return isinstance(x, Add)
@@ -59,7 +77,6 @@ def isnegate(x):
 def isparameter(x):
     return isinstance(x, Parameter)
 
-
 class AbstractExpression(Node):
     """ AbstractExpression AST node.
 
@@ -67,7 +84,9 @@ class AbstractExpression(Node):
     """
     def __neg__(self): return negate_node(self)
 
-    def __sub__(self,other): return constant_folding_add(self, -other)
+    def __sub__(self,other):
+        if str(self) == str(other): return Number(0)
+        return constant_folding_add(self, -other)
 
     def __add__(self,other): return constant_folding_add(self,other)
 
@@ -79,24 +98,22 @@ class AbstractExpression(Node):
 
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
 
-class Constant(AbstractExpression):
-    """ Constant AST node.
+class Number(AbstractExpression):
+    """ Number AST node.
 
         Contains a floating point number. It is Affine; its sign depends on
         the sign of the float.
     """
     def __init__(self, value):
         self.value = value  # value is a float
-        self.vexity = Affine()
+        self.vexity = Constant()
         if float(value) >= 0.0: self.sign = Positive()
         else: self.sign = Negative()
         self.shape = Scalar()
-        self.isknown = True # whether or not the expression is known at
-                            # runtime, used to keep track of "param" * "var"
 
     def __str__(self): return str(self.value)
 
-    def __repr__(self): return "Constant(%s)" % self.value
+    def __repr__(self): return "Number(%s)" % self.value
 
     def children(self): return []
 
@@ -110,10 +127,9 @@ class Parameter(AbstractExpression):
     """
     def __init__(self, value, shape, sign):
         self.value = value  # value is a str
-        self.vexity = Affine()
+        self.vexity = Constant()
         self.sign = sign
         self.shape = shape
-        self.isknown = True
 
     def __str__(self): return str(self.value)
 
@@ -134,7 +150,6 @@ class Variable(AbstractExpression):
         self.vexity = Affine()
         self.sign = Neither()
         self.shape = shape
-        self.isknown = False
 
     def __str__(self): return str(self.value)
 
@@ -201,7 +216,7 @@ class ToMatrix(Parameter):
 """
 class Add(AbstractExpression):
     def __init__(self, left, right):
-        if isconstant(right):
+        if isnumber(right):
             # put constants on the "left" of the AST
             self.right = left
             self.left = right
@@ -212,7 +227,6 @@ class Add(AbstractExpression):
         self.sign = left.sign + right.sign
         self.vexity = left.vexity + right.vexity
         self.shape = left.shape + right.shape
-        self.isknown = left.isknown & right.isknown
 
     def __str__(self): return "%s + %s" % (self.left, self.right)
 
@@ -230,7 +244,6 @@ class Sum(AbstractExpression):
         self.sign = x.sign
         self.vexity = x.vexity
         self.shape = Scalar()
-        self.isknown = x.isknown
 
     def __str__(self): return "sum(%s)" % self.arg
 
@@ -243,12 +256,12 @@ class Sum(AbstractExpression):
 
 
 class Mul(AbstractExpression):
-    """ Assumes the lefthand side is a Constant or a Parameter.
+    """ Assumes the lefthand side is a Number or a Parameter.
 
         Effectively a unary operator.
     """
     def __init__(self, left, right):
-        if isconstant(right):
+        if isnumber(right):
             self.left = right
             self.right = left
         else:
@@ -257,8 +270,8 @@ class Mul(AbstractExpression):
 
         self.sign = self.left.sign * self.right.sign
         self.shape = self.left.shape * self.right.shape
-        self.isknown = self.left.isknown & self.right.isknown
-        if self.left.isknown:
+
+        if isconstant(self.left):
             if isaffine(self.right):
                 self.vexity = Affine()
             elif (isconvex(self.right) and ispositive(self.left)) or \
@@ -272,7 +285,7 @@ class Mul(AbstractExpression):
         else:
             # do i raise an error? do i complain about non-dcp compliance?
             self.vexity = Nonconvex()
-            raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be known Constant or Parameter)" % (repr(left), repr(right)))
+            raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be known Number or Parameter)" % (repr(left), repr(right)))
 
     # we omit parenthesis since multiply is distributed out
     def __str__(self): return "%s*%s" % (self.left, self.right)
@@ -291,7 +304,6 @@ class Negate(AbstractExpression):
         self.sign = -expr.sign
         self.vexity = -expr.vexity
         self.shape = expr.shape
-        self.isknown = expr.isknown
 
     # we omit the parenthesis since negate is distributed out
     def __str__(self): return "-%s" % self.expr
@@ -359,7 +371,6 @@ class Atom(AbstractExpression):
     def __init__(self,name,arguments):
         self.name = name
         self.arglist = arguments
-        self.isknown = False    # disallow taking functions of parameters
         # get the attributes of the atom
         try:
             self.sign, self.vexity, self.shape = qcml.atoms[self.name].attributes(*self.arglist)
@@ -380,7 +391,6 @@ class Norm(AbstractExpression):
     def __init__(self, args):
         self.arglist = args
         self.sign, self.vexity, self.shape = qcml.qc_atoms.norm(args)
-        self.isknown = False
 
     def __str__(self): return "norm(%s)" % (', '.join(map(str,self.arglist)))
 
@@ -395,7 +405,6 @@ class Abs(AbstractExpression):
     def __init__(self, x):
         self.arg = x
         self.sign, self.vexity, self.shape = qcml.qc_atoms.abs_(self.arg)
-        self.isknown = False
 
     def __str__(self): return "abs(%s)" % self.arg
 
@@ -437,25 +446,26 @@ def negate_node(x):
         if isnegate(x): return x.expr
         else: return Negate(x)
 
-    if isconstant(x): return Constant(-x.value)
+    if isnumber(x): return Number(-x.value)
     if isadd(x):
-        if isconstant(x.left): return Add(Constant(-x.left.value), _negate(x.right))
+        if isnumber(x.left): return Add(Number(-x.left.value), _negate(x.right))
         return Add(_negate(x.left), _negate(x.right))
     if ismul(x):
-        if isconstant(x.left): return Mul(Constant(-x.left.value), x.right)
+        if isnumber(x.left): return Mul(Number(-x.left.value), x.right)
         return Mul(_negate(x.left), x.right)
     return _negate(x)
 
 def constant_folding_add(lhs,rhs):
-    if isconstant(lhs) and lhs.value == 0: return rhs
-    if isconstant(rhs) and rhs.value == 0: return lhs
+    if str(lhs) == str(rhs): return Mul(Number(2), lhs)
+    if isnumber(lhs) and lhs.value == 0: return rhs
+    if isnumber(rhs) and rhs.value == 0: return lhs
     return _constant_folding(lhs, rhs, Add, isadd, operator.add)
 
 def constant_folding_mul(lhs,rhs):
-    if isconstant(lhs) and lhs.value == 1: return rhs
-    if isconstant(rhs) and rhs.value == 1: return lhs
-    if isconstant(lhs) and lhs.value == 0: return Constant(0)
-    if isconstant(rhs) and rhs.value == 0: return Constant(0)
+    if isnumber(lhs) and lhs.value == 1: return rhs
+    if isnumber(rhs) and rhs.value == 1: return lhs
+    if isnumber(lhs) and lhs.value == 0: return Number(0)
+    if isnumber(rhs) and rhs.value == 0: return Number(0)
     return _constant_folding(lhs, rhs, Mul, ismul, operator.mul)
 
 def distribute(lhs, rhs):
@@ -476,7 +486,7 @@ def distribute(lhs, rhs):
     else:
         return constant_folding_mul(lhs,rhs)
 
-""" Constant folding...
+""" Number folding...
     TODO: explain how this works...
 """
 def _constant_folding(lhs,rhs,op,isop,do_op):
@@ -491,32 +501,32 @@ def _constant_folding(lhs,rhs,op,isop,do_op):
         do_op:
             Execute the operator (e.g, for Add node, this is operator.add)
     """
-    if isconstant(lhs) and isconstant(rhs):
-        return Constant(do_op(lhs.value, rhs.value))
+    if isnumber(lhs) and isnumber(rhs):
+        return Number(do_op(lhs.value, rhs.value))
 
     left = lhs
     right = rhs
-    if isconstant(lhs) and isop(rhs):
+    if isnumber(lhs) and isop(rhs):
         # left is constant and right is the result of an add
         # by convention, we'll put constants on the left leaf
-        if isconstant(rhs.left):
+        if isnumber(rhs.left):
             right = rhs.right
-            left = Constant(do_op(rhs.left.value,lhs.value))
-    elif isconstant(rhs) and isop(lhs):
+            left = Number(do_op(rhs.left.value,lhs.value))
+    elif isnumber(rhs) and isop(lhs):
         # right is constant and left is the result of an add
         # by convention, we'll put constants on the left leaf
-        if isconstant(lhs.left):
+        if isnumber(lhs.left):
             right = lhs.right
-            left = Constant(do_op(lhs.left.value,rhs.value))
-    elif isop(lhs) and isop(rhs) and isconstant(lhs.left) and isconstant(rhs.left):
+            left = Number(do_op(lhs.left.value,rhs.value))
+    elif isop(lhs) and isop(rhs) and isnumber(lhs.left) and isnumber(rhs.left):
         # if adding two add nodes with constants on both sides
-        left = Constant(do_op(lhs.left.value, rhs.left.value))
+        left = Number(do_op(lhs.left.value, rhs.left.value))
         right = op(lhs.right, rhs.right)
-    elif isop(lhs) and isconstant(lhs.left):
+    elif isop(lhs) and isnumber(lhs.left):
         # if there are constants on the lhs, move up tree
         left = lhs.left
         right = op(lhs.right, rhs)
-    elif isop(rhs) and isconstant(rhs.left):
+    elif isop(rhs) and isnumber(rhs.left):
         # if there are constants on the rhs, move up tree
         left = rhs.left
         right = op(lhs,rhs.right)
@@ -526,8 +536,8 @@ def _constant_folding(lhs,rhs,op,isop,do_op):
 """ Simplifying comparisons
 """
 def _compare(x,y,op,op_str):
-    if isconstant(x) and isconstant(y):
+    if isnumber(x) and isnumber(y):
         if op(x.value, y.value): return None
         raise ValueError("Boolean constraint %s %s %s is trivially infeasible." %(x,op_str,y))
     else:
-        return RelOp(op_str, x - y, Constant(0))
+        return RelOp(op_str, x - y, Number(0))

@@ -4,7 +4,7 @@ from qcml.qc_ast import Scalar, Vector, Matrix, \
     increasing, decreasing, nonmonotone, \
     Positive, Negative, \
     Convex, Concave, Affine, \
-    Variable, Objective, Program, Constant, \
+    Variable, Objective, Program, Number, \
     SOC, SOCProd
 from utils import create_variable, annotate
 
@@ -61,8 +61,8 @@ def rewrite(p,x,y):
     v = create_variable(p.shape)
 
     constraints = [
-        SOCProd(y + v, [y - v, Constant(2.0)*x]),
-        y >= Constant(0)
+        SOCProd(y + v, [y - v, Number(2.0)*x]),
+        y >= Number(0)
     ]
 
     return (v, constraints)
@@ -75,8 +75,8 @@ def rewrite(p,x,y):
     #             v,  # declare the variable
     #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
     #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, [y - v, Constant(2.0)*x]),
-    #             y >= Constant(0)
+    #             Cone.SOC(y + v, [y - v, Number(2.0)*x]),
+    #             y >= Number(0)
     #         ]
     #
     #     else:
@@ -84,8 +84,8 @@ def rewrite(p,x,y):
     #             v, # declare the variable
     #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
     #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, y - v, Constant(2.0)*x),
-    #             y >= Constant(0)
+    #             Cone.SOC(y + v, y - v, Number(2.0)*x),
+    #             y >= Number(0)
     #         ]
     #
 

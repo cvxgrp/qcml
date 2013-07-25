@@ -1,4 +1,4 @@
-from qcml.qc_ast import Constant, ispositive
+from qcml.qc_ast import Number, ispositive
 import qc_max
 from utils import annotate
 
@@ -15,7 +15,7 @@ from utils import annotate
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return qc_max.attributes(x, Constant(0.0))
+    return qc_max.attributes(x, Number(0.0))
 
 @annotate('pos')
 def rewrite(p,x):
@@ -30,5 +30,5 @@ def rewrite(p,x):
     if ispositive(x):
         return (x, [])
     else:
-        return qc_max.rewrite(p,x,Constant(0.0))
+        return qc_max.rewrite(p,x,Number(0.0))
 

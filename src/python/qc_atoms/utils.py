@@ -2,8 +2,8 @@ import qcml
 from qcml.qc_ast import Variable
 
 def _create_varname():
-    """Creates a new, temporary variable name"""
-    name = 't' + str(qcml.QCRewriter.varcount)
+    """Creates a new, temporary variable name; beings with underscore."""
+    name = '_t' + str(qcml.QCRewriter.varcount)
     qcml.QCRewriter.varcount += 1
 
     return name

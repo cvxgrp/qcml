@@ -1,24 +1,20 @@
-from qcml.qc_ast import Convex, Concave, Affine, Nonconvex
+from qcml.qc_ast import Constant, Convex, Concave, Affine, Nonconvex
 #from nose.tools import assert_raises
 #import operator
 
-vexities = ['convex', 'concave', 'affine', 'nonconvex']
+vexities = ['constant', 'convex', 'concave', 'affine', 'nonconvex']
 
 
 def create_vex(s):
-    if s == 'convex':
-        sign = Convex()
-    elif s == 'concave':
-        sign = Concave()
-    elif s == 'affine':
-        sign = Affine()
-    else:
-        sign = Nonconvex()
-    return sign
+    if s == 'constant': return Constant()
+    if s == 'convex': return Convex()
+    if s == 'concave': return Concave()
+    if s == 'affine': return Affine()
+    return Nonconvex()
 
 def make_vex(s):
-    sign = create_vex(s)
-    assert(str(sign) == s)
+    vex = create_vex(s)
+    assert(str(vex) == s)
 
 def add_vex(s1,s2, exp):
     p1 = create_vex(s1)
@@ -39,44 +35,62 @@ def negate_vex(s, exp):
 
 def test_add():
     add_list = [
+        ('constant', 'constant', 'constant'),
+        ('constant', 'affine', 'affine'),
+        ('constant', 'convex', 'convex'),
+        ('constant', 'concave', 'concave'),
+        ('constant', 'nonconvex', 'nonconvex'),
         ('convex','convex', 'convex'),
         ('convex','concave', 'nonconvex'),
         ('convex','affine', 'convex'),
+        ('convex','constant','convex'),
         ('convex','nonconvex', 'nonconvex'),
         ('concave','convex', 'nonconvex'),
         ('concave','concave', 'concave'),
         ('concave','affine', 'concave'),
+        ('concave','constant','concave'),
         ('concave','nonconvex', 'nonconvex'),
         ('affine','convex', 'convex'),
         ('affine','concave', 'concave'),
+        ('affine','constant', 'affine'),
         ('affine','nonconvex', 'nonconvex'),
         ('affine','affine', 'affine'),
         ('nonconvex','convex', 'nonconvex'),
         ('nonconvex','concave', 'nonconvex'),
         ('nonconvex','nonconvex', 'nonconvex'),
         ('nonconvex','affine', 'nonconvex'),
+        ('nonconvex','constant', 'nonconvex'),
     ]
     for s1,s2,exp in add_list:
         yield add_vex, s1,s2,exp
 
 def test_sub():
     sub_list = [
+        ('constant', 'constant', 'constant'),
+        ('constant', 'affine', 'affine'),
+        ('constant', 'convex', 'concave'),
+        ('constant', 'concave', 'convex'),
+        ('constant', 'nonconvex', 'nonconvex'),
         ('convex','convex', 'nonconvex'),
         ('convex','concave', 'convex'),
         ('convex','affine', 'convex'),
+        ('convex','constant', 'convex'),
         ('convex','nonconvex', 'nonconvex'),
         ('concave','convex', 'concave'),
         ('concave','concave', 'nonconvex'),
         ('concave','affine', 'concave'),
+        ('concave','constant', 'concave'),
         ('concave','nonconvex', 'nonconvex'),
         ('affine','convex', 'concave'),
         ('affine','concave', 'convex'),
         ('affine','nonconvex', 'nonconvex'),
         ('affine','affine', 'affine'),
+        ('affine','constant', 'constant'),
         ('nonconvex','convex', 'nonconvex'),
         ('nonconvex','concave', 'nonconvex'),
         ('nonconvex','nonconvex', 'nonconvex'),
         ('nonconvex','affine', 'nonconvex'),
+        ('nonconvex','constant', 'nonconvex'),
     ]
     for s1,s2,exp in sub_list:
         yield sub_vex, s1,s2,exp
@@ -91,6 +105,7 @@ def test_negate():
         ('convex','concave'),
         ('concave','convex'),
         ('affine','affine'),
+        ('constant', 'constant'),
         ('nonconvex', 'nonconvex')
     ]
     for s,exp in add_list:

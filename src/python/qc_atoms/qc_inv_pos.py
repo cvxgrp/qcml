@@ -1,5 +1,5 @@
 import qc_square_over_lin as sol
-from qcml.qc_ast import Constant
+from qcml.qc_ast import Number
 from utils import annotate
 
 """ This is the inv_pos atom.
@@ -17,7 +17,7 @@ from utils import annotate
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return sol.attributes(Constant(1.0), x)
+    return sol.attributes(Number(1.0), x)
 
 @annotate('inv_pos')
 def rewrite(p,x):
@@ -29,6 +29,6 @@ def rewrite(p,x):
         x
             the argument
     """
-    return sol.rewrite(p,Constant(1.0),x)
+    return sol.rewrite(p,Number(1.0),x)
 
 

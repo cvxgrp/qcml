@@ -1,7 +1,7 @@
 import qc_geo_mean as geo_mean
 from qcml.qc_ast import increasing, decreasing, nonmonotone, \
      Positive, Negative, ispositive, isnegative, \
-     Convex, Concave, Affine, Constant
+     Convex, Concave, Affine, Number
 from utils import annotate
 
 
@@ -18,7 +18,7 @@ from utils import annotate
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return geo_mean.attributes(x, Constant(1.0))
+    return geo_mean.attributes(x, Number(1.0))
 
 @annotate('sqrt')
 def rewrite(p,x):
@@ -30,7 +30,7 @@ def rewrite(p,x):
         x
             the argument
     """
-    return geo_mean.rewrite(p,x,Constant(1.0))
+    return geo_mean.rewrite(p,x,Number(1.0))
 
     # v = Variable(create_varname(), shape)
     #
@@ -40,8 +40,8 @@ def rewrite(p,x):
     #             v,  # declare the variable
     #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
     #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, [y - v, Constant(2.0)*x]),
-    #             y >= Constant(0)
+    #             Cone.SOC(y + v, [y - v, Number(2.0)*x]),
+    #             y >= Number(0)
     #         ]
     #
     #     else:
@@ -49,8 +49,8 @@ def rewrite(p,x):
     #             v, # declare the variable
     #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
     #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, y - v, Constant(2.0)*x),
-    #             y >= Constant(0)
+    #             Cone.SOC(y + v, y - v, Number(2.0)*x),
+    #             y >= Number(0)
     #         ]
     #
 

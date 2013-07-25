@@ -6,7 +6,7 @@ from qcml.qc_ast import Variable, isconstant, Convex, Concave, increasing
 from utils import create_variable, annotate
 
 import qcml
-from qcml.qc_ast import Atom, Constant
+from qcml.qc_ast import Atom, Number
 
 square = qc_square.rewrite
 square_over_lin = qc_square_over_lin.rewrite

@@ -1,4 +1,4 @@
-from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
+from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, isconstant
 from coeff_expr import *
 
 """ Codegen template.
@@ -138,10 +138,9 @@ class Codegen(NodeVisitor):
         self.orig_varnames = set(node.variables.keys())
 
         # create variable ordering
-        # "_" variables are original variables
         # XXX: at this moment, assumes that variables are vectors (not arrays)
         # varlength contains the vector lengths as ints
-        self.varlength = {'_' + k: v.shape.eval(self.dims).size() \
+        self.varlength = {k: v.shape.eval(self.dims).size() \
             for k,v in node.variables.iteritems()
         }
         self.varlength.update({k: v.shape.eval(self.dims).size() \
@@ -178,8 +177,7 @@ class Codegen(NodeVisitor):
 
     def visit_Variable(self, node):
         n = node.shape.eval(self.dims).size()
-        if node.value in self.orig_varnames: k = '_' + node.value
-        else: k = node.value
+        k = node.value
 
         if n == 1:
             lineq = {k: ConstantCoeff(1)}
@@ -195,7 +193,7 @@ class Codegen(NodeVisitor):
             self.expr_stack.append({'1':ParameterCoeff(node.value)})
 
 
-    def visit_Constant(self, node):
+    def visit_Number(self, node):
         self.expr_stack.append({'1':ConstantCoeff(node.value)})
 
     def visit_Transpose(self, node):
@@ -210,7 +208,7 @@ class Codegen(NodeVisitor):
 
     def visit_Mul(self, node):
         # at this stage, lineq stack guaranteed to contain a constant / parameter
-        if not node.left.isknown:
+        if not isconstant(node.left):
             raise SyntaxError("unknown error occurred in parsing stage. multiply has non-const and non-param lefthand side.")
 
         self.generic_visit(node)

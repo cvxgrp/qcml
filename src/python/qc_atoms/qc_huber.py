@@ -2,7 +2,7 @@ import qc_square as square
 from qc_base import abs_, abs_rewrite
 from qcml.qc_ast import increasing, decreasing, nonmonotone, \
      Positive, Negative, ispositive, isnegative, \
-     Convex, Concave, Affine, Constant, Atom, Variable
+     Convex, Concave, Affine, Number, Atom, Variable
 from utils import create_variable, annotate
 
 """ This is the huber atom.
@@ -43,10 +43,10 @@ def rewrite(p,x):
 
     constraints = d1 + d2 + [
         v1 <= w + v,
-        w <= Constant(1),
-        v >= Constant(0)
+        w <= Number(1),
+        v >= Number(0)
     ]
 
-    return (v2 + Constant(2)*v, constraints)
+    return (v2 + Number(2)*v, constraints)
 
 

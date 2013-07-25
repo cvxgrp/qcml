@@ -1,16 +1,17 @@
-from qcml.qc_ast import Constant, Parameter, Variable, Scalar
+from qcml.qc_ast import Number, Parameter, Variable, Scalar
 
-a = Constant(1)
-b = Constant(2)
-c = Constant(3)
+a = Number(1)
+b = Number(2)
+c = Number(3)
 x = Variable('x', Scalar())
 
 expressions = [
     (a + b + x + c, '6 + x'),
     (a*(x + b) + c, '5 + x'),
-    (a - x, '1 - x'),
-    (b - a*x + c, '5 - x'),
-    ((x-b) + (x + a), '-1 + 2*x')
+    (a - x, '1 + -x'),
+    (b - a*x + c, '5 + -x'),
+    ((x-b) + (x + a), '-1 + 2*x'),
+    (a + x + x + b + c, '6 + 2*x')
 ]
 
 def constant_fold(e, expected):
