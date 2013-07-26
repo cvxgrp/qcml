@@ -5,12 +5,44 @@ from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PD
 import cvxopt
 import time # for benchmarking
 
+def _convert_to_cvxopt_matrices(variables):
+    try:
+        import numpy as np
+        import cvxopt
+
+        cvxopt_params = {k:cvxopt.matrix(v) for k,v in variables.iteritems() if isinstance(v, np.ndarray)}
+        variables.update(cvxopt_params)
+    except ImportError:
+        pass
+    return variables
+
 def profile(f):
     def wrap(*args, **kwargs):
         start = time.clock()
         result = f(*args, **kwargs)
         elapsed = time.clock() - start
         print f.__name__, "took", elapsed, "secs"
+        return result
+    return wrap
+
+def default_locals(f):
+    def wrap(self, *args, **kwargs):
+        if args or kwargs:
+            result = f(self, *args, **kwargs)
+        else:
+            # get the local calling frame
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                variables = frame.f_back.f_locals
+            finally:
+                del frame
+
+            # cast to cvxopt matrices if needed
+            # if there are numpy matrices, promote them to cvxopt matrices
+            variables = _convert_to_cvxopt_matrices(variables)
+
+            result = f(self, variables, variables)
         return result
     return wrap
 
@@ -132,11 +164,15 @@ class QCML(object):
             if not self.__dims:
                 raise Exception("QCML codegen: No dimensions currently given. Please call set_dims(...).")
 
-    def solve(self, dims, params=None):
+    @default_locals
+    def solve(self, dims, params):
         """
             .solve(locals())
             .solve(dims,params)
+
+            Assumes all matrices and vectors are cvxopt matrices.
         """
+
         if self.state is ParseState.PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
 
@@ -144,18 +180,6 @@ class QCML(object):
         self.canonicalize()
         self.codegen("cvxopt")
 
-        # if params is not supplied, it is set to the dims dictionary
-        if params is None: params = dims
-
-        # if there are numpy matrices, promote them to cvxopt matrices
-        try:
-            import numpy as np
-            import cvxopt
-
-            cvxopt_params = {k:cvxopt.matrix(v) for k,v in params.iteritems() if isinstance(v, np.ndarray)}
-            params.update(cvxopt_params)
-        except ImportError:
-            pass
         return self.solver(params)
 
     def prob2socp(self, dims, params=None):

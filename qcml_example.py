@@ -72,8 +72,8 @@ if __name__ == "__main__":
         #     # matrix X
         #     # A*X is map(A*x, X)
         #     # X*A
-        # minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        minimize a'*c
+        minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
+        # minimize c'*a
         #    norm(X*a,Y*a,Z*a, W*a) <= 1
     """)
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # p.codegen("cvx")
     #p.prettyprint(True)
 
-    s = p.solve(locals())
+    s = p.solve()
 
 
 #
