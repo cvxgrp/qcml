@@ -1,7 +1,6 @@
 from qc_ply import yacc
 from qc_lexer import QCLexer
-from qc_ast import isconstant, \
-    Number, Parameter, Variable, \
+from qc_ast import Number, Parameter, Variable, \
     Add, Negate, Mul, Transpose, \
     Objective, RelOp, Program, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \

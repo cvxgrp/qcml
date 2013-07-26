@@ -208,8 +208,9 @@ class Codegen(NodeVisitor):
 
     def visit_Mul(self, node):
         # at this stage, lineq stack guaranteed to contain a constant / parameter
-        if not isconstant(node.left):
-            raise SyntaxError("unknown error occurred in parsing stage. multiply has non-const and non-param lefthand side.")
+        assert(isconstant(node.left))
+        #if not isconstant(node.left):
+        #    raise SyntaxError("unknown error occurred in parsing stage. multiply has non-const and non-param lefthand side.")
 
         self.generic_visit(node)
 
@@ -231,7 +232,7 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
 
         for k in arg.keys():
-            n = node.arg.shape.eval(self.dims).size()
+            n = node.expr.shape.eval(self.dims).size()
             arg[k] = OnesCoeff(n, ConstantCoeff(1), True) * arg[k]
 
         self.expr_stack.append(arg)

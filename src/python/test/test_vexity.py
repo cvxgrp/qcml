@@ -85,7 +85,7 @@ def test_sub():
         ('affine','concave', 'convex'),
         ('affine','nonconvex', 'nonconvex'),
         ('affine','affine', 'affine'),
-        ('affine','constant', 'constant'),
+        ('affine','constant', 'affine'),
         ('nonconvex','convex', 'nonconvex'),
         ('nonconvex','concave', 'nonconvex'),
         ('nonconvex','nonconvex', 'nonconvex'),

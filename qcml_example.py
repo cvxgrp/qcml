@@ -60,19 +60,21 @@ if __name__ == "__main__":
         parameter Z(m,n)
         parameter W(m,n)
         parameter gamma positive
-        variables x(n) z
-
-        minimize huber(sum(x)) - sqrt(z)
-            x + z == 5
-            x + z == 5
-            # x(:,i+1) == A(:,:,i)*x(:,i) + B*u(:,i) for i = 1,...,T
-            # sum_{ij in E}
-            #
-            # matrix X
-            # A*X is map(A*x, X)
-            # X*A
-        #minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
-        # norm(X*a,Y*a,Z*a, W*a) <= 1
+        parameter c(n)
+        # variables x(n) z
+        #
+        # minimize huber(sum(x)) - sqrt(z)
+        #     x + z == 5
+        #     x + z == 5
+        #     # x(:,i+1) == A(:,:,i)*x(:,i) + B*u(:,i) for i = 1,...,T
+        #     # sum_{ij in E}
+        #     #
+        #     # matrix X
+        #     # A*X is map(A*x, X)
+        #     # X*A
+        # minimize (norm(a) + gamma*sum(pos(1 - X*a + b) + pos(1 + Y*a - b)))
+        minimize a'*c
+        #    norm(X*a,Y*a,Z*a, W*a) <= 1
     """)
 
     # TODO: sum(norms(X))

@@ -147,6 +147,15 @@ class QCML(object):
         # if params is not supplied, it is set to the dims dictionary
         if params is None: params = dims
 
+        # if there are numpy matrices, promote them to cvxopt matrices
+        try:
+            import numpy as np
+            import cvxopt
+
+            cvxopt_params = {k:cvxopt.matrix(v) for k,v in params.iteritems() if isinstance(v, np.ndarray)}
+            params.update(cvxopt_params)
+        except ImportError:
+            pass
         return self.solver(params)
 
     def prob2socp(self, dims, params=None):

@@ -53,10 +53,11 @@
 # {'norm(x)': {'1':1, 'a':1, 'b':1}}
 
 from qc_ast import RelOp
-from qc_vexity import Constant, Affine, Convex, Concave, isaffine, isconstant
+from qc_vexity import Constant, Affine, Convex, Concave, Nonconvex, \
+    isaffine, isconstant, isconvex, isconcave, isnonconvex
 from qc_sign import Positive, Negative, Neither, ispositive, isnegative
 from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from ast import Node
+from ast import Node, Leaf, BinaryOperator, UnaryOperator
 
 import qcml
 import operator
@@ -74,14 +75,22 @@ def ismul(x):
 def isnegate(x):
     return isinstance(x, Negate)
 
-def isparameter(x):
-    return isinstance(x, Parameter)
+# def isparameter(x):
+#     return isinstance(x, Parameter)
 
 class AbstractExpression(Node):
     """ AbstractExpression AST node.
 
         Abstract base class.
     """
+    def __init__(self, vexity, shape, sign, **kwargs):
+        self.vexity = vexity
+        self.sign = sign
+        self.shape = shape
+        super(AbstractExpression, self).__init__(**kwargs)
+
+    attr_names = ('vexity', 'sign','shape')
+
     def __neg__(self): return negate_node(self)
 
     def __sub__(self,other):
@@ -98,68 +107,42 @@ class AbstractExpression(Node):
 
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
 
-class Number(AbstractExpression):
+class Number(AbstractExpression, Leaf):
     """ Number AST node.
 
         Contains a floating point number. It is Affine; its sign depends on
         the sign of the float.
     """
     def __init__(self, value):
-        self.value = value  # value is a float
-        self.vexity = Constant()
-        if float(value) >= 0.0: self.sign = Positive()
-        else: self.sign = Negative()
-        self.shape = Scalar()
-
-    def __str__(self): return str(self.value)
+        if float(value) >= 0.0: sign = Positive()
+        else: sign = Negative()
+        super(Number, self).__init__(value = value, vexity = Constant(), shape = Scalar(), sign = sign)
 
     def __repr__(self): return "Number(%s)" % self.value
 
-    def children(self): return []
-
-    attr_names = ('value', 'vexity', 'sign')
-
-class Parameter(AbstractExpression):
+class Parameter(AbstractExpression, Leaf):
     """ Parameter AST node.
 
         Contains a representation of Parameters. It is Affine; its sign and
         shape are supplied from QCML.
     """
     def __init__(self, value, shape, sign):
-        self.value = value  # value is a str
-        self.vexity = Constant()
-        self.sign = sign
-        self.shape = shape
-
-    def __str__(self): return str(self.value)
+        super(Parameter, self).__init__(value = value, vexity = Constant(), shape = shape, sign = sign)
 
     def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
 
-    def children(self): return []
-
-    attr_names = ('value', 'vexity', 'sign','shape')
-
-class Variable(AbstractExpression):
+class Variable(AbstractExpression, Leaf):
     """ Variable AST node.
 
         Contains a representation of Variables. It is Affine; its sign is
         Neither positive nor negative. Its shape is supplied from QCML.
     """
     def __init__(self, value, shape):
-        self.value = value  # value is a str
-        self.vexity = Affine()
-        self.sign = Neither()
-        self.shape = shape
-
-    def __str__(self): return str(self.value)
+        super(Variable, self).__init__(value = value, vexity = Affine(), shape = shape, sign = Neither())
 
     def __repr__(self): return "Variable('%s',%s)" % (self.value, self.shape)
 
-    def children(self): return []
-
-    attr_names = ('value', 'vexity', 'sign', 'shape')
-
-class ToVector(Variable):
+class ToVector(AbstractExpression, UnaryOperator):
     """ ToVector AST node. Subclass of Variable.
 
         Cast a Variable with generic Shape into a vector.
@@ -169,21 +152,16 @@ class ToVector(Variable):
 
             Operations --- ToVector --- Slice --- Variable
     """
+    OP_NAME = ""
+    IS_POSTFIX = False
 
     def __init__(self, expr):
         if isvector(expr):
-            super(ToVector, self).__init__(expr, expr.shape)
+            super(ToVector, self).__init__(expr = expr, vexity = expr.vexity, shape = expr.shape, sign = expr.sign)
         else:
             raise TypeError("Cannot construct a vector node from %s" % repr(expr))
 
-    def children(self):
-        nodelist = []
-        if self.value is not None: nodelist.append(("expr", self.value))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign', 'shape')
-
-class ToMatrix(Parameter):
+class ToMatrix(AbstractExpression, UnaryOperator):
     """ ToMatrix AST node. Subclass of Parameter.
 
         Cast a Parameter with generic Shape into a matrix.
@@ -196,139 +174,98 @@ class ToMatrix(Parameter):
         TODO: During rewrite stage, collapse all subclasses of Parameter into
         a single node with slice information and shape information.
     """
+    OP_NAME = ""
+    IS_POSTFIX = False
 
     def __init__(self, expr):
         if ismatrix(expr):
-            super(ToMatrix, self).__init__(expr, expr.shape, expr.sign)
+            super(ToMatrix, self).__init__(expr = expr, vexity = expr.vexity, shape = expr.shape, sign = expr.sign)
         else:
             raise TypeError("Cannot construct a matrix node from %s" % repr(expr))
-
-    def children(self):
-        nodelist = []
-        if self.value is not None: nodelist.append(("expr", self.value))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign', 'shape')
 
 """ AbstractExpression AST nodes
 
     What follows are nodes that are used to form expressions.
 """
-class Add(AbstractExpression):
+class Add(AbstractExpression, BinaryOperator):
+    OP_NAME = '+'
+
     def __init__(self, left, right):
+        setup = {
+            'left': left,
+            'right': right,
+            'vexity': left.vexity + right.vexity,
+            'sign': left.sign + right.sign,
+            'shape': left.shape + right.shape
+        }
         if isnumber(right):
-            # put constants on the "left" of the AST
-            self.right = left
-            self.left = right
-        else:
-            self.left = left
-            self.right = right
+            setup['left'] = right
+            setup['right'] = left
+        super(Add, self).__init__(**setup)
 
-        self.sign = left.sign + right.sign
-        self.vexity = left.vexity + right.vexity
-        self.shape = left.shape + right.shape
+class Sum(AbstractExpression, UnaryOperator):
+    OP_NAME = 'sum'
+    IS_POSTFIX = False
 
-    def __str__(self): return "%s + %s" % (self.left, self.right)
-
-    def children(self):
-        nodelist = []
-        if self.left is not None: nodelist.append(("left", self.left))
-        if self.right is not None: nodelist.append(("right", self.right))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign','shape')
-
-class Sum(AbstractExpression):
     def __init__(self, x):
-        self.arg = x
-        self.sign = x.sign
-        self.vexity = x.vexity
-        self.shape = Scalar()
-
-    def __str__(self): return "sum(%s)" % self.arg
-
-    def children(self):
-        nodelist = []
-        if self.arg is not None: nodelist.append(("arg", self.arg))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign','shape')
+        super(Sum, self).__init__(expr = x, sign = x.sign, vexity = x.vexity, shape = Scalar())
 
 
-class Mul(AbstractExpression):
+class Mul(AbstractExpression, BinaryOperator):
     """ Assumes the lefthand side is a Number or a Parameter.
 
         Effectively a unary operator.
     """
+    OP_NAME = '*'
+
     def __init__(self, left, right):
         if isnumber(right):
-            self.left = right
-            self.right = left
-        else:
-            self.left = left
-            self.right = right
+            # swap left and right
+            tmp = left
+            left = right
+            right = left
 
-        self.sign = self.left.sign * self.right.sign
-        self.shape = self.left.shape * self.right.shape
-
-        if isconstant(self.left):
-            if isaffine(self.right):
-                self.vexity = Affine()
-            elif (isconvex(self.right) and ispositive(self.left)) or \
-                 (isconcave(self.right) and isnegative(self.left)):
-                self.vexity = Convex()
-            elif (isconcave(self.right) and ispositive(self.left)) or \
-                 (isconvex(self.right) and isnegative(self.left)):
-                self.vexity = Concave()
+        if isconstant(left):
+            if isaffine(right):
+                vexity = Affine()
+            elif (isconvex(right) and ispositive(left)) or \
+                 (isconcave(right) and isnegative(left)):
+                vexity = Convex()
+            elif (isconcave(right) and ispositive(left)) or \
+                 (isconvex(right) and isnegative(left)):
+                vexity = Concave()
             else:
-                self.vexity = Nonconvex()
+                vexity = Nonconvex()
         else:
             # do i raise an error? do i complain about non-dcp compliance?
-            self.vexity = Nonconvex()
+            vexity = Nonconvex()
             raise TypeError("Not DCP compliant multiply %s * %s (lefthand side should be known Number or Parameter)" % (repr(left), repr(right)))
 
-    # we omit parenthesis since multiply is distributed out
-    def __str__(self): return "%s*%s" % (self.left, self.right)
+        setup = {
+            'left': left,
+            'right': right,
+            'vexity': vexity,
+            'sign': left.sign * right.sign,
+            'shape': left.shape * right.shape
+        }
 
-    def children(self):
-        nodelist = []
-        if self.left is not None: nodelist.append(("left", self.left))
-        if self.right is not None: nodelist.append(("right", self.right))
-        return tuple(nodelist)
+        super(Mul, self).__init__(**setup)
 
-    attr_names = ('vexity', 'sign', 'shape')
+class Negate(AbstractExpression, UnaryOperator):
+    OP_NAME = '-'
+    IS_POSTFIX = False
 
-class Negate(AbstractExpression):
     def __init__(self, expr):
-        self.expr = expr
-        self.sign = -expr.sign
-        self.vexity = -expr.vexity
-        self.shape = expr.shape
+        super(Negate, self).__init__(expr = expr, sign = -expr.sign, vexity = -expr.vexity, shape = expr.shape)
 
-    # we omit the parenthesis since negate is distributed out
-    def __str__(self): return "-%s" % self.expr
-
-    def children(self):
-        nodelist = []
-        if self.expr is not None: nodelist.append(("expr", self.expr))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign', 'shape')
-
-class Transpose(Parameter):
+class Transpose(AbstractExpression, UnaryOperator):
     """ Can only be applied to parameters
     """
+    OP_NAME = "'"
+    IS_POSTFIX = True
+
     def __init__(self, expr):
-        super(Transpose, self).__init__(expr, expr.shape.transpose(), expr.sign)
-
-    def __str__(self): return "%s'" % self.value
-
-    def children(self):
-        nodelist = []
-        if self.value is not None: nodelist.append(("value", self.value))
-        return tuple(nodelist)
-
-    attr_names = ('vexity', 'sign', 'shape')
+        super(Transpose, self).__init__(expr = expr, shape = expr.shape.transpose(), vexity = expr.vexity, sign = expr.sign)
 
 class Slice(Parameter,Variable):
     """ Can only be applied to parameters or variables.

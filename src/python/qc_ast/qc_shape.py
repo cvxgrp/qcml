@@ -79,9 +79,9 @@ class Shape(object):
         raise ValueError("Cannot compute size of abstract dimension")
 
     def __str__(self):
-        if ismatrix(self): return "Matrix(%s,%s)" % (self.row, self.col)
-        if isvector(self): return "Vector(%s)" % self.row
         if isscalar(self): return "Scalar()"
+        if isvector(self): return "Vector(%s)" % self.row
+        if ismatrix(self): return "Matrix(%s,%s)" % (self.row, self.col)
         return "Shape([%s])" % (', '.join(map(str, self.dimensions)))
 
     def eval(self, dimension_dictionary):

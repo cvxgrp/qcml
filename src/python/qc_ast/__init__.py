@@ -6,7 +6,7 @@ from qc_vexity import Constant, Affine, Convex, Concave, Nonconvex, \
 #from qc_expression import
 from qc_ast import Objective, RelOp, Program, \
     SOC, SOCProd
-from qc_expression import isparameter, isnumber, isadd, ismul, \
+from qc_expression import isnumber, isadd, ismul, \
     Number, Parameter, Variable, \
     Add, Negate, Mul, Transpose, Slice, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs

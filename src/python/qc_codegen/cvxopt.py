@@ -14,7 +14,7 @@ def cvxopt_trans(self):
     return "(%s).trans()" % self.arg
 
 def cvxopt_parameter(self):
-    return "_o.matrix(params['%s'])" % self.value
+    return "params['%s']" % self.value
 
 
 
@@ -56,14 +56,18 @@ class CVXOPTCodegen(PythonCodegen):
                 return "[%s]" % sz
             else:
                 return "%s*[%s]" % (num, sz)
-        cone_list_str = map(cone_tuple_to_str, self.cone_list)
+        cone_list_str = '[]'
+        if self.cone_list:
+            cone_list_str = map(cone_tuple_to_str, self.cone_list)
+            cone_list_str = '+'.join(cone_list_str)
+
         return [
         "_c = _o.matrix(0, (%s,1), tc='d')" % self.num_vars,
         "_h = _o.matrix(0, (%s,1), tc='d')" % (self.num_conic + self.num_lps),
         "_b = _o.matrix(0, (%s,1), tc='d')" % self.num_lineqs,
         "_G = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (self.num_conic + self.num_lps, self.num_vars),
         "_A = _o.spmatrix([], [], [], (%s,%s), tc='d')" % (self.num_lineqs, self.num_vars),
-        "_dims = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, '+'.join(map(str,cone_list_str)))]
+        "_dims = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)]
 
     def function_solve(self):
         return ["_sol = _o.solvers.conelp(_c, _G, _h, _dims, _A, _b)"]
