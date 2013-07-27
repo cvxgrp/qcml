@@ -1,6 +1,6 @@
-from qcml.expression.expression import Number, Parameter, Variable
-from qcml.properties.shape import Scalar
-from qcml.properties.sign import Positive
+from qcml.expression.expression import Number, Parameter, Variable, Transpose, Sum
+from qcml.properties.shape import Scalar, Matrix
+from qcml.properties.sign import Positive, Neither
 
 a = Number(1)
 b = Number(2)
@@ -8,6 +8,9 @@ c = Number(3)
 x = Variable('x', Scalar())
 y = Variable('y', Scalar())
 w = Parameter('w', Scalar(), Positive())
+u = Parameter('u', Scalar(), Positive())
+D = Parameter('D', Matrix('m', 'p'), Neither())
+E = Parameter('E', Matrix('p', 'n'), Neither())
 
 expressions = [
     (a + b + x + c, '6 + x'),
@@ -28,7 +31,15 @@ expressions = [
     (w + y + b + x + c + w + x + a + y, '6 + 2*y + 2*x + 2*w'),
     (w + x + b + y + b*x + c*y, '2 + 3*x + 4*y + w'),
     (w*x + w*x + w*x, '3*w*x'),
-    (x + y + w + a, '1 + x + y + w')
+    (x + y + w + a, '1 + x + y + w'),
+    (y + w + x + a, '1 + y + w + x'),
+    (x + y + w + a - (y + w + x + a), '0'),
+    (a*w*b*c*x, '6*w*x'),
+    (Transpose(a + w), "1 + w"),
+    (Transpose(b*w*u), "2*w*u"),
+    (Transpose(b*D*E)*x, "2*E'*D'*x"),
+    (Sum(a + w), "1 + 1'*w"),
+    (Sum(w*x + Transpose(D)*x), "1'*w*x + 1'*D'*x")
 ]
 
 def constant_fold(e, expected):

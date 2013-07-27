@@ -70,20 +70,6 @@ class Add(e.Expression, e.BinaryOperator):
             return ( (self.left.left + e.Number(1)) * self.right ).simplify()
         return self
 
-    def simplify(self):
-        result = super(Add, self).simplify()
-        if isinstance(result, Add): return result.collect()
-        return result
-
-class Sum(e.Expression, e.UnaryOperator):
-    OP_NAME = 'sum'
-    IS_POSTFIX = False
-    OP_FUNC = sum
-
-    def __init__(self, x):
-        super(Sum, self).__init__(expr = x, sign = x.sign, curvature = x.curvature, shape = shape.Scalar())
-
-
 class Mul(e.Expression, e.BinaryOperator):
     """ Assumes the lefthand side is a Number or a Parameter.
 
@@ -116,23 +102,49 @@ class Mul(e.Expression, e.BinaryOperator):
             return (tmp.left*self.right + tmp.right*self.right).simplify()
         return self
 
-    def simplify(self):
-        result = super(Mul, self).simplify()
-        # distribute
-        if isinstance(result, Mul): return result.distribute()
-        return result
 
-# ... TODO: up to here, the code is done...
+class Sum(e.Expression, e.UnaryOperator):
+
+    def sum_func(self,x):
+        if isinstance(x, e.Expression): return Sum(x)
+        return x
+
+    OP_NAME = "1'*"
+    IS_POSTFIX = False
+    OP_FUNC = sum_func
+
+    def __init__(self, x):
+        super(Sum, self).__init__(expr = x, sign = x.sign, curvature = x.curvature, shape = shape.Scalar())
+
+    def distribute(self):
+        if isinstance(self.expr, Add):
+            return (Sum(self.expr.left) + Sum(self.expr.right)).simplify()
+        return self
 
 class Transpose(e.Expression, e.UnaryOperator):
     """ Can only be applied to parameters
     """
+    def transpose(self,x):
+        if isinstance(x, e.Expression): return Transpose(x)
+        return x
+
     OP_NAME = "'"
     IS_POSTFIX = True
-    OP_FUNC = lambda x: x
+    OP_FUNC = transpose
 
     def __init__(self, expr):
         super(Transpose, self).__init__(expr = expr, shape = expr.shape.transpose(), curvature = expr.curvature, sign = expr.sign)
+
+    def distribute(self):
+        if shape.isscalar(self.expr):
+            return self.expr
+        if isinstance(self.expr, Add):
+            return (Transpose(self.expr.left) + Transpose(self.expr.right)).simplify()
+        if isinstance(self.expr, Mul):
+            return (Transpose(self.expr.right) * Transpose(self.expr.left)).simplify()
+        return self
+
+# ... TODO: up to here, the code is done...
 
 class Slice(e.Parameter,e.Variable):
     """ Can only be applied to parameters or variables.

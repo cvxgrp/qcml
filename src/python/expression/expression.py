@@ -54,6 +54,8 @@ class Leaf(ast.Node):
 
     def simplify(self): return self
 
+    def canonicalize(self): return (self, [])
+
 class BinaryOperator(ast.Node):
     def __init__(self, left, right, **kwargs):
         self.left = left
@@ -75,8 +77,8 @@ class BinaryOperator(ast.Node):
     def __is_zero(self, expr):
         return isnumber(expr) and expr.value == self.ZERO
 
-    def _commute(self):
-        # puts constants on LHS
+    def _commute_number(self):
+        # puts number on LHS
         if isnumber(self.right):
             tmp = self.left
             self.left = self.right
@@ -85,28 +87,40 @@ class BinaryOperator(ast.Node):
     def _associate(self):
         # commute numbers on RHS to LHS and simplify
         # tries a different association to simplify
-        self._commute()
+        self._commute_number()
         if isinstance(self.right, self.__class__):
-            # x + (y+z) = (x+y) + z
+            # x op (y op z) = (x op y) op z
             tmp = self.right
             self.left = self.OP_FUNC(tmp.left, self.left).simplify()
             self.right = tmp.right
         if isinstance(self.left, self.__class__):
-            # (x+y) + z = x + (y+z)
+            # (x op y) op z = x op (y op z)
             tmp = self.left
             self.left = tmp.left
             self.right = self.OP_FUNC(tmp.right, self.right).simplify()
 
+    def distribute_or_collect(self):
+        if hasattr(self, 'distribute'): return self.distribute()
+        if hasattr(self, 'collect'): return self.collect()
+        return self
+
     def simplify(self):
         self.left = self.left.simplify()
         self.right = self.right.simplify()
+
         self._associate()
         if isnumber(self.left) and isnumber(self.right):
             return Number( self.OP_FUNC(self.left.value, self.right.value) )
         if self.__is_identity(self.left): return self.right
         if self.__is_identity(self.right): return self.left
         if self.__is_zero(self.left) or self.__is_zero(self.right): return Number(0)
-        return self
+        return self.distribute_or_collect()
+
+    def canonicalize(self):
+        lh_obj, lh_constraints = self.left.canonicalize()
+        rh_obj, rh_constraints = self.right.canonicalize()
+        obj = self.OP_FUNC(lh_obj, rh_obj)
+        return (obj, lh_constraints + rh_constraints)
 
 class UnaryOperator(ast.Node):
     def __init__(self, expr, **kwargs):
@@ -124,12 +138,18 @@ class UnaryOperator(ast.Node):
             return '%s%s' % (self.expr, self.OP_NAME)
         return '%s%s' % (self.OP_NAME, self.expr)
 
+    def distribute(self): return self
+
     def simplify(self):
         self.expr = self.expr.simplify()
-        if hasattr(self, OP_FUNC) and isnumber(self.expr):
-            result = self.OP_FUNC(self.expr.value)
-            return Number(result)
-        return self
+        if isnumber(self.expr):
+            return Number( self.OP_FUNC(self.expr.value) )
+        return self.distribute()
+
+    def canonicalize(self):
+        obj, constraints = self.expr.canonicalize()
+        obj = self.OP_FUNC(obj)
+        return (obj, constraints)
 
 from leaf import *
 from ops import *

@@ -73,6 +73,7 @@ class Objective(ast.Node):
     attr_names = ('is_dcp','shape')
 
 class RelOp(ast.Node):
+    # TODO: make it a linear ineq, with only a "left" <= 0
     """ RelOp AST node.
 
         This node forms a constraint in the program.
@@ -100,11 +101,11 @@ class RelOp(ast.Node):
 
     def __eq__(self, other):
         if self.op == other.op:
-            return str(self.left - self.right) == str(other.left - other.right)
+            return str( (self.left - self.right).simplify() ) == str( (other.left - other.right).simplify() )
         elif self.op == '<=' and other.op == '>=':
-            return str(self.left - self.right) == str(other.right - other.left)
+            return str( (self.left - self.right).simplify() ) == str( (other.right - other.left).simplify() )
         elif self.op == '>=' and other.op == '<=':
-            return str(self.right - self.left) == str(other.left - other.right)
+            return str( (self.right - self.left).simplify() ) == str( (other.left - other.right).simplify() )
         else:
             return False
 
@@ -113,9 +114,9 @@ class RelOp(ast.Node):
 
     def __hash__(self):
         if self.op == '<=':
-            return hash(str(self.left - self.right))
+            return hash(str( (self.left - self.right).simplify() ))
         else:
-            return hash(str(self.right - self.left))
+            return hash(str( (self.right - self.left).simplify() ))
 
     def __str__(self): return "%s %s %s" % (self.left, self.op, self.right)
 
