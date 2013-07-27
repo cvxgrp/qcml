@@ -6,9 +6,10 @@ from qc_vexity import Constant, Affine, Convex, Concave, Nonconvex, \
 #from qc_expression import
 from qc_ast import Objective, RelOp, Program, \
     SOC, SOCProd
-from qc_expression import isnumber, isadd, ismul, \
-    Number, Parameter, Variable, \
-    Add, Negate, Mul, Transpose, Slice, \
+from qc_expression import isnumber, \
+    Number, Parameter, Variable
+
+from qc_operator import Add, Mul, Transpose, Slice, \
     ToVector, ToMatrix, Atom, Sum, Norm, Abs
 
 from ast import Node, NodeVisitor, NodeTransformer

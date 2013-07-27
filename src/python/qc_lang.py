@@ -31,6 +31,7 @@ def default_locals(f):
             result = f(self, *args, **kwargs)
         else:
             # get the local calling frame
+            # http://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
             import inspect
             frame = inspect.currentframe()
             try:

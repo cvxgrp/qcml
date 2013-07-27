@@ -251,15 +251,6 @@ class Codegen(NodeVisitor):
 
         self.expr_stack.append(left)
 
-    def visit_Negate(self, node):
-        self.generic_visit(node)
-
-        arg = self.expr_stack.pop()
-        for k in arg.keys():
-            arg[k] = -arg[k]
-
-        self.expr_stack.append(arg)
-
 
     def visit_Objective(self, node):
         self.body.append("")

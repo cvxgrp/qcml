@@ -31,7 +31,6 @@ def nonmonotone(x):
     if isaffine(x): return x.vexity
     else: return Nonconvex()
 
-
 class AbstractVexity(object):
     """ Vexity is an abstract base class and should never be created.
     """
@@ -51,6 +50,9 @@ class AbstractVexity(object):
 
     # IMPORTANT: __mul__ is missing since it requires knowledge of the sign
     # of the parent expression
+    #
+    # see qc_ast.qc_expression's "_signed_multiply" function
+    #
 
     def __neg__(self):
         if isconstant(self): return Constant()

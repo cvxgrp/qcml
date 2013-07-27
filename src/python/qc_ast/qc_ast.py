@@ -5,6 +5,9 @@ from qc_shape import Scalar, isscalar
 from ast import Node
 import operator
 
+# TODO: ... I don't think these actually need to be ASTs...
+# but i get the nice "printing" ability
+
 class Program(Node):
     """ Program AST node.
 
@@ -17,10 +20,10 @@ class Program(Node):
         self.objective = objective
         self.constraints = constraints
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
-        self.variables = variables      # variables declared by the user
-        self.parameters = parameters    # parameters declared by the user
-        self.dimensions = dimensions    # dimensions declared by the user
-        self.new_variables = {}         # new variables introduced by rewriting
+        self.variables = variables     # variables declared by the user
+        self.parameters = parameters   # parameters declared by the user
+        self.dimensions = dimensions   # dimensions declared by the user
+        self.new_variables = {}        # new variables introduced by rewriting
 
     def __str__(self): return "%s\nsubject to\n    %s" % (self.objective, '\n    '.join(map(str,self.constraints)))
 

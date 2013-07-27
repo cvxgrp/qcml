@@ -43,7 +43,7 @@ solver requires that the user specify the parameters in their
 optimization model. For rapid prototyping, we provide the convenience
 function:
 
-    solution = p.solve(locals())
+    solution = p.solve()
 
 This functions wraps the last four steps above into a single call and
 assumes that all parameters and dimensions are defined in the local
