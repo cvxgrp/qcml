@@ -1,4 +1,6 @@
-from qcml.qc_ast import Number, Parameter, Variable, Scalar, Positive
+from qcml.expression.expression import Number, Parameter, Variable
+from qcml.properties.shape import Scalar
+from qcml.properties.sign import Positive
 
 a = Number(1)
 b = Number(2)
@@ -24,7 +26,9 @@ expressions = [
     (b*w + b*w, '4*w'),
     (w + x + b + w, '2 + x + 2*w'),
     (w + y + b + x + c + w + x + a + y, '6 + 2*y + 2*x + 2*w'),
-    (w + x + b + y + b*x + c*y, '2 + 3*x + 4*y + w')
+    (w + x + b + y + b*x + c*y, '2 + 3*x + 4*y + w'),
+    (w*x + w*x + w*x, '3*w*x'),
+    (x + y + w + a, '1 + x + y + w')
 ]
 
 def constant_fold(e, expected):

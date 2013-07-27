@@ -1,11 +1,10 @@
-from qcml.qc_ast import Scalar, Vector, Matrix,\
-    ispositive, isnegative, \
-    isvector, ismatrix, isscalar, \
-    increasing, decreasing, nonmonotone, \
-    Positive, Negative, Neither, \
-    Convex, Concave, Affine, \
-    Variable, Objective, Program, Number, \
-    SOC, SOCProd
+from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
+
+from qcml.expression.expression import Variable, Number
+from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+
 from utils import create_variable, annotate
 import operator
 

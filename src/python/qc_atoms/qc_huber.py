@@ -1,8 +1,12 @@
 import qc_square as square
-from qc_base import abs_, abs_rewrite
-from qcml.qc_ast import increasing, decreasing, nonmonotone, \
-     Positive, Negative, ispositive, isnegative, \
-     Convex, Concave, Affine, Number, Atom, Variable
+
+from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
+
+from qcml.expression.expression import Variable, Number
+from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+
 from utils import create_variable, annotate
 
 """ This is the huber atom.

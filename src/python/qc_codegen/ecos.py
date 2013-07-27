@@ -1,5 +1,4 @@
 from cvxopt import CVXOPTCodegen
-from qcml.qc_ast import RelOp, SOC, SOCProd
 
 class ECOSCodegen(CVXOPTCodegen):
     def function_preamble(self):

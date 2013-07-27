@@ -15,21 +15,6 @@ import qc_sqrt
 import qc_square_over_lin
 import qc_square
 
-# from scoop_abs import abs_
-# from scoop_geo_mean import geo_mean
-# from scoop_inv_pos import inv_pos
-# from scoop_max import max_
-# from scoop_min import min_
-# from scoop_neg import neg
-# from scoop_norm_inf import norm_inf
-# from scoop_norm import norm
-# from scoop_norm1 import norm1
-# from scoop_pos import pos
-# from scoop_pow_rat import pow_rat
-# from scoop_qol import quad_over_lin
-# from scoop_sqrt import sqrt
-# from scoop_square import square
-# from scoop_sum import sum_
 
 # build dictionary of methods (matching with identifiers)
 

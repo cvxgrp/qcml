@@ -1,4 +1,5 @@
-from qc_ast import NodeTransformer, Number, Variable, RelOp, SOC, SOCProd, Norm
+import expression.ast as ast
+import expression.qc_ast as qc_ast
 from qc_atoms import atoms, norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
@@ -55,7 +56,7 @@ from qc_atoms import atoms, norm_rewrite, abs_rewrite
 # TODO: problem with rewriter is that atoms defined like square(square(x)) aren't properly handled....
 # i mean, their definition is handled fine, but the rewriting just inserts square(square(x)) unconditionally...
 # i actually needed square(square(x)) inserted in the definition *before* i did the rewriting....
-class QCRewriter(NodeTransformer):
+class QCRewriter(ast.NodeTransformer):
     varcount = 0
     lookup = {}
     new_variables = {}
@@ -169,8 +170,8 @@ class QCRewriter(NodeTransformer):
         # remove any redundant constraints by converting to set
         unique_constraints = set(node.constraints)
         # convert to a list but place the linear constraints at the front of the list
-        linear_constraints = [x for x in unique_constraints if isinstance(x,RelOp)]
-        soc_constraints = [x for x in unique_constraints if (isinstance(x,SOC) or isinstance(x,SOCProd))]
+        linear_constraints = [x for x in unique_constraints if isinstance(x,qc_ast.RelOp)]
+        soc_constraints = [x for x in unique_constraints if (isinstance(x,qc_ast.SOC) or isinstance(x,qc_ast.SOCProd))]
         node.constraints = linear_constraints + soc_constraints
 
         # only include the variables and parameters that are used
@@ -198,11 +199,11 @@ class QCRewriter(NodeTransformer):
         if self.norm_node is not None:
             if isinstance(self.norm_node, Norm):
                 if len(self.norm_node.arglist) == 1:
-                    return SOC(-node.left, self.norm_node.arglist)
+                    return qc_ast.SOC(-node.left, self.norm_node.arglist)
                 else:
-                    return SOCProd(-node.left, self.norm_node.arglist)
+                    return qc_ast.SOCProd(-node.left, self.norm_node.arglist)
             else:   # abs
-                return SOCProd(-node.left, [self.norm_node.arg])
+                return qc_ast.SOCProd(-node.left, [self.norm_node.arg])
         else:
             return node
 

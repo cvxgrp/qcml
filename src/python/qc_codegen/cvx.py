@@ -1,4 +1,4 @@
-from qcml.qc_ast import NodeVisitor
+from qcml.expression.ast import NodeVisitor
 from qcml.qc_rewrite import QCRewriter
 
 class CVXCodegen(NodeVisitor):

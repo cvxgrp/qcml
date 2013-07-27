@@ -1,5 +1,4 @@
-from use import use
-from abc import ABCMeta
+from qcml.helpers import use
 
 @use('sign')
 def ispositive(x):

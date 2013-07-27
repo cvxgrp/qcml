@@ -1,35 +1,35 @@
-from qcml.qc_ast import Constant, Convex, Concave, Affine, Nonconvex
+from qcml.properties.curvature import Constant, Convex, Concave, Affine, Nonconvex
 #from nose.tools import assert_raises
 #import operator
 
-vexities = ['constant', 'convex', 'concave', 'affine', 'nonconvex']
+curvatures = ['constant', 'convex', 'concave', 'affine', 'nonconvex']
 
 
-def create_vex(s):
+def create_curvature(s):
     if s == 'constant': return Constant()
     if s == 'convex': return Convex()
     if s == 'concave': return Concave()
     if s == 'affine': return Affine()
     return Nonconvex()
 
-def make_vex(s):
-    vex = create_vex(s)
+def make_curvature(s):
+    vex = create_curvature(s)
     assert(str(vex) == s)
 
-def add_vex(s1,s2, exp):
-    p1 = create_vex(s1)
-    p2 = create_vex(s2)
+def add_curvature(s1,s2, exp):
+    p1 = create_curvature(s1)
+    p2 = create_curvature(s2)
     result = p1+p2
     assert(str(result) == exp)
 
-def sub_vex(s1,s2, exp):
-    p1 = create_vex(s1)
-    p2 = create_vex(s2)
+def sub_curvature(s1,s2, exp):
+    p1 = create_curvature(s1)
+    p2 = create_curvature(s2)
     result = p1-p2
     assert(str(result) == exp)
 
-def negate_vex(s, exp):
-    p = create_vex(s)
+def negate_curvature(s, exp):
+    p = create_curvature(s)
     v = -p
     assert(str(v) == exp)
 
@@ -62,7 +62,7 @@ def test_add():
         ('nonconvex','constant', 'nonconvex'),
     ]
     for s1,s2,exp in add_list:
-        yield add_vex, s1,s2,exp
+        yield add_curvature, s1,s2,exp
 
 def test_sub():
     sub_list = [
@@ -93,7 +93,7 @@ def test_sub():
         ('nonconvex','constant', 'nonconvex'),
     ]
     for s1,s2,exp in sub_list:
-        yield sub_vex, s1,s2,exp
+        yield sub_curvature, s1,s2,exp
 
 # def test_sub():
 #     s1 = Sign('POSITIVE')
@@ -109,7 +109,7 @@ def test_negate():
         ('nonconvex', 'nonconvex')
     ]
     for s,exp in add_list:
-        yield negate_vex, s, exp
+        yield negate_curvature, s, exp
 
 
 # def equals(s1,s2):
@@ -132,8 +132,8 @@ def test_negate():
 #             yield equals, s1, s2
 #             yield not_equals, s1, s2
 
-def test_vex_creation():
-    for s in vexities:
-        yield make_vex, s
+def test_curvature_creation():
+    for s in curvatures:
+        yield make_curvature, s
 
 

@@ -1,5 +1,5 @@
 import qcml
-from qcml.qc_ast import Variable
+from qcml.expression.expression import Variable
 
 def _create_varname():
     """Creates a new, temporary variable name; beings with underscore."""

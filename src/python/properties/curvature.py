@@ -1,38 +1,38 @@
-from use import use
+from qcml.helpers import use
 
-@use('vexity')
+@use('curvature')
 def isconvex(x):
     return isinstance(x, Convex)
 
-@use('vexity')
+@use('curvature')
 def isconcave(x):
     return isinstance(x, Concave)
 
-@use('vexity')
+@use('curvature')
 def isaffine(x):
     return isinstance(x, Affine)
 
-@use('vexity')
+@use('curvature')
 def isnonconvex(x):
     return isinstance(x, Nonconvex)
 
-@use('vexity')
+@use('curvature')
 def isconstant(x):
     return isinstance(x, Constant)
 
-# vexity inference using monotonicty
+# curvature inference using monotonicty
 def increasing(x):
-    return x.vexity
+    return x.curvature
 
 def decreasing(x):
-    return -x.vexity
+    return -x.curvature
 
 def nonmonotone(x):
-    if isaffine(x): return x.vexity
+    if isaffine(x): return x.curvature
     else: return Nonconvex()
 
-class AbstractVexity(object):
-    """ Vexity is an abstract base class and should never be created.
+class AbstractCurvature(object):
+    """ Curvature is an abstract base class and should never be created.
     """
     def __add__(self,other):
         if isconstant(self) and isconstant(other): return Constant()
@@ -68,11 +68,11 @@ class AbstractVexity(object):
         if isconcave(self): return "concave"
         return "nonconvex"
 
-class Nonconvex(AbstractVexity): pass
+class Nonconvex(AbstractCurvature): pass
 
-class Convex(AbstractVexity): pass
+class Convex(AbstractCurvature): pass
 
-class Concave(AbstractVexity): pass
+class Concave(AbstractCurvature): pass
 
 class Affine(Convex,Concave): pass  # for affine expressions
 

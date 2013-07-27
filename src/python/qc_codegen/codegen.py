@@ -1,4 +1,7 @@
-from qcml.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd, isconstant
+from qcml.expression.ast import NodeVisitor
+from qcml.properties.shape import isscalar
+from qcml.properties.curvature import isconstant
+from qcml.expression.qc_ast import RelOp, SOC, SOCProd
 from coeff_expr import *
 
 """ Codegen template.

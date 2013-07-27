@@ -1,7 +1,10 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
-from qcml.qc_ast import Variable, Vector, Scalar
-import qcml.qc_ast as ast
+
+from qcml.properties.shape import Vector, Scalar
+import qcml.expression.expression as expression
+import qcml.expression.qc_ast as qc_ast
+
 from codegen import EyeCoeff, OnesCoeff, TransposeCoeff, SliceCoeff, Codegen,\
     ConstantCoeff, ParameterCoeff
 
@@ -209,17 +212,17 @@ class MatlabCodegen(Codegen):
         return Variable(name, n)
 
     def __slice(self, node, begin, end):
-        if isinstance(node, ast.Slice):
+        if isinstance(node, expression.Slice):
             new_begin = node.begin + begin
             new_end = node.begin + end
 
-            return ast.Slice(node.value, new_begin, new_end, 0)
+            return expression.Slice(node.value, new_begin, new_end, 0)
 
-        if isinstance(node, ast.Mul):
+        if isinstance(node, expression.Mul):
             slice_left = self.__slice(node.left, begin, end)
-            return ast.Mul(slice_left, node.right)
+            return expression.Mul(slice_left, node.right)
 
-        return ast.Slice(node, begin, end, 0)
+        return expression.Slice(node, begin, end, 0)
 
     def visit_SOC(self, node):
         if self.cone_size is not None:
@@ -267,7 +270,7 @@ class MatlabCodegen(Codegen):
                 self.num_vars += 1
 
                 # process the new cone, which has the right size
-                super(MatlabCodegen,self).visit_SOC(ast.SOC(new_var, new_args))
+                super(MatlabCodegen,self).visit_SOC(qc_ast.SOC(new_var, new_args))
 
                 # process the old cone
                 old_args.append(new_var)
@@ -316,7 +319,7 @@ class MatlabCodegen(Codegen):
                 self.num_vars += node.shape.eval(self.dims).size()
 
                 # process the new cone, which has the right size
-                super(MatlabCodegen,self).visit_SOCProd(ast.SOCProd(new_var, new_args))
+                super(MatlabCodegen,self).visit_SOCProd(qc_ast.SOCProd(new_var, new_args))
 
                 # process the old cone
                 old_args.append(new_var)

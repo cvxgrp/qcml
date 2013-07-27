@@ -1,11 +1,16 @@
 from qc_ply import yacc
 from qc_lexer import QCLexer
-from qc_ast import Number, Parameter, Variable, \
-    Add, Mul, Transpose, \
-    Objective, RelOp, Program, \
-    ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
-    Neither, Positive, Negative, Node, \
-    Shape, Scalar, Vector, Matrix, isscalar, isnumber
+from expression.expression import Number, Parameter, Variable, \
+    Sum, Atom, Norm, Abs
+from expression.qc_ast import Objective, Program
+from properties.sign import Neither, Positive, Negative
+from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
+# from qc_ast import Number, Parameter, Variable, \
+#     Add, Mul, Transpose, \
+#     Objective, RelOp, Program, \
+#     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
+#     Neither, Positive, Negative, Node, \
+#     Shape, Scalar, Vector, Matrix, isscalar, isnumber
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.
@@ -298,8 +303,8 @@ class QCParser(object):
         # these are leaves in the expression tree
         if isinstance(p[1], float): p[0] = Number(p[1])
         elif isinstance(p[1], int): p[0] = Number(float(p[1]))
-        elif isinstance(p[1], Variable): p[0] = ToVector(p[1])
-        elif isinstance(p[1], Parameter): p[0] = ToMatrix(p[1])
+        elif isinstance(p[1], Variable): p[0] = p[1]
+        elif isinstance(p[1], Parameter): p[0] = p[1]
         else: self._print_err(p[1], "Unknown identifier '%s'" % p[1])
 
     def p_expression_sum(self,p):

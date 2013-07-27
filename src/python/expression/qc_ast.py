@@ -1,14 +1,13 @@
 # Built from PyCParser's AST and Python's AST
-
-from qc_vexity import Convex, Concave, Affine, Nonconvex, isaffine, isconvex, isconcave
-from qc_shape import Scalar, isscalar
-from ast import Node
+import ast
+import qcml.properties.shape as shape
+import qcml.properties.curvature as curvature
 import operator
 
 # TODO: ... I don't think these actually need to be ASTs...
 # but i get the nice "printing" ability
 
-class Program(Node):
+class Program(ast.Node):
     """ Program AST node.
 
         This node is root node for the program. Its children is a *single*
@@ -40,7 +39,7 @@ class Program(Node):
 
     attr_names = ('is_dcp',)
 
-class Objective(Node):
+class Objective(ast.Node):
     """ Objective AST node.
 
         This node contains the representation of the objective. It also stores
@@ -56,11 +55,11 @@ class Objective(Node):
         self.shape = expr.shape # better be scalar!
 
         if sense == 'minimize':
-            self.is_dcp = isconvex(expr)
+            self.is_dcp = curvature.isconvex(expr)
         elif sense == 'maximize':
-            self.is_dcp = isconcave(expr)
+            self.is_dcp = curvature.isconcave(expr)
         elif sense == 'find':
-            self.is_dcp = isaffine(expr)
+            self.is_dcp = curvature.isaffine(expr)
         else:
             self.is_dcp = False
 
@@ -73,7 +72,7 @@ class Objective(Node):
 
     attr_names = ('is_dcp','shape')
 
-class RelOp(Node):
+class RelOp(ast.Node):
     """ RelOp AST node.
 
         This node forms a constraint in the program.
@@ -91,11 +90,11 @@ class RelOp(Node):
         self.shape = left.shape + right.shape
 
         if op == '==':
-            self.is_dcp = isaffine(left) and isaffine(right)
+            self.is_dcp = curvature.isaffine(left) and curvature.isaffine(right)
         elif op == '<=':
-            self.is_dcp = isconvex(left) and isconcave(right)
+            self.is_dcp = curvature.isconvex(left) and curvature.isconcave(right)
         elif op == '>=':
-            self.is_dcp = isconcave(left) and isconvex(right)
+            self.is_dcp = curvature.isconcave(left) and curvature.isconvex(right)
         else:
             self.is_dcp = False
 
@@ -128,7 +127,7 @@ class RelOp(Node):
 
     attr_names = ('op', 'is_dcp', 'shape')
 
-class SOC(Node):
+class SOC(ast.Node):
     """ SOC AST node.
 
         This node forms a second-order cone constraint in the program.
@@ -140,12 +139,12 @@ class SOC(Node):
     def __init__(self, t, args):
         self.left = args
         self.right = t
-        self.shape = Scalar()
+        self.shape = shape.Scalar()
 
-        if not isscalar(self.right):
+        if not shape.isscalar(self.right):
             raise TypeError("Cannot form SOC constraint with vector '%s' right-hand side." % self.right)
 
-        self.is_dcp = all(map(isaffine, self.left)) and isaffine(self.right)
+        self.is_dcp = all(map(curvature.isaffine, self.left)) and curvature.isaffine(self.right)
 
     def __str__(self): return "norm([%s]) <= %s" % ('; '.join(map(str,self.left)), self.right)
 
@@ -166,7 +165,7 @@ class SOC(Node):
 
     attr_names = ('is_dcp', 'shape')
 
-class SOCProd(Node):
+class SOCProd(ast.Node):
     """ SOCProd AST node.
 
         This node forms a product of second-order cone constraints in the
@@ -189,7 +188,7 @@ class SOCProd(Node):
         self.right = t
         self.shape = reduce(operator.add, map(lambda x: x.shape, args), self.right.shape)
 
-        self.is_dcp = all(map(isaffine, args)) and isaffine(self.right)
+        self.is_dcp = all(map(curvature.isaffine, args)) and curvature.isaffine(self.right)
 
     def __str__(self):
         if len(self.arglist) == 1:

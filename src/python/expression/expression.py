@@ -1,12 +1,6 @@
-from qc_ast import RelOp
-from qc_vexity import Constant, Affine, Convex, Concave, Nonconvex, \
-    isaffine, isconstant, isconvex, isconcave, isnonconvex
-from qc_sign import Positive, Negative, Neither, ispositive, isnegative
-from qc_shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from ast import Node
-
+import qc_ast
+import ast
 import operator
-
 
 def isnumber(x):
     return isinstance(x, Number)
@@ -17,22 +11,22 @@ def _compare(x,y,op,op_str):
         if op(result.value, 0): return None
         raise ValueError("Boolean constraint %s %s %s is trivially infeasible." %(x,op_str,y))
     else:
-        return RelOp(op_str, result, Number(0))
+        return qc_ast.RelOp(op_str, result, Number(0))
 
 # ===============================================
 
-class Expression(Node):
+class Expression(ast.Node):
     """ Expression AST node.
 
         Abstract base class.
     """
-    def __init__(self, vexity, shape, sign, **kwargs):
-        self.vexity = vexity
+    def __init__(self, curvature, shape, sign, **kwargs):
+        self.curvature = curvature
         self.sign = sign
         self.shape = shape
         super(Expression, self).__init__(**kwargs)
 
-    attr_names = ('vexity', 'sign','shape')
+    attr_names = ('curvature', 'sign','shape')
 
     def __neg__(self): return Mul(Number(-1), self)
 
@@ -48,8 +42,7 @@ class Expression(Node):
 
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
 
-# mixins for Leaves and Operators
-class Leaf(Node):
+class Leaf(ast.Node):
     def __init__(self, value, **kwargs):
         self.value = value
         self.attr_names += ('value',)
@@ -61,7 +54,7 @@ class Leaf(Node):
 
     def simplify(self): return self
 
-class BinaryOperator(Node):
+class BinaryOperator(ast.Node):
     def __init__(self, left, right, **kwargs):
         self.left = left
         self.right = right
@@ -98,6 +91,11 @@ class BinaryOperator(Node):
             tmp = self.right
             self.left = self.OP_FUNC(tmp.left, self.left).simplify()
             self.right = tmp.right
+        if isinstance(self.left, self.__class__):
+            # (x+y) + z = x + (y+z)
+            tmp = self.left
+            self.left = tmp.left
+            self.right = self.OP_FUNC(tmp.right, self.right).simplify()
 
     def simplify(self):
         self.left = self.left.simplify()
@@ -110,7 +108,7 @@ class BinaryOperator(Node):
         if self.__is_zero(self.left) or self.__is_zero(self.right): return Number(0)
         return self
 
-class UnaryOperator(Node):
+class UnaryOperator(ast.Node):
     def __init__(self, expr, **kwargs):
         self.expr = expr
         self.attr_names += ('expr',)
@@ -128,46 +126,10 @@ class UnaryOperator(Node):
 
     def simplify(self):
         self.expr = self.expr.simplify()
-        if isinstance(self.expr, Number):
+        if hasattr(self, OP_FUNC) and isnumber(self.expr):
             result = self.OP_FUNC(self.expr.value)
             return Number(result)
         return self
 
-
-class Number(Expression, Leaf):
-    """ Number AST node.
-
-        Contains a floating point number. It is Affine; its sign depends on
-        the sign of the float.
-    """
-    def __init__(self, value):
-        if float(value) >= 0.0: sign = Positive()
-        else: sign = Negative()
-        super(Number, self).__init__(value = value, vexity = Constant(), shape = Scalar(), sign = sign)
-
-    def __repr__(self): return "Number(%s)" % self.value
-
-class Parameter(Expression, Leaf):
-    """ Parameter AST node.
-
-        Contains a representation of Parameters. It is Affine; its sign and
-        shape are supplied from QCML.
-    """
-    def __init__(self, value, shape, sign):
-        super(Parameter, self).__init__(value = value, vexity = Constant(), shape = shape, sign = sign)
-
-    def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
-
-class Variable(Expression, Leaf):
-    """ Variable AST node.
-
-        Contains a representation of Variables. It is Affine; its sign is
-        Neither positive nor negative. Its shape is supplied from QCML.
-    """
-    def __init__(self, value, shape):
-        super(Variable, self).__init__(value = value, vexity = Affine(), shape = shape, sign = Neither())
-
-    def __repr__(self): return "Variable('%s',%s)" % (self.value, self.shape)
-
-
-from qc_operator import Add, Mul
+from leaf import *
+from ops import *

@@ -1,4 +1,10 @@
-from qcml.qc_ast import Scalar
+from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
+from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
+
+from qcml.expression.expression import Variable, Number
+from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+
 import qc_max, qc_base
 from utils import annotate
 
