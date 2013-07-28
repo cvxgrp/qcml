@@ -2,8 +2,8 @@
 
 
 from qcml.properties.shape import Vector, Scalar
-import qcml.expression.expression as expression
-import qcml.expression.qc_ast as qc_ast
+import qcml.expressions.expression as expression
+import qcml.expressions.qc_ast as qc_ast
 
 from codegen import EyeCoeff, OnesCoeff, TransposeCoeff, SliceCoeff, Codegen,\
     ConstantCoeff, ParameterCoeff

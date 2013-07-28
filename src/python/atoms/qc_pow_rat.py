@@ -3,12 +3,13 @@ import qc_square
 import qc_sqrt
 import qc_square_over_lin
 
-from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.curvature import Constant, Convex, Concave, Affine
+from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
 from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
 
-from qcml.expression.expression import Variable, Number
-from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+from qcml.expressions.expression import Variable, Number
+from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
 
 from utils import create_variable, annotate
 

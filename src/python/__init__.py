@@ -31,5 +31,5 @@ from qc_lang import QCML
 from qc_parser import QCError
 
 from qc_rewrite import QCRewriter
-import qc_atoms
-atoms = qc_atoms.atoms
+import atoms.atom as a
+atoms = a.atoms

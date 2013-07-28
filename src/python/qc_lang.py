@@ -1,6 +1,6 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from qc_codegen import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen
+from codegens import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen
 
 import cvxopt
 import time # for benchmarking

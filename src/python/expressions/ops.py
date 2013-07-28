@@ -179,57 +179,33 @@ class Slice(e.Parameter,e.Variable):
 
     attr_names = ('curvature', 'sign', 'shape')
 
-class Atom(e.Expression):
-    """ Atom AST node.
-
-        Stores the name of the atom and its arguments
-    """
-    def __init__(self,name,arguments):
-        self.name = name
-        self.arglist = arguments
-        # get the attributes of the atom
-        try:
-            self.sign, self.curvature, self.shape = qcml.atoms[self.name].attributes(*self.arglist)
-        except TypeError as e:
-            msg = re.sub(r'attributes\(\)', r'%s' % self.name, str(e))
-            raise TypeError(msg)
-
-    def __str__(self): return "%s(%s)" % (self.name, ','.join(map(str, self.arglist)))
-
-    def children(self):
-        nodelist = []
-        if self.arglist is not None: nodelist.append(("arglist", self.arglist))
-        return tuple(nodelist)
-
-    attr_names = ('name', 'curvature', 'sign', 'shape')
-
-class Norm(e.Expression):
-    def __init__(self, args):
-        self.arglist = args
-        self.sign, self.curvature, self.shape = qcml.qc_atoms.norm(args)
-
-    def __str__(self): return "norm(%s)" % (', '.join(map(str,self.arglist)))
-
-    def children(self):
-        nodelist = []
-        if self.arglist is not None: nodelist.append(("arglist", self.arglist))
-        return tuple(nodelist)
-
-    attr_names = ('curvature', 'sign','shape')
-
-class Abs(e.Expression):
-    def __init__(self, x):
-        self.arg = x
-        self.sign, self.curvature, self.shape = qcml.qc_atoms.abs_(self.arg)
-
-    def __str__(self): return "abs(%s)" % self.arg
-
-    def children(self):
-        nodelist = []
-        if self.arg is not None: nodelist.append(("arg", self.arg))
-        return tuple(nodelist)
-
-    attr_names = ('curvature', 'sign','shape')
+# class Norm(e.Expression):
+#     def __init__(self, args):
+#         self.arglist = args
+#         self.sign, self.curvature, self.shape = qcml.qc_atoms.norm(args)
+#
+#     def __str__(self): return "norm(%s)" % (', '.join(map(str,self.arglist)))
+#
+#     def children(self):
+#         nodelist = []
+#         if self.arglist is not None: nodelist.append(("arglist", self.arglist))
+#         return tuple(nodelist)
+#
+#     attr_names = ('curvature', 'sign','shape')
+#
+# class Abs(e.Expression):
+#     def __init__(self, x):
+#         self.arg = x
+#         self.sign, self.curvature, self.shape = qcml.qc_atoms.abs_(self.arg)
+#
+#     def __str__(self): return "abs(%s)" % self.arg
+#
+#     def children(self):
+#         nodelist = []
+#         if self.arg is not None: nodelist.append(("arg", self.arg))
+#         return tuple(nodelist)
+#
+#     attr_names = ('curvature', 'sign','shape')
 
 class Vstack(e.Expression):
     """ Vstack AST node.

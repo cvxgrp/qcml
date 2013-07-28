@@ -1,8 +1,7 @@
 from qc_ply import yacc
 from qc_lexer import QCLexer
-from expression.expression import Number, Parameter, Variable, \
-    Sum, Atom, Norm, Abs
-from expression.qc_ast import Objective, Program
+from expressions.expression import Number, Parameter, Variable, Sum
+from expressions.qc_ast import Objective, Program
 from properties.sign import Neither, Positive, Negative
 from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
 # from qc_ast import Number, Parameter, Variable, \

@@ -1,9 +1,10 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.curvature import Constant, Convex, Concave, Affine
+from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
 from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
 
-from qcml.expression.expression import Variable, Number
-from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+from qcml.expressions.expression import Variable, Number
+from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
 
 from utils import create_variable, annotate
 import operator
@@ -16,8 +17,8 @@ import operator
 
     It is a CONVEX atom. It is INCREASTING in the first argument.
 
-    It returns a SCALAR expression. If multiple arguments are supplied, it
-    compares them elementwise and returns a VECTOR expression.
+    It returns a SCALAR expressions. If multiple arguments are supplied, it
+    compares them elementwise and returns a VECTOR expressions.
 
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)

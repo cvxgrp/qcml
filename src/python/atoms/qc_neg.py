@@ -1,29 +1,30 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.curvature import Constant, Convex, Concave, Affine
+from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
 from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
 
-from qcml.expression.expression import Variable, Number
-from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+from qcml.expressions.expression import Variable, Number
+from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
 
 import qc_max
 from utils import annotate
 
-""" This is the pos atom.
+""" This is the neg atom.
 
-        pos(x) = max(x,0)
+        neg(x) = max(-x,0)
 
     It is a CONVEX atom. It is INCREASING in the first argument.
 
-    It returns a VECTOR expression.
+    It returns a VECTOR expressions.
 
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
 def attributes(x):
-    return qc_max.attributes(x, Number(0.0))
+    return qc_max.attributes(-x, Number(0.0))
 
-@annotate('pos')
+@annotate('neg')
 def rewrite(p,x):
     """ Rewrite a square node
 
@@ -33,8 +34,8 @@ def rewrite(p,x):
         x
             the argument
     """
-    if ispositive(x):
-        return (x, [])
+    if isnegative(x):
+        return (-x, [])
     else:
-        return qc_max.rewrite(p,x,Number(0.0))
+        return qc_max.rewrite(p,-x,Number(0.0))
 

@@ -1,11 +1,12 @@
 import qc_square as square
 
-from qcml.properties.curvature import Constant, Convex, Concave, Affine, increasing, decreasing, nonmonotone
+from qcml.properties.curvature import Constant, Convex, Concave, Affine
+from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
 from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
 from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
 
-from qcml.expression.expression import Variable, Number
-from qcml.expression.qc_ast import Objective, Program, SOC, SOCProd
+from qcml.expressions.expression import Variable, Number
+from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
 
 from utils import create_variable, annotate
 
@@ -20,7 +21,7 @@ from utils import create_variable, annotate
     If the first argument is POSITIVE, it is INCREASING in the first argument.
     If the first argument is NEGATIVE, it is DECRASING in the first argument.
 
-    It returns a VECTOR expression.
+    It returns a VECTOR expressions.
 
     In every module, you must have defined two functions:
         attributes :: [arg] -> (sign, vexity, shape)

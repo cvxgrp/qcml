@@ -20,17 +20,6 @@ def isnonconvex(x):
 def isconstant(x):
     return isinstance(x, Constant)
 
-# curvature inference using monotonicty
-def increasing(x):
-    return x.curvature
-
-def decreasing(x):
-    return -x.curvature
-
-def nonmonotone(x):
-    if isaffine(x): return x.curvature
-    else: return Nonconvex()
-
 class AbstractCurvature(object):
     """ Curvature is an abstract base class and should never be created.
     """

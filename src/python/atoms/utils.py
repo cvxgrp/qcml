@@ -1,8 +1,14 @@
 import qcml
-from qcml.expression.expression import Variable
+from qcml.expressions.expression import Variable, Number
+from qcml.expressions.qc_ast import SOC, SOCProd
+
+import qcml.properties.monotonicity as monotonicity
+import qcml.properties.curvature as curvature
+import qcml.properties.sign as sign
+import qcml.properties.shape as shape
 
 def _create_varname():
-    """Creates a new, temporary variable name; beings with underscore."""
+    """Creates a new, temporary variable name; begins with underscore."""
     name = '_t' + str(qcml.QCRewriter.varcount)
     qcml.QCRewriter.varcount += 1
 

@@ -2,6 +2,7 @@
 import ast
 import qcml.properties.shape as shape
 import qcml.properties.curvature as curvature
+import expression as e
 import operator
 
 # TODO: ... I don't think these actually need to be ASTs...
@@ -128,6 +129,16 @@ class RelOp(ast.Node):
 
     attr_names = ('op', 'is_dcp', 'shape')
 
+    def canonicalize(self):
+        self.left, lh_constr = self.left.canonicalize()
+        self.right, rh_constr = self.right.canonicalize()
+        return (None, [self] + lh_constr + rh_constr)
+
+    def simplify(self):
+        self.left = self.left.simplify()
+        self.right = self.right.simplify()
+        return self
+
 class SOC(ast.Node):
     """ SOC AST node.
 
@@ -163,6 +174,19 @@ class SOC(ast.Node):
         if self.right is not None: nodelist.append(("right", self.right))
         if self.left is not None: nodelist.append(("left", self.left))
         return tuple(nodelist)
+
+    def canonicalize(self):
+        self.left, constraints = map(list, zip(*[elem.canonicalize() for elem in self.left]))
+        self.right, constraint = self.right.canonicalize()
+        constr = constraint
+        for c in constraints:
+            constr += c
+        return (None, [self] + constr)
+
+    def simplify(self):
+        self.left = [elem.simplify() for elem in self.left]
+        self.right = self.right.simplify()
+        return self
 
     attr_names = ('is_dcp', 'shape')
 
@@ -211,6 +235,19 @@ class SOCProd(ast.Node):
         if self.right is not None: nodelist.append(("right", self.right))
         if self.arglist is not None: nodelist.append(("arglist", self.arglist))
         return tuple(nodelist)
+
+    def canonicalize(self):
+        self.arglist, constraints = map(list, zip(*[elem.canonicalize() for elem in self.arglist]))
+        self.right, constraint = self.right.canonicalize()
+        constr = constraint
+        for c in constraints:
+            constr += c
+        return (None, [self] + constr)
+
+    def simplify(self):
+        self.arglist = [elem.simplify() for elem in self.arglist]
+        self.right = self.right.simplify()
+        return self
 
     attr_names = ('is_dcp', 'shape')
 

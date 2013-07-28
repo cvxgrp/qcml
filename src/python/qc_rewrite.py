@@ -1,6 +1,7 @@
-import expression.ast as ast
-import expression.qc_ast as qc_ast
-from qc_atoms import atoms, norm_rewrite, abs_rewrite
+import expressions.ast as ast
+import expressions.qc_ast as qc_ast
+from atoms.atom import atoms
+from atoms.qc_base import norm_rewrite, abs_rewrite
 
 """ For rewriting atoms.
 
