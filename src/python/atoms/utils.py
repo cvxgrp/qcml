@@ -1,5 +1,5 @@
 import qcml
-from qcml.expressions.expression import Variable, Number
+from qcml.expressions.expression import Variable, Number, Sum, isnumber
 from qcml.expressions.qc_ast import SOC, SOCProd
 
 import qcml.properties.monotonicity as monotonicity

@@ -18,8 +18,8 @@ class QC_abs(atom.Atom):
         return self.args[0].shape
 
     def _canonicalize(self):
-        x = self.args[0]
-        v = create_variable(x.shape)
+        x, = self.args
+        v = create_variable(self.shape)
         constraints = [x <= v, x >= -v]
         return (v, constraints)
 

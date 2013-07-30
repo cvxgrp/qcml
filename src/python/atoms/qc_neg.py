@@ -1,13 +1,7 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
+import atom
+from utils import *
 
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-import qc_max
-from utils import annotate
+from qc_max import QC_max
 
 """ This is the neg atom.
 
@@ -21,21 +15,13 @@ from utils import annotate
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(x):
-    return qc_max.attributes(-x, Number(0.0))
 
-@annotate('neg')
-def rewrite(p,x):
-    """ Rewrite a square node
+class QC_neg(QC_max):
+    def __init__(self, x):
+        super(QC_neg,self).__init__(-x, Number(0))
 
-        p
-            the parent node
+    def __str__(self):
+        return "neg(%s)" % self.args[0]
 
-        x
-            the argument
-    """
-    if isnegative(x):
-        return (-x, [])
-    else:
-        return qc_max.rewrite(p,-x,Number(0.0))
-
+# register with the atom library
+atom.atoms['neg'] = QC_neg

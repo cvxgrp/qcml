@@ -1,14 +1,8 @@
-import qc_square as square
+import atom
+from utils import *
 
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
-
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-from utils import create_variable, annotate
+from qc_square import QC_square
+from qc_abs import QC_abs
 
 """ This is the huber atom.
 
@@ -27,31 +21,35 @@ from utils import create_variable, annotate
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(x):
-    return square.attributes(x)
 
-@annotate('huber')
-def rewrite(p,x):
-    """ Rewrite a quad_over_lin node
+class QC_huber(atom.Atom):
+    def __init__(self, x):
+        super(QC_huber, self).__init__(x)
 
-        p
-            the parent node
+    def _monotonicity(self):
+        return [monotonicity.signed(self.args[0])]
 
-        x, y
-            the arguments
-    """
-    w = create_variable(p.shape)
-    v = create_variable(p.shape)
+    def _curvature(self):
+        return curvature.Convex()
 
-    v1,d1 = abs_rewrite(p, x)
-    v2,d2 = square.rewrite(p, w)
+    def _sign(self):
+        return sign.Positive()
 
-    constraints = d1 + d2 + [
-        v1 <= w + v,
-        w <= Number(1),
-        v >= Number(0)
-    ]
+    def _shape(self):
+        return self.args[0].shape
 
-    return (v2 + Number(2)*v, constraints)
+    def _canonicalize(self):
+        w, v = create_variable(self.shape), create_variable(self.shape)
+        x, = self.args
 
+        o1, c1 = QC_square(w).canonicalize()
+        constraints = [
+            QC_abs(x) <= w + v,
+            w <= Number(1),
+            v >= Number(0)
+        ] + c1
 
+        return (o1 + Number(2)*v, constraints)
+
+# register with the atom library
+atom.atoms['huber'] = QC_huber

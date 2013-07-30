@@ -1,14 +1,7 @@
-import qc_geo_mean as geo_mean
+import atom
+from utils import *
 
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
-
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-from utils import annotate
+from qc_geo_mean import QC_geo_mean
 
 
 """ This is the sqrt atom.
@@ -23,41 +16,14 @@ from utils import annotate
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(x):
-    return geo_mean.attributes(x, Number(1.0))
+class QC_sqrt(QC_geo_mean):
+    def __init__(self, x):
+        super(QC_geo_mean,self).__init__(x, Number(1))
 
-@annotate('sqrt')
-def rewrite(p,x):
-    """ Rewrite a square node
+    def __str__(self):
+        return "sqrt(%s)" % self.args[0]
 
-        p
-            the parent node
-
-        x
-            the argument
-    """
-    return geo_mean.rewrite(p,x,Number(1.0))
-
-    # v = Variable(create_varname(), shape)
-    #
-    #     # declare the expansion in "SCOOP"
-    #     if isscalar(shape):
-    #         definition = [
-    #             v,  # declare the variable
-    #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
-    #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, [y - v, Number(2.0)*x]),
-    #             y >= Number(0)
-    #         ]
-    #
-    #     else:
-    #         definition = [
-    #             v, # declare the variable
-    #             # norm([(1/2)(y-v); x]) <= (1/2)(y + v)
-    #             # norm([y-v; 2x]) <= y+v
-    #             Cone.SOC(y + v, y - v, Number(2.0)*x),
-    #             y >= Number(0)
-    #         ]
-    #
+# register with the atom library
+atom.atoms['sqrt'] = QC_sqrt
 
 

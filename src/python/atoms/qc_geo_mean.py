@@ -1,12 +1,5 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
-
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-from utils import create_variable, annotate
+import atom
+from utils import *
 
 """ This is the geo_mean atom.
 
@@ -25,29 +18,32 @@ from utils import create_variable, annotate
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(x,y):
-    sign = Positive()
-    vexity = Concave() + increasing(x) + increasing(y)
-    shape = x.shape + y.shape
-    return (sign, vexity, shape)
+class QC_geo_mean(atom.Atom):
+    def __init__(self, x, y):
+        super(QC_geo_mean, self).__init__(x,y)
 
-@annotate('geo_mean')
-def rewrite(p,x,y):
-    """ Rewrite a quad_over_lin node
+    def _monotonicity(self):
+        return [monotonicity.increasing, monotonicity.increasing]
 
-        p
-            the parent node
+    def _curvature(self):
+        return curvature.Concave()
 
-        x, y
-            the arguments
-    """
-    v = create_variable(p.shape)
+    def _sign(self):
+        return sign.Positive()
 
-    constraints = [
-        SOCProd(x + y, [y - x, Number(2.0)*v]),
-        y >= Number(0),
-        x >= Number(0)
-    ]
+    def _shape(self):
+        return self.args[0].shape + self.args[1].shape
 
-    return (v, constraints)
+    def _canonicalize(self):
+        v = create_variable(self.shape)
+        x, y = self.args
+        constraints = [
+            SOCProd(x + y, [y - x, Number(2.0)*v]),
+            y >= Number(0),
+            x >= Number(0)
+        ]
+        return (v, constraints)
+
+# register with the atom library
+atom.atoms['geo_mean'] = QC_geo_mean
 

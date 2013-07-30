@@ -25,6 +25,9 @@ class QC_square(QC_square_over_lin):
     def __init__(self, x):
         super(QC_square,self).__init__(x, Number(1))
 
+    def __str__(self):
+        return "square(%s)" % self.args[0]
+
 # register with the atom library
 atom.atoms['square'] = QC_square
 

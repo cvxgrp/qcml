@@ -1,15 +1,5 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
-
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-from utils import create_variable, annotate
-import operator
-
-#import scoop as s
+import atom
+from utils import *
 
 """ This is the max atom.
 
@@ -24,33 +14,33 @@ import operator
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(*args):
-    if len(args) == 1:
-        sign = args[0].sign
-        shape = Scalar()
-        vexity = Convex() + increasing(args[0])
-    else:
-        if any(ispositive(e) for e in args): sign = Positive()
-        if all(isnegative(e) for e in args): sign = Negative()
-        else: sign = Neither()
-        shape = reduce(operator.add, map(lambda x: x.shape, args))
-        vexity = reduce(operator.add, map(increasing, args), Convex())
+class QC_max(atom.Atom):
+    def __init__(self, *args):
+        super(QC_max, self).__init__(*args)
 
-    return (sign, vexity, shape)
+    def _monotonicity(self):
+        return [monotonicity.increasing]*len(self.args)
 
-@annotate('max')
-def rewrite(p,*args):
-    """ Rewrite a quad_over_lin node
+    def _curvature(self):
+        return curvature.Convex()
 
-        p
-            the parent node
+    def _sign(self):
+        if any(sign.ispositive(e) for e in self.args): return sign.Positive()
+        if all(sign.isnegative(e) for e in self.args): return sign.Negative()
+        return sign.Neither()
 
-        x, y
-            the arguments
-    """
-    v = create_variable(p.shape)
+    def _shape(self):
+        if len(self.args) == 1: return shape.Scalar()
+        else:
+            base_shape = shape.Scalar()
+            for e in self.args:
+                base_shape += e.shape
+            return base_shape
 
-    # declare the expansion in "SCOOP"
-    constraints = map(lambda x: v >= x, args)
+    def _canonicalize(self):
+        v = create_variable(self.shape)
+        constraints = map(lambda x: v >= x, args)
+        return (v, constraints)
 
-    return (v, constraints)
+# register with the atom library
+atom.atoms['max'] = QC_max

@@ -75,7 +75,18 @@ class Atom(e.Expression):
         return self
 
 from qc_abs import *
+from qc_geo_mean import *
+from qc_huber import *
+from qc_inv_pos import *
+from qc_max import *
+from qc_min import *
+from qc_neg import *
+from qc_norm_inf import *
 from qc_norm import *
+from qc_norm1 import *
+from qc_pos import *
+from qc_pow_rat import *
 from qc_quad_over_lin import *
+from qc_sqrt import *
 from qc_square_over_lin import *
 from qc_square import *

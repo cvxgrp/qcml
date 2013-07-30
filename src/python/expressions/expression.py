@@ -80,9 +80,7 @@ class BinaryOperator(ast.Node):
     def _commute_number(self):
         # puts number on LHS
         if isnumber(self.right):
-            tmp = self.left
-            self.left = self.right
-            self.right = tmp
+            self.left, self.right = self.right, self.left
 
     def _associate(self):
         # commute numbers on RHS to LHS and simplify

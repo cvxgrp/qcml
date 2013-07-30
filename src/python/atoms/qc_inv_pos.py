@@ -1,14 +1,7 @@
-import qc_square_over_lin as sol
+import atom
+from utils import *
 
-from qcml.properties.curvature import Constant, Convex, Concave, Affine
-from qcml.properties.monotonicity import increasing, decreasing, nonmonotone
-from qcml.properties.shape import Scalar, Vector, Matrix, isvector, ismatrix, isscalar
-from qcml.properties.sign import ispositive, isnegative, Positive, Negative, Neither
-
-from qcml.expressions.expression import Variable, Number
-from qcml.expressions.qc_ast import Objective, Program, SOC, SOCProd
-
-from utils import annotate
+from qc_square_over_lin import QC_square_over_lin
 
 """ This is the inv_pos atom.
 
@@ -24,19 +17,15 @@ from utils import annotate
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
-def attributes(x):
-    return sol.attributes(Number(1.0), x)
+class QC_inv_pos(QC_square_over_lin):
+    def __init__(self, x):
+        super(QC_inv_pos,self).__init__(Number(1), x)
 
-@annotate('inv_pos')
-def rewrite(p,x):
-    """ Rewrite an inv_pos node
+    def __str__(self):
+        return "inv_pos(%s)" % self.args[1]
 
-        p
-            the parent node
+# register with the atom library
+atom.atoms['inv_pos'] = QC_inv_pos
 
-        x
-            the argument
-    """
-    return sol.rewrite(p,Number(1.0),x)
 
 
