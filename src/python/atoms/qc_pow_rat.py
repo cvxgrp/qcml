@@ -24,7 +24,7 @@ class one_third(QC_sqrt):
 
     def _canonicalize(self):
         v = create_variable(self.shape)
-        x, = self.args
+        x = self.args[0]
         constraints = [
             cube(v) <= x
         ]
@@ -38,9 +38,26 @@ class two_thirds(QC_sqrt):
 
     def _canonicalize(self):
         v = create_variable(self.shape)
-        x, = self.args
+        x = self.args[0]
         constraints = [
             three_halves(v) <= x
+        ]
+        return (v, constraints)
+
+class four_thirds(QC_square):
+    def __init__(self, x):
+        super(four_thirds, self).__init__(x)
+
+    def __str__(self): return "pow_rat(%s, 4, 3)" % self.args[0]
+
+    def _monotonicity(self):
+        return [monotonicity.increasing]
+
+    def _canonicalize(self):
+        v = create_variable(self.shape)
+        x = self.args[0]
+        constraints = [
+            x <= three_fourths(v)
         ]
         return (v, constraints)
 
@@ -60,7 +77,7 @@ pow_rat_func = {
     (3,4): three_fourths,
     (4,1): lambda x: QC_square(QC_square(x)),
     (4,2): QC_square,
-    (4,3): lambda x: QC_inv_pos(three_fourths(x)),
+    (4,3): four_thirds,
     (4,4): lambda x: x
 }
 

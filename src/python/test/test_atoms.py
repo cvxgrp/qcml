@@ -5,7 +5,7 @@ from qcml import QCML
 import cvxopt
 from nose.tools import assert_raises
 
-TOL = 1e-6
+TOL = 1e-5
 
 v = cvxopt.matrix([-1,2,-2], tc='d')
 convex_template = "minimize %s"
@@ -17,15 +17,15 @@ convex_list = [
     ("huber(0.5)", 0.25),
     ("huber(-1.5)", 2),
     ("inv_pos(5)", 0.2),
-    ("inv_pos(-3)", 0),
     ("max(2,5,1)", 5),
     ("norm_inf(v)", 2),
     ("norm(v)", 3),
     ("norm2(v)", 3),
     ("norm1(v)", 5),
     ("pos(8)", 8),
-    ("pos(-2)", 0),
-    ("pos(v)", 2),
+    ("pos(-3)", 0),
+    ("neg(-3)", 3),
+    ("neg(3)", 0),
     ("pow_rat(4,1,1)", 4),
     ("pow_rat(2,2,1)", 4),
     ("pow_rat(4,2,2)", 4),
@@ -45,9 +45,6 @@ concave_list = [
     ("geo_mean(4,1)", 2),
     ("geo_mean(2,2)", 2),
     ("min(3,4,-1)", -1),
-    ("neg(8)", 0),
-    ("neg(-3)", 3),
-    ("neg(v)", 2),
     ("pow_rat(4,1,2)", 2),
     ("pow_rat(8,1,3)", 2),
     ("pow_rat(16,1,4)",2),
@@ -57,6 +54,9 @@ concave_list = [
     ("sqrt(2)", 1.414213562373095)
 ]
 
+# OOD tests
+# inv_pos(-3) = Inf
+
 def run_atom(template, obj, obj_val):
     #print template % obj
     with QCML(debug=True, local_dict={'v': v}) as p:
@@ -65,7 +65,9 @@ def run_atom(template, obj, obj_val):
             %s
         """ % (template % obj))
 
-    assert( False ) #abs(self.solution['primal objective'] - obj_val) <= TOL )
+    print p.solution['objval']
+    print obj_val
+    assert( abs(p.solution['objval'] - obj_val) <= TOL )
 
 def test_atom():
     for obj, obj_val in convex_list:

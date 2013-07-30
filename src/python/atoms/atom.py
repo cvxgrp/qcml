@@ -56,17 +56,20 @@ class Atom(e.Expression):
         # epigraph variable), replace the epigraph variable with the linear
         # expression
         #
+        self.args, constraints = zip(*[elem.canonicalize() for elem in self.args])
 
         # canonicalize self
-        obj,constraints = self._canonicalize()
+        base_obj, base_constraints = self._canonicalize()
         # obj is now a synonym for the atom expression
 
         # canonicalize constraints
         # only take the second component, since first is None
+        # seed initial constrs with constraints from canonicalizing subexpressions
         constrs = []
-        for constr in constraints:
+        for elem in constraints: constrs.extend(elem)
+        for constr in base_constraints:
             if constr: constrs += constr.canonicalize()[1]
-        return (obj, constrs)
+        return (base_obj, constrs)
 
     # we only call simplify *after* we call canonicalize
     def simplify(self):
@@ -75,7 +78,7 @@ class Atom(e.Expression):
 
     def children(self):
         nodelist = []
-        if self.args is not None: nodelist.extend(("args", e) for e in self.args)
+        if self.args is not None: nodelist.append(("args", list(self.args)))
         return tuple(nodelist)
 
 from qc_abs import *

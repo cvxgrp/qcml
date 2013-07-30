@@ -25,9 +25,9 @@ class QC_norm(atom.Atom):
     def _canonicalize(self):
         v = create_variable(self.shape)
         if shape.isscalar(v):
-            return [SOC(v, self.args[0])]
+            return (v, [SOC(v, self.args)])
         else:
-            return [SOCProd(v, self.args)]
+            return (v, [SOCProd(v, self.args)])
 
 # register with the atom library
 atom.atoms['norm'] = QC_norm

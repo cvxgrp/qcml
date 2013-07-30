@@ -79,9 +79,11 @@ class CVXOPTCodegen(PythonCodegen):
                 for k in keys
         ]
 
+        # TODO: recovers the objective value by computing c'*x, although it
+        # really shouldn't. i'm just too lazy to fix this
         return [
             "# do the reverse mapping",
-            "return {'info': _sol, %s }" % (', '.join(recover))
+            "return {'info': _sol, 'objval': %f*(_c.trans()*_sol['x'])[0] + %f, %s }" % (self.objective_multiplier, self.objective_offset, ', '.join(recover))
         ]
 
     def function_stuff_c(self, start, end, expr):

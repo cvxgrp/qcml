@@ -85,7 +85,8 @@ if __name__ == "__main__":
 
     # p.canonicalize()
     # p.set_dims({'n': n, 'm': m})
-    # p.codegen("cvx")
+    # p.codegen("pdos")
+    # s = p.solver(locals())
     #
     # p.print_canon()
     # p.codegen("cvx")

@@ -1,7 +1,7 @@
 import expressions.ast as ast
 import expressions.qc_ast as qc_ast
 from atoms.atom import atoms
-from atoms.qc_base import norm_rewrite, abs_rewrite
+import atoms.qc_norm as norm
 
 """ For rewriting atoms.
 
@@ -90,60 +90,63 @@ class QCRewriter(ast.NodeTransformer):
         return node
 
     def visit_Atom(self, node):
-        # visit children first (in case they are rewritten)
-        self.generic_visit(node)
-
-        # now rewrite the current node
-        v = self._existing_rewrite(node)
-
-        if not v:
-            f = atoms[node.name].rewrite
-            return self._apply_rewrite_rule(node, f, *node.arglist)
-        return v
-
-    def visit_Norm(self, node):
-        # visit / rewrite children first
-        self.generic_visit(node)
-        v = self._existing_rewrite(node)
-
-        if not v:
-            if self.rewrite_norm:
-                return self._apply_rewrite_rule(node, norm_rewrite, node.arglist)
-            # each constraint can only have a single Norm
-            # so although Norm(x) + Norm(y) <= z is a valid constraint, we
-            #   can't turn it into an SOC unless one of them is rewritten
-            self.rewrite_norm = True
+        if isinstance(node, norm.QC_norm):
             self.norm_node = node
-            return Number(0)
-        return v
-
-    def visit_Abs(self, node):
-        # visit / rewrite children first
+        # visit children
         self.generic_visit(node)
-        v = self._existing_rewrite(node)
+        return node
 
-        if not v:
-            if self.rewrite_norm:
-                return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
-            # each constraint can only have a single Abs
-            # so although Abs(x) + Abs(y) <= z is a valid constraint, we
-            #   can't turn it into an SOC unless one of them is rewritten
-            self.rewrite_norm = True
-            self.norm_node = node
-            return Number(0)
-        return v
+        # # now rewrite the current node
+        # v = self._existing_rewrite(node)
+        #
+        # if not v:
+        #     f = atoms[node.name].rewrite
+        #     return self._apply_rewrite_rule(node, f, *node.arglist)
+        # return v
 
-    def visit_Add(self, node):
-        self.generic_visit(node)
-        return (node.left + node.right)
+    # def visit_Norm(self, node):
+    #     # visit / rewrite children first
+    #     self.generic_visit(node)
+    #     v = self._existing_rewrite(node)
+    #
+    #     if not v:
+    #         if self.rewrite_norm:
+    #             return self._apply_rewrite_rule(node, norm_rewrite, node.arglist)
+    #         # each constraint can only have a single Norm
+    #         # so although Norm(x) + Norm(y) <= z is a valid constraint, we
+    #         #   can't turn it into an SOC unless one of them is rewritten
+    #         self.rewrite_norm = True
+    #         self.norm_node = node
+    #         return Number(0)
+    #     return v
+    #
+    # def visit_Abs(self, node):
+    #     # visit / rewrite children first
+    #     self.generic_visit(node)
+    #     v = self._existing_rewrite(node)
+    #
+    #     if not v:
+    #         if self.rewrite_norm:
+    #             return self._apply_rewrite_rule(node, abs_rewrite, node.arg)
+    #         # each constraint can only have a single Abs
+    #         # so although Abs(x) + Abs(y) <= z is a valid constraint, we
+    #         #   can't turn it into an SOC unless one of them is rewritten
+    #         self.rewrite_norm = True
+    #         self.norm_node = node
+    #         return Number(0)
+    #     return v
 
-    def visit_Mul(self, node):
-        self.generic_visit(node)
-        return (node.left * node.right)
-
-    def visit_Negate(self, node):
-        self.generic_visit(node)
-        return (-node.expr)
+    # def visit_Add(self, node):
+    #     self.generic_visit(node)
+    #     return (node.left + node.right)
+    #
+    # def visit_Mul(self, node):
+    #     self.generic_visit(node)
+    #     return (node.left * node.right)
+    #
+    # def visit_Negate(self, node):
+    #     self.generic_visit(node)
+    #     return (-node.expr)
 
     # def visit_RelOp(self, node):
     #     # visit children
@@ -163,11 +166,15 @@ class QCRewriter(ast.NodeTransformer):
         QCRewriter.lookup = self._existing_expression
         QCRewriter.new_variables = self._new_variables
 
-        # visit children first
+        # visit children first, to gather all the used variables and parameters
         self.generic_visit(node)
+
+        node.canonicalize()
         # now, update the variables and constraints
         node.new_variables = QCRewriter.new_variables
-        node.constraints += filter(None, self.new_constraints)
+
+        #node.constraints += filter(None, self.new_constraints) # ALREADY DONE
+
         # remove any redundant constraints by converting to set
         unique_constraints = set(node.constraints)
         # convert to a list but place the linear constraints at the front of the list
@@ -186,14 +193,14 @@ class QCRewriter(ast.NodeTransformer):
         return node
 
 
-    def visit_Objective(self, node):
-        self.rewrite_norm = True
-        self.generic_visit(node)
-
-        return node
+    # def visit_Objective(self, node):
+    #     self.rewrite_norm = True
+    #     self.generic_visit(node)
+    #
+    #     return node
 
     def visit_RelOp(self, node):
-        self.rewrite_norm = False
+        # self.rewrite_norm = False
         self.norm_node = None
         self.generic_visit(node)
 

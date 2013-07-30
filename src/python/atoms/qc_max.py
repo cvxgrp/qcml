@@ -39,7 +39,7 @@ class QC_max(atom.Atom):
 
     def _canonicalize(self):
         v = create_variable(self.shape)
-        constraints = map(lambda x: v >= x, args)
+        constraints = map(lambda x: v >= x, self.args)
         return (v, constraints)
 
 # register with the atom library

@@ -53,6 +53,8 @@ class Codegen(NodeVisitor):
         self.cone_list = []
         self.comment = '#'
         self.dims = dims    # dimension map
+        self.objective_offset = 0
+        self.objective_multiplier = 1
 
     def codegen(self):
         def not_implemented():
@@ -266,13 +268,16 @@ class Codegen(NodeVisitor):
             for k,v in obj.iteritems():
                 # ignore constants
                 if k == '1':
+                    self.objective_offset = v.value
                     continue
                 start = self.varstart[k]
                 length = self.varlength[k]
                 if node.sense == 'minimize':
                     objective_c = v.trans()
+                    self.objective_multiplier = 1
                 elif node.sense == 'maximize':
                     objective_c = (-v).trans()
+                    self.objective_multiplier = -1
                 self.body.append(self.offset + \
                     self.function_stuff_c(start, start+length, objective_c))
 

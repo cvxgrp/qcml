@@ -33,6 +33,17 @@ class Program(ast.Node):
         if self.constraints is not None: nodelist.append(("constraints" , self.constraints))
         return tuple(nodelist)
 
+    def canonicalize(self):
+        obj, constraints = self.objective.canonicalize()
+        constraints = [c.simplify() for c in constraints]
+        for c in self.constraints:
+            _, constr = c.canonicalize()
+            constraints.extend(constr.simplify())
+
+        self.objective.expr = obj.simplify()
+        self.constraints = filter(None, constraints)
+        return self.objective, self.constraints
+
     def add_constraint(self, c):
         """ Allows us to add constraints to the program
         """
@@ -51,6 +62,8 @@ class Objective(ast.Node):
         for find / feasibility problems.
     """
     def __init__(self, sense, expr):
+        assert(shape.isscalar(expr))
+
         self.sense = sense
         self.expr = expr
         self.shape = expr.shape # better be scalar!
@@ -72,6 +85,9 @@ class Objective(ast.Node):
         return tuple(nodelist)
 
     attr_names = ('is_dcp','shape')
+
+    def canonicalize(self):
+        return self.expr.canonicalize()
 
 class RelOp(ast.Node):
     # TODO: make it a linear ineq, with only a "left" <= 0
