@@ -36,7 +36,7 @@ class QC_quad_over_lin(atom.Atom):
         return sign.Positive()
 
     def _shape(self):
-        if isscalar(self.args[1]): return Scalar()
+        if shape.isscalar(self.args[1]): return shape.Scalar()
         else: raise TypeError("Cannot use quad_over_lin with vector y arguments. Perhaps you meant 'square_over_lin'?")
 
 

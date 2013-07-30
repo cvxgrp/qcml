@@ -60,7 +60,6 @@ class BinaryOperator(ast.Node):
     def __init__(self, left, right, **kwargs):
         self.left = left
         self.right = right
-        self.attr_names += ()
         super(BinaryOperator, self).__init__(**kwargs)
 
     def children(self):
@@ -123,7 +122,6 @@ class BinaryOperator(ast.Node):
 class UnaryOperator(ast.Node):
     def __init__(self, expr, **kwargs):
         self.expr = expr
-        self.attr_names += ('expr',)
         super(UnaryOperator, self).__init__(**kwargs)
 
     def children(self):

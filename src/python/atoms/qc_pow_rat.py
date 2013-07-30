@@ -67,7 +67,7 @@ pow_rat_func = {
 def QC_pow_rat(x,p,q):
     if isnumber(p) and isnumber(q):
         try:
-            result = pow_rat_func[(p.value, q.value)]
+            result = pow_rat_func[(p.value, q.value)](x)
         except KeyError:
             raise TypeError("Nonexistent implementation for %s^(%s/%s)" % (arg.value, p.value, q.value))
         return result

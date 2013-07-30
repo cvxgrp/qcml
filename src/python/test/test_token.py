@@ -32,7 +32,7 @@ test_tokens = [
     ["SENSE", "SENSE", "PARAMETER", "SIGN", "SIGN"],
     ["SUBJ", "TO", "INTEGER", "TIMES", "INTEGER", "MINUS", "INTEGER", "EQ", "LEQ", "GEQ", "CONSTANT", "INTEGER"],
     ["VARIABLE", "ID", "SIGN", "PARAMETER", "ID", "SIGN"],
-    ["NORM", "LPAREN", "RPAREN", "NORM", "LPAREN", "ID", "RPAREN", "NORM", "LPAREN", "ID", "RPAREN", "ATOM", "LPAREN", "ID", "RPAREN"],
+    ["ATOM", "LPAREN", "RPAREN", "ATOM", "LPAREN", "ID", "RPAREN", "ATOM", "LPAREN", "ID", "RPAREN", "ATOM", "LPAREN", "ID", "RPAREN"],
     ["LBRACE", "MINUS", "MINUS", "ID", "ATOM", "LPAREN", "ID", "COMMA", "ID", "RPAREN", "SEMI", "RBRACE"],
     [],
     ["PARAMETER", "ID"],
@@ -113,6 +113,6 @@ def check_atom(s, expected):
         if not tok: break
         tok_list.append(tok)
 
-    ids = filter(lambda x: x.type == "ATOM" or x.type == "NORM", tok_list)
+    ids = filter(lambda x: x.type == "ATOM", tok_list)
     print ids
     assert( all(t.value == e for t,e in zip(ids, expected)) )

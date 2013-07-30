@@ -72,7 +72,7 @@ class QCML(object):
         "pdos": PDOSCodegen
     }
 
-    def __init__(self, debug = False):
+    def __init__(self, debug = False, local_dict={}):
         self.debug = debug
         self.state = ParseState.PARSE
 
@@ -84,6 +84,8 @@ class QCML(object):
 
         self.problem = None
         self.solver = None      # TODO: consider making "private"
+
+        self.__locals = local_dict
 
     def prettyprint(self,lineno=False):
         if self.state is ParseState.COMPLETE:
@@ -115,7 +117,9 @@ class QCML(object):
     def canonicalize(self):
         if self.state > ParseState.CANONICALIZE: return
         if self.state is ParseState.CANONICALIZE:
+            print "canonicalizing"
             self.__problem_tree = QCRewriter().visit(self.__problem_tree)
+            print "canonical"
             if self.debug: print self.__problem_tree
             self.state = ParseState.CODEGEN
         else:
@@ -187,3 +191,10 @@ class QCML(object):
         # spits out the socp data matrices
         pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if not exc_type:
+            self.solution = self.solve(self.__locals, self.__locals)
+        return False

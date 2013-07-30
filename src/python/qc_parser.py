@@ -4,6 +4,7 @@ from expressions.expression import Number, Parameter, Variable, Sum
 from expressions.qc_ast import Objective, Program
 from properties.sign import Neither, Positive, Negative
 from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
+from atoms.atom import atoms
 # from qc_ast import Number, Parameter, Variable, \
 #     Add, Mul, Transpose, \
 #     Objective, RelOp, Program, \
@@ -311,17 +312,17 @@ class QCParser(object):
         if isscalar(p[3]): p[0] = p[3]
         else: p[0] = Sum(p[3])
 
-    def p_expression_abs(self,p):
-        'expression : ABS LPAREN expression RPAREN'
-        p[0] = Abs(p[3])
-
-    def p_expression_norm(self,p):
-        'expression : NORM LPAREN arglist RPAREN'
-        p[0] = Norm(p[3])
+    # def p_expression_abs(self,p):
+    #     'expression : ABS LPAREN expression RPAREN'
+    #     p[0] = Abs(p[3])
+    #
+    # def p_expression_norm(self,p):
+    #     'expression : NORM LPAREN arglist RPAREN'
+    #     p[0] = Norm(p[3])
 
     def p_expression_atom(self,p):
         'expression : ATOM LPAREN arglist RPAREN'
-        p[0] = Atom(p[1],p[3])
+        p[0] = atoms[p[1]](*p[3])
 
     def p_arglist(self, p):
         'arglist : arglist COMMA expression'

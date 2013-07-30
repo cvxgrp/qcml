@@ -15,9 +15,9 @@ class QC_norm(atom.Atom):
         return sign.Positive()
 
     def _shape(self):
-        if len(self.args) == 1: return Scalar()
+        if len(self.args) == 1: return shape.Scalar()
         else:
-            new_shape = Scalar()
+            new_shape = shape.Scalar()
             for e in self.args:
                 new_shape += e.shape
             return new_shape
@@ -31,4 +31,5 @@ class QC_norm(atom.Atom):
 
 # register with the atom library
 atom.atoms['norm'] = QC_norm
+atom.atoms['norm2'] = QC_norm   # norm alias
 

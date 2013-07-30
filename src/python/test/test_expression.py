@@ -1,4 +1,4 @@
-from qcml.expression.expression import Number, Parameter, Variable, Transpose, Sum
+from qcml.expressions.expression import Number, Parameter, Variable, Transpose, Sum
 from qcml.properties.shape import Scalar, Matrix
 from qcml.properties.sign import Positive, Neither
 

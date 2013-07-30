@@ -14,7 +14,6 @@ class Atom(e.Expression):
 
     def __init__(self,*args):
         self.args = args    # list of Expression arguments
-        self.attr_names += ('args',)
         super(Atom, self).__init__(self.eval_curvature(), self._shape(), self._sign())
 
     def __str__(self):
@@ -73,6 +72,11 @@ class Atom(e.Expression):
     def simplify(self):
         self.args = [elem.simplify() for elem in self.args]
         return self
+
+    def children(self):
+        nodelist = []
+        if self.args is not None: nodelist.extend(("args", e) for e in self.args)
+        return tuple(nodelist)
 
 from qc_abs import *
 from qc_geo_mean import *

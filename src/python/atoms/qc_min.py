@@ -17,6 +17,6 @@ from qc_max import QC_max
         rewrite :: [arg] -> Program
 """
 def QC_min(*args):
-    return -QC_max([-x for x in args])
+    return -QC_max(*[-x for x in args])
 
 atom.atoms['min'] = QC_min

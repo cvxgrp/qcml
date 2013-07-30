@@ -50,9 +50,9 @@ class QCLexer:
         ('subject', 'SUBJ'),
         ('to', 'TO'),
         # builtin functions in the language
-        ('norm', 'NORM'),
-        ('norm2', 'NORM'),
-        ('abs', 'ABS'),
+        # ('norm', 'NORM'),
+        # ('norm2', 'NORM'),
+        # ('abs', 'ABS'),
         ('sum', 'SUM'),
         #'norms' : 'NORM',
     ] + zip(atoms.keys(),['ATOM']*len(atoms.keys())))
