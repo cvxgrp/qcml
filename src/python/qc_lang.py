@@ -117,9 +117,7 @@ class QCML(object):
     def canonicalize(self):
         if self.state > ParseState.CANONICALIZE: return
         if self.state is ParseState.CANONICALIZE:
-            print "canonicalizing"
             self.__problem_tree = QCRewriter().visit(self.__problem_tree)
-            print "canonical"
             if self.debug: print self.__problem_tree
             self.state = ParseState.CODEGEN
         else:

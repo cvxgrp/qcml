@@ -88,7 +88,7 @@ class BinaryOperator(ast.Node):
         if isinstance(self.right, self.__class__):
             # x op (y op z) = (x op y) op z
             tmp = self.right
-            self.left = self.OP_FUNC(tmp.left, self.left).simplify()
+            self.left = self.OP_FUNC(self.left, tmp.left).simplify()
             self.right = tmp.right
         if isinstance(self.left, self.__class__):
             # (x op y) op z = x op (y op z)

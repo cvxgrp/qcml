@@ -38,7 +38,7 @@ class Program(ast.Node):
         constraints = [c.simplify() for c in constraints]
         for c in self.constraints:
             _, constr = c.canonicalize()
-            constraints.extend(constr.simplify())
+            constraints.extend(expr.simplify() for expr in constr)
 
         self.objective.expr = obj.simplify()
         self.constraints = filter(None, constraints)
