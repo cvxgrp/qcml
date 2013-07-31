@@ -87,16 +87,15 @@ class MatlabCodegen(Codegen):
 
     def function_prototype(self):
         # maybe put params into a sparse structure?
-        return [""] #["function result = solve(%s)" % ', '.join(dims + params)]
+        yield "" #["function result = solve(%s)" % ', '.join(dims + params)]
 
     def function_preamble(self):
-        return [
-        "%",
-        "% Solves the optimization problem",
-        "%     TODO",
-        "%",
-        "%% dimensions are: %s" % self.dims,
-        ""]
+        yield "%"
+        yield "% Solves the optimization problem"
+        yield "%     TODO"
+        yield "%"
+        yield "%% dimensions are: %s" % self.dims
+        yield ""
 
     def function_datastructures(self):
         """
@@ -120,13 +119,12 @@ class MatlabCodegen(Codegen):
             else:
                 return "%s*ones(%s,1)" % (sz, num)
         cone_list_str = map(cone_tuple_to_str, self.cone_list)
-        return [
-        "solver.c = zeros(%s,1);" % self.num_vars,
-        "solver.h = zeros(%s,1);" % (self.num_conic + self.num_lps),
-        "solver.b = zeros(%s,1);" % self.num_lineqs,
-        "solver.G = sparse(%s,%s);" % (self.num_conic + self.num_lps, self.num_vars),
-        "solver.A = sparse(%s,%s);" % (self.num_lineqs, self.num_vars),
-        "solver.dims = struct('l', %s, 'q', [%s], 's', []);" % (self.num_lps, '; '.join(map(str,cone_list_str)))]
+        yield "solver.c = zeros(%s,1);" % self.num_vars
+        yield "solver.h = zeros(%s,1);" % (self.num_conic + self.num_lps)
+        yield "solver.b = zeros(%s,1);" % self.num_lineqs
+        yield "solver.G = sparse(%s,%s);" % (self.num_conic + self.num_lps, self.num_vars)
+        yield "solver.A = sparse(%s,%s);" % (self.num_lineqs, self.num_vars)
+        yield "solver.dims = struct('l', %s, 'q', [%s], 's', []);" % (self.num_lps, '; '.join(map(str,cone_list_str)))
 
     def function_solve(self):
         # if self.cone_size is not None:
@@ -150,7 +148,7 @@ class MatlabCodegen(Codegen):
         #         ""
         #     ]
         # else:
-        return ["result = fillintest(solver.A,solver.G,solver.dims);",
+        yield "result = fillintest(solver.A,solver.G,solver.dims);"
             # "cvx_begin",
             # "  variable x(%s)" % self.num_vars,
             # "  variable s(%s)" % (self.num_conic + self.num_lps),
@@ -165,45 +163,44 @@ class MatlabCodegen(Codegen):
             # "      ind = ind + solver.dims.q(i);",
             # "    end",
             # "cvx_end",
-            "[primal_sol dual_sol info] = ecos(solver.c,solver.G,solver.h,solver.dims,solver.A,solver.b);"
-            ""
-        ]
+        yield "[primal_sol dual_sol info] = ecos(solver.c,solver.G,solver.h,solver.dims,solver.A,solver.b);"
+        yield ""
 
     def function_recover(self,keys):
         # recover the old variables
-        recover = [
+        recover = (
             "%s = x(%s+1:%s);" % (k, self.varstart['_'+k], self.varstart['_'+k]+self.varlength['_'+k])
                 for k in keys
-        ]
+        )
 
-        return [""]
+        yield ""
         #     "% do the reverse mapping",
         #     "%s" % ('\n').join(recover)
         # ]
 
     def function_stuff_c(self, start, end, expr):
-        return "solver.c(%s+1:%s) = %s;" % (start, end, expr)
+        yield "solver.c(%s+1:%s) = %s;" % (start, end, expr)
 
     def function_stuff_b(self, start, end, expr):
-        return "solver.b(%s+1:%s) = %s;" % (start, end, expr)
+        yield "solver.b(%s+1:%s) = %s;" % (start, end, expr)
 
     def function_stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
-            return "solver.h(%s+1:%s:%s) = %s;" % (start, stride, end, expr)
+            yield "solver.h(%s+1:%s:%s) = %s;" % (start, stride, end, expr)
         else:
-            return "solver.h(%s+1:%s) = %s;" % (start, end, expr)
+            yield "solver.h(%s+1:%s) = %s;" % (start, end, expr)
 
     def function_stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         if row_stride is not None:
-            return "solver.G(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
+            yield "solver.G(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
         else:
-            return "solver.G(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
+            yield "solver.G(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
 
     def function_stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         if row_stride is not None:
-            return "solver.A(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
+            yield "solver.A(%s+1:%s:%s, %s+1:%s) = %s;" % (row_start, row_stride, row_end, col_start, col_end, expr)
         else:
-            return "solver.A(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
+            yield "solver.A(%s+1:%s, %s+1:%s) = %s;" % (row_start, row_end, col_start, col_end, expr)
 
     def __create_variable(self, n):
         """Creates a new, temporary variable name"""

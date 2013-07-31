@@ -47,6 +47,11 @@ class CoeffExpr(object):
     # for vertical slicing
     def slice(self, begin, end): return codegen_slice(self, begin, end)
 
+    def to_sparse(self): return ""
+    def I(self, row_offset, stride=1): return ""
+    def J(self, col_offset, stride=1): return ""
+    def V(self): return ""
+
     def __repr__(self): return str(self)
 
 class ConstantCoeff(CoeffExpr):
@@ -54,6 +59,10 @@ class ConstantCoeff(CoeffExpr):
         self.value = value
         self.isknown = True
         self.isscalar = True
+
+    def I(self, row_offset, stride=1): return str(row_offset)
+    def J(self, col_offset, stride=1): return str(col_offset)
+    def V(self): return str(self)
 
     def __str__(self): return str(self.value)
 
@@ -63,6 +72,11 @@ class ParameterCoeff(CoeffExpr):
         self.isknown = True
         self.isscalar = False
 
+    def to_sparse(self): return "%s = o.sparse(%s)" % (self, str(self))
+    def I(self, row_offset, stride=1): return "%d + %d*%s.I" % (row_offset, stride, str(self))
+    def J(self, col_offset, stride=1): return "%d + %d*%s.J" % (col_offset, stride, str(self))
+    def V(self): return "%s.V" % str(self)
+
     def __str__(self): return self.value
 
 class ScalarParameterCoeff(ParameterCoeff):
@@ -70,11 +84,20 @@ class ScalarParameterCoeff(ParameterCoeff):
         super(ScalarParameterCoeff, self).__init__(value)
         self.isscalar = True
 
+    def I(self, row_offset, stride=1): return "%d" % row_offset
+    def J(self, col_offset, stride=1): return "%d" % col_offset
+    def V(self): return str(self)
+
 class NegateCoeff(CoeffExpr):
     def __init__(self, arg):
         self.arg = arg
         self.isknown = arg.isknown
         self.isscalar = arg.isscalar
+
+    def to_sparse(self): return self.arg.to_sparse()
+    def I(self, row_offset, stride=1): return self.arg.I(row_offset, stride)
+    def J(self, col_offset, strid=1): return self.arg.J(col_offset, stride)
+    def V(self): return "-(%s)" % self.arg.V()
 
     def __str__(self): return "-(%s)" % self.arg
 
@@ -85,6 +108,10 @@ class EyeCoeff(CoeffExpr):
         self.isknown = True
         self.isscalar = False
 
+    def I(self, row_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + stride*self.n, stride, self.n)
+    def J(self, col_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + stride*self.n, stride, self.n)
+    def V(self): return "o.matrix(%s, (%d,1), tc='i')" % (self.coeff, self.n)
+
     # def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
 
 class OnesCoeff(CoeffExpr):
@@ -94,6 +121,20 @@ class OnesCoeff(CoeffExpr):
         self.transpose = transpose
         self.isknown = True
         self.isscalar = False
+
+    def I(self, row_offset, stride=1):
+        if self.transpose:
+            return "o.matrix(%d, (%d,1), tc='i')" % (row_offset, self.n)
+        else:
+            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + stride*self.n, stride, self.n)
+
+    def J(self, col_offset, stride=1):
+        if self.transpose:
+            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + stride*self.n, stride, self.n)
+        else:
+            return "o.matrix(%d, (%d,1), tc='i')" % (col_offset, self.n)
+
+    def V(self): return "o.matrix(%s, (%d,1), tc='i')" % (self.coeff, self.n)
 
     # def __str__(self):
     #     if self.transpose:
@@ -108,6 +149,11 @@ class AddCoeff(CoeffExpr):
         self.isknown = left.isknown and right.isknown
         self.isscalar = left.isscalar and right.isscalar
 
+    def to_sparse(self): return "result = o.sparse(%s + %s)" % (str(self.left), str(self.right))
+    def I(self, row_offset, stride=1): return "%d + %d*result.I" % (row_offset, stride)
+    def J(self, col_offset, stride=1): return "%d + %d*result.J" % (col_offset, stride)
+    def V(self): return "result.V"
+
     def __str__(self): return "%s + %s" % (self.left, self.right)
 
 class MulCoeff(CoeffExpr):
@@ -116,6 +162,11 @@ class MulCoeff(CoeffExpr):
         self.right = right
         self.isknown = left.isknown and right.isknown
         self.isscalar = left.isscalar and right.isscalar
+
+    def to_sparse(self): return "result = o.sparse(%s * %s)" % (str(self.left), str(self.right))
+    def I(self, row_offset, stride=1): return "%d + %d*result.I" % (row_offset, stride)
+    def J(self, col_offset, stride=1): return "%d + %d*result.J" % (col_offset, stride)
+    def V(self): return "result.V"
 
     def __str__(self): return "%s * %s" % (self.left, self.right)
 
@@ -126,9 +177,15 @@ class TransposeCoeff(CoeffExpr):
         self.isknown = arg.isknown
         self.isscalar = arg.isscalar
 
+    def to_sparse(self): return self.arg.to_sparse()
+    def I(self, row_offset, stride=1): return self.arg.J(row_offset, stride)
+    def J(self, col_offset, stride=1): return self.arg.I(col_offset, stride)
+    def V(self): return self.arg.V()
+
     # def __str__(self): return "(%s).trans()" % self.arg
 
 class SliceCoeff(CoeffExpr):
+    # only needed for testing fixed cone sizes
     def __init__(self, arg, begin, end, transpose=False):
         self.arg = arg
         self.begin = begin

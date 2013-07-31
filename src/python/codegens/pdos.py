@@ -3,15 +3,15 @@ from cvxopt import CVXOPTCodegen
 class PDOSCodegen(CVXOPTCodegen):
     def function_preamble(self):
         return [
-        "import cvxopt as _o",
+        "import cvxopt as o",
         "import cvxopt.solvers",
         "import pdos_direct"
         ""]
 
     def function_solve(self):
-        return ["_dims['f'] = %s" % self.num_lineqs,
-            "_b = _o.matrix([_b, _h])",
-            "_A = _o.sparse([_A, _G])",
-            "_opts = {'NORMALIZE': True, 'MAX_ITERS': 5000}",
-            "_sol = pdos_direct.solve(_c, _A, _b, _dims, _opts)"]
+        return ["dims['f'] = %s" % self.num_lineqs,
+            "b = o.matrix([b, h])",
+            "A = o.sparse([A, G])",
+            "opts = {'NORMALIZE': True, 'MAX_ITERS': 5000}",
+            "sol = pdos_direct.solve(c, A, b, dims, opts)"]
 
