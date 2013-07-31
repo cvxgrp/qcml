@@ -108,8 +108,8 @@ class EyeCoeff(CoeffExpr):
         self.isknown = True
         self.isscalar = False
 
-    def I(self, row_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + stride*self.n, stride, self.n)
-    def J(self, col_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + stride*self.n, stride, self.n)
+    def I(self, row_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + self.n, stride, self.n)
+    def J(self, col_offset, stride=1): return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + self.n, stride, self.n)
     def V(self): return "o.matrix(%s, (%d,1), tc='i')" % (self.coeff, self.n)
 
     # def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
@@ -126,11 +126,11 @@ class OnesCoeff(CoeffExpr):
         if self.transpose:
             return "o.matrix(%d, (%d,1), tc='i')" % (row_offset, self.n)
         else:
-            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + stride*self.n, stride, self.n)
+            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (row_offset, row_offset + self.n, stride, self.n)
 
     def J(self, col_offset, stride=1):
         if self.transpose:
-            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + stride*self.n, stride, self.n)
+            return "o.matrix(xrange(%d, %d, %d), (%d,1), tc='i')" % (col_offset, col_offset + self.n, stride, self.n)
         else:
             return "o.matrix(%d, (%d,1), tc='i')" % (col_offset, self.n)
 

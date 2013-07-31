@@ -1,5 +1,5 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-from codegen import PythonCodegen, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff
+from codegen import PythonCodegen, ConstantCoeff, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff
 
 def cvxopt_eye(self):
     return "o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
@@ -99,6 +99,9 @@ class CVXOPTCodegen(PythonCodegen):
             yield "h[%s:%s] = %s" % (start, end, expr)
 
     def function_stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
+        n = (row_end - row_start)/row_stride
+        if n > 1 and expr.isscalar:
+            expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
         if to_sparse: yield to_sparse
         yield "Gi.append(%s)" % expr.I(row_start, row_stride)
@@ -106,6 +109,9 @@ class CVXOPTCodegen(PythonCodegen):
         yield "Gv.append(%s)" % expr.V()
 
     def function_stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
+        n = (row_end - row_start)/row_stride
+        if n > 1 and expr.isscalar:
+            expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
         if to_sparse: yield to_sparse
         yield "Ai.append(%s)" % expr.I(row_start, row_stride)
