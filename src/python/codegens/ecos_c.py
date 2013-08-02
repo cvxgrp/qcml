@@ -48,6 +48,30 @@ class ECOS_C_Codegen(ECOSCodegen):
 
         return v
 
+    def expand_param(self, left, right, node):
+        # ONLY FOR BINARY OPERATORS
+        if left.is_matrix_param and right.is_matrix_param:
+            # introduce a new variable for expr
+            n = node.right.shape.eval(self.dims).size()
+            new_var = self.create_equality_constraint_variable(n)
+
+            # reset the stack and save the state
+            stack = self.expr_stack
+            self.expr_stack = []
+
+            # add an equality constraint
+            eq_constraint = (new_var == node.right)
+            self.visit(eq_constraint)
+
+            # restore the stack
+            self.expr_stack = stack
+            # now visit the variable
+            self.visit_Variable(new_var)
+            return True
+        else:
+            return False
+
+
     def visit_Mul(self, node):
         """ For C code generation, we check for PARAMS * PARAMS and promote
             the right hand side to a new variable.
@@ -71,24 +95,7 @@ class ECOS_C_Codegen(ECOSCodegen):
         expr = right.values()[0]
 
 
-        if isinstance(coeff, ParameterCoeff) and \
-            isinstance(expr, ParameterCoeff):
-            # introduce a new variable for expr
-            n = node.right.shape.eval(self.dims).size()
-            new_var = self.create_equality_constraint_variable(n)
-
-            # reset the stack and save the state
-            stack = self.expr_stack
-            self.expr_stack = []
-
-            # add an equality constraint
-            eq_constraint = (new_var == node.right)
-            self.visit(eq_constraint)
-
-            # restore the stack
-            self.expr_stack = stack
-            # now visit the variable
-            self.visit_Variable(new_var)
+        if self.expand_param(coeff, expr, node):
             right = self.expr_stack.pop()
 
         for k in right.keys():
@@ -96,6 +103,29 @@ class ECOS_C_Codegen(ECOSCodegen):
             right[k] =  coeff * right[k]
 
         self.expr_stack.append(right)
+
+    def visit_Add(self, node):
+        """ For C code generation, we check for PARAMS + PARAMS and promote
+            the right hand side to a new variable.
+        """
+        self.generic_visit(node)
+
+        right = self.expr_stack.pop()
+        left = self.expr_stack.pop()
+
+        for k in right.keys():
+            if left.get(k, None) is not None:
+                if self.expand_param(left[k], right[k], node):
+                    new_elem = self.expr_stack.pop()
+                    name = new_elem.keys()[0]   # name of variable
+                    left[name] = new_elem[name]
+                    # left[k] = left[k], leaves left[k] intact
+                else:
+                    left[k] = left[k] + right[k]
+            else:
+                left[k] = right[k]
+
+        self.expr_stack.append(left)
 
     def visit_Program(self, node):
         super(ECOS_C_Codegen,self).visit_Program(node)
