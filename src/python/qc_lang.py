@@ -1,6 +1,6 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from codegens import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen
+from codegens import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen, ECOS_C_Codegen
 
 import cvxopt
 import time # for benchmarking
@@ -69,7 +69,8 @@ class QCML(object):
         "cvxopt": CVXOPTCodegen,
         "ecos": ECOSCodegen,
         "matlab": MatlabCodegen,
-        "pdos": PDOSCodegen
+        "pdos": PDOSCodegen,
+        "C": ECOS_C_Codegen
     }
 
     def __init__(self, debug = False, local_dict={}):
@@ -142,15 +143,15 @@ class QCML(object):
             raise Exception("QCML set_dims: No problem currently parsed.")
 
     @profile
-    def codegen(self,mode="cvx", **kwargs):
+    def codegen(self,mode="cvxopt", *args, **kwargs):
         if self.state is ParseState.COMPLETE:
             if mode != self.__old_mode: self.state = ParseState.CODEGEN
             else: return
         if self.state is ParseState.CODEGEN and self.__dims:
-            def codegen_err(dims, **kwargs):
+            def codegen_err(dims, *args, **kwargs):
                 raise Exception("QCML codegen: Invalid code generator. Must be one of: ", self.codegen_objects.keys())
 
-            self.__codegen = self.codegen_objects.get(mode, codegen_err)(self.__dims, **kwargs)
+            self.__codegen = self.codegen_objects.get(mode, codegen_err)(dims = self.__dims, *args, **kwargs)
             self.__codegen.visit(self.__problem_tree)
 
             if self.debug:

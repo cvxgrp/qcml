@@ -200,11 +200,11 @@ class Codegen(NodeVisitor):
         self.expr_stack.append(lineq)
 
     def visit_Parameter(self, node):
+        node.shape.eval(self.dims)
         if isscalar(node):
             self.expr_stack.append({'1':ScalarParameterCoeff(node.value)})
         else:
             self.expr_stack.append({'1':ParameterCoeff(node.value)})
-
 
     def visit_Number(self, node):
         self.expr_stack.append({'1':ConstantCoeff(node.value)})
@@ -401,6 +401,8 @@ class Codegen(NodeVisitor):
 """ Python codegen mixin
 """
 class PythonCodegen(Codegen):
+    """ This poorly named function `codegen` produces Python code
+    """
     def codegen(self):
         # execute bytecode to create the "solve" function
         exec '\n'.join(self.prog) in locals()

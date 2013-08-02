@@ -94,6 +94,8 @@ if __name__ == "__main__":
 
     s = p.solve()
 
+    p.codegen("C", params=locals(), name="example")
+
 
 #
 #     p.codegen("pdos")
