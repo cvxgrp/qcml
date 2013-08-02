@@ -1,6 +1,12 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from codegens import CVXCodegen, CVXOPTCodegen, ECOSCodegen, MatlabCodegen, PDOSCodegen, ECOS_C_Codegen
+from codegens import CVXCodegen, \
+    CVXOPTCodegen, \
+    ECOSCodegen, \
+    MatlabCodegen, \
+    PDOSCodegen, \
+    ECOS_C_Codegen, \
+    PDOSElemCodegen
 
 import cvxopt
 import time # for benchmarking
@@ -70,7 +76,8 @@ class QCML(object):
         "ecos": ECOSCodegen,
         "matlab": MatlabCodegen,
         "pdos": PDOSCodegen,
-        "C": ECOS_C_Codegen
+        "C": ECOS_C_Codegen,
+        "pdos_elem": PDOSElemCodegen
     }
 
     def __init__(self, debug = False, local_dict={}):
