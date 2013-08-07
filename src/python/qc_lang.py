@@ -165,6 +165,8 @@ class QCML(object):
                 self.__codegen.prettyprint(True)
 
             self.solver = self.__codegen.codegen()
+            if hasattr(self.__codegen, 'stuff_matrices'):
+                self.stuff_matrices = self.__codegen.stuff_matrices
             self.state = ParseState.COMPLETE
             self.__old_mode = mode
         else:

@@ -97,6 +97,7 @@ if __name__ == "__main__":
     p.codegen("pdos_elem", path="/Users/echu/src/Elemental/build")
     p.solver(params=locals())
 
+    print p.stuff_matrices(params=locals())
 
 #
 #     p.codegen("pdos")
