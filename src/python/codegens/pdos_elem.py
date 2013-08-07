@@ -233,7 +233,7 @@ class PDOSElemCodegen(PDOSCodegen):
     def codegen(self):
         # execute bytecode to create the "stuff_matrices" function
         exec '\n'.join(self.prog) in locals()
-        matrix_stuffer = stuff_matrices
+        self.stuff_matrices = stuff_matrices
 
         import sys
         sys.path.append(self.path)
@@ -254,7 +254,7 @@ class PDOSElemCodegen(PDOSCodegen):
             Alocal = elem.DistMatrix_d_CIRC_CIRC()
 
             if Alocal.Grid.Rank == Alocal.Root:
-                pdos_vars = matrix_stuffer(params)
+                pdos_vars = self.stuff_matrices(params)
                 A = pdos_vars['A']
                 b = pdos_vars['b']
                 c = pdos_vars['c']
