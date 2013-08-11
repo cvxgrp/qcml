@@ -4,14 +4,16 @@ from qcml.properties.curvature import isconstant
 from qcml.expressions.qc_ast import RelOp, SOC, SOCProd
 from coeff_expr import *
 
-import itertools
+from abc import ABCMeta, abstractmethod, abstractproperty
+import function
 
 """ Codegen template.
 """
 class Codegen(NodeVisitor):
+    __metaclass__ = ABCMeta
     """ Abstract class. Generates code for solver by walking the problem tree.
 
-        Does not depend on any known data types.
+        Does not depend on any known data types or programming language.
 
         It generates code by calling the following sequence of functions:
 
@@ -36,15 +38,11 @@ class Codegen(NodeVisitor):
         These functions stuff the data into the datastructures set up in
         function_datastructures.
     """
-    offset = 4*' '
-    constraint = 8*' '
 
     def __init__(self, dims = None):
         """ Walks the tree and creates the data structures.
-            Creates the solver.
+            Creates the functions to stuff and un-stuff the matrices.
         """
-        self.prog = []          # the full program
-        self.body = []          # just the stuffing components
         self.varlength = {}
         self.varstart = {}
         self.num_vars = 0
@@ -53,94 +51,67 @@ class Codegen(NodeVisitor):
         self.num_lps = 0
         self.num_conic = 0
         self.cone_list = []
-        self.comment = '#'
         self.dims = dims    # dimension map
         self.objective_offset = 0
         self.objective_multiplier = 1
 
-    def codegen(self):
-        def not_implemented():
-            raise Exception("Code generator not implemented for %s" % (self.__class__.__name__))
-        return not_implemented
+    @abstractproperty
+    def prob2socp(self):
+        pass
 
-    def prettyprint(self,lineno=False):
-        """ Pretty prints the source code, possibly with line numbers
-        """
-        if lineno:
-            print '\n'.join("%4s    %s" % (lineno, line) for lineno, line in enumerate(self.prog))
-        else:
-            print '\n'.join(self.prog)
+    @abstractproperty
+    def socp2prob(self):
+        pass
 
-    def function_prototype(self):
-        """ Gives the function prototype of the generated function.
-            TODO: There may be more than one function generated....
-            TODO: Supply function name...
+    @abstractmethod
+    def functions_setup(self, program_node):
+        """ Run before matrix stuffing
         """
-        return ""
+        pass
 
-    def function_preamble(self):
-        """ Code that needs to be run once before the rest of the code can
-            run.
-            TODO: Maybe more than one of these needed....
+    @abstractmethod
+    def functions_return(self, program_node):
+        """ Run after matrix stuffing
         """
-        return ""
+        pass
 
-    def function_datastructures(self):
-        """
-            varlength
-                length of x variable (as int)
-            num_lineqs
-                number of linear equality constraints (as int)
-            num_lps
-                number of linear inequality constraints (as int)
-            num_conic
-                number of SOC constraints (as int)
-            cone_list
-                list of *tuple* of SOC dimensions; tuple is (num, sz), with num
-                being the multiplicity of the cone size, e.g. (2, 3) means *two*
-                3-dimensional cones. it is a tuple of strings
-        """
-        return ""
-
-    def function_solve(self):
-        """ The code we need to call to solve the problem.
-        """
-        return ""
-
-    def function_recover(self,keys):
-        """ The code we need to recover the solution.
-        """
-        return ""
-
-    def function_stuff_c(self, start, end, expr):
+    @abstractmethod
+    def stuff_c(self, start, end, expr):
         """ The code needed to stuff the c vector
         """
-        return ""
+        yield ""
 
-    def function_stuff_b(self, start, end, expr):
+    @abstractmethod
+    def stuff_b(self, start, end, expr):
         """ The code needed to stuff the b vector
         """
-        return ""
+        yield ""
 
-    def function_stuff_h(self, start, end, expr, stride = None):
+    @abstractmethod
+    def stuff_h(self, start, end, expr, stride = None):
         """ The code needed to stuff the h vector
         """
-        return ""
+        yield ""
 
-    def function_stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
+    @abstractmethod
+    def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         """ The code needed to stuff the sparse G matrix
         """
-        return ""
+        yield ""
 
-    def function_stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
+    @abstractmethod
+    def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = None):
         """ The code needed to stuff the sparse A matrix
         """
-        return ""
+        yield ""
 
-    def function_stuff_spmat(self):
-        """ Uses I, J, V to create G and A
-        """
-        return ""
+    def codegen(self):
+        # create the source code
+        self.prob2socp.create()
+        self.socp2prob.create()
+        # return the function object
+        return {'prob2socp': self.prob2socp, 'socp2prob': self.socp2prob}
+
 
     def visit_Program(self, node):
         if self.dims is None:
@@ -167,26 +138,14 @@ class Codegen(NodeVisitor):
         # varstart contains the start indicies as ints
         self.varstart = dict(self.varstart)
 
-        # visit all the node
+        # set up the functions we want to write
+        self.functions_setup(node)
+
+        # now, visit all the nodes
         self.generic_visit(node)
 
-        # now, write the program
-        self.prog.append(self.function_prototype())
-        self.prog.append(self.offset + x for x in self.function_preamble())
-        self.prog.append(self.offset + "%s '%s' has shape %s" % \
-            (self.comment, v, v.shape.eval(self.dims)) \
-            for v in node.parameters.values())
-        self.prog.append([""])
-        self.prog.append(self.offset + x for x in self.function_datastructures())
-
-        self.prog.append(self.offset + x for x in itertools.chain.from_iterable(self.body))
-
-        self.prog.append(self.offset + x for x in self.function_stuff_spmat())
-        self.prog.append(self.offset + x for x in self.function_solve())
-        self.prog.append(self.offset + x for x in self.function_recover(node.variables.keys()))
-
-        # now construct the lines
-        self.prog = list(itertools.chain.from_iterable(self.prog))
+        # after we visited all the nodes, we set up the return values
+        self.functions_return(node)
 
     def visit_Variable(self, node):
         n = node.shape.eval(self.dims).size()
@@ -264,10 +223,9 @@ class Codegen(NodeVisitor):
 
         self.expr_stack.append(left)
 
-
     def visit_Objective(self, node):
-        self.body.append([""])
-        self.body.append(["%s stuffing the objective vector" % self.comment])
+        self.prob2socp.newline()
+        self.prob2socp.add_comment("stuffing the objective vector")
 
         self.generic_visit(node)
 
@@ -286,14 +244,14 @@ class Codegen(NodeVisitor):
                 elif node.sense == 'maximize':
                     objective_c = (-v).trans()
                     self.objective_multiplier = -1
-                self.body.append(self.function_stuff_c(start, start+length, objective_c))
+                self.prob2socp.add_lines(self.stuff_c(start, start+length, objective_c))
 
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
-        self.body.append([""])
+        self.prob2socp.newline()
 
     def visit_RelOp(self, node):
         # in canonical form, all relop's are affine <= 0 or affine == 0
-        self.body.append(["%s for the constraint %s" % (self.comment, node)])
+        self.prob2socp.add_comment("for the constraint %s" % node)
 
         if node.op == '==':
             start = self.num_lineqs
@@ -301,7 +259,6 @@ class Codegen(NodeVisitor):
         else:
             start = self.num_lps
             self.num_lps += node.shape.eval(self.dims).size()
-
 
         self.generic_visit(node)
 
@@ -315,25 +272,25 @@ class Codegen(NodeVisitor):
         for k,v in left.iteritems():
             if k == '1':
                 if node.op == '==':
-                    self.body.append(self.function_stuff_b(start, self.num_lineqs, -v))
+                    self.prob2socp.add_lines(self.stuff_b(start, self.num_lineqs, -v))
                 else:
-                    self.body.append(self.function_stuff_h(start, self.num_lps, -v))
+                    self.prob2socp.add_lines(self.stuff_h(start, self.num_lps, -v))
             else:
                 xstart = self.varstart[k]
                 xend = xstart + self.varlength[k]
                 if node.op == '==':
-                    A_string = self.function_stuff_A(start, self.num_lineqs, xstart, xend, v)
-                    self.body.append(A_string)
+                    A_string = self.stuff_A(start, self.num_lineqs, xstart, xend, v)
+                    self.prob2socp.add_lines(A_string)
                 else:
-                    G_string = self.function_stuff_G(start, self.num_lps, xstart, xend, v)
-                    self.body.append(G_string)
+                    G_string = self.stuff_G(start, self.num_lps, xstart, xend, v)
+                    self.prob2socp.add_lines(G_string)
 
-        self.body.append([""])
+        self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
 
     def visit_SOC(self, node):
-        self.body.append(["%s for the SOC constraint %s" % (self.comment, node)])
+        self.prob2socp.add_comment("for the SOC constraint %s" % node)
 
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
@@ -358,17 +315,17 @@ class Codegen(NodeVisitor):
 
             for k,v in e.iteritems():
                 if k == '1':
-                    self.body.append(self.function_stuff_h(conestart, coneend, v))
+                    self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v))
                 else:
                     xstart = self.varstart[k]
                     xend = xstart + self.varlength[k]
-                    self.body.append(self.function_stuff_G(conestart, coneend, xstart, xend, -v))
+                    self.prob2socp.add_lines(self.stuff_G(conestart, coneend, xstart, xend, -v))
 
-        self.body.append([""])
+        self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
     def visit_SOCProd(self, node):
-        self.body.append(["%s for the SOC product constraint %s" % (self.comment, node)])
+        self.prob2socp.add_comment("for the SOC product constraint %s" % node)
 
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
@@ -389,21 +346,11 @@ class Codegen(NodeVisitor):
             count -= 1
             for k,v in e.iteritems():
                 if k == '1':
-                    self.body.append(self.function_stuff_h(conestart, coneend, v, stride))
+                    self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v, stride))
                 else:
                     xstart = self.varstart[k]
                     xend = xstart + self.varlength[k]
-                    self.body.append(self.function_stuff_G(conestart, coneend, xstart, xend, -v, stride))
+                    self.prob2socp.add_lines(self.stuff_G(conestart, coneend, xstart, xend, -v, stride))
 
-        self.body.append([""])
+        self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
-
-""" Python codegen mixin
-"""
-class PythonCodegen(Codegen):
-    """ This poorly named function `codegen` produces Python code
-    """
-    def codegen(self):
-        # execute bytecode to create the "solve" function
-        exec '\n'.join(self.prog) in locals()
-        return solve

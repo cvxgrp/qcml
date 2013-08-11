@@ -15,9 +15,9 @@ from codegen import ParameterCoeff
 import qcml.expressions.expression as expression
 import qcml.properties.shape as shape
 from qcml.properties.curvature import isconstant
-from ecos import ECOSCodegen
+from python_codegen import PythonCodegen
 
-class ECOS_C_Codegen(ECOSCodegen):
+class C_Codegen(PythonCodegen):
     """ This is a bizzarre codegen.
         It first generates Python code to construct the needed data matrices.
 

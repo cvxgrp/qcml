@@ -31,3 +31,49 @@ def create_variable(shape):
     v = expressions.expression.Variable(_create_varname(), shape)
     qcml.QCRewriter.new_variables[v.value] = v
     return v
+
+
+import cvxopt
+import time # for benchmarking
+
+def _convert_to_cvxopt_matrices(variables):
+    try:
+        import numpy as np
+        import cvxopt
+
+        cvxopt_params = {k:cvxopt.matrix(v) for k,v in variables.iteritems() if isinstance(v, np.ndarray)}
+        variables.update(cvxopt_params)
+    except ImportError:
+        pass
+    return variables
+
+def profile(f):
+    def wrap(*args, **kwargs):
+        start = time.clock()
+        result = f(*args, **kwargs)
+        elapsed = time.clock() - start
+        print f.__name__, "took", elapsed, "secs"
+        return result
+    return wrap
+
+def default_locals(f):
+    def wrap(self, *args, **kwargs):
+        if args or kwargs:
+            result = f(self, *args, **kwargs)
+        else:
+            # get the local calling frame
+            # http://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                variables = frame.f_back.f_locals
+            finally:
+                del frame
+
+            # cast to cvxopt matrices if needed
+            # if there are numpy matrices, promote them to cvxopt matrices
+            variables = _convert_to_cvxopt_matrices(variables)
+
+            result = f(self, variables, variables)
+        return result
+    return wrap

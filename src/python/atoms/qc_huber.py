@@ -48,7 +48,7 @@ class QC_huber(atom.Atom):
             w <= Number(1),
             v >= Number(0)
         ] + c1
-
+        # w^2 + 2*v
         return (o1 + Number(2)*v, constraints)
 
 # register with the atom library

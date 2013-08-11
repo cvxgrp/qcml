@@ -76,31 +76,3 @@ def test_atom():
     for obj, obj_val in concave_list:
         yield run_atom, concave_template, obj, obj_val
 
-
-#
-#     p.codegen("pdos")
-#     p.prettyprint(True)
-#     s = p.solver(m=m,n=n,X=X,Y=Y,gamma=gamma)
-#
-#     p.codegen("matlab",cone_size=3,m=100,n=10)
-#     p.prettyprint()
-
-
-
-    # if y:
-    #     #y.show()
-    #     visit.visit(y)
-    #
-    #     print y
-    #     # TODO: before codegen, need to check DCP compliance and that objective is scalar
-    #     codegen = ECOSCodegen(visit.replaced_expressions())
-    #     codegen.visit(y)
-    #     codegen.prettyprint(True)
-    #
-    #     f = codegen.codegen()
-    #     #s = f(m=1,n=1,A=1,b=1)#,gamma=0.1)
-    #     s = f(m=m,n=n,X=X,Y=Y,gamma=gamma)
-    #
-    #     print s
-    #     print s['a']
-    #     print s['b']

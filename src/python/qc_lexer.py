@@ -50,16 +50,12 @@ class QCLexer:
         ('subject', 'SUBJ'),
         ('to', 'TO'),
         # builtin functions in the language
-        # ('norm', 'NORM'),
-        # ('norm2', 'NORM'),
-        # ('abs', 'ABS'),
         ('sum', 'SUM'),
-        #'norms' : 'NORM',
     ] + zip(atoms.keys(),['ATOM']*len(atoms.keys())))
 
     tokens = [
         'INTEGER','CONSTANT', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQ', 'LEQ', 'GEQ',
-        'COMMA', 'SEMI', 'TRANSPOSE', 'LBRACE', 'RBRACE', 'LPAREN', 'RPAREN',
+        'COMMA', 'TRANSPOSE', 'LPAREN', 'RPAREN',
         'ID', 'DIM_ID', 'VAR_ID', 'PARAM_ID', 'COMMENT', 'NL'
     ] + list(set(reserved.values()))
 
@@ -72,10 +68,10 @@ class QCLexer:
     t_LEQ       = r'<='
     t_GEQ       = r'>='
     t_COMMA     = r','
-    t_SEMI      = r';'
+    # t_SEMI      = r';'
     t_TRANSPOSE = r'\''
-    t_LBRACE    = r'\['
-    t_RBRACE    = r'\]'
+    # t_LBRACE    = r'\['
+    # t_RBRACE    = r'\]'
     t_LPAREN    = r'\('
     t_RPAREN    = r'\)'
 

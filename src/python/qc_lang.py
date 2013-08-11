@@ -1,57 +1,9 @@
 from qc_parser import QCParser
 from qc_rewrite import QCRewriter
-from codegens import CVXCodegen, \
-    CVXOPTCodegen, \
-    ECOSCodegen, \
+from codegens import PythonCodegen, \
     MatlabCodegen, \
-    PDOSCodegen, \
-    ECOS_C_Codegen, \
-    PDOSElemCodegen
-
-import cvxopt
-import time # for benchmarking
-
-def _convert_to_cvxopt_matrices(variables):
-    try:
-        import numpy as np
-        import cvxopt
-
-        cvxopt_params = {k:cvxopt.matrix(v) for k,v in variables.iteritems() if isinstance(v, np.ndarray)}
-        variables.update(cvxopt_params)
-    except ImportError:
-        pass
-    return variables
-
-def profile(f):
-    def wrap(*args, **kwargs):
-        start = time.clock()
-        result = f(*args, **kwargs)
-        elapsed = time.clock() - start
-        print f.__name__, "took", elapsed, "secs"
-        return result
-    return wrap
-
-def default_locals(f):
-    def wrap(self, *args, **kwargs):
-        if args or kwargs:
-            result = f(self, *args, **kwargs)
-        else:
-            # get the local calling frame
-            # http://stackoverflow.com/questions/6618795/get-locals-from-calling-namespace-in-python
-            import inspect
-            frame = inspect.currentframe()
-            try:
-                variables = frame.f_back.f_locals
-            finally:
-                del frame
-
-            # cast to cvxopt matrices if needed
-            # if there are numpy matrices, promote them to cvxopt matrices
-            variables = _convert_to_cvxopt_matrices(variables)
-
-            result = f(self, variables, variables)
-        return result
-    return wrap
+    C_Codegen
+from helpers import profile, default_locals
 
 class ParseState(object):
     """ Parse state enum.
@@ -66,19 +18,16 @@ class ParseState(object):
     CODEGEN = 2
     COMPLETE = 3
 
+supported_languages = {
+    "C": C_Codegen,
+    "python": PythonCodegen,
+    "matlab": MatlabCodegen
+}
+
 class QCML(object):
     """
         Must set .dims externally.
     """
-    codegen_objects = {
-        "cvx": CVXCodegen,
-        "cvxopt": CVXOPTCodegen,
-        "ecos": ECOSCodegen,
-        "matlab": MatlabCodegen,
-        "pdos": PDOSCodegen,
-        "C": ECOS_C_Codegen,
-        "pdos_elem": PDOSElemCodegen
-    }
 
     def __init__(self, debug = False, local_dict={}):
         self.debug = debug
@@ -91,15 +40,13 @@ class QCML(object):
         self.__old_mode = ""   # used to determine if codegen mode has changed
 
         self.problem = None
-        self.solver = None      # TODO: consider making "private"
+        self.prob2socp = NotImplemented
+        self.socp2prob = NotImplemented
 
+        # used to keep track of local namespace when using the
+        #   with QCML() as q:
+        # syntax
         self.__locals = local_dict
-
-    def prettyprint(self,lineno=False):
-        if self.state is ParseState.COMPLETE:
-            self.__codegen.prettyprint(lineno)
-        else:
-            raise Exception("QCML prettyprint: No code generated yet.")
 
     @profile
     def parse(self,text):
@@ -114,13 +61,6 @@ class QCML(object):
             self.problem = text + "\n"
             self.state = ParseState.CANONICALIZE
 
-    # def append(self, text):
-    #     if self.problem is not None:
-    #         self.problem += text
-    #         self.__problem_tree = self.__parser.parse(self.problem)
-    #     else:
-    #         print "QCML append: No problem currently parsed."
-
     @profile
     def canonicalize(self):
         if self.state > ParseState.CANONICALIZE: return
@@ -131,8 +71,12 @@ class QCML(object):
         else:
             raise Exception("QCML canonicalize: No problem currently parsed.")
 
+    @property
+    def dims(self):
+        return self.__dims
 
-    def set_dims(self, dims):
+    @dims.setter
+    def dims(self, dims):
         if self.state > ParseState.PARSE:
             required_dims = self.__problem_tree.dimensions
 
@@ -150,23 +94,27 @@ class QCML(object):
             raise Exception("QCML set_dims: No problem currently parsed.")
 
     @profile
-    def codegen(self,mode="cvxopt", *args, **kwargs):
+    def codegen(self,mode="python", *args, **kwargs):
         if self.state is ParseState.COMPLETE:
             if mode != self.__old_mode: self.state = ParseState.CODEGEN
             else: return
         if self.state is ParseState.CODEGEN and self.__dims:
             def codegen_err(dims, *args, **kwargs):
-                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", self.codegen_objects.keys())
+                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", self.language.keys())
 
-            self.__codegen = self.codegen_objects.get(mode, codegen_err)(dims = self.__dims, *args, **kwargs)
+            self.__codegen = supported_languages.get(mode, codegen_err)(dims = self.__dims, *args, **kwargs)
             self.__codegen.visit(self.__problem_tree)
 
+            # save the prob2socp and socp2prob functions
+            bytecodes = self.__codegen.codegen()
+            self.prob2socp = bytecodes['prob2socp']
+            self.socp2prob = bytecodes['socp2prob']
             if self.debug:
-                self.__codegen.prettyprint(True)
-
-            self.solver = self.__codegen.codegen()
-            if hasattr(self.__codegen, 'stuff_matrices'):
-                self.stuff_matrices = self.__codegen.stuff_matrices
+                if hasattr(self.prob2socp, 'numbered_source'):
+                    print self.prob2socp.numbered_source
+                    print
+                    print self.socp2prob.numbered_source
+                    print
             self.state = ParseState.COMPLETE
             self.__old_mode = mode
         else:
@@ -175,7 +123,30 @@ class QCML(object):
             if self.state is ParseState.CANONICALIZE:
                 raise Exception("QCML codegen: No problem currently canonicalized.")
             if not self.__dims:
-                raise Exception("QCML codegen: No dimensions currently given. Please call set_dims(...).")
+                raise Exception("QCML codegen: No dimensions currently given. Please set the dimensions of the QCML object.")
+
+    @property
+    def solver(self):
+        if self.state is ParseState.COMPLETE:
+            try:
+                import cvxopt.solvers
+            except ImportError:
+                raise ImportError("QCML solver: To generate a solver, requires cvxopt.")
+
+            def f(params):
+                data = self.prob2socp(params)
+                sol = cvxopt.solvers.conelp(**data)
+                result = self.socp2prob(sol['x'])
+                result['info'] = sol
+
+                # set the objective value
+                multiplier = self.__codegen.objective_multiplier
+                offset = self.__codegen.objective_offset
+                result['objval'] = multiplier * sol['primal objective'] + offset
+                return result
+            return f
+        else:
+            raise Exception("QCML solver: No python code currently generated.")
 
     @default_locals
     def solve(self, dims, params):
@@ -185,19 +156,14 @@ class QCML(object):
 
             Assumes all matrices and vectors are cvxopt matrices.
         """
-
         if self.state is ParseState.PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
 
-        self.set_dims(dims)
+        self.dims = dims
         self.canonicalize()
-        self.codegen("cvxopt")
+        self.codegen("python")
 
         return self.solver(params)
-
-    def prob2socp(self, dims, params=None):
-        # spits out the socp data matrices
-        pass
 
     def __enter__(self):
         return self
