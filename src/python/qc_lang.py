@@ -147,7 +147,7 @@ class QCML(object):
             raise Exception("QCML solver: No python code currently generated.")
 
     @default_locals
-    def solve(self, dims, params):
+    def solve(self, params, dims = None):
         """
             .solve(locals())
             .solve(dims,params)
@@ -157,7 +157,7 @@ class QCML(object):
         if self.state is ParseState.PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
 
-        self.dims = dims
+        self.dims = dims if dims else params
         self.canonicalize()
         self.codegen("python")
 

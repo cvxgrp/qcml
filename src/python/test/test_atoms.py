@@ -59,15 +59,16 @@ concave_list = [
 
 def run_atom(template, obj, obj_val):
     #print template % obj
-    with QCML(debug=True, local_dict={'v': v}) as p:
-        p.parse("""
-            parameter v(3)
-            %s
-        """ % (template % obj))
+    p = QCML(debug=True)
+    p.parse("""
+        parameter v(3)
+        %s
+    """ % (template % obj))
+    solution = p.solve(params={'v': v})
 
-    print p.solution['objval']
+    print solution['objval']
     print obj_val
-    assert( abs(p.solution['objval'] - obj_val) <= TOL )
+    assert( abs(solution['objval'] - obj_val) <= TOL )
 
 def test_atom():
     for obj, obj_val in convex_list:
