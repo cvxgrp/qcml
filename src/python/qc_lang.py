@@ -3,7 +3,7 @@ from qc_rewrite import QCRewriter
 from codegens import PythonCodegen, \
     MatlabCodegen, \
     C_Codegen
-from helpers import profile, default_locals
+from helpers import profile, default_locals, convert_to_cvxopt
 
 class ParseState(object):
     """ Parse state enum.
@@ -29,7 +29,7 @@ class QCML(object):
         Must set .dims externally.
     """
 
-    def __init__(self, debug = False, local_dict={}):
+    def __init__(self, debug = False):
         self.debug = debug
         self.state = ParseState.PARSE
 
@@ -42,11 +42,6 @@ class QCML(object):
         self.problem = None
         self.prob2socp = NotImplemented
         self.socp2prob = NotImplemented
-
-        # used to keep track of local namespace when using the
-        #   with QCML() as q:
-        # syntax
-        self.__locals = local_dict
 
     @profile
     def parse(self,text):
@@ -100,21 +95,23 @@ class QCML(object):
             else: return
         if self.state is ParseState.CODEGEN and self.__dims:
             def codegen_err(dims, *args, **kwargs):
-                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", self.language.keys())
+                raise Exception("QCML codegen: Invalid code generator. Must be one of: ", supported_languages.keys())
 
             self.__codegen = supported_languages.get(mode, codegen_err)(dims = self.__dims, *args, **kwargs)
             self.__codegen.visit(self.__problem_tree)
 
             # save the prob2socp and socp2prob functions
-            bytecodes = self.__codegen.codegen()
-            self.prob2socp = bytecodes['prob2socp']
-            self.socp2prob = bytecodes['socp2prob']
+            function_objs = self.__codegen.codegen()
+            self.prob2socp = function_objs['prob2socp']
+            self.socp2prob = function_objs['socp2prob']
+
             if self.debug:
                 if hasattr(self.prob2socp, 'numbered_source'):
                     print self.prob2socp.numbered_source
                     print
                     print self.socp2prob.numbered_source
                     print
+
             self.state = ParseState.COMPLETE
             self.__old_mode = mode
         else:
@@ -134,6 +131,7 @@ class QCML(object):
                 raise ImportError("QCML solver: To generate a solver, requires cvxopt.")
 
             def f(params):
+                params = convert_to_cvxopt(params)
                 data = self.prob2socp(params)
                 sol = cvxopt.solvers.conelp(**data)
                 result = self.socp2prob(sol['x'])
@@ -165,10 +163,3 @@ class QCML(object):
 
         return self.solver(params)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if not exc_type:
-            self.solution = self.solve(self.__locals, self.__locals)
-        return False

@@ -36,16 +36,16 @@ def create_variable(shape):
 import cvxopt
 import time # for benchmarking
 
-def _convert_to_cvxopt_matrices(variables):
+def convert_to_cvxopt(params):
     try:
         import numpy as np
         import cvxopt
 
-        cvxopt_params = {k:cvxopt.matrix(v) for k,v in variables.iteritems() if isinstance(v, np.ndarray)}
-        variables.update(cvxopt_params)
+        cvxopt_params = {k:cvxopt.matrix(v) for k,v in params.iteritems() if isinstance(v, np.ndarray)}
+        params.update(cvxopt_params)
     except ImportError:
         pass
-    return variables
+    return params
 
 def profile(f):
     def wrap(*args, **kwargs):
@@ -66,14 +66,10 @@ def default_locals(f):
             import inspect
             frame = inspect.currentframe()
             try:
-                variables = frame.f_back.f_locals
+                params_and_dims = frame.f_back.f_locals
             finally:
                 del frame
 
-            # cast to cvxopt matrices if needed
-            # if there are numpy matrices, promote them to cvxopt matrices
-            variables = _convert_to_cvxopt_matrices(variables)
-
-            result = f(self, variables, variables)
+            result = f(self, params_and_dims, params_and_dims)
         return result
     return wrap

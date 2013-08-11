@@ -71,11 +71,17 @@ class PythonCodegen(codegen.Codegen):
 
         # add some documentation
         self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
-        shapes = ("'%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
+        self.prob2socp.document("'params' ought to contain:")
+        shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
         self.prob2socp.document(shapes)
 
         # now import cvxopt
         self.prob2socp.add_lines("import cvxopt as o")
+        self.prob2socp.newline()
+        self.prob2socp.add_comment("convert possible numpy parameters to cvxopy matrices")
+        self.prob2socp.add_lines("from qcml.helpers import convert_to_cvxopt")
+        self.prob2socp.add_lines("params = convert_to_cvxopt(params)")
+        self.prob2socp.newline()
 
         # set up the data structures
         self.prob2socp.add_lines(self.python_cone_sizes())
@@ -98,7 +104,6 @@ class PythonCodegen(codegen.Codegen):
             "'%s' : x[%s:%s]" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
                 for k in program_node.variables.keys()
         )
-        self.socp2prob.newline()
         self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
 
     def stuff_c(self, start, end, expr):
