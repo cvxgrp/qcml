@@ -2,6 +2,7 @@ from qc_ply import yacc
 from qc_lexer import QCLexer
 from expressions.expression import Number, Parameter, Variable, Sum
 from expressions.qc_ast import Objective, Program
+from expressions.ops import Transpose
 from properties.sign import Neither, Positive, Negative
 from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
 from atoms.atom import atoms

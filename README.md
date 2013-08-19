@@ -333,10 +333,6 @@ individual properties. Instead, if a positive and negative (or convex and
 concave) expression are concatenated, the result is a vector of unknown sign
 (or curvature).
 
-### Vector transpose ###
-At the moment, we don't support vector transposes. For linear objectives such
-as `c'*x`, the parameter has to be transposed externally and stated as
-`parameter ct(1,n)` instead of `parameter c(n)`.
 
 Sample problem
 --------------
