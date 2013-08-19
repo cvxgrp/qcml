@@ -78,7 +78,7 @@ class PythonCodegen(codegen.Codegen):
         # now import cvxopt
         self.prob2socp.add_lines("import cvxopt as o")
         self.prob2socp.newline()
-        self.prob2socp.add_comment("convert possible numpy parameters to cvxopy matrices")
+        self.prob2socp.add_comment("convert possible numpy parameters to cvxopt matrices")
         self.prob2socp.add_lines("from qcml.helpers import convert_to_cvxopt")
         self.prob2socp.add_lines("params = convert_to_cvxopt(params)")
         self.prob2socp.newline()

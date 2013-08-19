@@ -3,7 +3,7 @@ from qc_rewrite import QCRewriter
 from codegens import PythonCodegen, \
     MatlabCodegen, \
     C_Codegen
-from helpers import profile, default_locals, convert_to_cvxopt
+from helpers import profile, default_locals
 
 class ParseState(object):
     """ Parse state enum.
@@ -131,7 +131,6 @@ class QCML(object):
                 raise ImportError("QCML solver: To generate a solver, requires cvxopt.")
 
             def f(params):
-                params = convert_to_cvxopt(params)
                 data = self.prob2socp(params)
                 sol = cvxopt.solvers.conelp(**data)
                 result = self.socp2prob(sol['x'])
