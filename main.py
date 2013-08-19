@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 from qcml import QCML
 import argparse
 
@@ -14,7 +14,7 @@ group.add_argument("--portfolio", help="solve the portfolio problem", action="st
 
 args = parser.parse_args()
 
-p = QCML()
+p = QCML(debug=True)
 m = args.m
 n = args.n
 q = args.q
@@ -33,12 +33,12 @@ if args.svm:
     """)
 
     p.canonicalize()
-    p.set_dims({'m':m,'n':n})
+    p.dims = {'m':m,'n':n}
     if args.cvx:
-        p.codegen("cvxopt")
+        p.codegen("python")
     else:
         p.codegen("matlab",cone_size=q)
-    p.prettyprint()
+    #p.prettyprint()
 
 elif args.portfolio:
     p.parse("""
@@ -55,12 +55,12 @@ elif args.portfolio:
     """)
 
     p.canonicalize()
-    p.set_dims({'m':m,'n':n})
+    p.dims = {'m':m,'n':n}
     if args.cvx:
-        p.codegen("cvxopt")
+        p.codegen("python")
     else:
         p.codegen("matlab",cone_size=q)
-    p.prettyprint()
+    #p.prettyprint()
 
 
 else:
