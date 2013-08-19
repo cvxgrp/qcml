@@ -33,7 +33,7 @@ Python code of external source code. The basic workflow is as follows
 
     p.parse(s)
     p.canonicalize()
-    p.set_dims({'m': m, 'n': n})
+    p.dims = {'m': m, 'n': n}
     p.codegen("cvxopt")
     solution = p.solver({'gamma':1,'F':F,'D':D})
 
@@ -134,6 +134,7 @@ but problem data is allowed to change.
 
 The valid choice of solvers are:
 
+<!-- PHLI: Update to "python"?  "python", "matlab", "C"? -->
 * `"cvx"` -- emits Matlab source code that calls CVX
 * `"cvxopt"` -- emits Python source code that calls CVXOPT
 * `"ecos"` -- emits Python source code that calls ECOS
@@ -204,16 +205,15 @@ Inside Python, the code might look like
         """)
 
         p.canonicalize()
-        p.set_dims({'m':m, 'n':n})
-        p.prettyprint()
+        p.dims = {'m':m, 'n':n}
 
-Thsis will canonicalize the problem and build an internal problem parse
+This will canonicalize the problem and build an internal problem parse
 tree inside Python. Once the problem has been canonicalized, the user can
 decide to either generate a function to prototype problems or generate source
 code. For instance, the following three lines will create a solver function
 `f` and call the solver, with the parameter arguments supplied.
 
-    p.codegen("cvxopt")  # this creates a solver in Python calling CVXOPT
+    p.codegen("python")  # this creates a solver in Python calling CVXOPT
     f = p.solver
     f({'A': A, 'lambda':0.01})
 
