@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from qcml import QCML
 
 import cvxopt as o
