@@ -42,6 +42,11 @@ problem_list = [
     subject to
         x <= 4
         # bogus stuff
+""",
+""" dimension n
+    variable x(n)
+    parameter c(n)
+    minimize c'*x
 """
 ]
 

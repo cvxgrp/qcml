@@ -40,7 +40,7 @@ class AbstractCurvature(object):
     # IMPORTANT: __mul__ is missing since it requires knowledge of the sign
     # of the parent expression
     #
-    # see qc_ast.qc_expression's "_signed_multiply" function
+    # see expressions.ops's "_signed_multiply" function
     #
 
     def __neg__(self):

@@ -6,7 +6,6 @@ setup(
     author='Eric Chu',
     author_email='eytchu@gmail.com',
     packages=[  'qcml',
-                'qcml.qc_ply',
                 'qcml.atoms',
                 'qcml.expressions',
                 'qcml.properties',
@@ -17,7 +16,6 @@ setup(
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',
     long_description=open('../README.md').read(),
-    requires = ["cvxopt(>= 1.1.5)",
-                "pdos(>= 1.0)",
-                "ecos(>=1.0)"] # this doesn't appear to do anything unfortunately
+    requires = ["ply(>= 3.4)",
+                "cvxopt(>= 1.1.5)"]
 )

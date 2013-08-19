@@ -3,6 +3,7 @@ from qcml import QCML
 
 import cvxopt as o
 from cvxopt import solvers
+import cProfile, pstats
 
 if __name__ == "__main__":
 
@@ -51,6 +52,8 @@ if __name__ == "__main__":
     Y = o.normal(m,n, 1)
     gamma = 1
 
+    pr = cProfile.Profile()
+
     p = QCML(debug=True)
     p.parse("""
         dimensions m n
@@ -93,12 +96,20 @@ if __name__ == "__main__":
     # p.codegen("cvx")
     #p.prettyprint(True)
 
-    s = p.solve()
+    #s = p.solve()
 
-    p.codegen("pdos_elem", path="/Users/echu/src/Elemental/build")
-    p.solver(params=locals())
-
-    print p.stuff_matrices(params=locals())
+    pr.enable()
+    p.canonicalize()
+    p.dims = {'n': n, 'm': m}
+    p.codegen("python")
+    print p.prob2socp.source
+    socp_data = p.prob2socp(params=locals())
+    import ecos
+    sol = ecos.ecos(**socp_data)
+    my_vars = p.socp2prob(sol['x'])
+    pr.disable()
+    ps = pstats.Stats(pr)
+    ps.sort_stats('cumtime').print_stats(.5)
 
 #
 #     p.codegen("pdos")

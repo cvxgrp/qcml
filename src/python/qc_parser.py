@@ -1,4 +1,4 @@
-from qc_ply import yacc
+from ply import yacc
 from qc_lexer import QCLexer
 from expressions.expression import Number, Parameter, Variable, Sum
 from expressions.qc_ast import Objective, Program
@@ -6,12 +6,6 @@ from expressions.ops import Transpose
 from properties.sign import Neither, Positive, Negative
 from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
 from atoms.atom import atoms
-# from qc_ast import Number, Parameter, Variable, \
-#     Add, Mul, Transpose, \
-#     Objective, RelOp, Program, \
-#     ToVector, ToMatrix, Atom, Sum, Norm, Abs, \
-#     Neither, Positive, Negative, Node, \
-#     Shape, Scalar, Vector, Matrix, isscalar, isnumber
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.
@@ -109,7 +103,8 @@ class QCParser(object):
     # only a single objective allowed per program
     def p_program(self,p):
         '''program : statements objective statements
-                   | statements objective'''
+                   | statements objective
+        '''
         constraints = p[1]
         if len(p) > 3: constraints.extend(p[3])
         p[0] = Program(p[2], constraints, self.lex.variables, self.lex.parameters, self.lex.dimensions)
@@ -133,10 +128,10 @@ class QCParser(object):
         if p[2] is not None: p[0].extend(p[2])
 
     def p_statement(self,p):
-        """statement : create
+        '''statement : create
                      | constraint
                      | empty
-        """
+        '''
         # create returns None
         # constraint returns a list of constraints
         if p[1] is not None: p[0] = p[1]
@@ -160,9 +155,9 @@ class QCParser(object):
         self.lex.dimensions.update(p[2])
 
     def p_create_identifier(self,p):
-        """create : VARIABLE array
+        '''create : VARIABLE array
                   | PARAMETER array
-        """
+        '''
         (name, shape) = p[2]
         if(p[1] == 'variable'):
             self.lex.variables[name] = Variable(name, shape)
@@ -170,9 +165,9 @@ class QCParser(object):
             self.lex.parameters[name] = Parameter(name, shape, Neither())
 
     def p_create_identifiers(self,p):
-        """create : VARIABLES arraylist
+        '''create : VARIABLES arraylist
                   | PARAMETERS arraylist
-        """
+        '''
         if(p[1] == 'variables'):
             self.lex.variables.update({name: Variable(name, shape) for (name,shape) in p[2]})
         if(p[1] == 'parameters'):
@@ -202,19 +197,14 @@ class QCParser(object):
 
     # (for shape) id, id, id ...
     def p_dimlist_list(self,p):
-        'dimlist : dimlist COMMA DIM_ID'
-        p[0] = p[1] + [p[3]]
-
-    def p_dimlist_list_int(self,p):
-        'dimlist : dimlist COMMA INTEGER'
+        '''dimlist : dimlist COMMA DIM_ID
+                   | dimlist COMMA INTEGER
+        '''
         p[0] = p[1] + [p[3]]
 
     def p_dimlist_id(self,p):
-        'dimlist : DIM_ID'
-        p[0] = [p[1]]
-
-    def p_dimlist_constant(self,p):
-        'dimlist : INTEGER'
+        '''dimlist : DIM_ID
+                   | INTEGER'''
         p[0] = [p[1]]
 
     # (for declaring multiple dimensions) id id id ...
@@ -234,7 +224,7 @@ class QCParser(object):
 
     # for declaring multiple variables, parameters
     def p_arraylist_list(self,p):
-        '''arraylist : arraylist array'''
+        'arraylist : arraylist array'
         p[0] = p[1] + [p[2]]
 
     def p_arraylist_array(self,p):
@@ -244,7 +234,8 @@ class QCParser(object):
     def p_constraint(self,p):
         '''constraint : expression EQ expression
                       | expression LEQ expression
-                      | expression GEQ expression'''
+                      | expression GEQ expression
+        '''
         if p[2] == '==':
             p[0] = [p[1] == p[3]]
         elif p[2] == '<=':
@@ -259,7 +250,8 @@ class QCParser(object):
     # not sure if we need to handle that
     def p_chained_constraint(self,p):
         '''constraint : expression LEQ expression LEQ expression
-                      | expression GEQ expression GEQ expression'''
+                      | expression GEQ expression GEQ expression
+        '''
         if p[2] == '<=':
             p[0] = [ p[1] <= p[3], p[3] <= p[5] ]
         else:
@@ -297,10 +289,10 @@ class QCParser(object):
         else: p[0] = Transpose(p[1])
 
     def p_expression_constant(self,p):
-        """expression : CONSTANT
+        '''expression : CONSTANT
                       | INTEGER
                       | VAR_ID
-                      | PARAM_ID"""
+                      | PARAM_ID'''
         # these are leaves in the expression tree
         if isinstance(p[1], float): p[0] = Number(p[1])
         elif isinstance(p[1], int): p[0] = Number(float(p[1]))

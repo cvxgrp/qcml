@@ -37,7 +37,8 @@ class QCML(object):
         self.__codegen = None
         self.__dims = {}
 
-        self.__old_mode = ""   # used to determine if codegen mode has changed
+        # keep track of the codegen language
+        self.language = ""
 
         self.problem = None
         self.prob2socp = NotImplemented
@@ -89,16 +90,17 @@ class QCML(object):
             raise Exception("QCML set_dims: No problem currently parsed.")
 
     @profile
-    def codegen(self,mode="python", *args, **kwargs):
+    def codegen(self, language="python", *args, **kwargs):
         if self.state is ParseState.COMPLETE:
-            if mode != self.__old_mode: self.state = ParseState.CODEGEN
+            if language != self.language: self.state = ParseState.CODEGEN
             else: return
         if self.state is ParseState.CODEGEN and self.__dims:
-            def codegen_err(dims, *args, **kwargs):
+            try:
+                codegen_class = supported_languages[language]
+                self.__codegen = codegen_class(dims = self.__dims, *args, **kwargs)
+                self.__codegen.visit(self.__problem_tree)
+            except KeyError:
                 raise Exception("QCML codegen: Invalid code generator. Must be one of: ", supported_languages.keys())
-
-            self.__codegen = supported_languages.get(mode, codegen_err)(dims = self.__dims, *args, **kwargs)
-            self.__codegen.visit(self.__problem_tree)
 
             # save the prob2socp and socp2prob functions
             function_objs = self.__codegen.codegen()
@@ -113,7 +115,7 @@ class QCML(object):
                     print
 
             self.state = ParseState.COMPLETE
-            self.__old_mode = mode
+            self.language = language    # set our language
         else:
             if self.state is ParseState.PARSE:
                 raise Exception("QCML codegen: No problem currently parsed.")

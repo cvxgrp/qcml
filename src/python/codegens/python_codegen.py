@@ -3,7 +3,7 @@ from function import PythonFunction
 from coeff_expr import *
 
 # ==== begin legacy ====
-from codegen import ConstantCoeff, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff
+from codegen import ConstantCoeff, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff, ScalarParameterCoeff
 
 def cvxopt_eye(self):
     return "o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
@@ -18,7 +18,10 @@ def cvxopt_trans(self):
     return "(%s).trans()" % self.arg
 
 def cvxopt_parameter(self):
-    return "params['%s']" % self.value
+    if isinstance(self, ScalarParameterCoeff):
+        return "params['%s']" % self.value
+    else:
+        return "o.matrix(params['%s'])" % self.value
 # ==== end legacy ====
 
 def wrap_self(f):
@@ -75,8 +78,9 @@ class PythonCodegen(codegen.Codegen):
         shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
         self.prob2socp.document(shapes)
 
-        # now import cvxopt
+        # now import cvxopt and itertools
         self.prob2socp.add_lines("import cvxopt as o")
+        self.prob2socp.add_lines("import itertools")
         self.prob2socp.newline()
         self.prob2socp.add_comment("convert possible numpy parameters to cvxopt matrices")
         self.prob2socp.add_lines("from qcml.helpers import convert_to_cvxopt")
@@ -93,12 +97,18 @@ class PythonCodegen(codegen.Codegen):
         self.prob2socp.add_lines(self.python_dimensions())
 
     def functions_return(self, program_node):
-        self.prob2socp.add_lines("G = o.spmatrix(o.matrix(Gv), o.matrix(Gi), o.matrix(Gj), (m,n), tc='d')")
-        self.prob2socp.add_lines("A = o.spmatrix(o.matrix(Av), o.matrix(Ai), o.matrix(Aj), (p,n), tc='d')")
+        self.prob2socp.add_comment("construct index and value lists for G and A")
+        self.prob2socp.add_lines("Gi = list(itertools.chain.from_iterable(Gi))")
+        self.prob2socp.add_lines("Gj = list(itertools.chain.from_iterable(Gj))")
+        self.prob2socp.add_lines("Gv = list(itertools.chain.from_iterable(Gv))")
+        self.prob2socp.add_lines("Ai = list(itertools.chain.from_iterable(Ai))")
+        self.prob2socp.add_lines("Aj = list(itertools.chain.from_iterable(Aj))")
+        self.prob2socp.add_lines("Av = list(itertools.chain.from_iterable(Av))")
+        self.prob2socp.add_lines("G = o.spmatrix(Gv, Gi, Gj, (m,n), tc='d')")
+        self.prob2socp.add_lines("A = o.spmatrix(Av, Ai, Aj, (p,n), tc='d')")
         self.prob2socp.add_lines("return {'c': c, 'G': G, 'h': h, 'A': A, 'b': b, 'dims': dims}")
 
         self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
-
         # recover the old variables
         recover = (
             "'%s' : x[%s:%s]" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
@@ -137,3 +147,4 @@ class PythonCodegen(codegen.Codegen):
         yield "Ai.append(%s)" % expr.I(row_start, row_stride)
         yield "Aj.append(%s)" % expr.J(col_start)
         yield "Av.append(%s)" % expr.V()
+

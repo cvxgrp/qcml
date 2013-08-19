@@ -3,7 +3,7 @@ The design of this module borrows heavily from the PLY manual and the
 pycparser library.
 """
 import operator
-from qc_ply import lex
+from ply import lex
 from atoms.atom import atoms
 
 
