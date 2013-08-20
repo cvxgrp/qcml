@@ -1,6 +1,6 @@
 import qcml
 from qcml.expressions.expression import Variable, Number, Sum, isnumber
-from qcml.expressions.qc_ast import SOC, SOCProd
+from qcml.constraints.soc import SOC, SOCProd
 
 import qcml.properties.monotonicity as monotonicity
 import qcml.properties.curvature as curvature

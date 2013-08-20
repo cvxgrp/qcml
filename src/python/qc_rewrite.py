@@ -1,6 +1,7 @@
 # TODO: i should remove this file entirely....
 import expressions.ast as ast
-import expressions.qc_ast as qc_ast
+from constraints.soc import SOC, SOCProd, SOCConstraint
+from constraints.linear import LinearConstraint
 from atoms.atom import atoms
 import atoms.qc_norm as norm
 
@@ -179,8 +180,9 @@ class QCRewriter(ast.NodeTransformer):
         # remove any redundant constraints by converting to set
         unique_constraints = set(node.constraints)
         # convert to a list but place the linear constraints at the front of the list
-        linear_constraints = [x for x in unique_constraints if isinstance(x,qc_ast.RelOp)]
-        soc_constraints = [x for x in unique_constraints if (isinstance(x,qc_ast.SOC) or isinstance(x,qc_ast.SOCProd))]
+        # could probably just have a separate "eq", "linineq", "soc" lists...
+        linear_constraints = [x for x in unique_constraints if isinstance(x,LinearConstraint)]
+        soc_constraints = [x for x in unique_constraints if isinstance(x,SOCConstraint)]
         node.constraints = linear_constraints + soc_constraints
 
         # only include the variables and parameters that are used
@@ -206,13 +208,19 @@ class QCRewriter(ast.NodeTransformer):
         self.generic_visit(node)
 
         if self.norm_node is not None:
-            if isinstance(self.norm_node, Norm):
-                if len(self.norm_node.arglist) == 1:
-                    return qc_ast.SOC(-node.left, self.norm_node.arglist)
+            if isinstance(self.norm_node, norm.QC_norm):
+                if len(self.norm_node.args) == 1:
+                    return SOC(-node.left, self.norm_node.args)
                 else:
-                    return qc_ast.SOCProd(-node.left, self.norm_node.arglist)
+                    return SOCProd(-node.left, self.norm_node.args)
             else:   # abs
-                return qc_ast.SOCProd(-node.left, [self.norm_node.arg])
+                return SOCProd(-node.left, [self.norm_node.args[0]])
         else:
             return node
+
+    def visit_LinearEquality(self, node):
+        self.visit_RelOp(node)
+
+    def visit_LinearInequality(self, node):
+        self.visit_RelOp(node)
 

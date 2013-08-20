@@ -1,5 +1,5 @@
-import qc_ast
 import ast
+from qcml.constraints.linear import LinearEquality, LinearInequality
 import operator
 
 def isnumber(x):
@@ -11,7 +11,12 @@ def _compare(x,y,op,op_str):
         if op(result.value, 0): return None
         raise ValueError("Boolean constraint %s %s %s is trivially infeasible." %(x,op_str,y))
     else:
-        return qc_ast.RelOp(op_str, result, Number(0))
+        if op_str == '==':
+            return LinearEquality(x, y)
+        if op_str == '<=':
+            # at this stage, all >= have been swapped into <=
+            return LinearInequality(x, y)
+        raise ValueError("Attempted to construct unknown boolean constraint %s." % (op_str))
 
 # ===============================================
 

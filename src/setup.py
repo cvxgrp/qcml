@@ -7,6 +7,7 @@ setup(
     author_email='eytchu@gmail.com',
     packages=[  'qcml',
                 'qcml.atoms',
+                'qcml.constraints',
                 'qcml.expressions',
                 'qcml.properties',
                 'qcml.codegens',

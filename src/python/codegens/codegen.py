@@ -1,7 +1,8 @@
 from qcml.expressions.ast import NodeVisitor
 from qcml.properties.shape import isscalar
 from qcml.properties.curvature import isconstant
-from qcml.expressions.qc_ast import RelOp, SOC, SOCProd
+from qcml.constraints.soc import SOC, SOCProd
+from qcml.constraints.linear import LinearConstraint
 from coeff_expr import *
 
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -249,7 +250,7 @@ class Codegen(NodeVisitor):
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
         self.prob2socp.newline()
 
-    def visit_RelOp(self, node):
+    def visit_LinearConstraint(self, node):
         # in canonical form, all relop's are affine <= 0 or affine == 0
         self.prob2socp.add_comment("for the constraint %s" % node)
 
@@ -262,11 +263,9 @@ class Codegen(NodeVisitor):
 
         self.generic_visit(node)
 
-        right = self.expr_stack.pop()
+        # nothing is on RHS
+        #right = self.expr_stack.pop()
         left = self.expr_stack.pop()
-
-        # right should be all 0's
-        assert (right['1'].value == 0), "Expected '0' on the righthand side, but got %s." % right['1']
 
         # copy into the appropriate block
         for k,v in left.iteritems():
@@ -287,6 +286,12 @@ class Codegen(NodeVisitor):
 
         self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
+
+    def visit_LinearEquality(self, node):
+        self.visit_LinearConstraint(node)
+
+    def visit_LinearInequality(self, node):
+        self.visit_LinearConstraint(node)
 
 
     def visit_SOC(self, node):
@@ -329,10 +334,10 @@ class Codegen(NodeVisitor):
 
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
-        stride = len(node.arglist) + 1
+        stride = node.nargs + 1
         self.num_conic += stride * node.shape.eval(self.dims).size()
 
-        self.cone_list.append( (node.shape.eval(self.dims).size(), str(len(node.arglist) + 1)) )
+        self.cone_list.append( (node.shape.eval(self.dims).size(), str(node.nargs + 1)) )
 
         self.generic_visit(node)
 
