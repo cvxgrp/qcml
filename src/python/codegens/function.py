@@ -57,7 +57,7 @@ class Function(object):
         """ Adds a line or lines of documentation
         """
         if not self.__generated:
-            self.__documentation.append("{:}{:} {:}".format(self.indent, self.comment, line) for line in iterable_line(lines))
+            self.__documentation.append("{:}{:} {:}".format(self.indent, self.comment, line).rstrip() for line in iterable_line(lines))
         else:
             raise Exception("Function document: Cannot add documentation to already generated function.")
 
@@ -65,7 +65,7 @@ class Function(object):
         """ Add a line or lines of source code
         """
         if not self.__generated:
-            self.__body.append("{:}{:}".format(self.indent, line) for line in iterable_line(lines))
+            self.__body.append("{:}{:}".format(self.indent, line).rstrip() for line in iterable_line(lines))
         else:
             raise Exception("Function add_lines: Cannot add lines to already generated function.")
 
@@ -123,12 +123,20 @@ class MatlabFunction(Function):
     pass
 
 class CFunction(Function):
-    # TODO
-    def __init__(self, ret_type = "void", *args, **kwargs):
-        super(CFunction, self).__init__(*args, **kwargs)
+    def __init__(self, name, ret_type = "void", *args, **kwargs):
+        super(CFunction, self).__init__(name, *args, **kwargs)
         self.ret_type = ret_type
+        self._Function__comment = '//'
 
+    def generate_source(self):
+        arguments = list(chain.from_iterable(self._Function__arguments))
+        documentation = list(chain.from_iterable(self._Function__documentation))
+        body = list(chain.from_iterable(self._Function__body))
+        prototype = ["{:} {:}({:}) {{".format(self.ret_type, self.name, ', '.join(arguments))]
+        code = prototype + documentation + body + ["}"]
 
+        self._Function__source = '\n'.join(code)
+        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno, line) for lineno, line in enumerate(code))
 
 
 
