@@ -1,6 +1,5 @@
 from qcml.codegens.function import PythonFunction, MatlabFunction, CFunction
 
-# TODO: add  Matlab tests
 py_helloWorld = PythonFunction("hello")
 py_hello = """def hello(x, y, z, a):
     # documenting the function
@@ -17,7 +16,6 @@ py_hello = """def hello(x, y, z, a):
     a = 1"""
 
 c_helloWorld = CFunction("hello", ret_type="int")
-
 c_hello = """int hello(x, y, z, a) {
     // documenting the function
     // this function just tests
@@ -32,6 +30,22 @@ c_hello = """int hello(x, y, z, a) {
     c = x + y + z
     a = 1
 }"""
+
+matlab_helloWorld = MatlabFunction("hello", ret_args=["a", "b", "c"])
+matlab_hello = """function [a, b, c] = hello(x, y, z, a)
+    % documenting the function
+    % this function just tests
+    % that hello world
+    % really works as expected
+
+    % hello world
+    % this function just tests
+    % that hello world
+    % really works as expected
+    print 'hello world'
+    c = x + y + z
+    a = 1
+end"""
 
 def test_indent():
     # four space indentation
@@ -80,7 +94,11 @@ def source_match(func_obj, expected):
     assert(func_obj.source == expected)
 
 def test_source():
-    test_cases = ((py_helloWorld, py_hello), (c_helloWorld, c_hello))
+    test_cases = (
+        (py_helloWorld, py_hello),
+        (c_helloWorld, c_hello),
+        (matlab_helloWorld, matlab_hello)
+    )
     for func, expected in test_cases:
         yield source_match, func, expected
 

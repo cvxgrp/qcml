@@ -1,12 +1,12 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
+from codegen import Codegen
 
 from qcml.properties.shape import Vector, Scalar
 import qcml.expressions.expression as expression
 import qcml.expressions.qc_ast as qc_ast
 
-from codegen import EyeCoeff, OnesCoeff, TransposeCoeff, SliceCoeff, Codegen,\
-    ConstantCoeff, ParameterCoeff
+from qcml.codes.coefficients import *
 
 def matlab_eye(self):
     if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:

@@ -3,7 +3,7 @@ from qcml.properties.shape import isscalar
 from qcml.properties.curvature import isconstant
 from qcml.constraints.soc import SOC, SOCProd
 from qcml.constraints.linear import LinearConstraint
-from coeff_expr import *
+from qcml.codes.coefficients import *
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 import function

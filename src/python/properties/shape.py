@@ -45,8 +45,8 @@ def _strip_trailing_ones(elems):
     return elems[::-1]  # reverse the list
 
 def _int_or_str(x):
-    if isinstance(x,str) and x.isdigit(): return int(x)
-    return x
+    try: return int(x)
+    except ValueError: return x
 
 class Shape(object):
     def __init__(self, dimensions = []):

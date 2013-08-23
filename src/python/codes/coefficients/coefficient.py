@@ -1,35 +1,11 @@
-# TODO: attach "to_C, to_matlab, to_python" for langauge features
-# define code generation objects
-# TODO: can change behavior of these by changing __str__ definition
+# TODO: define code generation objects
 """ CoeffExpr object.
     Used to construct coefficients of affine expressions.
 
     Allows us to create abstract objects to represent OnesCoeff, EyeCoeff, etc. and
     perform basic addition, multiplication, etc. on them. Assumes that the
     coefficient math has already passed DCP checking.
-
-    The behavior can be changed by redefining __str__ definition. These classes
-    are *final*. You should not subclass them (undefined behavior will occur).
-
-    Note that by setting the __str__ function, e.g., OnesCoeff.__str__ = some_func,
-    it is a *global* change to all OnesCoeff objects.
-
-    To allow interchangeability with different codegens, the __str__ function
-    is set in the __init__() function of subclasses of the Codegen object.
-
-    However, this means that *two* Codegen objects cannot exist simultaneously,
-    as the __str__ function on, say, OnesCoeff, is overwritten by the latest
-    Codegen object.
-
-    This is not an issue as long as code generators are only created to generate
-    the code and not stored for later use.
-
-    TODO: Possibly figure out how to redefine __str__ without this happening.
-    TODO: Or, better, figure out how to modify operators to return the appropriate
-        subclass.
-
-    Neither approaches above seem very likely.
-
+    
     TODO: AddCoeff test cases to CoeffExpr
 """
 class CoeffExpr(object):
@@ -53,8 +29,6 @@ class CoeffExpr(object):
     def J(self, col_offset, stride=1): return ""
     def V(self): return ""
 
-    def __repr__(self): return str(self)
-
 class ConstantCoeff(CoeffExpr):
     def __init__(self, value):
         self.value = value
@@ -64,9 +38,7 @@ class ConstantCoeff(CoeffExpr):
 
     def I(self, row_offset, stride=1): return "(i for i in [{:}])".format(row_offset)
     def J(self, col_offset, stride=1): return "(j for j in [{:}])".format(col_offset)
-    def V(self): return "(x for x in [{:}])".format(self)
-
-    def __str__(self): return str(self.value)
+    def V(self): return "(x for x in [{:}])".format(self.value)
 
 class ParameterCoeff(CoeffExpr):
     def __init__(self, value):
@@ -80,8 +52,6 @@ class ParameterCoeff(CoeffExpr):
     def J(self, col_offset, stride=1): return "(%d + %d*j for j in params['%s'].J)" % (col_offset, stride, self.value)
     def V(self): return "(v for v in params['%s'].V)" % self.value
 
-    def __str__(self): return self.value
-
 class ScalarParameterCoeff(ParameterCoeff):
     def __init__(self,value):
         super(ScalarParameterCoeff, self).__init__(value)
@@ -90,7 +60,7 @@ class ScalarParameterCoeff(ParameterCoeff):
 
     def I(self, row_offset, stride=1): return "(i for i in [{:}])".format(row_offset)
     def J(self, col_offset, stride=1): return "(j for j in [{:}])".format(col_offset)
-    def V(self): return "(x for x in [{:}])".format(self)
+    def V(self): return "(x for x in [{:}])".format(self.value)
 
 class NegateCoeff(CoeffExpr):
     def __init__(self, arg):
@@ -104,7 +74,6 @@ class NegateCoeff(CoeffExpr):
     def J(self, col_offset, stride=1): return self.arg.J(col_offset, stride)
     def V(self): return "(-x for x in %s)" % self.arg.V()
 
-    def __str__(self): return "-(%s)" % self.arg
 
 class EyeCoeff(CoeffExpr):
     def __init__(self, n, coeff):
@@ -116,7 +85,7 @@ class EyeCoeff(CoeffExpr):
 
     def I(self, row_offset, stride=1): return "xrange(%d, %d, %d)" % (row_offset, row_offset + stride*self.n, stride)
     def J(self, col_offset, stride=1): return "xrange(%d, %d, %d)" % (col_offset, col_offset + stride*self.n, stride)
-    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff, self.n)
+    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff.value, self.n)
 
     # def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
 
@@ -127,7 +96,7 @@ class OnesCoeff(CoeffExpr):
         self.transpose = transpose
         self.isknown = True
         self.isscalar = False
-	self.is_matrix_param = False
+        self.is_matrix_param = False
 
     def I(self, row_offset, stride=1):
         if self.transpose:
@@ -141,7 +110,7 @@ class OnesCoeff(CoeffExpr):
         else:
             return "itertools.repeat(%d, %d)" % (col_offset, self.n)
 
-    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff, self.n)
+    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff.value, self.n)
 
     # def __str__(self):
     #     if self.transpose:
@@ -155,14 +124,12 @@ class AddCoeff(CoeffExpr):
         self.right = right
         self.isknown = left.isknown and right.isknown
         self.isscalar = left.isscalar and right.isscalar
-	self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
+        self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
     def to_sparse(self): return "result = o.sparse(%s + %s)" % (str(self.left), str(self.right))
     def I(self, row_offset, stride=1): return "(%d + %d*i for i in result.I)" % (row_offset, stride)
     def J(self, col_offset, stride=1): return "(%d + %d*j for j in result.J)" % (col_offset, stride)
     def V(self): return "(v for v in result.V)"
-
-    def __str__(self): return "%s + %s" % (self.left, self.right)
 
 class MulCoeff(CoeffExpr):
     def __init__(self, left, right):
@@ -170,14 +137,12 @@ class MulCoeff(CoeffExpr):
         self.right = right
         self.isknown = left.isknown and right.isknown
         self.isscalar = left.isscalar and right.isscalar
-	self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
+        self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
     def to_sparse(self): return "result = o.sparse(%s * %s)" % (str(self.left), str(self.right))
     def I(self, row_offset, stride=1): return "(%d + %d*i for i in result.I)" % (row_offset, stride)
     def J(self, col_offset, stride=1): return "(%d + %d*j for j in result.J)" % (col_offset, stride)
     def V(self): return "(v for v in result.V)"
-
-    def __str__(self): return "%s * %s" % (self.left, self.right)
 
 
 class TransposeCoeff(CoeffExpr):
@@ -185,7 +150,7 @@ class TransposeCoeff(CoeffExpr):
         self.arg = arg
         self.isknown = arg.isknown
         self.isscalar = arg.isscalar
-	self.is_matrix_param = arg.is_matrix_param
+        self.is_matrix_param = arg.is_matrix_param
 
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.J(row_offset, stride)
@@ -203,7 +168,7 @@ class SliceCoeff(CoeffExpr):
         self.transpose = transpose
         self.isknown = arg.isknown
         self.isscalar = arg.isscalar
-	self.is_matrix_param = arg.is_matrix_param
+        self.is_matrix_param = arg.is_matrix_param
 
     # def __str__(self): return "(%s)[%s:%s]" % (self.arg, self.begin, self.end)
 

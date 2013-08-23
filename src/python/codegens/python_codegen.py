@@ -1,28 +1,7 @@
 import codegen
 from function import PythonFunction
-from coeff_expr import *
-
-# ==== begin legacy ====
-from codegen import ConstantCoeff, OnesCoeff, EyeCoeff, TransposeCoeff, ParameterCoeff, ScalarParameterCoeff
-
-def cvxopt_eye(self):
-    return "o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
-
-def cvxopt_ones(self):
-    if self.transpose:
-        return "o.matrix(%s,(1,%s), tc='d')" % (self.coeff, self.n)
-    else:
-        return "o.matrix(%s,(%s,1), tc='d')" % (self.coeff, self.n)
-
-def cvxopt_trans(self):
-    return "(%s).trans()" % self.arg
-
-def cvxopt_parameter(self):
-    if isinstance(self, ScalarParameterCoeff):
-        return "params['%s']" % self.value
-    else:
-        return "o.matrix(params['%s'])" % self.value
-# ==== end legacy ====
+from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
+import qcml.codes.encoders as encoder
 
 def wrap_self(f):
     def wrapped_code(self, *args, **kwargs):
@@ -30,13 +9,8 @@ def wrap_self(f):
     return wrapped_code
 
 class PythonCodegen(codegen.Codegen):
-    def __init__(self, *args, **kwargs):
-        # TODO: add functions to the coeffs
-        OnesCoeff.__str__ = cvxopt_ones
-        EyeCoeff.__str__ = cvxopt_eye
-        TransposeCoeff.__str__ = cvxopt_trans
-        ParameterCoeff.__str__ = cvxopt_parameter
-        super(PythonCodegen, self).__init__(*args, **kwargs)
+    def __init__(self, dims):
+        super(PythonCodegen, self).__init__(dims)
         self.__prob2socp = PythonFunction("prob_to_socp")
         self.__socp2prob = PythonFunction("socp_to_prob")
 
@@ -56,10 +30,8 @@ class PythonCodegen(codegen.Codegen):
     def python_dimensions(self):
         def cone_tuple_to_str(x):
             num, sz = x
-            if str(num) == '1':
-                return "[%s]" % sz
-            else:
-                return "%s*[%s]" % (num, sz)
+            if num == 1: return "[%s]" % sz
+            else: return "%s*[%s]" % (num, sz)
         cone_list_str = '[]'
         if self.cone_list:
             cone_list_str = map(cone_tuple_to_str, self.cone_list)
@@ -117,16 +89,16 @@ class PythonCodegen(codegen.Codegen):
         self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
 
     def stuff_c(self, start, end, expr):
-        yield "c[%s:%s] = %s" % (start, end, expr)
+        yield "c[%s:%s] = %s" % (start, end, encoder.toPython(expr))
 
     def stuff_b(self, start, end, expr):
         yield "b[%s:%s] = %s" % (start, end, expr)
 
     def stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
-            yield "h[%s:%s:%s] = %s" % (start, end, stride, expr)
+            yield "h[%s:%s:%s] = %s" % (start, end, stride, encoder.toPython(expr))
         else:
-            yield "h[%s:%s] = %s" % (start, end, expr)
+            yield "h[%s:%s] = %s" % (start, end, encoder.toPython(expr))
 
     def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         n = (row_end - row_start)/row_stride

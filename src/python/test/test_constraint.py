@@ -1,32 +1,26 @@
-# from scoop.expression.constraint import Cone
-# from scoop.expression import Variable, Parameter, Constant, \
-#     Scalar, \
-#     POSITIVE, NEGATIVE, UNKNOWN
-# from nose.tools import assert_raises
-#
-#
-# x = Variable('x', Scalar())
-# y = Variable('y', Scalar())
-# t = Variable('t', Scalar())
-#
-# # test expected cones
-# cone_test = [
-#     (Cone.zero(x), 'x == 0'),
-#     (Cone.linear(x), 'x >= 0'),
-#     (Cone.SOC(x), 'x >= 0'),
-#     (Cone.SOC(t,x), 'abs(x) <= t'),
-#     (Cone.SOC(t,x,y), 'norm(x,y) <= t'),
-#     (Cone.SOC(t,[x]), 'norm(x) <= t'),
-#     (Cone.SOC(t,[x,y]), 'norm([x;y]) <= t'),
-#     (Cone.SOC(t,[]), 't >= 0'),
-# ]
-#
-#
-# def check(r,s):
-#     print r
-#     assert(r == s)
-#
-# def test_constructors():
-#     for r,s in cone_test:
-#         check(str(r),s)
-#     yield assert_raises, Exception, Cone, 'n', t
+import qcml.constraints.linear as linear
+import qcml.constraints.soc as soc
+
+import qcml.expressions.expression as expression
+import qcml.properties.shape as shape
+
+
+x = expression.Variable('x', shape.Scalar())
+y = expression.Variable('y', shape.Vector(10))
+z = expression.Variable('z', shape.Scalar())
+
+# check that the constructors work as expected
+cone_test = [
+    (linear.LinearInequality(x,y), 'x + -1*y <= 0'),
+    (linear.LinearEquality(x,z), 'x + -1*z == 0'),
+    (soc.SOC(x,[y, z]), 'norm([y; z]) <= x'),
+    (soc.SOCProd(y,[y, y]), 'norm(y, y) <= y')
+]
+
+def check(r,s):
+    print r
+    assert(r == s)
+
+def test_constructors():
+    for r,s in cone_test:
+        check(str(r),s)
