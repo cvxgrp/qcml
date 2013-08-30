@@ -1,50 +1,36 @@
-from abc import ABCMeta
+from qcml.codes.code import *
+from qcml.codes.coefficients import *
+from qcml.codes.encoders import toPython
 
+# TODO: add test cases here
+
+python_objects = [
+    (ConstantCoeff(3.2), '3.2'),
+    (OnesCoeff(3, ConstantCoeff(-2.1)), "o.matrix(-2.1,(3,1), tc='d')"),
+    (NegateCoeff(ConstantCoeff(2)), "-(2)"),
+    (EyeCoeff(3, ConstantCoeff(4.3)), "o.spmatrix(4.3,range(3),range(3), tc='d')"),
+    (TransposeCoeff(ParameterCoeff('A')), "(params['A']).trans()"),
+    (ParameterCoeff('A'), "params['A']"),
+    (ScalarParameterCoeff('c'), "params['c']"),
+    (Just(5), "[5]"),
+    (LoopRows(ParameterCoeff('A'), 3, 2), "(3 + 2*idx for idx in params['A'].I)"),
+    (LoopCols(ParameterCoeff('A'), 2, 3), "(2 + 3*idx for idx in params['A'].J)"),
+    (LoopOver(ParameterCoeff('A')), "(v for v in params['A'].V)"),
+    (Range(3, 5, 2), "xrange(3, 5, 2)"),
+    (Repeat(ScalarParameterCoeff('h'), 6), "itertools.repeat(params['h'], 6)"),
+    (Repeat("result", 5), "itertools.repeat(result, 5)"),
+    (Assign("result", AddCoeff(ParameterCoeff('A'), ParameterCoeff('B'))), "result = o.sparse(params['A'] + params['B'])")
+]
 # create a bunch of code objects
 # make sure the python, C, matlab encoder prints what you expect
 
-class A(object): pass
-class B(object): pass
-class G(object): pass
-
-class Printer(object):
-    __metaclass__ = ABCMeta
-
-    def __init__(self, print_methods):
-        self.print_methods = print_methods
-        super(Printer, self).__init__()
-
-    def __call__(self, obj):
-        printer = self.print_methods.get(obj.__class__, obj.__str__)
-        return printer()
-
-def python_A():
-    return "print A"
-def python_B():
-    return "print B"
-
-def C_A():
-    return "printf('A');"
-def C_B():
-    return "printf('B');"
-
-class PythonPrinter(Printer):
-    def __init__(self):
-        lookup = {A: python_A, B: python_B}
-        super(PythonPrinter,self).__init__(lookup)
-
-class CPrinter(Printer):
-    def __init__(self):
-        lookup = {A: C_A, B: C_B}
-        super(CPrinter,self).__init__(lookup)
-
-
-p1 = PythonPrinter()
-p2 = CPrinter()
-
-some_list = (A(), B(), A(), A(), B(), A(), G())
-
-for e in some_list:
-    print p1(e)
-    print p2(e)
+def check(obj, exp):
+    result = toPython(obj)
+    print result
+    print exp
+    assert (result == exp)
+    
+def test_encoders():
+    for obj, exp in python_objects:
+        yield check, obj, exp
 

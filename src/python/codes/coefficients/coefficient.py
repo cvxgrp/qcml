@@ -8,7 +8,8 @@
     
     TODO: AddCoeff test cases to CoeffExpr
 """
-class CoeffExpr(object):
+from .. import code
+class CoeffExpr(code.Code):
     # operations only occur on objects with the same shape
     def __add__(self, other): return codegen_add(self, other)
 
@@ -36,9 +37,9 @@ class ConstantCoeff(CoeffExpr):
         self.isscalar = True
         self.is_matrix_param = False
 
-    def I(self, row_offset, stride=1): return "(i for i in [{:}])".format(row_offset)
-    def J(self, col_offset, stride=1): return "(j for j in [{:}])".format(col_offset)
-    def V(self): return "(x for x in [{:}])".format(self.value)
+    def I(self, row_offset, stride=1): return code.Just(row_offset)
+    def J(self, col_offset, stride=1): return code.Just(col_offset)
+    def V(self): return code.Just(self.value)
 
 class ParameterCoeff(CoeffExpr):
     def __init__(self, value):
@@ -47,10 +48,10 @@ class ParameterCoeff(CoeffExpr):
         self.isscalar = False
         self.is_matrix_param = True
 
-    def to_sparse(self): return "params['%s'] = o.sparse(%s)" % (self.value, self)
-    def I(self, row_offset, stride=1): return "(%d + %d*i for i in params['%s'].I)" % (row_offset, stride, self.value)
-    def J(self, col_offset, stride=1): return "(%d + %d*j for j in params['%s'].J)" % (col_offset, stride, self.value)
-    def V(self): return "(v for v in params['%s'].V)" % self.value
+    def to_sparse(self): return code.Assign(self, self)
+    def I(self, row_offset, stride=1): return code.LoopRows(self, row_offset, stride)
+    def J(self, col_offset, stride=1): return code.LoopCols(self, col_offset, stride)
+    def V(self): return code.LoopOver(self)
 
 class ScalarParameterCoeff(ParameterCoeff):
     def __init__(self,value):
@@ -58,9 +59,9 @@ class ScalarParameterCoeff(ParameterCoeff):
         self.isscalar = True
         self.is_matrix_param = False
 
-    def I(self, row_offset, stride=1): return "(i for i in [{:}])".format(row_offset)
-    def J(self, col_offset, stride=1): return "(j for j in [{:}])".format(col_offset)
-    def V(self): return "(x for x in [{:}])".format(self.value)
+    def I(self, row_offset, stride=1): return code.Just(row_offset)
+    def J(self, col_offset, stride=1): return code.Just(col_offset)
+    def V(self): return code.Just(self.value)
 
 class NegateCoeff(CoeffExpr):
     def __init__(self, arg):
@@ -72,7 +73,7 @@ class NegateCoeff(CoeffExpr):
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.I(row_offset, stride)
     def J(self, col_offset, stride=1): return self.arg.J(col_offset, stride)
-    def V(self): return "(-x for x in %s)" % self.arg.V()
+    def V(self): return "(-x for x in %s)" % self.arg.V()   # BUG HERE
 
 
 class EyeCoeff(CoeffExpr):
@@ -83,9 +84,9 @@ class EyeCoeff(CoeffExpr):
         self.isscalar = False
         self.is_matrix_param = False
 
-    def I(self, row_offset, stride=1): return "xrange(%d, %d, %d)" % (row_offset, row_offset + stride*self.n, stride)
-    def J(self, col_offset, stride=1): return "xrange(%d, %d, %d)" % (col_offset, col_offset + stride*self.n, stride)
-    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff.value, self.n)
+    def I(self, row_offset, stride=1): return code.Range(row_offset, row_offset + stride*self.n, stride)
+    def J(self, col_offset, stride=1): return code.Range(col_offset, col_offset + stride*self.n, stride)
+    def V(self): return code.Repeat(self.coeff, self.n)
 
     # def __str__(self): return "_o.spmatrix(%s,range(%s),range(%s), tc='d')" % (self.coeff, self.n, self.n)
 
@@ -100,17 +101,17 @@ class OnesCoeff(CoeffExpr):
 
     def I(self, row_offset, stride=1):
         if self.transpose:
-            return "itertools.repeat(%d, %d)" % (row_offset, self.n)
+            return code.Repeat(row_offset, self.n)
         else:
-            return "xrange(%d, %d, %d)" % (row_offset, row_offset + stride*self.n, stride)
+            return code.Range(row_offset, row_offset + stride*self.n, stride)
 
     def J(self, col_offset, stride=1):
         if self.transpose:
-            return "xrange(%d, %d, %d)" % (col_offset, col_offset + stride*self.n, stride)
+            return code.Range(col_offset, col_offset + stride*self.n, stride)
         else:
-            return "itertools.repeat(%d, %d)" % (col_offset, self.n)
+            return code.Repeat(col_offset, self.n)
 
-    def V(self): return "itertools.repeat(%s, %d)" % (self.coeff.value, self.n)
+    def V(self): return code.Repeat(self.coeff, self.n)
 
     # def __str__(self):
     #     if self.transpose:
@@ -126,10 +127,10 @@ class AddCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
-    def to_sparse(self): return "result = o.sparse(%s + %s)" % (str(self.left), str(self.right))
-    def I(self, row_offset, stride=1): return "(%d + %d*i for i in result.I)" % (row_offset, stride)
-    def J(self, col_offset, stride=1): return "(%d + %d*j for j in result.J)" % (col_offset, stride)
-    def V(self): return "(v for v in result.V)"
+    def to_sparse(self): return code.Assign("result", self)
+    def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
+    def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
+    def V(self): return code.LoopOver("result")
 
 class MulCoeff(CoeffExpr):
     def __init__(self, left, right):
@@ -139,10 +140,10 @@ class MulCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
-    def to_sparse(self): return "result = o.sparse(%s * %s)" % (str(self.left), str(self.right))
-    def I(self, row_offset, stride=1): return "(%d + %d*i for i in result.I)" % (row_offset, stride)
-    def J(self, col_offset, stride=1): return "(%d + %d*j for j in result.J)" % (col_offset, stride)
-    def V(self): return "(v for v in result.V)"
+    def to_sparse(self): return code.Assign("result", self)
+    def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
+    def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
+    def V(self): return code.LoopOver("result")
 
 
 class TransposeCoeff(CoeffExpr):

@@ -9,6 +9,8 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 import function
 
 """ Codegen template.
+
+    Could also be a lot shorter.
 """
 class Codegen(NodeVisitor):
     __metaclass__ = ABCMeta

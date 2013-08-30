@@ -1,5 +1,6 @@
 import codegen
-from function import PythonFunction
+from mixins.restricted_multiply import RestrictedMultiply
+from qcml.codes.function import PythonFunction
 from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
 import qcml.codes.encoders as encoder
 
@@ -92,7 +93,7 @@ class PythonCodegen(codegen.Codegen):
         yield "c[%s:%s] = %s" % (start, end, encoder.toPython(expr))
 
     def stuff_b(self, start, end, expr):
-        yield "b[%s:%s] = %s" % (start, end, expr)
+        yield "b[%s:%s] = %s" % (start, end, encoder.toPython(expr))
 
     def stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
@@ -105,18 +106,18 @@ class PythonCodegen(codegen.Codegen):
         if n > 1 and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
-        if to_sparse: yield to_sparse
-        yield "Gi.append(%s)" % expr.I(row_start, row_stride)
-        yield "Gj.append(%s)" % expr.J(col_start)
-        yield "Gv.append(%s)" % expr.V()
+        if to_sparse: yield encoder.toPython(to_sparse)
+        yield "Gi.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
+        yield "Gj.append(%s)" % encoder.toPython(expr.J(col_start))
+        yield "Gv.append(%s)" % encoder.toPython(expr.V())
 
     def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
-        if to_sparse: yield to_sparse
-        yield "Ai.append(%s)" % expr.I(row_start, row_stride)
-        yield "Aj.append(%s)" % expr.J(col_start)
-        yield "Av.append(%s)" % expr.V()
+        if to_sparse: yield encoder.toPython(to_sparse)
+        yield "Ai.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
+        yield "Aj.append(%s)" % encoder.toPython(expr.J(col_start))
+        yield "Av.append(%s)" % encoder.toPython(expr.V())
 

@@ -1,4 +1,18 @@
-from collections import MutableMapping, defaultdict
+""" This is just a test file for me to attempt to rewrite how coefficients 
+    are currently handled.
+    
+    At the moment, expressions are parsed without keeping track of
+    coefficients. Coefficients are then later created when traversing the
+    syntax tree. So there is a whole new set of them created later.
+    
+    The thought is that when expressions are formed, we can already keep track
+    of coefficients. This lets me merge a bunch of the functionality together
+    without having to write so much code.
+    
+    This file is just to keep track of that progress.
+"""
+from itertools import izip_longest
+
 import time
 def profile(f):
     def wrap(*args, **kwargs):
@@ -8,104 +22,6 @@ def profile(f):
         print f.__name__, "took", elapsed, "secs"
         return result
     return wrap
-
-
-# getting complicated....
-class Expression(MutableMapping):
-    # bucket list
-    def __init__(self):
-        self.terms = defaultdict(list)
-        super(Expression, self).__init__()
-
-    def __mul__(self, other):
-        return Mul(self, other)
-
-    def __add__(self, other):
-        return Add(self, other)
-
-    def __iter__(self):
-        for term in self.terms.iterkeys():
-            yield term
-
-    def __getitem__(self, key):
-        return self.terms[key]
-
-    def __setitem__(self, key, value):
-        if isinstance(value, list):
-            self.terms[key].extend(value)
-        else:
-            self.terms[key].append(value)
-
-    def __delitem__(self, key):
-        del self.terms[key]
-
-    def __len__(self):
-        return len(self.terms)
-
-    def insert(self, key, value):
-        self[key] = value
-
-    @property
-    def isconstant(self):
-        return len(self) == 1 and self.terms['1']
-
-    def __str__(self):
-        return str(self.terms)
-
-class Variable(Expression):
-    def __init__(self, name):
-        self.name = name
-        # should be eyecoeff
-        super(Variable, self).__init__()
-        self[name] = ConstantCoeff(1)
-
-class Parameter(Expression):
-    def __init__(self, value):
-        self.value = value
-        super(Parameter, self).__init__()
-        self['1'] = Coeff(value)
-
-class Number(Expression):
-    def __init__(self, value):
-        self.value = value
-        super(Number, self).__init__()
-        self['1'] = ConstantCoeff(value)
-
-class Add(Expression):
-    def __init__(self, left, right):
-        super(Add, self).__init__()
-        self.update(left)
-        self.update(right)
-
-
-class Mul(Expression):
-    def __init__(self, left, right):
-        # ensure that left is constant
-        assert(left.isconstant)
-        super(Mul, self).__init__()
-
-        self.update(left)
-        self.update(right)
-
-class Coeff(object):
-    def __init__(self, *terms):
-        self.terms = terms
-
-    def __str__(self):
-        return str(self.terms)
-
-    __repr__ = __str__
-
-class ConstantCoeff(Coeff):
-    def __init__(self, value):
-        self.value = value
-        super(ConstantCoeff, self).__init__(value)
-
-    def __add__(self, other):
-        assert(isinstance(other, ConstantCoeff))
-        return ConstantCoeff(self.value + other.value)
-
-# some other test
 
 
 
@@ -125,6 +41,7 @@ class Identity(object):
 
 identity = Identity()
 
+
 class Expr(object):
     def __init__(self, name):
         self.name = name
@@ -132,23 +49,17 @@ class Expr(object):
     # abstractmethod
     def terms(self):
         # additive terms
-        if not isinstance(self.name, (int,float,long)): yield self
+        yield self
 
     def factors(self):
         # multiplicative factors
-        if not isinstance(self.name, (int,float,long)): yield self
+        yield self
 
     def constant_term(self):
-        if isinstance(self.name, (int,float,long)):
-            if self.name == 0: return identity
-            else: return self.name
-        else: return identity
+        return identity
 
     def constant_factor(self):
-        if isinstance(self.name, (int,float,long)):
-            if self.name == 1: return identity
-            else: return self.name
-        else: return identity
+        return identity
 
     def __str__(self): return str(self.name)
 
@@ -166,25 +77,47 @@ class Expr(object):
         #     else:
         #         return Addy(self, other)
         # flatten add lists
+        
+        # collect constant * expr + expr into (constant + 1) * expr...
+        if str(self) == str(other):
+            return Constant(2)*self
+        # if isinstance(self, Constant) and isinstance(other, Constant):
+        #     return Constant(self.name + other.name)
+        #     return Muly(Expr(2), self)
         return Addy(self, other)
 
     def __mul__(self, other):
         # distribute
-        if isinstance(other,Addy):
-            new_kids = []
-            new_const = identity
-            for c in other.children:
-                result = self*c
-                if result._children:
-                    new_kids.append(result)
-                else:
-                    new_const = result._constant
-            other._constant = new_const
-            other._children = new_kids
-            return other
+        if isinstance(self, Addy):
+            return sum((c*other for c in self.children), Constant(0))
+        if isinstance(other, Addy):
+            return sum((self*c for c in other.children), Constant(0))
+        # if isinstance(self, Constant) and isinstance(other, Constant):
+        #     return Constant(self.name * other.name)
         return Muly(self, other)
 
-    __repr__ = __str__
+    #__repr__ = __str__
+
+class Constant(Expr):
+    def __init__(self, value):
+        super(Constant, self).__init__(value)
+    
+    # abstractmethod
+    def terms(self):
+        return
+        yield
+
+    def factors(self):
+        return
+        yield
+
+    def constant_term(self):
+        if self.name == 0: return identity
+        else: return self.name
+
+    def constant_factor(self):
+        if self.name == 1: return identity
+        else: return self.name
 
 
 # TODO: flatten in the constructor...
@@ -192,10 +125,20 @@ class Addy(Expr):
     def __init__(self, left, right):
         self._constant = left.constant_term() + right.constant_term()
         self._children = list(arg for l in (left.terms(), right.terms()) for arg in l)
+        
+        for arg in left.terms():
+            print '---'
+            #print arg.constant_term()
+            if hasattr(arg, '_children'): print map(str,arg._children)
+        for arg in right.terms():
+            print '---'
+            #print arg.constant_term()
+            if hasattr(arg, '_children'): print map(str,arg._children)
+            
         super(Addy, self).__init__('...')
 
     def __str__(self):
-        return "(" + ' + '.join(map(str,self.children)) + ")"
+        return ' + '.join(map(str,self.children))
 
     def terms(self):
         # additive terms
@@ -215,15 +158,13 @@ class Addy(Expr):
     @property
     def children(self):
         if self._constant is not identity:
-            yield Expr(self._constant)
+            yield Constant(self._constant)
         for e in self._children:
             yield e
 
-    __repr__ = __str__
+    #__repr__ = __str__
 
-
-
-
+# how do i create a Mul object that only contains the variables / parameters?
 class Muly(Expr):
     def __init__(self, left, right):
         self._constant = left.constant_factor() * right.constant_factor()
@@ -251,11 +192,11 @@ class Muly(Expr):
     @property
     def children(self):
         if self._constant is not identity:
-            yield Expr(self._constant)
+            yield Constant(self._constant)
         for e in self._children:
             yield e
 
-    __repr__ = __str__
+    #__repr__ = __str__
 # x = Variable('x')
 # y = Number(1)
 # b = Parameter('b')
@@ -272,19 +213,23 @@ class Muly(Expr):
 # 4*2 + (1*3 + 4)
 # test 4
 # a*(2 + 3*4)
+# test 5
+# (6 + a)*(2 + 3*b*c*4 + 1)
+# test 6
+# (3 + a)*x + a*x
 #
 
 @profile
 def add_test(f):
 
     # g = [Expr('0')]*1000
-    e = sum(f,Expr(0))#Expr('4')*Expr('2') + (Expr('1')*Expr('3') + Expr('4'))
+    e = sum(f,Constant(0))#Expr('4')*Expr('2') + (Expr('1')*Expr('3') + Expr('4'))
     print e
     #print e.children
 
 @profile
 def mul_test():
-    e = Expr('a')*Expr(6)*(Expr(2) + (Expr(3) * Expr('b') * Expr('c')* Expr(4)) + Expr(1))
+    e = (Expr('a') + Constant(6))*(Constant(2) + (Constant(3) * Expr('b') * Expr('c')* Constant(4)) + Constant(1))
     print e
     #print e.constant_term()
     #print e.constant_factor()
@@ -292,7 +237,7 @@ def mul_test():
     #print e.children[0].children
     #print e.children[1].children
 
-f = [Expr(1), Expr('a'), Expr('c'), Expr(4.1)]
+f = [Constant(1), Expr('a'), Constant(2)*Expr('c'), Constant(4.1), Expr('c')]
 add_test(f)
 mul_test()
 

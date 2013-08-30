@@ -14,7 +14,7 @@ from mixins.restricted_multiply import RestrictedMultiply
 import qcml.expressions.expression as expression
 import qcml.properties.shape as shape
 from qcml.properties.curvature import isconstant
-from function import CFunction
+from qcml.codes.function import CFunction
 
 class C_Codegen(RestrictedMultiply):
     """ This produces two functions and a header file.
