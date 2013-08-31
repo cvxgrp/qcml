@@ -6,7 +6,7 @@ from qcml.constraints.linear import LinearConstraint
 from qcml.codes.coefficients import *
 
 from abc import ABCMeta, abstractmethod, abstractproperty
-import function
+import qcml.codes.function as function
 
 """ Codegen template.
 
