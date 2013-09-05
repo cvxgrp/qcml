@@ -52,8 +52,6 @@ if __name__ == "__main__":
     Y = o.normal(m,n, 1)
     gamma = 1
 
-    pr = cProfile.Profile()
-
     p = QCML(debug=True)
     p.parse("""
         dimensions m n
@@ -98,7 +96,9 @@ if __name__ == "__main__":
 
     #s = p.solve()
 
+    pr = cProfile.Profile()
     pr.enable()
+
     p.canonicalize()
     p.dims = {'n': n, 'm': m}
     p.codegen("python")
@@ -107,9 +107,10 @@ if __name__ == "__main__":
     import ecos
     sol = ecos.ecos(**socp_data)
     my_vars = p.socp2prob(sol['x'])
+
     pr.disable()
     ps = pstats.Stats(pr)
-    ps.sort_stats('cumtime').print_stats(.5)
+    ps.sort_stats('cumulative').print_stats(.5)
 
 #
 #     p.codegen("pdos")
