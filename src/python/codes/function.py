@@ -113,7 +113,6 @@ class PythonFunction(Function):
         self._Function__source = '\n'.join(code)
         self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno, line) for lineno, line in enumerate(code))
         
-        print self._Function__source
         # now create its bytecode
         exec self._Function__source in vars()
         self.generated_func = vars()[self.name]
