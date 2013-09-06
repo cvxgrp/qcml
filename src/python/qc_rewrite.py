@@ -170,7 +170,7 @@ class QCRewriter(ast.NodeTransformer):
 
         # visit children first, to gather all the used variables and parameters
         self.generic_visit(node)
-
+        
         node.canonicalize()
         # now, update the variables and constraints
         node.new_variables = QCRewriter.new_variables
@@ -219,8 +219,8 @@ class QCRewriter(ast.NodeTransformer):
             return node
 
     def visit_LinearEquality(self, node):
-        self.visit_RelOp(node)
+        return self.visit_RelOp(node)
 
     def visit_LinearInequality(self, node):
-        self.visit_RelOp(node)
+        return self.visit_RelOp(node)
 
