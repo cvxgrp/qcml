@@ -1,8 +1,9 @@
 #!/usr/bin/python
 from qcml import QCML
 
-import cvxopt as o
-from cvxopt import solvers
+import numpy as np
+from numpy.random import randn
+#from cvxopt import solvers
 import cProfile, pstats
 
 if __name__ == "__main__":
@@ -48,8 +49,8 @@ if __name__ == "__main__":
 
     n = 2      # number of features
     m = 100   # number of examples
-    X = o.normal(m,n, -1)
-    Y = o.normal(m,n, 1)
+    X = randn(m,n) - 1
+    Y = randn(m,n) + 1
     gamma = 1
 
     pr = cProfile.Profile()
@@ -83,9 +84,9 @@ if __name__ == "__main__":
 
     # TODO: sum(norms(X))
     # A*x
-
-    solvers.options['abstol'] = 1e-9
-    solvers.options['reltol'] = 1e-9
+    # 
+    # solvers.options['abstol'] = 1e-9
+    # solvers.options['reltol'] = 1e-9
 
     # p.canonicalize()
     # p.set_dims({'n': n, 'm': m})
@@ -105,7 +106,7 @@ if __name__ == "__main__":
     print p.prob2socp.source
     socp_data = p.prob2socp(params=locals())
     import ecos
-    sol = ecos.ecos(**socp_data)
+    sol = ecos.solve(**socp_data)
     my_vars = p.socp2prob(sol['x'])
     pr.disable()
     ps = pstats.Stats(pr)

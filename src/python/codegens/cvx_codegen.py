@@ -12,7 +12,7 @@ class CVXCodegen(NodeVisitor):
         # second argument is ignored
         self.prog = []
 
-    # TODO: this ought to be rolled into a master codegen class that
+    # TODO : this ought to be rolled into a master codegen class that
     # CVXCodegen can subclass....
     def codegen(self):
         def not_implemented():

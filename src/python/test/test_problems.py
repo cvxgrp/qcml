@@ -1,5 +1,4 @@
-# TODO: test that objective of a + gamma*square(a) is not DCP compliant if gamma is not positive
-#
+
 
 # from scoop import Scoop
 # import cvxopt

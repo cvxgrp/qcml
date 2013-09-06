@@ -2,12 +2,12 @@
 # invokes CVXOPT and checks that objval is within tolerance to expected
 # constant value
 from qcml import QCML
-import cvxopt
+import numpy
 from nose.tools import assert_raises
 
-TOL = 1e-5
+TOL = 1e-3
 
-v = cvxopt.matrix([-1,2,-2], tc='d')
+v = numpy.array([-1.,2.,-2.])
 convex_template = "minimize %s"
 concave_template = "maximize %s"
 

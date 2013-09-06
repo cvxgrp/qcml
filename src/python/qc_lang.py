@@ -128,20 +128,20 @@ class QCML(object):
     def solver(self):
         if self.state is ParseState.COMPLETE:
             try:
-                import cvxopt.solvers
+                import ecos
             except ImportError:
-                raise ImportError("QCML solver: To generate a solver, requires cvxopt.")
+                raise ImportError("QCML solver: To generate a solver, requires ecos.")
 
             def f(params):
                 data = self.prob2socp(params)
-                sol = cvxopt.solvers.conelp(**data)
+                sol = ecos.solve(**data)
                 result = self.socp2prob(sol['x'])
-                result['info'] = sol
+                result['info'] = sol['info']
 
                 # set the objective value
                 multiplier = self.__codegen.objective_multiplier
                 offset = self.__codegen.objective_offset
-                result['objval'] = multiplier * sol['primal objective'] + offset
+                result['objval'] = multiplier * sol['info']['pcost'] + offset
                 return result
             return f
         else:

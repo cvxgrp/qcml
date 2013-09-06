@@ -22,5 +22,7 @@ setup(
     description='A parser for modeling convex optimization problems in Python.',
     long_description=open('../README.md').read(),
     requires = ["ply(>= 3.4)",
-                "cvxopt(>= 1.1.5)"]
+                "ecos(>= 1.0.1)",
+                "numpy(>= 1.7)",
+                "scipy(>= 0.12)"]
 )
