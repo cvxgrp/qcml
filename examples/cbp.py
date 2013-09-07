@@ -34,6 +34,8 @@ if __name__ == "__main__":
     # More natural formulation would be:
     # minimize 1/(sqrt(2)*noisesigma) * (data - (dictc*c + dictu(u + dictv*v)) + lambda'*c)
     # subject to
+    #   sqrt(u.^2 + v.^2) <= radii.*c
+    #   radii.*cos(theta) <= u
 
     solvers.options['abstol'] = 1e-9
     solvers.options['reltol'] = 1e-9
