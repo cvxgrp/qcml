@@ -34,39 +34,42 @@ Python code of external source code. The basic workflow is as follows
     p.parse(s)
     p.canonicalize()
     p.dims = {'m': m, 'n': n}
-    p.codegen("cvxopt")
-    solution = p.solver({'gamma':1,'F':F,'D':D})
+    p.codegen("python")
+    socp_data = p.prob2socp({'gamma':1,'F':F,'D':D})
+    sol = ecos.solve(**socp_data)
+    my_vars = p.socp2prob(sol['x'])
 
-The third line sets the dimensions of the problem and the last line calls
-the (Python) solver generated in the codegen step. This
-solver requires that the user specify the parameters in their
-optimization model. For rapid prototyping, we provide the convenience
-function:
+We will walk through each line:
+
+1. `parse` the optimization problem and check that it is convex
+2. `canonicalize` the problem by symbolically converting it to a second-order
+    cone program
+3. assign the `dims` of the problem
+4. generate `python` code for converting parameters into SOCP data and for 
+   converting the SOCP solution into the problem variables
+5. call a solver with the SOCP data structure
+6. recover the original solution
+
+For rapid prototyping, we provide the convenience function:
 
     solution = p.solve()
 
-This functions wraps the last four steps above into a single call and
+This functions wraps all six steps above into a single call and
 assumes that all parameters and dimensions are defined in the local
 namespace.
+
+For more information, see the [features](# features) section.
 
 Prerequisites
 =============
 For the most basic usage, this project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
-* [CVXOPT](http://abel.ee.ucla.edu/cvxopt/)
+* [ECOS](http://github.com/ifa-ethz/ecos)
+* [NUMPY](http://numpy.org)
+* [SCIPY](http://scipy.org)
 
 For (some) unit testing, we use [Nose](http://nose.readthedocs.org).
-
-Depending on the type of code you generate, you may also need:
-
-* Matlab
-* [CVX](http://cvxr.com)
-* [PDOS](http://github.com/cvxgrp/pdos)
-* [ECOS](http://github.com/ifa-ethz/ecos)
-
-PDOS is an experimental first-order solver, and we recommend CVXOPT or ECOS
-over it.
 
 Installation
 ============
@@ -78,18 +81,36 @@ Installation should be as easy as
 After installation, if you have [Nose](http://nose.readthedocs.org) installed,
 then typing
 
-    nosetests scoop
+    nosetests
 
 should run the simple unit tests. These tests are not exhaustive at the
 moment.
 
-The only working sample scripts are `qcml_example.py` and `main.py`.
-The others refer to an older implementation. The `main.py` script takes
-command line arguments and emits Matlab code used to call ECOS.
+The only working sample script is `qcml_example.py`.
 
 
 Features
 ========
+Basic types
+-----------
+There are three basic types in QCML:
+
+* `dimension` (or `dimensions` for multiple)
+* `parameter` (or `parameters` for multiple)
+* `variable` (or `variables` for multiple)
+
+A `parameter` may optionally take a sign (`positive` or `negative`). These are
+entirely abstract. All `variables` are currently assumed to be vectors, and
+all `parameters` are assumed to be (sparse) matrices. For example, the code
+
+    dimensions m n
+    variables x(n) y(m)
+    parameter A(m,n) positive
+    parameters b c(n)
+
+declares two dimensions, `m` and `n`; two variables of length `n` and `m`,
+respectively; an elementwise positive (sparse) parameter matrix, `A`; the
+scalar parameter `b`; and the vector parameter `c`.
 
 Parsing and canonicalization
 ----------------------------
@@ -132,19 +153,52 @@ dimensions of the QCML object and codegen the Python function again.
 In deployment mode, the problem dimensions are fixed,
 but problem data is allowed to change.
 
-The valid choice of solvers are:
+The valid choice of languages are:
 
-<!-- PHLI: Update to "python"?  "python", "matlab", "C"? -->
-* `"cvx"` -- emits Matlab source code that calls CVX
-* `"cvxopt"` -- emits Python source code that calls CVXOPT
-* `"ecos"` -- emits Python source code that calls ECOS
-* `"matlab"` -- emits Matlab source code that calls ECOS
-* `"PDOS"` -- emits Python source code that calls PDOS
+* `"python"` -- emits Python source code
+* (planned) `"C"` -- emits C source code
+* (planned) `"matlab"` -- emits Matlab source code
+* (planned) `"cvx"` -- emits Matlab source code that calls CVX
 
-When these solvers are supplied as arguments to the code generator,
-it produces code of the appropriate language (Python or Matlab).
+With the exception of the `"cvx"` target, the code generator will produce
+(at least) two functions in the target language:
+
+* `prob2socp` -- takes problem parameters as input outputs SOCP data, `c`, `G`,
+  `h`, `A`, `b`, and the cone descriptions
+* `socp2prob` -- takes an SOCP solution and recovers the original variables
+
 If it generates Python code, `exec` is called to create the function
-bytecode dynamically, allowing you to call the solver.
+bytecode dynamically, allowing you to call your favorite solver.
+
+If the target "language" is `"cvx"`, we will generate a single Matlab file
+that contains the CVX-equivalent problem.
+
+Data structures
+---------------
+In this section, we document the data structures used for each language.
+
+The input of `prob2socp` is a dictionary/struct containing the parameters.
+No sign checking is currently done. Parameters can be scalar, vector, or
+(sparse) matrices. In Matlab, these use the native data types. In C, a scalar 
+is a `double`, a vector is a `double []`, and a (sparse) matrices is also a
+`double []` containing the (nonzero) entries of the matrix in column-manjor 
+order. (This corresponds to the storage pattern of column-compressed storage.)
+In Python, a scalar is any numeric type, a vector is a Numpy array, and 
+(sparse) matrices are Scipy matrices in CSC format.
+
+The output of the `prob2socp` function is a dictionary/struct with the fields:
+
+* `c` -- dense vector
+* `G` -- sparse matrix
+* `h` -- dense vector
+* `dims` -- struct with fields `l` (a number) and `q` (an array)
+* `A` -- sparse matrix
+* `b` -- dense vector
+
+In Matlab, the vectors and matrices are native. In C, the dense vector is
+stored as a C `double` array. The sparse matrices are in column-compressed
+format. In Python, vectors are represented by Numpy arrays and sparse matrices
+are represented in CSC format.
 
 Use as embedded language
 ------------------------
@@ -203,12 +257,13 @@ Inside Python, the code might look like
 
           minimize sum(square(A*x - 4)) + lambda*norm(x)
         """)
-
-        p.canonicalize()
+        
         p.dims = {'m':m, 'n':n}
+        p.canonicalize()
 
 This will canonicalize the problem and build an internal problem parse
-tree inside Python. Once the problem has been canonicalized, the user can
+tree inside Python. The `dims` must be set before canonicalizing.
+Once the problem has been canonicalized, the user can
 decide to either generate a function to prototype problems or generate source
 code. For instance, the following three lines will create a solver function
 `f` and call the solver, with the parameter arguments supplied.

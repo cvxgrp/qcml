@@ -73,7 +73,7 @@ class NegateCoeff(CoeffExpr):
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.I(row_offset, stride)
     def J(self, col_offset, stride=1): return self.arg.J(col_offset, stride)
-    def V(self): return "(-x for x in %s)" % self.arg.V()   # BUG HERE
+    def V(self): return code.LoopOver(self.arg.V(),"-%s")
 
 
 class EyeCoeff(CoeffExpr):

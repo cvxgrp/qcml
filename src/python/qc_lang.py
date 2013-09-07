@@ -157,8 +157,13 @@ class QCML(object):
         """
         if self.state is ParseState.PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
-
-        self.dims = dims if dims else params
+        
+        try:
+            # attempt to set the dims; if this fails, usually means someone
+            # set the dims externally and just wants to solve with the params
+            self.dims = dims if dims else params
+        except:
+            raise Exception("QCML solve: Perhaps you've already canonicalized and/or generated code. Call .solver instead.")
         self.canonicalize()
         self.codegen("python")
 

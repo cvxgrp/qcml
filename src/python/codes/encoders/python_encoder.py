@@ -28,7 +28,7 @@ def add(x):
     return "%s + %s" % (toPython(x.left), toPython(x.right))
 
 def mul(x):
-    return "%s*%s" % (toPython(x.left), toPython(x.right))
+    return "np.dot(%s,%s)" % (toPython(x.left), toPython(x.right))
 
 def just(elem):
     return "[%s]" % elem.x
@@ -37,7 +37,7 @@ def loop(ijv):
     def to_str(x):
         if hasattr(x, 'offset') and hasattr(x, 'stride'):
             return "(%d + %d*idx for idx in %s.%s)" % (x.offset, x.stride, toPython(x.matrix), ijv)
-        return "(v for v in %s.%s)" % (toPython(x.matrix), ijv)
+        return "(%s for v in %s.%s)" % (x.op % "v", toPython(x.matrix), ijv)
     return to_str
 
 def _range(x):

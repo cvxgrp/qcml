@@ -34,10 +34,13 @@ class LoopCols(LoopIndex):
         super(LoopCols, self).__init__(matrix, offset, stride)
 
 class LoopOver(Code):
-    """ Loops over the values in a matrix.
+    """ Loops over the values in a matrix and apply the operation. The
+        operation is specified as a format string.
     """
-    def __init__(self, matrix):
-        self.matrix = matrix
+    def __init__(self, matrix, op = "%s"):
+        if isinstance(matrix, LoopOver): self.matrix = matrix.matrix
+        else: self.matrix = matrix
+        self.op = op
         super(LoopOver, self).__init__()
 
 class Range(Code):

@@ -111,7 +111,7 @@ class PythonFunction(Function):
         code = prototype + documentation + body
 
         self._Function__source = '\n'.join(code)
-        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno, line) for lineno, line in enumerate(code))
+        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno+1, line) for lineno, line in enumerate(code))
         
         # now create its bytecode
         exec self._Function__source in vars()
