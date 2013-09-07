@@ -24,9 +24,11 @@ if __name__ == "__main__":
         parameter dictu(m,n)
         parameter dictv(m,n)
         parameter radii(n)
-        minimize (noise*norm(data - dictc*c + dictu*u + dictv * v) + lambda'*c)
+        parameter rctheta(n)
+        minimize (noise*norm(data - (dictc*c + dictu*u + dictv*v)) + lambda'*c)
         subject to
           norm(u) + norm(v) <= radii'*c
+          rctheta'*c <= u
     """)
 
     solvers.options['abstol'] = 1e-9
@@ -37,10 +39,10 @@ if __name__ == "__main__":
     p.dims = {'n': n, 'm': m}
     p.codegen("python")
     print p.prob2socp.source
-    socp_data = p.prob2socp(params=locals())
-    import ecos
-    sol = ecos.ecos(**socp_data)
-    my_vars = p.socp2prob(sol['x'])
-    pr.disable()
-    ps = pstats.Stats(pr)
-    ps.sort_stats('cumtime').print_stats(.5)
+    #socp_data = p.prob2socp(params=locals())
+    #import ecos
+    #sol = ecos.ecos(**socp_data)
+    #my_vars = p.socp2prob(sol['x'])
+    #pr.disable()
+    #ps = pstats.Stats(pr)
+    #ps.sort_stats('cumulative').print_stats(.5)
