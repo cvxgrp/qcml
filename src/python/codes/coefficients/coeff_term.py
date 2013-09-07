@@ -40,22 +40,50 @@ def profile(f):
     
     For Python code generation, we would actually execute diag(3) + A and
     copy it into the proper location.
+    
+    Expressions have a curvature, a sign, and a shape.
+    
+    Terms have the ability to construct coefficient objects.
+    
+    Except for special operators (transpose, sum, atoms, etc.), no new objects
+    are created. That is, if you add two Expressions, the result is still
+    an Expression (and not a "AddExpr").
+    
+    TODO: Next, attach properties to Expressions and Terms
+            Use Mixins
 """
-import collections
 
-def term_updated(lhs_terms, rhs_terms):
+import collections
+from abc import ABCMeta
+
+def term_updated(lhs_terms, rhs_terms, expr):
     """ This function is called once the variables have been matched.
         Thus, we only need to match the params list.
         
-        Will modify the matching element in-place in the lhs. 
+        Will replace the matching element from the bucket. 
     """
-    for t1 in lhs_terms:
+    
+    for i, t1 in enumerate(lhs_terms):
         for t2 in rhs_terms:
             if t1.params == t2.params:
-                t1.const_coeff += t2.const_coeff
+                lhs_terms[i] = TermFactory(t1.coeff + t2.coeff, t1.params, expr)
                 return True
     return False
+
     
+def TermFactory(constant, params, expr):
+    # TODO: use variable "type" to determine if it a linear term or nonlinear
+    # term
+    if isinstance(expr, int): expr = '' # hack to allow int arguments
+    if not params and not expr:
+        return Constant(constant)
+    else:
+        if len(expr) <= 1:
+            # linear term
+            return LinearTerm(constant, params, expr)
+        else:
+            # nonlinear term
+            return NonlinearTerm(constant, params, expr)
 
 class TermBucket(object):
     """ Stores the terms as a bucket list.
@@ -67,19 +95,26 @@ class TermBucket(object):
         else: self.term_bucket = buckets
     
     def __setitem__(self, k, v):
-        if k: self.term_bucket[k].append(v)
-        else: self.term_bucket[1].append(v)
+        if k: key = k
+        else: key = 1
+        # if the new term can be used to update an old one, just return
+        if term_updated(self.term_bucket[key], [v], k): return
+        # otherwise, append it to the end
+        self.term_bucket[key].append(v)
+        
     
     def __getitem__(self, k):
-        return self.term_bucket[k]
+        if k: return self.term_bucket[k]
+        else: return self.term_bucket[1]
     
     def __add__(self, other):
         buckets = collections.defaultdict(list)
         for k,v in self.term_bucket.iteritems():
             buckets[k].extend(v)
+        
         for k,v in other.term_bucket.iteritems():
             # do a linear search on the terms to see if any match
-            if k in buckets and term_updated(buckets[k], v): continue
+            if k in buckets and term_updated(buckets[k], v, k): continue
             buckets[k].extend(v)
         return TermBucket(buckets)
     
@@ -96,120 +131,167 @@ class TermBucket(object):
 """
 
 class Expression(object):
-    def __init__(self, constant, term_bucket):
-        self.terms = term_bucket
+    def __init__(self, constant, linear_terms, nonlinear_terms):
+        self.linear_terms = linear_terms        # these are linear terms
+        self.nonlinear_terms = nonlinear_terms  # these are nonlinear terms
         self.constant = constant
     
-    def __add__(self, other): return _Add(self, other)  # TODO: this is a func
+    def __add__(self, other): return Add(self, other)  # TODO: this is a func
     
-    def __mul__(self, other): return _Mul(self, other)  # TODO: this is a func
+    def __mul__(self, other): return Mul(self, other)  # TODO: this is a func
     
     def __str__(self):
-        return ' + '.join(map(str, self.all_terms))
+        return ' + '.join(map(str, self.terms))
     
     @property
-    def all_terms(self):
-        for e in iter(self.terms):
-            yield e
+    def terms(self):
+        for e in iter(self.linear_terms): yield e
+        for e in iter(self.nonlinear_terms): yield e
         if self.constant != 0: yield self.constant
     
     def isconstant(self):
-        if self.terms: return False
+        if self.linear_terms or self.nonlinear_terms: return False
         else: return True
+            
 
-class Term(Expression):
-    def __init__(self, constant, list_of_params, variable):
-        self.const_coeff = constant
-        self.params = list_of_params
-        self.variable = variable
-        bucket = TermBucket()
-        bucket[variable] = self
-        super(Term,self).__init__(0,bucket)
+class _Term(Expression):
+    """ Represents a multiplication.
+        
+        constant * params * expr
+        
+        where "expr" can be either a single variable or a nonlinear function
+        (an atom).
+    """
+    def __init__(self, constant, params, expr, *args):
+        self.coeff = constant
+        self.params = params
+        self.expr = expr
+        super(_Term, self).__init__(*args)
     
     def __str__(self):
-        if self.const_coeff == 0: return '0'
-        elems = [self.const_coeff] + self.params
-        if self.variable:
-            elems.append(self.variable)
-        return '*'.join(map(str,elems))
+        return '*'.join(map(str,self.elems))
+    
+    @property
+    def elems(self):
+        if self.coeff == 0: yield '0'
+        else:
+            if self.coeff != 1: yield self.coeff
+            for e in self.params: yield e
+            if self.expr: yield self.expr
     
     @property
     def data(self):
-        return self.const_coeff, self.params, self.variable
+        return self.coeff, self.params, self.expr
 
-class _Variable(Term):
-    def __init__(self, name):
-        self.name = name
-        super(_Variable,self).__init__(1,[],self.name)
-    
-    #def __str__(self): return self.name
+class LinearTerm(_Term):
+    def __init__(self, constant, params, expr):
+        bucket = TermBucket()
+        bucket[expr] = self
+        super(LinearTerm, self).__init__(constant, params, expr, 0, bucket, TermBucket())
 
-class _Param(Term):
-    def __init__(self, name):
-        self.name = name
-        super(_Param,self).__init__(1,[self.name],'')
-    
-    #def __str__(self): return self.name
-
-class _Constant(Expression):
+class NonlinearTerm(_Term):
+    def __init__(self, constant, params, expr):
+        bucket = TermBucket()
+        bucket[expr] = self
+        super(NonlinearTerm, self).__init__(constant, params, expr, 0, TermBucket(), bucket)
+        
+class Constant(_Term):
     def __init__(self, value):
-        super(_Constant,self).__init__(value,TermBucket())
+        super(Constant,self).__init__(value,[], '', value, TermBucket(), TermBucket())
     
     #def __str__(self): return str(self.constant)
+       
+class Variable(LinearTerm):
+    def __init__(self, name):
+        self.name = name
+        super(Variable,self).__init__(1,[],self.name)
+    
+    #def __str__(self): return self.name
 
-class _Add(Expression):
+class Param(LinearTerm):
+    def __init__(self, name):
+        self.name = name
+        super(Param,self).__init__(1,[self.name],'')
+    
+    #def __str__(self): return self.name
+
+class Atom(NonlinearTerm):
+    def __init__(self, name, arg):
+        self.name = name
+        self.arg = arg
+        super(Atom, self).__init__(1, [], "%s(%s)" % (self.name, self.arg) )
+
+
+# ADD and MUL should be functions
+class Add(Expression):
     def __init__(self, left, right):
-        super(_Add, self).__init__(left.constant + right.constant, left.terms + right.terms)
+        super(Add, self).__init__(left.constant + right.constant, 
+            left.linear_terms + right.linear_terms, 
+            left.nonlinear_terms + right.nonlinear_terms)
+   
+def getdata(x):
+    if hasattr(x, 'data'): return x.data
+    else: return (x, [], '')
 
-class _Mul(Expression):
+
+class Mul(Expression):
     def __init__(self, left, right):
         # performs a distributed multiplication
-        newlist = TermBucket()
-        
-        # multiply out the constants
-        for l in iter(left.terms):
-            coeff, params, variable = l.data
-            newlist[variable] = Term(coeff*right.constant, params, variable)
-        for r in iter(right.terms):
-            coeff, params, variable = r.data
-            newlist[variable] = Term(coeff*left.constant, params, variable)
-            
-        # now multiply out the rest
+        result = [0, TermBucket(), TermBucket()]
+                
+        # distribute the multiply
         for l in iter(left.terms):
             for r in iter(right.terms):
-                lcoeff, lparams, lvariable = l.data
-                rcoeff, rparams, rvariable = r.data
+                lcoeff, lparams, lvariable = getdata(l)
+                rcoeff, rparams, rvariable = getdata(r)
                 if lvariable and rvariable:
                     raise ValueError("Cannot multiply two variable expressions")
-                if lvariable:
-                    variable = lvariable
-                else:
-                    variable = rvariable
-                newlist[variable] = Term(lcoeff*rcoeff, lparams + rparams, variable)
-
-        super(_Mul, self).__init__(left.constant * right.constant, newlist)
+                if lvariable: variable = lvariable
+                else: variable = rvariable
+                x = TermFactory(lcoeff*rcoeff, lparams + rparams, variable)
+                if isinstance(x, Constant): result[0] = x.constant
+                if isinstance(x, LinearTerm): result[1][variable] = x
+                if isinstance(x, NonlinearTerm): result[2][variable] = x
+        
+        super(Mul, self).__init__(*result)
         
 
-print _Variable('x')
-print _Param('b')
-print _Constant(5)
+print Variable('x')
+print Param('b')
+print Constant(5)
 
-y1 = _Constant(5) + _Constant(6)
-print y1
+y1 = Constant(5) + Constant(6)
+assert(str(y1) == '11')
 
-y2 = _Constant(5) + _Variable('x') + _Constant(6) + _Param('c')
-print y2
+y2 = Constant(5) + Variable('x') + Constant(6) + Param('c')
+assert(str(y2) == 'x + c + 11')
+y3 = y1*y2
 
-print y1*y2
+assert(str(y3) == '11*x + 11*c + 121')
+assert(str(y1) == '11')
+assert(str(y2) == 'x + c + 11')
 
-y3 = _Param('b') + _Param('c') + _Constant(2)
-print y3*y2
+y4 = Param('b') + Param('c') + Constant(2)
+assert(str(y4) == 'b + c + 2')
+assert(str(y4*y2) == 'b*x + c*x + 2*x + b*c + 11*b + c*c + 13*c + 22')
 
-y4 = _Variable('x') + _Variable('x')
-print y4
+x = Variable('x')
+y5 = x + x
+assert(str(y5) == '2*x')
+assert(str(x) == 'x')
 
-y5 = _Constant(6)*_Param('b') + _Constant(2.3)*_Variable('x') + _Param('b') + _Variable('x')
-print y5 + y4
+y6 = Constant(6)*Param('b') + Constant(2.3)*Variable('x') + Param('b') + Variable('x')
+assert(str(y6 + y5) == '7*b + 5.3*x')
+
+y7 = Atom("square", y1)
+assert(str(y7) == 'square(11)')
+
+y8 = y7 + y4 + y7
+assert(str(y8) == 'b + c + 2*square(11) + 2')
+
+y9 = y4*y7 + y7
+assert(str(y9) == 'b*square(11) + c*square(11) + 3*square(11)')
+
     #__repr__ = __str__
 # x = Variable('x')
 # y = Number(1)

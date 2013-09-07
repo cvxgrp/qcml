@@ -61,9 +61,7 @@ for k,ind in enumerate(F.data):
         continue
     else:
         param = mymap[ind-2]
-        counter = count[ind-2]
         param.append(k)
-        count[ind-2] += 1 
         print param.name, k
 
 print map(to_C, mymap)
