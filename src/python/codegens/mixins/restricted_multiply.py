@@ -2,13 +2,13 @@
 Mixin for restricted multiplication
 """
 #import qcml.codegens.codegen as codegen
-from .. import codegen
+from .. base_codegen import Codegen
 
 import qcml.expressions.expression as expression
 import qcml.properties.shape as shape
 from qcml.properties.curvature import isconstant
 
-class RestrictedMultiply(codegen.Codegen):
+class RestrictedMultiply(Codegen):
     """ This implements the restricted multiplication behavior.
     """
     def __init__(self, *args, **kwargs):

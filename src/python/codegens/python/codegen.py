@@ -1,4 +1,4 @@
-from .. import codegen
+from .. base_codegen import Codegen
 from .. mixins.restricted_multiply import RestrictedMultiply
 from qcml.codes.function import PythonFunction
 from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
@@ -9,7 +9,7 @@ def wrap_self(f):
         return f(*args, **kwargs)
     return wrapped_code
 
-class PythonCodegen(codegen.Codegen):
+class PythonCodegen(Codegen):
     def __init__(self, dims):
         super(PythonCodegen, self).__init__(dims)
         self.__prob2socp = PythonFunction("prob_to_socp")
