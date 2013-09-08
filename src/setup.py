@@ -12,11 +12,18 @@ setup(
                 'qcml.properties',
                 'qcml.codegens',
                 'qcml.codegens.mixins',
+                'qcml.codegens.python',
+                'qcml.codegens.C',
+                'qcml.codegens.matlab',
+                'qcml.codegens.cvx',
                 'qcml.codes',
                 'qcml.codes.encoders',
                 'qcml.codes.coefficients',
                 'qcml.test'],
     package_dir={'qcml': 'python'},
+    package_data = {'qcml': 
+        ['codegens/C/*_template.*', 'codegens/C/qcml_utils.*']
+    },
         url='http://cvxgrp.github.io/qcml/',
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',

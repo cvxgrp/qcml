@@ -1,6 +1,6 @@
 #from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
-from codegen import Codegen
+from .. codegen import Codegen
 
 from qcml.properties.shape import Vector, Scalar
 import qcml.expressions.expression as expression

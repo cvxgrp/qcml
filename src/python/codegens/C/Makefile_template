@@ -1,0 +1,25 @@
+# Compiles the C source files into binaries which you can link into your
+# program.
+#
+# If multiple matrix stuffing functions are needed, only one copy of the
+# qcml_utils object file is needed. (They can all use this same object).
+#
+# An alternative approach would be to compile a static library linking
+# qcml_utils into %(name)s.o, but this introduces code duplication and is not
+# necessary.
+
+# which C compiler to use
+CC = cc
+# any compiler flags
+CFLAGS = -ansi -O3
+
+.PHONY: all
+all: qcml_utils.o %(name)s.o
+
+qcml_utils.o: qcml_utils.h
+
+%(name)s.o: %(name)s.h
+
+.PHONY: clean
+clean:
+	rm qcml_utils.o %(name)s.o
