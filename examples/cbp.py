@@ -1,15 +1,18 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+""" Continuous basis pursuit example.
+    
+    TODO: (PHLI) fill in reference to Eero's paper
+    See ....
+"""
 from qcml import QCML
-
-import cvxopt as o
-from cvxopt import solvers
-import cProfile, pstats
 
 if __name__ == "__main__":
     n = 56 # number of waveforms
     m = 83 # waveforms length
 
-    pr = cProfile.Profile()
+    print "Running CBP example...."
+    
+    # TODO: takeaways from this example: "diag" constructor?
 
     p = QCML(debug=True)
     p.parse("""
@@ -23,12 +26,18 @@ if __name__ == "__main__":
         parameter dictc(m,n)
         parameter dictu(m,n)
         parameter dictv(m,n)
-        parameter radii(n)
-        parameter rctheta(n)
+        parameter radii(n,n)    # diagonal matrix
+        parameter rctheta(n,n)  # diagonal matrix
         minimize noise*norm(data - (dictc*c + dictu*u + dictv*v)) + lambda'*c
         subject to
-          norm([u_i v_i]) <= radii_i*c_i
-          rctheta_i*c_i <= u_i
+          # || (u[i], v[i]) || <= radii_i * c_i
+          # norm([u_i v_i]) <= radii_i*c_i
+          # norm(x,y) applies norm across rows of the matrix [x y]
+          norm(u,v) <= radii*c
+          
+          # rctheta is going to be a diagonal matrix
+          # rctheta[i]*c[i] <= u[i] implemented with rctheta a diag matrix
+          rctheta*c <= u
     """)
 
     # More natural formulation would be:
@@ -37,14 +46,13 @@ if __name__ == "__main__":
     #   sqrt(u.^2 + v.^2) <= radii.*c
     #   radii.*cos(theta) <= u
 
-    solvers.options['abstol'] = 1e-9
-    solvers.options['reltol'] = 1e-9
-
-    pr.enable()
+    raw_input("press ENTER to canonicalize....")
     p.canonicalize()
+    
+    raw_input("press ENTER to generate code....")
     p.dims = {'n': n, 'm': m}
     p.codegen("python")
-    print p.prob2socp.source
+    
     #socp_data = p.prob2socp(params=locals())
     #import ecos
     #sol = ecos.ecos(**socp_data)
