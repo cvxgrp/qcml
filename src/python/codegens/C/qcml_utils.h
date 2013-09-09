@@ -31,24 +31,24 @@ typedef struct socp {
   long nsoc;  // number of second-order cones
   long *q;    // list of second-order cone sizes
   double *Gx; // nonzero values of G (in CSC)
-  double *Gp; // column pointers of G (in CSC)
-  double *Gi; // row values of G (in CSC)
+  long *Gp;   // column pointers of G (in CSC)
+  long *Gi;   // row values of G (in CSC)
   double *Ax; // nonzero values of A (in CSC)
-  double *Ap; // column pointers of A (in CSC)
-  double *Ai; // row values of A (in CSC)
+  long *Ap;   // column pointers of A (in CSC)
+  long *Ai;   // row values of A (in CSC)
   double *c;  // c vector (dense)
   double *h;  // h vector (dense)
   double *b;  // b vector (dense)
 } qc_socp;
 
-// allocate a sparse matrix
-qc_matrix *qc_spalloc(long m, long n, long nnz, int triplet);
-
 // free an allocated socp data struct
+//     socp is allocated by corresponding prob2socp function
 void *qc_socp_free(qc_socp *data);
+
+// free an allocated sparse matrix
 void *qc_spfree(qc_matrix *A);
 
-// compress a COO matrix into CSC
+// compress a COO matrix into CSC, allocates new matrix memory
 qc_matrix *qc_compress(const qc_matrix *T);
   
 #endif // __QCML_UTILS_H__

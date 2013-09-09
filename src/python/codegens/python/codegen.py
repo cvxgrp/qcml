@@ -23,12 +23,12 @@ class PythonCodegen(Codegen):
     def socp2prob(self):
         return self.__socp2prob
 
-    # function to get cone sizes
-    def python_cone_sizes(self):
+    # function to get problem dimensions
+    def python_dimensions(self):
         yield "p, m, n = %d, %d, %d" % (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
 
     # function to get cone dimensions
-    def python_dimensions(self):
+    def python_cone_sizes(self):
         def cone_tuple_to_str(x):
             num, sz = x
             if num == 1: return "[%s]" % sz
@@ -58,13 +58,13 @@ class PythonCodegen(Codegen):
         # self.prob2socp.newline()
 
         # set up the data structures
-        self.prob2socp.add_lines(self.python_cone_sizes())
+        self.prob2socp.add_lines(self.python_dimensions())
         self.prob2socp.add_lines("c = np.zeros((n,))")
         self.prob2socp.add_lines("h = np.zeros((m,))")
         self.prob2socp.add_lines("b = np.zeros((p,))")
         self.prob2socp.add_lines("Gi, Gj, Gv = [], [], []")
         self.prob2socp.add_lines("Ai, Aj, Av = [], [], []")
-        self.prob2socp.add_lines(self.python_dimensions())
+        self.prob2socp.add_lines(self.python_cone_sizes())
 
     def functions_return(self, program_node):
         # TODO: what to do when m, n, or p is 0?

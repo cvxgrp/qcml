@@ -48,7 +48,8 @@ python_objects = [
     (Range(3, 6, 2), "xrange(3, 6, 2)", [3,5]),
     (Repeat(ScalarParameterCoeff('h'), 6), "itertools.repeat(params['h'], 6)", 6*[7]),
     (Repeat("elem", 5), "itertools.repeat(elem, 5)", 5*[2.3]),
-    (Assign("tmp", AddCoeff(ParameterCoeff('A'), ParameterCoeff('B'))), "tmp = sp.coo_matrix(params['A'] + params['B'])", np.array([[1.,2,3],[4,5,6]]))
+    (Assign("tmp", AddCoeff(ParameterCoeff('A'), ParameterCoeff('B'))), "tmp = sp.coo_matrix(params['A'] + params['B'])", np.array([[1.,2,3],[4,5,6]])),
+    (NNZ(ParameterCoeff('A')), "params['A'].nnz", 4)
 ]
 
 

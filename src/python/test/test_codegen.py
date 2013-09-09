@@ -3,7 +3,6 @@ Tests that function prototypes are properly generated. Does not check that
 the function body is properly generated.
 
 Should be able to run generated Makefile without any errors (except warnings).
-This file does not test that the generated Makefile will properly execute.
 """
 import os, shutil, subprocess
 

@@ -67,4 +67,8 @@ class Assign(Code):
         self.lhs = lhs
         self.rhs = rhs
         super(Assign, self).__init__()
-    
+
+class NNZ(Code):
+    def __init__(self, obj):
+        self.obj = obj
+        super(NNZ, self).__init__()

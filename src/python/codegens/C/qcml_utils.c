@@ -1,5 +1,26 @@
 #include <stdlib.h>
 #include "qcml_utils.h"
+
+/* free a qc_socp structure */
+void *qc_socp_free(qc_socp *data)
+{
+  if(data) {
+    if (data->q) free(data->q);
+    if (data->Gx) free(data->Gx);
+    if (data->Gp) free(data->Gp);
+    if (data->Gi) free(data->Gi);
+    if (data->Ai) free(data->Ai);
+    if (data->Ap) free(data->Ap);
+    if (data->Ai) free(data->Ai);
+    if (data->c) free(data->c);
+    if (data->h) free(data->h);
+    if (data->b) free(data->b);
+    free(data);
+  }
+  return NULL;
+}
+
+
 //
 // private utility functions
 // duplicates (some) SuiteSparse csparse functionality

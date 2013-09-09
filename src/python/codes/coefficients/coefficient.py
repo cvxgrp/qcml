@@ -25,6 +25,7 @@ class CoeffExpr(code.Code):
     # for vertical slicing
     def slice(self, begin, end): return codegen_slice(self, begin, end)
 
+    def nnz(self): return ""
     def to_sparse(self): return ""
     def I(self, row_offset, stride=1): return ""
     def J(self, col_offset, stride=1): return ""
@@ -37,6 +38,7 @@ class ConstantCoeff(CoeffExpr):
         self.isscalar = True
         self.is_matrix_param = False
 
+    def nnz(self): return "1"
     def I(self, row_offset, stride=1): return code.Just(row_offset)
     def J(self, col_offset, stride=1): return code.Just(col_offset)
     def V(self): return code.Just(self.value)
@@ -48,6 +50,7 @@ class ParameterCoeff(CoeffExpr):
         self.isscalar = False
         self.is_matrix_param = True
 
+    def nnz(self): return code.NNZ(self)
     def to_sparse(self): return code.Assign(self, self)
     def I(self, row_offset, stride=1): return code.LoopRows(self, row_offset, stride)
     def J(self, col_offset, stride=1): return code.LoopCols(self, col_offset, stride)
@@ -59,6 +62,7 @@ class ScalarParameterCoeff(ParameterCoeff):
         self.isscalar = True
         self.is_matrix_param = False
 
+    def nnz(self): return "1"
     def I(self, row_offset, stride=1): return code.Just(row_offset)
     def J(self, col_offset, stride=1): return code.Just(col_offset)
     def V(self): return code.Just(self.value)
@@ -70,6 +74,7 @@ class NegateCoeff(CoeffExpr):
         self.isscalar = arg.isscalar
         self.is_matrix_param = arg.is_matrix_param
 
+    def nnz(self): return self.arg.nnz()
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.I(row_offset, stride)
     def J(self, col_offset, stride=1): return self.arg.J(col_offset, stride)
@@ -84,6 +89,7 @@ class EyeCoeff(CoeffExpr):
         self.isscalar = False
         self.is_matrix_param = False
 
+    def nnz(self): return self.n
     def I(self, row_offset, stride=1): return code.Range(row_offset, row_offset + stride*self.n, stride)
     def J(self, col_offset, stride=1): return code.Range(col_offset, col_offset + stride*self.n, stride)
     def V(self): return code.Repeat(self.coeff, self.n)
@@ -98,7 +104,9 @@ class OnesCoeff(CoeffExpr):
         self.isknown = True
         self.isscalar = False
         self.is_matrix_param = False
-
+    
+    def nnz(self): return self.n
+    
     def I(self, row_offset, stride=1):
         if self.transpose:
             return code.Repeat(row_offset, self.n)
@@ -127,6 +135,7 @@ class AddCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
+    def nnz(self): return code.NNZ("result")
     def to_sparse(self): return code.Assign("result", self)
     def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
     def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
@@ -140,6 +149,7 @@ class MulCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
+    def nnz(self): return code.NNZ("result")
     def to_sparse(self): return code.Assign("result", self)
     def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
     def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
@@ -153,6 +163,7 @@ class TransposeCoeff(CoeffExpr):
         self.isscalar = arg.isscalar
         self.is_matrix_param = arg.is_matrix_param
 
+    def nnz(self): return self.arg.nnz()
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.J(row_offset, stride)
     def J(self, col_offset, stride=1): return self.arg.I(col_offset, stride)
@@ -214,6 +225,10 @@ def codegen_mul(x,y):
         return y
     if isinstance(y,ConstantCoeff) and y.value == 1:
         return x
+    if isinstance(x,ConstantCoeff) and x.value == -1:
+        return -y
+    if isinstance(y,ConstantCoeff) and y.value == -1:
+        return -x
 
     if isinstance(x,EyeCoeff) and y.isknown and y.isscalar:
         return EyeCoeff(x.n, x.coeff * y)
@@ -230,8 +245,10 @@ def codegen_mul(x,y):
         # x*I = x
         return x
     if isinstance(x,EyeCoeff) and isinstance(x.coeff, ConstantCoeff) and x.coeff.value == -1:
+        # -I*x = -x
         return -y
     if isinstance(y,EyeCoeff) and isinstance(y.coeff, ConstantCoeff) and y.coeff.value == -1:
+        # x*-I = -x
         return -x
     if isinstance(x,OnesCoeff) and x.transpose and isinstance(y,OnesCoeff) and not y.transpose:
         # ones^T ones

@@ -35,9 +35,12 @@ def just(elem):
 
 def loop(ijv):
     def to_str(x):
+        matrix = toPython(x.matrix)
         if hasattr(x, 'offset') and hasattr(x, 'stride'):
-            return "(%d + %d*idx for idx in %s.%s)" % (x.offset, x.stride, toPython(x.matrix), ijv)
-        return "(%s for v in %s.%s)" % (x.op % "v", toPython(x.matrix), ijv)
+            if x.offset == 0 and x.stride == 1:
+                return "(idx for idx in %s.%s)" % (matrix, ijv)
+            return "(%d + %d*idx for idx in %s.%s)" % (x.offset, x.stride, matrix, ijv)
+        return "(%s for v in %s.%s)" % (x.op % "v", matrix, ijv)
     return to_str
 
 def _range(x):
@@ -48,6 +51,9 @@ def repeat(x):
 
 def assign(x):
     return "%s = sp.coo_matrix(%s)" % (toPython(x.lhs), toPython(x.rhs))
+
+def nnz(x):
+    return "%s.nnz" % (toPython(x.obj))
     
 lookup = {
     ConstantCoeff: constant,
@@ -66,6 +72,7 @@ lookup = {
     Range: _range,
     Repeat: repeat,
     Assign: assign,
+    NNZ: nnz,
     str: lambda x: x,
     int: lambda x: str(x)
 }

@@ -33,6 +33,11 @@ def write_template(template_file, new_file, code):
         for line in template:
             output.write(line % (code))
 
+def shape_to_c_type(x):
+    if shape.isscalar(x): return "double"
+    if shape.isvector(x): return "double *"
+    if shape.ismatrix(x): return "qc_matrix *"
+    raise Exception("Unknown shape...")
 
 class C_Codegen(RestrictedMultiply):
     """ This produces two functions and a header file.
@@ -43,13 +48,14 @@ class C_Codegen(RestrictedMultiply):
         self.sparsity_patterns = sparsity_pattern   
         self.name = name
 
+        # functions we are going to generate
         self.__prob2socp = CFunction("qc_%s2socp" % self.name, 
-            arguments = ["const %s_params * prob" % self.name], 
+            arguments = ["const %s_params * params" % self.name], 
             ret_type="qc_socp *")
         self.__socp2prob = CFunction("qc_socp2%s" % self.name, 
-            arguments = ["const double * x"], 
-            ret_type="%s_vars *" % self.name)
+            arguments = ["double * x", "%s_vars * vars" % self.name])
         
+        # get the paths to the template files
         template_path = os.path.dirname(__file__)
         path = os.getcwd()
         
@@ -63,7 +69,17 @@ class C_Codegen(RestrictedMultiply):
         self.makefile = "%(new_dir)s/Makefile" % vars()
         self.source_file = "%(new_dir)s/%(name)s.c" % vars()
         self.header_file = "%(new_dir)s/%(name)s.h" % vars()
-
+        
+        # parameters and variables in the optimization problem
+        self.params = ""
+        self.variables = ""
+        self.indent = self.__prob2socp.indent   # set our indent spacing
+        
+        # keep track of the total nonzeros in each matrix
+        self.nnz = {'G': [], 'A': []}
+        
+        # keep track of the problem dimension
+        self.size_lookup = {'m': 0, 'n': 0, 'p': 0}
 
     @property
     def prob2socp(self): return self.__prob2socp
@@ -81,8 +97,9 @@ class C_Codegen(RestrictedMultiply):
         # populate the dict needed for codegen
         codegen_dict = {
             'name': self.name,
-            'params': '  double *A;\n  double c;',
-            'variables': '  double *x;\n  double y;',
+            'NAME': self.name.upper(),
+            'params': self.params,
+            'variables': self.variables,
             'prob2socp': self.__prob2socp.source,
             'socp2prob': self.__socp2prob.source,
             'prob2socp_prototype': self.__prob2socp.prototype,
@@ -98,104 +115,207 @@ class C_Codegen(RestrictedMultiply):
         write_template(self.header_file_template, self.header_file, codegen_dict)
         write_template(self.source_file_template, self.source_file, codegen_dict)
         
-    # function to get cone sizes
-    def python_cone_sizes(self):
-        yield "p, m, n = %d, %d, %d" % (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
+    # generator to get cone sizes
+    def c_dimensions(self):
+        self.size_lookup['m'] = self.num_conic + self.num_lps
+        self.size_lookup['n'] = self.num_vars
+        self.size_lookup['p'] = self.num_lineqs
+        yield "data->p = %d;" % self.num_lineqs
+        yield "data->m = %d;" % (self.num_conic + self.num_lps)
+        yield "data->n = %d;" % self.num_vars
 
-    # function to get cone dimensions
-    def python_dimensions(self):
-        def cone_tuple_to_str(x):
-            num, sz = x
-            if num == 1: return "[%s]" % sz
-            else: return "%s*[%s]" % (num, sz)
-        cone_list_str = '[]'
-        if self.cone_list:
-            cone_list_str = map(cone_tuple_to_str, self.cone_list)
-            cone_list_str = '+'.join(cone_list_str)
+    # generator to get cone dimensions
+    def c_cone_sizes(self):
+        num_cone, cone_size = zip(*self.cone_list)
+        
+        yield "data->l = %d;" % self.num_lps
+        yield "data->nsoc = %d;" % sum(num_cone)
+        if num_cone == 0:
+            yield "data->q = NULL;"
+        else:
+            yield "data->q = malloc(data->nsoc * sizeof(long));"
+            yield "if(!data->q) return qc_socp_free(data);"
+            yield ""
+            yield "// initialize the cone"
+            yield "q_ptr = data->q;"
+            for num, sz in self.cone_list:
+                if num == 1: yield "*q_ptr++ = %s;" % sz
+                else: yield "for(i = 0; i < %d; ++i) *q_ptr++ = %s;" % (num, sz)
+        
+    # function to get parameters
+    def c_params(self, program_node):
+        return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in program_node.parameters.iteritems()]
+    
+    # function to get variables
+    def c_variables(self, program_node):
+        return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in program_node.variables.iteritems()]
 
-        yield "dims = {'l': %d, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
+    # generator to allocate socp data structures
+    def c_allocate_socp(self):
+        yield "qc_socp * data = calloc(1, sizeof(qc_socp));"
+        yield "if (!data) return qc_socp_free(data);"
+    
+    # generator to allocate vectors
+    def c_allocate_vector(self, vector, size):
+        if self.size_lookup[size] == 0:
+            yield "data->%s = NULL;" % vector
+        else:
+            yield "data->%s = calloc(data->%s, sizeof(double));" % (vector, size)
+            yield "if (!data->%s) return qc_socp_free(data);" % (vector)
+    
+    def c_allocate_matrix(self, matrix):
+        const = sum(int(x) for x in self.nnz[matrix] if x.isdigit())
+        size = ' + '.join(x for x in self.nnz[matrix] if not x.isdigit())
+        if const > 0: size = "%s + %d" % (size, const)
+        
+        if const > 0 or size:
+            yield "long nnz%s = %s;" % (matrix, size)
+            yield "data->%(matrix)sx = malloc(nnz%(matrix)s * sizeof(double));" % {'matrix': matrix}
+            yield "data->%(matrix)sp = malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}
+            yield "data->%(matrix)si = malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}
+            yield "if ((!data->%(matrix)sx) || (!data->%(matrix)sp) || (!data->%(matrix)si)) return qc_socp_free(data);" % {'matrix': matrix}
+        else:
+            yield "long nnz%s = 0;" % (matrix)
+            yield "data->%sx = NULL;" % (matrix) 
+            yield "data->%sp = NULL;" % (matrix) 
+            yield "data->%si = NULL;" % (matrix)
+        yield "%(matrix)s_data_ptr = data->%(matrix)sx;" % {'matrix': matrix}
+        yield "%(matrix)s_row_ptr = data->%(matrix)si;" % {'matrix': matrix}
+        yield "%(matrix)s_col_ptr = data->%(matrix)sp;" % {'matrix': matrix}
+    
+    def c_setup_qc_matrix(self, matrix):
+        if self.nnz[matrix]:
+            yield "qc_matrix *%s_coo = malloc(sizeof(qc_matrix));" % matrix
+            yield "if (!%s_coo) return qc_socp_free(data);" % matrix
+            yield "%s_coo->m = data->m; %s_coo->n = data->n; %s_coo->nnz = nnz%s;" % (matrix, matrix, matrix, matrix)
+            yield "%s_coo->i = data->%si;" % (matrix, matrix)
+            yield "%s_coo->j = data->%sp;" % (matrix, matrix)
+            yield "%s_coo->v = data->%sx;" % (matrix, matrix)
+    
+    def c_compress(self, matrix):
+        if self.nnz[matrix]:
+            yield "qc_matrix *%s_csc = qc_compress(%s_coo);" % (matrix, matrix)
+            yield "if (!%s_csc) return qc_socp_free(data);" % matrix
+            yield ""
+            yield "// free the old memory"
+            yield "qc_spfree(%s_coo);" % matrix
+            yield ""
+            yield "// reassign into data, pointer now owned by data"
+            yield "data->%si = %s_csc->i;" % (matrix, matrix)
+            yield "data->%sp = %s_csc->j;" % (matrix, matrix)
+            yield "data->%sx = %s_csc->v;" % (matrix, matrix)
+    
+    def c_recover(self, program):
+        for k,v in program.variables.iteritems():
+            if shape.isscalar(v): 
+                yield "vars->%s = *(x + %s);" % (k, self.varstart[k])
+            else: 
+                yield "vars->%s = x + %s;  // length %s" % (k, self.varstart[k], self.varlength[k]) 
+        
 
     def functions_setup(self, program_node):
         # add some documentation
-        self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
+        self.prob2socp.document("maps 'params' into the C socp data type")
         self.prob2socp.document("'params' ought to contain:")
         shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
         self.prob2socp.document(shapes)
-
-        # now import cvxopt and itertools
-        self.prob2socp.add_lines("import numpy as np")
-        self.prob2socp.add_lines("import scipy.sparse as sp")
-        self.prob2socp.add_lines("import itertools")
         self.prob2socp.newline()
-        # self.prob2socp.add_comment("convert possible numpy parameters to cvxopt matrices")
-        # self.prob2socp.add_lines("from qcml.helpers import convert_to_cvxopt")
-        # self.prob2socp.add_lines("params = convert_to_cvxopt(params)")
-        # self.prob2socp.newline()
+        
+        self.params = '\n'.join(self.c_params(program_node))
+        self.variables = '\n'.join(self.c_variables(program_node))
+
+        self.prob2socp.add_comment("local variables")
+        self.prob2socp.add_lines("long i;  // loop index")
+        self.prob2socp.add_lines("long *q_ptr;")
+        self.prob2socp.add_lines("long *A_row_ptr, *A_col_ptr;")
+        self.prob2socp.add_lines("long *G_row_ptr, *G_col_ptr;")
+        self.prob2socp.add_lines("double *A_data_ptr, *G_data_ptr;")
+        self.prob2socp.newline()
+        self.prob2socp.add_comment("allocate socp data structure")
+        self.prob2socp.add_lines(self.c_allocate_socp())
+        self.prob2socp.newline()
 
         # set up the data structures
-        self.prob2socp.add_lines(self.python_cone_sizes())
-        self.prob2socp.add_lines("c = np.zeros((n,))")
-        self.prob2socp.add_lines("h = np.zeros((m,))")
-        self.prob2socp.add_lines("b = np.zeros((p,))")
-        self.prob2socp.add_lines("Gi, Gj, Gv = [], [], []")
-        self.prob2socp.add_lines("Ai, Aj, Av = [], [], []")
-        self.prob2socp.add_lines(self.python_dimensions())
+        self.prob2socp.add_comment("allocate problem dimensions")
+        self.prob2socp.add_lines(self.c_dimensions())
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate c vector")
+        self.prob2socp.add_lines(self.c_allocate_vector("c", "n"))
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate h vector")
+        self.prob2socp.add_lines(self.c_allocate_vector("h", "m"))
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate b vector")
+        self.prob2socp.add_lines(self.c_allocate_vector("b", "p"))
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate G matrix")
+        self.prob2socp.add_lines(self.c_allocate_matrix("G"))
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate A matrix")        
+        self.prob2socp.add_lines(self.c_allocate_matrix("A"))
+        self.prob2socp.newline()
+        
+        self.prob2socp.add_comment("allocate the cone sizes")
+        self.prob2socp.add_lines(self.c_cone_sizes())
 
     def functions_return(self, program_node):
-        # TODO: what to do when m, n, or p is 0?
-        # it "just worked" with CVXOPT, but not with scipy/numpy anymore...
-        self.prob2socp.add_comment("construct index and value lists for G and A")
-        self.prob2socp.add_lines("Gi = np.fromiter(itertools.chain.from_iterable(Gi), dtype=np.int)")
-        self.prob2socp.add_lines("Gj = np.fromiter(itertools.chain.from_iterable(Gj), dtype=np.int)")
-        self.prob2socp.add_lines("Gv = np.fromiter(itertools.chain.from_iterable(Gv), dtype=np.double)")
-        self.prob2socp.add_lines("Ai = np.fromiter(itertools.chain.from_iterable(Ai), dtype=np.int)")
-        self.prob2socp.add_lines("Aj = np.fromiter(itertools.chain.from_iterable(Aj), dtype=np.int)")
-        self.prob2socp.add_lines("Av = np.fromiter(itertools.chain.from_iterable(Av), dtype=np.double)")
-        self.prob2socp.add_lines("if m > 0: G = sp.csc_matrix((Gv, np.vstack((Gi, Gj))), (m,n))")
-        self.prob2socp.add_lines("else: G, h = None, None")
-        self.prob2socp.add_lines("if p > 0: A = sp.csc_matrix((Av, np.vstack((Ai, Aj))), (p,n))")
-        self.prob2socp.add_lines("else: A, b = None, None")
-        self.prob2socp.add_lines("return {'c': c, 'G': G, 'h': h, 'A': A, 'b': b, 'dims': dims}")
+        self.prob2socp.add_comment("convert G and A ptrs into a qc_matrix")
+        # creates an object named "G_coo"
+        self.prob2socp.add_lines(self.c_setup_qc_matrix("G"))
+        # creates an object named "A_coo"
+        self.prob2socp.add_lines(self.c_setup_qc_matrix("A"))
+        self.prob2socp.newline()
+        self.prob2socp.add_comment("convert the matrices to column compressed form")
+        self.prob2socp.add_lines(self.c_compress("G"))
+        self.prob2socp.add_lines(self.c_compress("A"))
+        self.prob2socp.add_lines("return data;")
 
         self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
+        self.socp2prob.document("assumes the variables struct is externally allocated")
+        self.socp2prob.document("the user must keep track of the variable length;")
         # recover the old variables
-        recover = (
-            "'%s' : x[%s:%s]" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
-                for k in program_node.variables.keys()
-        )
-        self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
+        self.socp2prob.add_lines(self.c_recover(program_node))
 
     def stuff_c(self, start, end, expr):
-        yield "c[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+        yield "for(i = %s; i < %s; ++i) data->c[i] = %s;" % (start, end, encoder.toC(expr))
 
     def stuff_b(self, start, end, expr):
-        yield "b[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+        yield "for(i = %s; i < %s; ++i) data->b[i] = %s;" % (start, end, encoder.toC(expr))
 
     def stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
-            yield "h[%s:%s:%s] = %s" % (start, end, stride, encoder.toPython(expr))
+            yield "for(i = %s; i < %s; i+=%s) data->h[i] = %s;" % (start, end, stride, encoder.toC(expr))
         else:
-            yield "h[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+            yield "for(i = %s; i < %s; ++i) data->h[i] = %s;" % (start, end, encoder.toC(expr))
+            
+    
+    def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):
+        yield encoder.toC(expr.I(row_start, row_stride)) % ({'ptr': "%s_row_ptr" % matrix})
+        yield encoder.toC(expr.J(col_start)) % ({'ptr': "%s_col_ptr" % matrix})
+        yield encoder.toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
 
     def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
+        # execute this code first
+        self.nnz['G'].append(encoder.toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar:
-            expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        to_sparse = expr.to_sparse()
-        if to_sparse: yield encoder.toPython(to_sparse)
-        yield "Gi.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
-        yield "Gj.append(%s)" % encoder.toPython(expr.J(col_start))
-        yield "Gv.append(%s)" % encoder.toPython(expr.V())
+        if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
+                
+        # but then return this generator
+        return self.stuff_matrix("G", row_start, row_end, col_start, col_end, expr, row_stride)
 
     def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
+        # execute this code first
+        self.nnz['A'].append(encoder.toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar:
-            expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        to_sparse = expr.to_sparse()
-        if to_sparse: yield encoder.toPython(to_sparse)
-        yield "Ai.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
-        yield "Aj.append(%s)" % encoder.toPython(expr.J(col_start))
-        yield "Av.append(%s)" % encoder.toPython(expr.V())
+        if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
+        
+        # but then return this generator
+        return self.stuff_matrix("A", row_start, row_end, col_start, col_end, expr, row_stride)
 
     
     
