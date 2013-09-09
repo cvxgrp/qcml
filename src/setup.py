@@ -22,7 +22,7 @@ setup(
                 'qcml.test'],
     package_dir={'qcml': 'python'},
     package_data = {'qcml': 
-        ['codegens/C/*_template.*', 'codegens/C/qcml_utils.*']
+        ['codegens/C/*_template*', 'codegens/C/qcml_utils.*']
     },
         url='http://cvxgrp.github.io/qcml/',
     license='BSD',

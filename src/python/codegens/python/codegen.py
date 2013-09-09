@@ -12,8 +12,8 @@ def wrap_self(f):
 class PythonCodegen(Codegen):
     def __init__(self, dims):
         super(PythonCodegen, self).__init__(dims)
-        self.__prob2socp = PythonFunction("prob_to_socp")
-        self.__socp2prob = PythonFunction("socp_to_prob")
+        self.__prob2socp = PythonFunction("prob_to_socp", ["params"])
+        self.__socp2prob = PythonFunction("socp_to_prob", ["x"])
 
     @property
     def prob2socp(self):
@@ -41,10 +41,6 @@ class PythonCodegen(Codegen):
         yield "dims = {'l': %d, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
 
     def functions_setup(self, program_node):
-        # add the arguments to the function
-        self.prob2socp.add_arguments("params")
-        self.socp2prob.add_arguments("x")
-
         # add some documentation
         self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
         self.prob2socp.document("'params' ought to contain:")

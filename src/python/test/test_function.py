@@ -1,6 +1,6 @@
-from qcml.codegens.function import PythonFunction, MatlabFunction, CFunction
+from qcml.codes.function import PythonFunction, MatlabFunction, CFunction
 
-py_helloWorld = PythonFunction("hello")
+py_helloWorld = PythonFunction("hello", arguments=["x", "y", "z", "a"])
 py_hello = """def hello(x, y, z, a):
     # documenting the function
     # this function just tests
@@ -15,8 +15,9 @@ py_hello = """def hello(x, y, z, a):
     c = x + y + z
     a = 1"""
 
-c_helloWorld = CFunction("hello", ret_type="int")
-c_hello = """int hello(x, y, z, a) {
+c_helloWorld = CFunction("hello", arguments=["x", "y", "z", "a"], ret_type="int")
+c_hello = """int hello(x, y, z, a)
+{
     // documenting the function
     // this function just tests
     // that hello world
@@ -31,7 +32,7 @@ c_hello = """int hello(x, y, z, a) {
     a = 1
 }"""
 
-matlab_helloWorld = MatlabFunction("hello", ret_args=["a", "b", "c"])
+matlab_helloWorld = MatlabFunction("hello", arguments=["x", "y", "z", "a"], ret_args=["a", "b", "c"])
 matlab_hello = """function [a, b, c] = hello(x, y, z, a)
     % documenting the function
     % this function just tests
@@ -58,16 +59,10 @@ def test_comment():
     assert(py_helloWorld.comment == '#')
     assert(c_helloWorld.comment == '//')
 
-
 def string_gen():
     yield "this function just tests"
     yield "that hello world"
     yield "really works as expected"
-
-def arg_gen():
-    yield "x"
-    yield "y"
-    yield "z"
 
 def code_gen():
     yield "c = x + y + z"
@@ -82,9 +77,6 @@ def source_match(func_obj, expected):
 
     func_obj.add_comment("hello world")
     func_obj.add_comment(string_gen())
-
-    func_obj.add_arguments(arg_gen())
-    func_obj.add_arguments("a")
 
     func_obj.add_lines("print 'hello world'")
     func_obj.add_lines(code_gen())

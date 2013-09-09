@@ -1,14 +1,8 @@
-#include "%(name)s.h"
 #include <stdlib.h>
+#include "%(name)s.h"
 
 // ----------------------- BEGIN GENERATED CODE ------------------------------
-qc_socp *qc_%(name)s2socp(const %(name)s_params *prob)
-{
-  return NULL;
-}
+%(prob2socp)s
 
-%(name)s_vars *qc_socp2%(name)s(const double *x)
-{
-  return NULL;
-}
+%(socp2prob)s
 // ------------------------ END GENERATED CODE -------------------------------

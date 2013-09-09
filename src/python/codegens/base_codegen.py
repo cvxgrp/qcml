@@ -112,9 +112,6 @@ class Codegen(NodeVisitor):
         # create the source code
         self.prob2socp.create()
         self.socp2prob.create()
-        # return the function object
-        return {'prob2socp': self.prob2socp, 'socp2prob': self.socp2prob}
-
 
     def visit_Program(self, node):
         if self.dims is None:

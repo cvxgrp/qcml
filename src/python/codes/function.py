@@ -19,13 +19,12 @@ class Function(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, comment_string):
+    def __init__(self, name, prototype, comment_string):
         self.name = name
         self.__generated = False
         self.__source = ""          # generated source code
-        self.__numbered_source = "" # numbered source code (for debugging)
 
-        self.__arguments = []       # list of arguments
+        self.prototype = prototype  # function prototype
         self.__documentation = []   # list of generators
         self.__body = []            # list of generators
 
@@ -50,8 +49,8 @@ class Function(object):
 
     @property
     def numbered_source(self):
-        if not self.__generated: self.create()
-        return self.__numbered_source
+        source = iter(self.source.splitlines())
+        return '\n'.join("{:<4} {:}".format(lineno+1, line) for lineno, line in enumerate(source))
 
     def document(self, lines):
         """ Adds a line or lines of documentation
@@ -69,14 +68,6 @@ class Function(object):
         else:
             raise Exception("Function add_lines: Cannot add lines to already generated function.")
 
-    def add_arguments(self, arguments):
-        """ Add an argument or arguments to the function
-        """
-        if not self.__generated:
-            self.__arguments.append(iterable_line(arguments))
-        else:
-            raise Exception("Function add_arguments: Cannot add arguments to already generated function.")
-
     def newline(self):
         """ Adds a new line to the source code
         """
@@ -92,30 +83,30 @@ class Function(object):
 
     def create(self):
         if not self.__generated:
-            self.generate_source()
+            documentation = list(chain.from_iterable(self.__documentation))
+            body = list(chain.from_iterable(self.__body))
+            self.__source = self._generate_source(documentation, body)
             self.__generated = True
 
     @abstractmethod
-    def generate_source(self):
+    def _generate_source(self, documentation, body):
         pass
-
+    
 class PythonFunction(Function):
-    def __init__(self, name, *args, **kwargs):
-        super(PythonFunction, self).__init__(name, comment_string = '#', *args, **kwargs)
-
-    def generate_source(self):
-        arguments = list(chain.from_iterable(self._Function__arguments))
-        documentation = list(chain.from_iterable(self._Function__documentation))
-        body = list(chain.from_iterable(self._Function__body))
-        prototype = ["def {:}({:}):".format(self.name, ', '.join(arguments))]
-        code = prototype + documentation + body
-
-        self._Function__source = '\n'.join(code)
-        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno+1, line) for lineno, line in enumerate(code))
+    def __init__(self, name, arguments = []):
+        prototype = "def {:}({:}):".format(name, ', '.join(arguments))
+        super(PythonFunction, self).__init__(name, prototype, comment_string = '#')
+    
+    def _generate_source(self, documentation, body):
+        # attach the body; if no body, simply create an empty function
+        code = [self.prototype] + documentation + (body if body else ["%spass" % (self.indent)])
+        code_str = '\n'.join(code)
         
         # now create its bytecode
-        exec self._Function__source in vars()
+        exec code_str in vars()
         self.generated_func = vars()[self.name]
+        
+        return code_str
 
     def __call__(self, *args, **kwargs):
         if not self._Function__generated: self.create()
@@ -123,35 +114,21 @@ class PythonFunction(Function):
 
 
 class MatlabFunction(Function):
-    def __init__(self, name, ret_args, *args, **kwargs):
-        super(MatlabFunction, self).__init__(name, comment_string = '%', *args, **kwargs)
-        self.ret_args = ret_args
+    def __init__(self, name, arguments =[], ret_args = []):
+        prototype = "function [{:}] = {:}({:})".format(', '.join(ret_args), name, ', '.join(arguments))
+        super(MatlabFunction, self).__init__(name, prototype, comment_string = '%')
 
-    def generate_source(self):
-        arguments = list(chain.from_iterable(self._Function__arguments))
-        documentation = list(chain.from_iterable(self._Function__documentation))
-        body = list(chain.from_iterable(self._Function__body))
-        prototype = ["function [{:}] = {:}({:})".format(', '.join(self.ret_args), self.name, ', '.join(arguments))]
-        code = prototype + documentation + body + ["end"]
-
-        self._Function__source = '\n'.join(code)
-        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno, line) for lineno, line in enumerate(code))
+    def _generate_source(self, documentation, body):
+        code = [self.prototype] + documentation + body + ["end"]
+        return '\n'.join(code)
 
 
 class CFunction(Function):
-    def __init__(self, name, ret_type = "void", *args, **kwargs):
-        super(CFunction, self).__init__(name, comment_string = '//', *args, **kwargs)
-        self.ret_type = ret_type
+    def __init__(self, name, arguments = [], ret_type = "void", *args, **kwargs):
+        prototype = "{:} {:}({:})".format(ret_type, name, ', '.join(arguments))
+        super(CFunction, self).__init__(name, prototype, comment_string = '//')
 
-    def generate_source(self):
-        arguments = list(chain.from_iterable(self._Function__arguments))
-        documentation = list(chain.from_iterable(self._Function__documentation))
-        body = list(chain.from_iterable(self._Function__body))
-        prototype = ["{:} {:}({:}) {{".format(self.ret_type, self.name, ', '.join(arguments))]
-        code = prototype + documentation + body + ["}"]
-
-        self._Function__source = '\n'.join(code)
-        self._Function__numbered_source = '\n'.join("{:<4} {:}".format(lineno, line) for lineno, line in enumerate(code))
-
-
-
+    def _generate_source(self, documentation, body):
+        code = [self.prototype, "{"] + documentation + body + ["}"]
+        return '\n'.join(code)
+        

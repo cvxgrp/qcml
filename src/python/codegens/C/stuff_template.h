@@ -19,10 +19,7 @@ typedef struct sol {
 %(variables)s
 } %(name)s_vars;
 
-qc_socp *qc_%(name)s2socp(const %(name)s_params *prob);
-%(name)s_vars *qc_socp2%(name)s(const double *x);
-
-
-
-
+%(prob2socp_prototype)s;
+%(socp2prob_prototype)s;
+  
 #endif // __%(name)s__H__

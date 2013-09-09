@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     p.canonicalize()
     p.dims = {'n': n, 'm': m}
-    p.codegen("python")
+    p.codegen("C")
     print p.prob2socp.source
     socp_data = p.prob2socp(params=locals())
     import ecos
