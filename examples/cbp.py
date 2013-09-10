@@ -51,7 +51,7 @@ if __name__ == "__main__":
     
     raw_input("press ENTER to generate code....")
     p.dims = {'n': n, 'm': m}
-    p.codegen("python")
+    p.codegen("C", name = "cbp")
     
     #socp_data = p.prob2socp(params=locals())
     #import ecos

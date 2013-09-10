@@ -18,15 +18,17 @@ py_hello = """def hello(x, y, z, a):
 c_helloWorld = CFunction("hello", arguments=["x", "y", "z", "a"], ret_type="int")
 c_hello = """int hello(x, y, z, a)
 {
-    // documenting the function
-    // this function just tests
-    // that hello world
-    // really works as expected
+    /*
+     * documenting the function
+     * this function just tests
+     * that hello world
+     * really works as expected
+     */
 
-    // hello world
-    // this function just tests
-    // that hello world
-    // really works as expected
+    /* hello world */
+    /* this function just tests */
+    /* that hello world */
+    /* really works as expected */
     print 'hello world'
     c = x + y + z
     a = 1
@@ -57,7 +59,7 @@ def test_indent():
 def test_comment():
     # '#' comment in pyhton
     assert(py_helloWorld.comment == '#')
-    assert(c_helloWorld.comment == '//')
+    assert(c_helloWorld.comment == '/* %s */')
 
 def string_gen():
     yield "this function just tests"
@@ -81,8 +83,8 @@ def source_match(func_obj, expected):
     func_obj.add_lines("print 'hello world'")
     func_obj.add_lines(code_gen())
 
-    print func_obj.source
-    print expected
+    print repr(func_obj.source)
+    print repr(expected)
     assert(func_obj.source == expected)
 
 def test_source():

@@ -50,9 +50,12 @@ def compiles():
     try:
         with open(os.devnull, "w") as fnull:
             subprocess.check_call(["make", "-C", "test_problem"], stdout=fnull, stderr=fnull)
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         # compilation fails
         print "Generated (empty) C code unable to compile."
+        print C.prob2socp.source
+        print
+        print C.socp2prob.source
         assert False
     except OSError:
         # make is not installed

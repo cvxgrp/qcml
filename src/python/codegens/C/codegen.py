@@ -16,7 +16,7 @@ the matrix stuffing object.
 
 Links with ECOS library.
 """
-import os, shutil, site
+import os, shutil, site, math
 from .. mixins.restricted_multiply import RestrictedMultiply
 
 import qcml.expressions.expression as expression
@@ -136,7 +136,7 @@ class C_Codegen(RestrictedMultiply):
             yield "data->q = malloc(data->nsoc * sizeof(long));"
             yield "if(!data->q) return qc_socp_free(data);"
             yield ""
-            yield "// initialize the cone"
+            yield "/* initialize the cone */"
             yield "q_ptr = data->q;"
             for num, sz in self.cone_list:
                 if num == 1: yield "*q_ptr++ = %s;" % sz
@@ -197,10 +197,10 @@ class C_Codegen(RestrictedMultiply):
             yield "qc_matrix *%s_csc = qc_compress(%s_coo);" % (matrix, matrix)
             yield "if (!%s_csc) return qc_socp_free(data);" % matrix
             yield ""
-            yield "// free the old memory"
+            yield "/* free the old memory */"
             yield "qc_spfree(%s_coo);" % matrix
             yield ""
-            yield "// reassign into data, pointer now owned by data"
+            yield "/* reassign into data, pointer now owned by data */"
             yield "data->%si = %s_csc->i;" % (matrix, matrix)
             yield "data->%sp = %s_csc->j;" % (matrix, matrix)
             yield "data->%sx = %s_csc->v;" % (matrix, matrix)
@@ -210,7 +210,7 @@ class C_Codegen(RestrictedMultiply):
             if shape.isscalar(v): 
                 yield "vars->%s = *(x + %s);" % (k, self.varstart[k])
             else: 
-                yield "vars->%s = x + %s;  // length %s" % (k, self.varstart[k], self.varlength[k]) 
+                yield "vars->%s = x + %s;  /* length %s */" % (k, self.varstart[k], self.varlength[k]) 
         
 
     def functions_setup(self, program_node):
@@ -225,7 +225,7 @@ class C_Codegen(RestrictedMultiply):
         self.variables = '\n'.join(self.c_variables(program_node))
 
         self.prob2socp.add_comment("local variables")
-        self.prob2socp.add_lines("long i;  // loop index")
+        self.prob2socp.add_lines("long i;  /* loop index */")
         self.prob2socp.add_lines("long *q_ptr;")
         self.prob2socp.add_lines("long *A_row_ptr, *A_col_ptr;")
         self.prob2socp.add_lines("long *G_row_ptr, *G_col_ptr;")
@@ -264,6 +264,7 @@ class C_Codegen(RestrictedMultiply):
         self.prob2socp.add_lines(self.c_cone_sizes())
 
     def functions_return(self, program_node):
+        #self.prob2socp.add_lines("""for(i=0; i< 16; ++i) printf("%f ", data->Gx[i]);""")
         self.prob2socp.add_comment("convert G and A ptrs into a qc_matrix")
         # creates an object named "G_coo"
         self.prob2socp.add_lines(self.c_setup_qc_matrix("G"))
@@ -282,16 +283,25 @@ class C_Codegen(RestrictedMultiply):
         self.socp2prob.add_lines(self.c_recover(program_node))
 
     def stuff_c(self, start, end, expr):
-        yield "for(i = %s; i < %s; ++i) data->c[i] = %s;" % (start, end, encoder.toC(expr))
+        # TODO: i shouldn't have to check here....
+        if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
+        else: tag = "[i];"
+        yield "for(i = 0; i < %d; ++i) data->c[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
 
     def stuff_b(self, start, end, expr):
-        yield "for(i = %s; i < %s; ++i) data->b[i] = %s;" % (start, end, encoder.toC(expr))
+        # TODO: i shouldn't have to check here....
+        if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
+        else: tag = "[i];"
+        yield "for(i = 0; i < %d; ++i) data->b[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
 
     def stuff_h(self, start, end, expr, stride = None):
-        if stride is not None:
-            yield "for(i = %s; i < %s; i+=%s) data->h[i] = %s;" % (start, end, stride, encoder.toC(expr))
+        if expr.isscalar: tag = ";"
+        else: tag = "[i];"
+        if stride is not None and stride != 1:
+            numel = math.ceil( float(end - start) / stride )
+            yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, encoder.toC(expr), tag)
         else:
-            yield "for(i = %s; i < %s; ++i) data->h[i] = %s;" % (start, end, encoder.toC(expr))
+            yield "for(i = 0; i < %d; ++i) data->h[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
             
     
     def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):

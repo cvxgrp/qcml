@@ -9,6 +9,9 @@ from qcml.codes.code import *
     the evaluation of the ptr string until after the object has been turned
     into a string. Effectively, an object will be turned into a *format*
     string, instead of a string directly.
+    
+    TODO: this file is somewhat of a mess. but hopefully the new "parameter"
+    or coefficient approach will fix this.
 """
 
 def constant(x):
@@ -27,11 +30,14 @@ def scalar_parameter(x):
 def parameter(x):
     return "params->%s" % x.value
 
-negate = NotImplemented
+def negate(x):
+    return "-%s" % (toC(x.arg))
 
-add = NotImplemented
+def add(x):
+    raise Exception("Add not implemented.... %s + %s" % (x.left, x.right))
 
-mul = NotImplemented
+def mul(x):
+    raise Exception("Multiply not implemented.... %s * %s" % (x.left, x.right))
 
 def just(elem):
     return "*%%(ptr)s++ = %s;" % (elem.x)
@@ -49,12 +55,16 @@ def loop(ijv):
     return to_str
 
 def _range(x):
-    return "for(i = %d; i < %d; i+=%d) *%%(ptr)s++ = i;" % (x.start, x.end, x.stride)
+    if x.stride == 1:
+        return "for(i = %d; i < %d; ++i) *%%(ptr)s++ = i;" % (x.start, x.end)
+    else:
+        return "for(i = %d; i < %d; i+=%d) *%%(ptr)s++ = i;" % (x.start, x.end, x.stride)
 
 def repeat(x):
     return "for(i = 0; i < %d; ++i) *%%(ptr)s++ = %s;" % (x.n, toC(x.obj))
 
-assign = NotImplemented
+def assign(x):
+    raise Exception("Assignment not implemented.... %s = %s" % (x.lhs, x.rhs))
 
 def nnz(x):
     return "%s->nnz" % (toC(x.obj))

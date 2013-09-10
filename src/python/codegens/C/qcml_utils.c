@@ -21,10 +21,10 @@ void *qc_socp_free(qc_socp *data)
 }
 
 
-//
-// private utility functions
-// duplicates (some) SuiteSparse csparse functionality
-//
+/*
+ * private utility functions
+ * duplicates (some) SuiteSparse csparse functionality
+ */
 
 /* free a coo matrix */
 void *qc_spfree(qc_matrix *A)
@@ -47,7 +47,7 @@ qc_matrix *qc_spalloc (long m, long n, long nnz, int triplet)
   A->m = m ;                              /* define dimensions and nzmax */
   A->n = n ;
   A->nnz = triplet ? nnz : -1 ;
-  A->j = malloc (triplet ? nnz * sizeof(long) : n+1 * sizeof(long)) ;
+  A->j = malloc (triplet ? (nnz * sizeof(long)) : ((n+1) * sizeof(long))) ;
   A->i = malloc (nnz * sizeof (long)) ;
   A->v = malloc (nnz * sizeof (double)) ;
   return ((!A->v || !A->i || !A->j) ? qc_spfree(A) : A);
@@ -56,11 +56,12 @@ qc_matrix *qc_spalloc (long m, long n, long nnz, int triplet)
 /* p [0..n] = cumulative sum of c [0..n-1], and then copy p [0..n-1] into c */
 void cumsum (long *p, long *c, long n)
 {
-  // performs a cumulative sum; may overflow if exceed long storage (4GB
-  // worth of nonzerors)
-  //
-  // although could write c[i] += c[i-1], we don't. the extra workspace allows
-  // the compiler to optimize the code
+  /* performs a cumulative sum; may overflow if exceed long storage (4GB
+   * worth of nonzerors)
+   *
+   * although could write c[i] += c[i-1], we don't. the extra workspace allows
+   * the compiler to optimize the code
+   */
   long i, nz = 0 ;
   if (!p || !c) return ;          /* check inputs */
   for (i = 0 ; i < n ; i++)
@@ -74,7 +75,8 @@ void cumsum (long *p, long *c, long n)
 
 /* remove duplicate entries from A. doesn't realloc memory.
  * should only be called on coo matrix that is moonlighting as CSC matrix.
- * not publicly exposed, so it doesn't really matter. */
+ * not publicly exposed, so it doesn't really matter. 
+ */
 int remove_dup (qc_matrix *A)
 {
   long i, j, p, q, nz = 0, n, m, *Ap, *Ai, *w ;
@@ -122,7 +124,7 @@ qc_matrix *qc_compress (const qc_matrix *T)
   C = qc_spalloc(m, n, nnz, QC_CSC) ;    /* allocate memory for CSC format */
   if (!C) return NULL;
   
-  // create temporary workspace
+  /* create temporary workspace */
   w = calloc (n, sizeof(long));
   if (!w) {
     free(C->i);
@@ -134,6 +136,7 @@ qc_matrix *qc_compress (const qc_matrix *T)
   Cp = C->j ; Ci = C->i ; Cx = C->v ;
   for (k = 0 ; k < nnz ; k++) w [Tj [k]]++ ;          /* column counts */
   cumsum (Cp, w, n) ;                                 /* column pointers */
+
   for (k = 0 ; k < nnz ; k++)
   {
       Ci [p = w [Tj [k]]++] = Ti [k] ;   /* A(i,j) is the pth entry in C */

@@ -126,9 +126,23 @@ class MatlabFunction(Function):
 class CFunction(Function):
     def __init__(self, name, arguments = [], ret_type = "void", *args, **kwargs):
         prototype = "{:} {:}({:})".format(ret_type, name, ', '.join(arguments))
-        super(CFunction, self).__init__(name, prototype, comment_string = '//')
+        super(CFunction, self).__init__(name, prototype, comment_string = '/* %s */')
 
     def _generate_source(self, documentation, body):
+        if documentation: documentation = ["%s/*" % self.indent] + documentation + ["%s */" % self.indent]
         code = [self.prototype, "{"] + documentation + body + ["}"]
         return '\n'.join(code)
+    
+    def document(self, lines):
+        """ Adds a line or lines of documentation
+        """
+        if not self._Function__generated:
+            self._Function__documentation.append(("%s * %s" % (self.indent, line)).rstrip() for line in iterable_line(lines))
+        else:
+            raise Exception("Function document: Cannot add documentation to already generated function.")
+    
+    def add_comment(self, lines):
+        """ Adds comments lines to the source code
+        """
+        self.add_lines("/* %s */" % line for line in iterable_line(lines))
         

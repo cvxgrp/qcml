@@ -9,9 +9,9 @@
 # necessary.
 
 # which C compiler to use
-CC = cc
+CC = gcc
 # any compiler flags
-CFLAGS = -ansi -O3
+CFLAGS = -ansi
 
 .PHONY: all
 all: qcml_utils.o %(name)s.o
