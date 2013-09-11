@@ -1,3 +1,10 @@
+""" Everything in here goes with zero indexing.  It could have been one indexed,
+    except I wasn't sure if it was okay to make Just return 1 more than its arg.
+    Probably better not to do that.  So I left everything here 0 indexed and 
+    then add 1 to the Gi Gj Ai Aj when converting to compressed sparse format
+    in functions_return
+"""
+
 from encoder import create_encoder
 from qcml.codes.coefficients import *
 from qcml.codes.code import *
@@ -35,8 +42,11 @@ def just(elem):
     return "%s" % elem.x
 
 def loop_rows(x):
+    # FIXME: This would be cleaner if we ran a meshgrid (or just repmat as 
+    # below) in functions_setup and then could simply access, e.g. 
+    # params.name_rows
     mat = toMatlab(x.matrix)
-    ret = "repmat((1:size(%s,1))', size(%s,2), 1)" % (mat, mat)
+    ret = "repmat((0:size(%s,1)-1)', size(%s,2), 1)" % (mat, mat)
 
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
@@ -46,8 +56,9 @@ def loop_rows(x):
     return ret
 
 def loop_cols(x):
+    # FIXME: See loop_rows
     mat = toMatlab(x.matrix)
-    ret = "reshape(repmat(1:size(%s,2), size(%s,1), 1), [], 1)" % (mat, mat)
+    ret = "reshape(repmat(0:size(%s,2)-1, size(%s,1), 1)-1, [], 1)" % (mat, mat)
 
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
@@ -63,8 +74,8 @@ def loop_over(x):
     return "%s(:)" % toMatlab(x.matrix)
 
 def _range(x):
-    if x.stride == 1: return "%d:%d" % (x.start+1, x.end+1)
-    else:             return "%d:%d:%d" % (x.start+1, x.stride, x.end+1)
+    if x.stride == 1: return "(%d:%d)'" % (x.start, x.end-1)
+    else:             return "(%d:%d:%d)'" % (x.start, x.stride, x.end-1)
 
 def repeat(x):
     return "repmat(%s,%d,1)" % (toMatlab(x.obj), x.n)

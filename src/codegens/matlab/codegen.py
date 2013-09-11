@@ -1,50 +1,3 @@
-"""
-from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
-
-
-from qcml.properties.shape import Vector, Scalar
-import qcml.expressions.expression as expression
-import qcml.expressions.qc_ast as qc_ast
-
-from qcml.codes.coefficients import *
-
-def matlab_eye(self):
-    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
-        return "speye(%s,%s)" % (self.n, self.n)
-    else:
-        return "%s*speye(%s,%s)" % (self.coeff, self.n, self.n)
-
-def matlab_ones(self):
-    if self.transpose:
-        sz = "1,%s" % self.n
-    else:
-        sz = "%s,1" % self.n
-
-    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
-        return "ones(%s)" % sz
-    else:
-        return "%s*ones(%s)" % (self.coeff, sz)
-
-def matlab_trans(self):
-    return "(%s)'" % self.arg
-
-def matlab_slice(self):
-    if isinstance(self.arg, ParameterCoeff):
-        if self.transpose:
-            return "%s(:,%s+1:%s)'" % (self.arg, self.begin, self.end)
-        else:
-            return "%s(%s+1:%s,:)" % (self.arg, self.begin, self.end)
-    elif isinstance(self.arg, EyeCoeff):
-        h = self.end - self.begin
-        n = int(str(self.arg.n))
-        start = self.begin - 1
-        end = n - self.end
-        return "sparse(1:%s,%s+1:%s,%s, %s,%s)" % (h, self.begin, self.end, self.arg.coeff, h, self.arg.n)
-    else:
-        print type(self.arg)
-        raise Exception("Slice didn't do what I thought it would....")
-"""
-
 from .. base_codegen import Codegen
 from qcml.codes.function import MatlabFunction
 import qcml.codes.encoders as encoder
@@ -83,8 +36,8 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("dims.s = [];")
 
     def functions_return(self, program_node):
-        self.prob2socp.add_lines("A = sparse(Ai, Aj, Av);")
-        self.prob2socp.add_lines("G = sparse(Gi, Gj, Gv);")
+        self.prob2socp.add_lines("A = sparse(Ai+1, Aj+1, Av);")
+        self.prob2socp.add_lines("G = sparse(Gi+1, Gj+1, Gv);")
         self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims);")
 
         recover = (
@@ -94,10 +47,13 @@ class MatlabCodegen(Codegen):
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
 
     def stuff_vec(self, vec, start, end, expr, stride):
+        """ Stuffing here is 1 indexed, even though in matlab_encoder we stay
+            0 indexed.  Hopefully this can be cleaned up!
+        """
         if stride == 1:
-            yield "%s(%d:%d) = %s;" % (vec, start+1, end+1, encoder.toMatlab(expr))
+            yield "%s(%d:%d) = %s;" % (vec, start+1, end, encoder.toMatlab(expr))
         else:
-            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end+1, encoder.toMatlab(expr))
+            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, encoder.toMatlab(expr))
     
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)
@@ -121,7 +77,7 @@ class MatlabCodegen(Codegen):
     def stuff_G(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("G", r0, rend, c0, cend, expr, rstride)
 
-    """
+    """ OLD STUFF FROM MATLAB_CODEGEN CLASS
     def __init__(self, dims, cone_size=None):
         """ """
             cone_size
@@ -417,3 +373,50 @@ class MatlabCodegen(Codegen):
 
         super(MatlabCodegen,self).visit_SOCProd(node)
     """
+
+""" OLD STUFF FROM BEGINNING OF FILE
+from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
+
+
+from qcml.properties.shape import Vector, Scalar
+import qcml.expressions.expression as expression
+import qcml.expressions.qc_ast as qc_ast
+
+from qcml.codes.coefficients import *
+
+def matlab_eye(self):
+    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
+        return "speye(%s,%s)" % (self.n, self.n)
+    else:
+        return "%s*speye(%s,%s)" % (self.coeff, self.n, self.n)
+
+def matlab_ones(self):
+    if self.transpose:
+        sz = "1,%s" % self.n
+    else:
+        sz = "%s,1" % self.n
+
+    if isinstance(self.coeff, ConstantCoeff) and self.coeff.value == 1:
+        return "ones(%s)" % sz
+    else:
+        return "%s*ones(%s)" % (self.coeff, sz)
+
+def matlab_trans(self):
+    return "(%s)'" % self.arg
+
+def matlab_slice(self):
+    if isinstance(self.arg, ParameterCoeff):
+        if self.transpose:
+            return "%s(:,%s+1:%s)'" % (self.arg, self.begin, self.end)
+        else:
+            return "%s(%s+1:%s,:)" % (self.arg, self.begin, self.end)
+    elif isinstance(self.arg, EyeCoeff):
+        h = self.end - self.begin
+        n = int(str(self.arg.n))
+        start = self.begin - 1
+        end = n - self.end
+        return "sparse(1:%s,%s+1:%s,%s, %s,%s)" % (h, self.begin, self.end, self.arg.coeff, h, self.arg.n)
+    else:
+        print type(self.arg)
+        raise Exception("Slice didn't do what I thought it would....")
+"""
