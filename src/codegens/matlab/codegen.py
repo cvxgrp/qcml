@@ -61,6 +61,13 @@ class MatlabCodegen(Codegen):
     @property
     def socp2prob(self): return self.__socp2prob
 
+    def dimsq(self):
+        def cone_tuple_to_str(x):
+            num, sz = x
+            if num == 1: return str(sz)
+            else:        return "%s*ones(%s,1)" % (sz, num)
+        yield '; '.join(map(cone_tuple_to_str, self.cone_list))
+
     def functions_setup(self, program_node):
         self.prob2socp.document(self.printshapes(program_node))
 
@@ -72,6 +79,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("Gi = []; Gj = []; Gv = [];")
         self.prob2socp.add_lines("Ai = []; Aj = []; Av = [];")
         self.prob2socp.add_lines("dims.l = %d;" % l for l in self.dimsl)
+        self.prob2socp.add_lines("dims.q = [%s];" % q for q in self.dimsq())
         self.prob2socp.add_lines("dims.s = [];")
 
     def functions_return(self, program_node):
