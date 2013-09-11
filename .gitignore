@@ -1,9 +1,11 @@
 *.m~
 *.prob~
 *.pyc
+*.swp
 
 # python build folders
 src/build/*/
+build/*/
 
 # generated folders under TestProblems
 src/TestProblems/*/
