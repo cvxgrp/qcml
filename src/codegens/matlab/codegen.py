@@ -1,7 +1,6 @@
 """
 from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
-from .. base_codegen import Codegen
 
 from qcml.properties.shape import Vector, Scalar
 import qcml.expressions.expression as expression
@@ -46,6 +45,8 @@ def matlab_slice(self):
         raise Exception("Slice didn't do what I thought it would....")
 """
 
+from .. base_codegen import Codegen
+from qcml.codes.function import MatlabFunction
 import qcml.codes.encoders as encoder
 
 class MatlabCodegen(Codegen):
@@ -61,7 +62,7 @@ class MatlabCodegen(Codegen):
     def socp2prob(self): return self.__socp2prob
 
     def functions_setup(self, program_node):
-        self.prob2socp.document(printshapes(program_node))
+        self.prob2socp.document(self.printshapes(program_node))
 
         self.prob2socp.add_lines("p = %d; m = %d; n = %d" % (self.pmn))
         self.prob2socp.add_lines("c = zeros(n,1)")
@@ -101,17 +102,18 @@ class MatlabCodegen(Codegen):
         yield "%sj = [%sj %s]" % (mat, mat, encoder.toMatlab(expr.J(c0)))
         yield "%sv = [%sv %s]" % (mat, mat, encoder.toMatlab(expr.V()))
 
-    def stuff_A(self, mat, r0, rend, c0, cend, expr, rstride = 1):
+    def stuff_A(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("A", r0, rend, c0, cend, expr, rstride)
 
-    def stuff_G(self, mat, r0, rend, c0, cend, expr, rstride = 1):
+    def stuff_G(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("G", r0, rend, c0, cend, expr, rstride)
-"""
+
+    """
     def __init__(self, dims, cone_size=None):
-        """
+        """ """
             cone_size
                 fixed size of SOC cone. must be 3 or greater
-        """
+        """ """
         super(MatlabCodegen,self).__init__(dims)
 
         OnesCoeff.__str__ = matlab_ones
@@ -126,6 +128,7 @@ class MatlabCodegen(Codegen):
             self.cone_size = None
 
         self.new_soc_vars = 0
+    """
 
     # def visit_Program(self, node):
     #     # check to make sure dimensions are defined
@@ -283,6 +286,7 @@ class MatlabCodegen(Codegen):
 
         return expression.Slice(node, begin, end, 0)
 
+    """
     def visit_SOC(self, node):
         if self.cone_size is not None:
             # look at the size of the SOC
@@ -399,4 +403,4 @@ class MatlabCodegen(Codegen):
                     self.num_vars += node.shape.eval(self.dims).size()
 
         super(MatlabCodegen,self).visit_SOCProd(node)
-"""
+    """

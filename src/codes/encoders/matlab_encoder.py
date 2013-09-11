@@ -1,5 +1,6 @@
 from encoder import create_encoder
 from qcml.codes.coefficients import *
+from qcml.codes.code import *
 
 def constant(x):
     return str(x.value)
@@ -56,7 +57,7 @@ lookup = {
     ConstantCoeff:          constant,
     EyeCoeff:               eye,
     OnesCoeff:              ones,
-    TransCoeff:             trans,
+    TransposeCoeff:         trans,
     ParameterCoeff:         parameter,
     ScalarParameterCoeff:   parameter,
     NegateCoeff:            negate,
