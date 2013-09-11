@@ -1,0 +1,12 @@
+dimension n
+dimension m
+
+parameter A(m,n)
+parameter b(m)
+parameter lambda positive
+variable x(n)
+
+minimize square(norm(A*x - b)) + lambda*norm1(x)
+subject to
+  x >= 0
+

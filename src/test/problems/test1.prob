@@ -1,0 +1,11 @@
+variable x(2)
+parameter b
+parameter a(3,2)
+parameter c
+parameter lambda positive
+
+minimize sum(square(a*x - b)) + lambda*norm1(x)
+#
+# subject to
+#   x >= c
+#   c*x <= b

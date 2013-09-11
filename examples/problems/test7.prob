@@ -1,4 +1,4 @@
-dimension n = 3
+dimension n
 
 parameter a(3,1)
 

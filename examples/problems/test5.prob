@@ -1,5 +1,5 @@
-dimension n = 5
-dimension m = 10
+dimension n
+dimension m
 
 parameter A(m,n)
 parameter b(m)

@@ -20,14 +20,16 @@ setup(
                 'qcml.codes.encoders',
                 'qcml.codes.coefficients',
                 'qcml.test'],
-    package_dir={'qcml': 'python'},
+    package_dir={'qcml': 'src'},
     package_data = {'qcml': 
-        ['codegens/C/*_template*', 'codegens/C/qcml_utils.*']
+        ['codegens/C/*_template*', 
+         'codegens/C/qcml_utils.*',
+         'test/problems/*.prob']
     },
         url='http://cvxgrp.github.io/qcml/',
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',
-    long_description=open('../README.md').read(),
+    long_description=open('README.md').read(),
     requires = ["ply(>= 3.4)",
                 "ecos(>= 1.0.1)",
                 "numpy(>= 1.7)",
