@@ -1,4 +1,5 @@
-#from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
+"""
+from scoop.qc_ast import NodeVisitor, isscalar, RelOp, SOC, SOCProd
 
 from .. base_codegen import Codegen
 
@@ -43,8 +44,69 @@ def matlab_slice(self):
     else:
         print type(self.arg)
         raise Exception("Slice didn't do what I thought it would....")
+"""
+
+import qcml.codes.encoders as encoder
 
 class MatlabCodegen(Codegen):
+    def __init__(self, dims):
+        super(MatlabCodegen, self).__init__(dims)
+        self.__prob2socp = MatlabFunction("prob_to_socp", ["params"], ["data"])
+        self.__socp2prob = MatlabFunction("socp_to_prob", ["x"],      ["vars"])
+
+    @property
+    def prob2socp(self): return self.__prob2socp
+
+    @property
+    def socp2prob(self): return self.__socp2prob
+
+    def functions_setup(self, program_node):
+        self.prob2socp.document(printshapes(program_node))
+
+        self.prob2socp.add_lines("p = %d; m = %d; n = %d" % (self.pmn))
+        self.prob2socp.add_lines("c = zeros(n,1)")
+        self.prob2socp.add_lines("h = zeros(m,1)")
+        self.prob2socp.add_lines("b = zeros(p,1)")
+        self.prob2socp.add_lines("Gi = []; Gj = []; Gv = []")
+        self.prob2socp.add_lines("Ai = []; Aj = []; Av = []")
+        self.prob2socp.add_comment("TODO: cone sizes")
+
+    def functions_return(self, program_node):
+        self.prob2socp.add_lines("A = sparse(Ai, Aj, Av)")
+        self.prob2socp.add_lines("G = sparse(Gi, Gj, Gv)")
+        self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims)")
+
+        recover = (
+            "'%s', x(%s:%s)" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
+            for k in program_node.variables.keys()
+        )
+        self.socp2prob.add_lines("vars = struct(%s)" % ', '.join(recover))
+
+    def stuff_vec(self, vec, start, end, expr, stride):
+        yield "%s(%d:%d:%d) = %s" % (vec, start, stride, end, encoder.toMatlab(expr))
+    
+    def stuff_c(self, start, end, expr, stride = 1):
+        return self.stuff_vec("c", start, end, expr, stride)
+
+    def stuff_b(self, start, end, expr, stride = 1):
+        return self.stuff_vec("b", start, end, expr, stride)
+
+    def stuff_h(self, start, end, expr, stride = 1):
+        return self.stuff_vec("h", start, end, expr, stride)
+
+    def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
+        n = (rend - r0) / rstride
+        if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
+        yield "%si = [%si %s]" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
+        yield "%sj = [%sj %s]" % (mat, mat, encoder.toMatlab(expr.J(c0)))
+        yield "%sv = [%sv %s]" % (mat, mat, encoder.toMatlab(expr.V()))
+
+    def stuff_A(self, mat, r0, rend, c0, cend, expr, rstride = 1):
+        return self.stuff_matrix("A", r0, rend, c0, cend, expr, rstride)
+
+    def stuff_G(self, mat, r0, rend, c0, cend, expr, rstride = 1):
+        return self.stuff_matrix("G", r0, rend, c0, cend, expr, rstride)
+"""
     def __init__(self, dims, cone_size=None):
         """
             cone_size
@@ -337,3 +399,4 @@ class MatlabCodegen(Codegen):
                     self.num_vars += node.shape.eval(self.dims).size()
 
         super(MatlabCodegen,self).visit_SOCProd(node)
+"""
