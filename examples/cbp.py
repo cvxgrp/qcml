@@ -58,6 +58,10 @@ if __name__ == "__main__":
     raw_input("press ENTER to generate code....")
     p.dims = {'n': n, 'm': m}
     p.codegen(args.codegen)
+
+    raw_input("press ENTER for raw code....")
+    print p.prob2socp.source
+    print p.socp2prob.source
     
     #socp_data = p.prob2socp(params=locals())
     #import ecos
