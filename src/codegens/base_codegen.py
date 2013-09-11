@@ -122,7 +122,10 @@ class Codegen(NodeVisitor):
 
     @property
     def pmn(self):
-        return (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
+        yield (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
+
+    @property
+    def dimsl(self): yield self.num_lps
 
     def visit_Program(self, node):
         if self.dims is None:

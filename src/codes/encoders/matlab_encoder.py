@@ -32,21 +32,45 @@ def mul(x):
 
 def just(elem):
     # FIXME
-    return "just(%s)" % elem.x
+    return "%s" % elem.x
 
-def loop(ijv):
-    # FIXME
-    def to_str(x):
-        return "loop %s" % ijv
-    return to_str
+def loop_rows(x):
+    mat = toMatlab(x.matrix)
+    ret = "repmat((1:size(%s,1))', size(%s,2), 1)" % (mat, mat)
+
+    if hasattr(x, 'stride') and x.stride != 1:
+        ret = "%d*%s" % (x.stride, ret)
+    if hasattr(x, 'offset') and x.offset != 0:
+        ret = "%d + %s" % (x.offset, ret)
+
+    return ret
+
+def loop_cols(x):
+    mat = toMatlab(x.matrix)
+    ret = "reshape(repmat(1:size(%s,2), size(%s,1), 1), [], 1)" % (mat, mat)
+
+    if hasattr(x, 'stride') and x.stride != 1:
+        ret = "%d*%s" % (x.stride, ret)
+    if hasattr(x, 'offset') and x.offset != 0:
+        ret = "%d + %s" % (x.offset, ret)
+
+    return ret
+
+def loop_over(x):
+    # FIXME: This probably needs to be changed to ugly direct call to subsref
+    # to be able to handle situations where LoopOver includes an operation on 
+    # the matrix.
+    return "%s(:)" % toMatlab(x.matrix)
 
 def _range(x):
-    return "%d:%d:%d" % (x.start, x.stride, x.end)
+    if x.stride == 1: return "%d:%d" % (x.start+1, x.end+1)
+    else:             return "%d:%d:%d" % (x.start+1, x.stride, x.end+1)
 
 def repeat(x):
-    return "repmat(%s,1,%d)" % (toMatlab(x.obj), x.n)
+    return "repmat(%s,%d,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
+    # FIXME
     return "%s = sparse(%s)" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):
@@ -64,10 +88,10 @@ lookup = {
     AddCoeff:               add,
     MulCoeff:               mul,
     Just:                   just,
-    LoopRows:               loop("row"),
-    LoopCols:               loop("col"),
-    LoopOver:               loop("data"),
-    Range:                  _range,
+    LoopRows:               loop_rows,
+    LoopCols:               loop_cols,
+    LoopOver:               loop_over,
+    Range:                  _range, # "range" is reserved
     Repeat:                 repeat,
     Assign:                 assign,
     NNZ:                    nnz,

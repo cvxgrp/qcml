@@ -64,27 +64,32 @@ class MatlabCodegen(Codegen):
     def functions_setup(self, program_node):
         self.prob2socp.document(self.printshapes(program_node))
 
-        self.prob2socp.add_lines("p = %d; m = %d; n = %d" % (self.pmn))
-        self.prob2socp.add_lines("c = zeros(n,1)")
-        self.prob2socp.add_lines("h = zeros(m,1)")
-        self.prob2socp.add_lines("b = zeros(p,1)")
-        self.prob2socp.add_lines("Gi = []; Gj = []; Gv = []")
-        self.prob2socp.add_lines("Ai = []; Aj = []; Av = []")
-        self.prob2socp.add_comment("TODO: cone sizes")
+        # Add stuff to ensure that params are in columns not rows?
+        self.prob2socp.add_lines("p = %d; m = %d; n = %d" % v for v in self.pmn)
+        self.prob2socp.add_lines("c = zeros(n,1);")
+        self.prob2socp.add_lines("h = zeros(m,1);")
+        self.prob2socp.add_lines("b = zeros(p,1);")
+        self.prob2socp.add_lines("Gi = []; Gj = []; Gv = [];")
+        self.prob2socp.add_lines("Ai = []; Aj = []; Av = [];")
+        self.prob2socp.add_lines("dims.l = %d;" % l for l in self.dimsl)
+        self.prob2socp.add_lines("dims.s = [];")
 
     def functions_return(self, program_node):
-        self.prob2socp.add_lines("A = sparse(Ai, Aj, Av)")
-        self.prob2socp.add_lines("G = sparse(Gi, Gj, Gv)")
-        self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims)")
+        self.prob2socp.add_lines("A = sparse(Ai, Aj, Av);")
+        self.prob2socp.add_lines("G = sparse(Gi, Gj, Gv);")
+        self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims);")
 
         recover = (
             "'%s', x(%s:%s)" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
             for k in program_node.variables.keys()
         )
-        self.socp2prob.add_lines("vars = struct(%s)" % ', '.join(recover))
+        self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
 
     def stuff_vec(self, vec, start, end, expr, stride):
-        yield "%s(%d:%d:%d) = %s" % (vec, start, stride, end, encoder.toMatlab(expr))
+        if stride == 1:
+            yield "%s(%d:%d) = %s;" % (vec, start+1, end+1, encoder.toMatlab(expr))
+        else:
+            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end+1, encoder.toMatlab(expr))
     
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)
@@ -98,9 +103,9 @@ class MatlabCodegen(Codegen):
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
-        yield "%si = [%si %s]" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
-        yield "%sj = [%sj %s]" % (mat, mat, encoder.toMatlab(expr.J(c0)))
-        yield "%sv = [%sv %s]" % (mat, mat, encoder.toMatlab(expr.V()))
+        yield "%si = [%si; %s];" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
+        yield "%sj = [%sj; %s];" % (mat, mat, encoder.toMatlab(expr.J(c0)))
+        yield "%sv = [%sv; %s];" % (mat, mat, encoder.toMatlab(expr.V()))
 
     def stuff_A(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("A", r0, rend, c0, cend, expr, rstride)
