@@ -113,6 +113,20 @@ class Codegen(NodeVisitor):
         self.prob2socp.create()
         self.socp2prob.create()
 
+    def printshapes(self, program_node):
+        # for function documentation
+        return (
+            "  '%s' has shape %s" % (v, v.shape.eval(self.dims)) 
+            for v in program_node.parameters.values()
+        )
+
+    @property
+    def pmn(self):
+        yield (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
+
+    @property
+    def dimsl(self): yield self.num_lps
+
     def visit_Program(self, node):
         if self.dims is None:
             raise ValueError("Needed to define the dimensions of the code generator.")

@@ -69,7 +69,7 @@ lookup = {
     LoopRows: loop("row"),
     LoopCols: loop("col"),
     LoopOver: loop("data"),
-    Range: _range,
+    Range: _range, # "range" is reserved
     Repeat: repeat,
     Assign: assign,
     NNZ: nnz,
