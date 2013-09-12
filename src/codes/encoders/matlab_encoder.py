@@ -46,7 +46,7 @@ def loop_rows(x):
     # below) in functions_setup and then could simply access, e.g. 
     # params.name_rows
     mat = toMatlab(x.matrix)
-    ret = "repmat((0:size(%s,1)-1)', size(%s,2), 1)" % (mat, mat)
+    ret = "mod(find(%s)-1,size(%s,1))" % (mat, mat)
 
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
@@ -58,7 +58,7 @@ def loop_rows(x):
 def loop_cols(x):
     # FIXME: See loop_rows
     mat = toMatlab(x.matrix)
-    ret = "reshape(repmat(0:size(%s,2)-1, size(%s,1), 1)-1, [], 1)" % (mat, mat)
+    ret = "floor((find(%s)-1)/size(%s,1))" % (mat, mat)
 
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
@@ -71,7 +71,7 @@ def loop_over(x):
     # FIXME: This probably needs to be changed to ugly direct call to subsref
     # to be able to handle situations where LoopOver includes an operation on 
     # the matrix.
-    return "%s(:)" % toMatlab(x.matrix)
+    return "nonzeros(%s)" % (x.op % toMatlab(x.matrix))
 
 def _range(x):
     if x.stride == 1: return "(%d:%d)'" % (x.start, x.end-1)
