@@ -4,6 +4,7 @@ from codegens import PythonCodegen, \
     MatlabCodegen, \
     C_Codegen
 from helpers import profile, default_locals
+from errors import QC_DCPError
 
 class ParseState(object):
     """ Parse state enum.
@@ -34,6 +35,7 @@ class QCML(object):
     """
 
     def __init__(self, debug = False):
+        QCRewriter.varcount = 0 # reset varcount
         self.debug = debug
         self.state = ParseState.PARSE
 
@@ -54,7 +56,7 @@ class QCML(object):
         if self.debug: self.__problem_tree.show()
 
         if not self.__problem_tree.is_dcp:
-            raise Exception("QCML parse: The problem is not DCP compliant.")
+            raise QC_DCPError("QCML parse: The problem is not DCP compliant.")
             # TODO: if debug, walk the tree and find the problem
             self.__problem_tree = None
         else:

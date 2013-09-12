@@ -1,10 +1,8 @@
-import qcml.properties.sign as sign
-import qcml.properties.shape as shape
-import qcml.properties.curvature as curvature
+from qcml.properties import sign, shape, curvature
 import expression as e
 
 import operator
-import qcml
+# import qcml
 
 def is_constant_mul(expr):
     return isinstance(expr, Mul) and e.isnumber(expr.left)

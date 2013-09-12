@@ -1,6 +1,8 @@
-import ast
-from qcml.constraints.linear import LinearEquality, LinearInequality
+from .. node import Node
+from .. constraints import LinearEquality, LinearInequality
 import operator
+from abc import ABCMeta
+
 
 def isnumber(x):
     return isinstance(x, Number)
@@ -20,7 +22,8 @@ def _compare(x,y,op,op_str):
 
 # ===============================================
 
-class Expression(ast.Node):
+class Expression(Node):
+    __metaclass__ = ABCMeta
     """ Expression AST node.
 
         Abstract base class.
@@ -46,8 +49,13 @@ class Expression(ast.Node):
     def __le__(self, other): return _compare(self, other, operator.__le__, '<=')
 
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
+    
+    def info(self): 
+        if hasattr(self, 'value'): return "%s: %s, %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape, self.value)
+        else: return "%s: %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape)
+    
 
-class Leaf(ast.Node):
+class Leaf(Node):
     def __init__(self, value, **kwargs):
         self.value = value
         self.attr_names += ('value',)
@@ -60,18 +68,16 @@ class Leaf(ast.Node):
     def simplify(self): return self
 
     def canonicalize(self): return (self, [])
-
-class BinaryOperator(ast.Node):
+    
+class BinaryOperator(Node):
     def __init__(self, left, right, **kwargs):
         self.left = left
         self.right = right
         super(BinaryOperator, self).__init__(**kwargs)
 
     def children(self):
-        nodelist = []
-        if self.left is not None: nodelist.append(("left", self.left))
-        if self.right is not None: nodelist.append(("right", self.right))
-        return tuple(nodelist)
+        if self.left is not None: yield self.left
+        if self.right is not None: yield self.right
 
     def __str__(self): return '%s%s%s' % (self.left, self.OP_NAME, self.right)
 
@@ -124,15 +130,13 @@ class BinaryOperator(ast.Node):
         obj = self.OP_FUNC(lh_obj, rh_obj)
         return (obj, lh_constraints + rh_constraints)
 
-class UnaryOperator(ast.Node):
+class UnaryOperator(Node):
     def __init__(self, expr, **kwargs):
         self.expr = expr
         super(UnaryOperator, self).__init__(**kwargs)
 
     def children(self):
-        nodelist = []
-        if self.expr is not None: nodelist.append(("expr", self.expr))
-        return tuple(nodelist)
+        if self.expr is not None: yield self.expr
 
     def __str__(self):
         if self.IS_POSTFIX:

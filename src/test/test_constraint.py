@@ -1,20 +1,19 @@
-import qcml.constraints.linear as linear
-import qcml.constraints.soc as soc
+from qcml.ast.constraints import *
 
-import qcml.expressions.expression as expression
+from qcml.ast.expressions import Variable
 import qcml.properties.shape as shape
 
 
-x = expression.Variable('x', shape.Scalar())
-y = expression.Variable('y', shape.Vector(10))
-z = expression.Variable('z', shape.Scalar())
+x = Variable('x', shape.Scalar())
+y = Variable('y', shape.Vector(10))
+z = Variable('z', shape.Scalar())
 
 # check that the constructors work as expected
 cone_test = [
-    (linear.LinearInequality(x,y), 'x + -1*y <= 0'),
-    (linear.LinearEquality(x,z), 'x + -1*z == 0'),
-    (soc.SOC(x,[y, z]), 'norm([y; z]) <= x'),
-    (soc.SOCProd(y,[y, y]), 'norm(y, y) <= y')
+    (LinearInequality(x,y), 'x + -1*y <= 0'),
+    (LinearEquality(x,z), 'x + -1*z == 0'),
+    (SOC(x,[y, z]), 'norm([y; z]) <= x'),
+    (SOCProd(y,[y, y]), 'norm(y, y) <= y')
 ]
 
 def check(r,s):

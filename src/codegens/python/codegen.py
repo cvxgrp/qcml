@@ -1,5 +1,5 @@
 from .. base_codegen import Codegen
-from .. mixins.restricted_multiply import RestrictedMultiply
+from qcml.mixins.restrictive import Restrictive
 from qcml.codes.function import PythonFunction
 from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
 import qcml.codes.encoders as encoder

@@ -1,8 +1,6 @@
 import expression as e
 
-import qcml.properties.sign as sign
-import qcml.properties.shape as shape
-import qcml.properties.curvature as curvature
+from qcml.properties import sign, shape, curvature
 
 class Number(e.Expression, e.Leaf):
     """ Number AST node.

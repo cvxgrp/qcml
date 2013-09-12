@@ -1,8 +1,7 @@
-from qcml.expressions.ast import NodeVisitor
+from qcml.ast import NodeVisitor
+from qcml.ast.constraints import  SOC, SOCProd, LinearConstraint
 from qcml.properties.shape import isscalar
-from qcml.properties.curvature import isconstant
-from qcml.constraints.soc import SOC, SOCProd
-from qcml.constraints.linear import LinearConstraint
+from qcml.properties.curvature import isconstant 
 from qcml.codes.coefficients import *
 
 from abc import ABCMeta, abstractmethod, abstractproperty

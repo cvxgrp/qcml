@@ -1,10 +1,29 @@
-from qcml import QCML, QCError
+from qcml import QCML
+from qcml.errors import QC_ParseError, QC_DCPError
 from nose.tools import assert_raises
+import os
+
+""" Checks that the problems in the test/problems directory are either
+    properly parsed or throw the expected error. Also checks some simple
+    problems in this file.
+"""
+
+def get_filename(x):
+    return "%s/problems/test%s.prob" % (os.path.dirname(__file__),x)
+
+good_problems = map(get_filename, [1,2,5,6])
+nondcp_problems = map(get_filename, [3,4])
+syntax_error_problems = map(get_filename, [7,8])
 
 def parse(s):
-    p = QCML()
+    p = QCML(debug=True)
     p.parse(s)
-    pass
+    assert True # if we get here without error, we succeeded
+
+def check_problem(file):
+    with open(file, "r") as f:
+        prob = f.read()
+    parse(prob)
 
 keyword_list = [
     "variable x\n",
@@ -78,10 +97,22 @@ def test_problem():
     for problem in problem_list:
         yield parse, problem
 
+    for p in good_problems:
+        yield check_problem, p
+        
 def test_bad_problem():
     # ensure that these fail
     for problem in bad_problem_list:
-        yield assert_raises, QCError, parse, problem
+        yield assert_raises, QC_ParseError, parse, problem
+    
+    for p in nondcp_problems:
+        yield assert_raises, QC_DCPError, check_problem, p
+    
+    for p in syntax_error_problems:
+        yield assert_raises, QC_ParseError, check_problem, p
+
+    
+
 
     #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])
 

@@ -1,7 +1,7 @@
-import qcml.expressions.ast as ast
+from .. node import Node
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-class Constraint(ast.Node):
+class Constraint(Node):
     """ Constraint AST node.
 
         This node forms a constraint in the program.
@@ -35,10 +35,18 @@ class Constraint(ast.Node):
         return hash(str(self))
 
     def children(self):
-        nodelist = []
-        if self.right is not None: nodelist.append(("right", self.right))
-        if self.left is not None: nodelist.append(("left", self.left))
-        return tuple(nodelist)
+        if self.right is not None: yield self.right
+        if self.left is not None: 
+            if isinstance(self.left, list): 
+                for e in self.left: 
+                    if e is not None: 
+                        yield e
+            else:
+                yield self.left
+    
+    def info(self):
+        return "%s: %s, %s" % (self.__class__.__name__, self.is_dcp, self.shape)
+        
 
     @abstractmethod
     def canonicalize(self):

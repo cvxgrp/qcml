@@ -2,5 +2,6 @@
 # from types import MethodType
 # Scoop.generate = MethodType(g1.generate, None, Scoop)
 from qc_lang import QCML
-from qc_parser import QCError
+
+# TODO: this really shouldn't be here
 from qc_rewrite import QCRewriter

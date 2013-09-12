@@ -1,6 +1,5 @@
-import qcml.expressions.expression as e
-import qcml.properties.sign as sign
-import qcml.properties.curvature as curvature
+from .. expressions import expression as e
+from qcml.properties import sign, curvature
 
 atoms = {}
 
@@ -77,9 +76,8 @@ class Atom(e.Expression):
         return self
 
     def children(self):
-        nodelist = []
-        if self.args is not None: nodelist.append(("args", list(self.args)))
-        return tuple(nodelist)
+        for e in self.args:
+            if e is not None: yield e
 
 from qc_abs import *
 from qc_geo_mean import *

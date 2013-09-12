@@ -3,12 +3,19 @@
 *.pyc
 *.swp
 
+# ply generated files
+*parser.out
+*parsetab.py
+
+# generated zip file
+*.tar.gz
+
 # python build folders
-src/build/*/
 build/*/
 
-# generated folders under TestProblems
-src/TestProblems/*/
+# generated folders under examples
+examples/lasso/
+examples/cbp/
 
 # generated folders under matlab
 matlab/*/*/

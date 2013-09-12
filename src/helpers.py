@@ -1,5 +1,5 @@
 import qcml
-import expressions
+import ast
 
 """ Use decorator.
 
@@ -28,7 +28,7 @@ def _create_varname():
     return name
 
 def create_variable(shape):
-    v = expressions.expression.Variable(_create_varname(), shape)
+    v = ast.expressions.Variable(_create_varname(), shape)
     qcml.QCRewriter.new_variables[v.value] = v
     return v
 

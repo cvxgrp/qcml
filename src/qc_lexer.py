@@ -4,7 +4,7 @@ pycparser library.
 """
 import operator
 from ply import lex
-from atoms.atom import atoms
+from ast.atoms import atoms
 
 
 class QCLexer:

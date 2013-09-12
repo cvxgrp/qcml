@@ -64,7 +64,7 @@ class MatlabCodegen(Codegen):
             yield "%s(%d:%d) = %s;" % (vec, start+1, end, encoder.toMatlab(expr))
         else:
             yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, encoder.toMatlab(expr))
-    
+
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)
 
@@ -77,7 +77,7 @@ class MatlabCodegen(Codegen):
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
-        
+
         yield "%si = [%si; %s];" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
         yield "%sj = [%sj; %s];" % (mat, mat, encoder.toMatlab(expr.J(c0)))
         yield "%sv = [%sv; %s];" % (mat, mat, encoder.toMatlab(expr.V()))

@@ -1,9 +1,8 @@
 # TODO: i should remove this file entirely....
-import expressions.ast as ast
-from constraints.soc import SOC, SOCProd, SOCConstraint
-from constraints.linear import LinearConstraint
-from atoms.atom import atoms
-import atoms.qc_norm as norm
+import ast
+from ast.constraints import SOC, SOCProd, SOCConstraint, LinearConstraint
+from ast.atoms import atoms
+import ast.atoms.qc_norm as norm
 
 """ For rewriting atoms.
 
@@ -59,7 +58,7 @@ import atoms.qc_norm as norm
 # TODO: problem with rewriter is that atoms defined like square(square(x)) aren't properly handled....
 # i mean, their definition is handled fine, but the rewriting just inserts square(square(x)) unconditionally...
 # i actually needed square(square(x)) inserted in the definition *before* i did the rewriting....
-class QCRewriter(ast.NodeTransformer):
+class QCRewriter(ast.NodeVisitor):
     varcount = 0
     lookup = {}
     new_variables = {}
@@ -175,16 +174,6 @@ class QCRewriter(ast.NodeTransformer):
         # now, update the variables and constraints
         node.new_variables = QCRewriter.new_variables
 
-        #node.constraints += filter(None, self.new_constraints) # ALREADY DONE
-
-        # remove any redundant constraints by converting to set
-        unique_constraints = set(node.constraints)
-        # convert to a list but place the linear constraints at the front of the list
-        # could probably just have a separate "eq", "linineq", "soc" lists...
-        linear_constraints = [x for x in unique_constraints if isinstance(x,LinearConstraint)]
-        soc_constraints = [x for x in unique_constraints if isinstance(x,SOCConstraint)]
-        node.constraints = linear_constraints + soc_constraints
-
         # only include the variables and parameters that are used
         node.variables = self.variables
         node.parameters = self.parameters
@@ -202,25 +191,26 @@ class QCRewriter(ast.NodeTransformer):
     #
     #     return node
 
-    def visit_RelOp(self, node):
-        # self.rewrite_norm = False
-        self.norm_node = None
-        self.generic_visit(node)
-
-        if self.norm_node is not None:
-            if isinstance(self.norm_node, norm.QC_norm):
-                if len(self.norm_node.args) == 1:
-                    return SOC(-node.left, self.norm_node.args)
-                else:
-                    return SOCProd(-node.left, self.norm_node.args)
-            else:   # abs
-                return SOCProd(-node.left, [self.norm_node.args[0]])
-        else:
-            return node
-
-    def visit_LinearEquality(self, node):
-        return self.visit_RelOp(node)
-
-    def visit_LinearInequality(self, node):
-        return self.visit_RelOp(node)
+    # TODO: put the logic in for converting norm(x) <= t into a SOC
+    # def visit_RelOp(self, node):
+    #     # self.rewrite_norm = False
+    #     self.norm_node = None
+    #     self.generic_visit(node)
+    # 
+    #     if self.norm_node is not None:
+    #         if isinstance(self.norm_node, norm.QC_norm):
+    #             if len(self.norm_node.args) == 1:
+    #                 return SOC(-node.left, self.norm_node.args)
+    #             else:
+    #                 return SOCProd(-node.left, self.norm_node.args)
+    #         else:   # abs
+    #             return SOCProd(-node.left, [self.norm_node.args[0]])
+    #     else:
+    #         return node
+    # 
+    # def visit_LinearEquality(self, node):
+    #     return self.visit_RelOp(node)
+    # 
+    # def visit_LinearInequality(self, node):
+    #     return self.visit_RelOp(node)
 

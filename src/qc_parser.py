@@ -1,17 +1,16 @@
 from ply import yacc
+
+import errors
+
 from qc_lexer import QCLexer
-from expressions.expression import Number, Parameter, Variable, Sum
-from expressions.qc_ast import Objective, Program
-from expressions.ops import Transpose
+from ast.expressions import Number, Parameter, Variable, Sum, Transpose
+from ast.atoms import atoms
+from ast import Objective, Program
 from properties.sign import Neither, Positive, Negative
 from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
-from atoms.atom import atoms
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.
-
-# our own exception class
-class QCError(Exception): pass
 
 def _find_column(data,pos):
     last_cr = data.rfind('\n',0,pos)
@@ -93,7 +92,7 @@ class QCParser(object):
         print
 
         if raise_error:
-            raise QCError(msg)
+            raise errors.QC_ParseError(msg)
 
     def _name_exists(self,s):
         return (s in self.lex.dimensions) or \

@@ -17,9 +17,11 @@ the matrix stuffing object.
 Links with ECOS library.
 """
 import os, shutil, site, math
-from .. mixins.restricted_multiply import RestrictedMultiply
+from .. base_codegen import Codegen
 
-import qcml.expressions.expression as expression
+from qcml.mixins.restrictive import Restrictive
+
+from qcml.ast.expressions import expression
 import qcml.properties.shape as shape
 from qcml.properties.curvature import isconstant
 from qcml.codes.function import CFunction
@@ -39,7 +41,7 @@ def shape_to_c_type(x):
     if shape.ismatrix(x): return "qc_matrix *"
     raise Exception("Unknown shape...")
 
-class C_Codegen(RestrictedMultiply):
+class C_Codegen(Codegen, Restrictive):
     """ This produces two functions and a header file.
     """
     def __init__(self, sparsity_pattern = None, dims = None, name = "problem"):

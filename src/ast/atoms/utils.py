@@ -1,11 +1,8 @@
 import qcml
-from qcml.expressions.expression import Variable, Number, Sum, isnumber
-from qcml.constraints.soc import SOC, SOCProd
+from .. expressions import Variable, Number, Sum, isnumber
+from .. constraints import SOC, SOCProd
 
-import qcml.properties.monotonicity as monotonicity
-import qcml.properties.curvature as curvature
-import qcml.properties.sign as sign
-import qcml.properties.shape as shape
+from qcml.properties import monotonicity, curvature, sign, shape
 
 def _create_varname():
     """Creates a new, temporary variable name; begins with underscore."""

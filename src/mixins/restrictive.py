@@ -1,14 +1,12 @@
 """
 Mixin for restricted multiplication
 """
-#import qcml.codegens.codegen as codegen
-from .. base_codegen import Codegen
 
-import qcml.expressions.expression as expression
-import qcml.properties.shape as shape
+from qcml.ast.expressions import expression
+from qcml.properties import shape
 from qcml.properties.curvature import isconstant
 
-class RestrictedMultiply(Codegen):
+class Restrictive(object):
     """ This implements the restricted multiplication behavior.
     """
     def __init__(self, *args, **kwargs):
@@ -88,6 +86,9 @@ class RestrictedMultiply(Codegen):
     def visit_Add(self, node):
         """ For C code generation, we check for PARAMS + PARAMS and promote
             the right hand side to a new variable.
+            
+            TODO: Won't work if the param is a matrix, but in that case, it
+            ought to have been something like PARAMS*x + PARAMS*x....
         """
         self.generic_visit(node)
 
