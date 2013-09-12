@@ -264,7 +264,7 @@ QCML canonicalizes this problem to an SOCP.
 
 Inside Python, the code might look like
 
-    from scoop import QCML
+    from qcml import QCML
     if __name__ == '__main__':
         p = QCML()
 
@@ -293,7 +293,8 @@ code. For instance, the following three lines will create a solver function
     f = p.solver
     f({'A': A, 'lambda':0.01})
 
-Note that this is not possible with one of the Matlab code generators.
+Note that this is not possible with the code generators for other, external
+languages.
 
 <!-- Parameter dimensions and sparsity patterns are assumed to be unknown *until* the generated function is run. That is, after the code has been parsed and a function generated, the user will not be able to know that parameters have the wrong dimensions or storage format until attempting to run the function. This is by design.
 
