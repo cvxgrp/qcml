@@ -28,7 +28,7 @@ Python string as follows:
     """
 
 Our tool parses the problem and rewrites it, after which it can generate
-Python code of external source code. The basic workflow is as follows
+Python code or external source code. The basic workflow is as follows
 (assuming `s` stores a problem specification).
 
     p.parse(s)
@@ -58,6 +58,29 @@ This functions wraps all six steps above into a single call and
 assumes that all parameters and dimensions are defined in the local
 namespace.
 
+Finally, you can call
+
+    p.codegen("C", name="myprob")
+    
+which will produce a directory called `myprob` with five files:
+
+* `myprob.h` -- header file for the `prob2socp` and `socp2prob` functions
+* `myprob.c` -- source code / implementation of the two functions
+* `qc_utils.h` -- defines static matrices and basic data structures
+* `qc_utils.c` -- source code for matrices and data structures
+* `Makefile` -- sample Makefile to compile the `.o` files
+
+You can include the header and source files with any project, although you must
+supply your own solver. The code simply stuffs the matrices for you; you are
+still responsible for using the proper solver and linking it. An example of how
+this might work is in `examples/lasso.py`.
+
+The `qc_utils` files are static; meaning, if you have multiple sources you wish 
+to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
+
+The generated code uses portions of CSparse, which is LGPL. Although QCML is BSD, 
+the generated code is LGPL for this reason.
+
 For more information, see the [features](# features) section.
 
 Prerequisites
@@ -75,7 +98,6 @@ Installation
 ============
 Installation should be as easy as
 
-    cd src
     python setup.py install
 
 After installation, if you have [Nose](http://nose.readthedocs.org) installed,
@@ -86,8 +108,7 @@ then typing
 should run the simple unit tests. These tests are not exhaustive at the
 moment.
 
-The only working sample script is `qcml_example.py`.
-
+A set of examples can be found under the `examples` directory.
 
 Features
 ========
@@ -156,8 +177,8 @@ but problem data is allowed to change.
 The valid choice of languages are:
 
 * `"python"` -- emits Python source code
-* (planned) `"C"` -- emits C source code
-* (planned) `"matlab"` -- emits Matlab source code
+* `"C"` -- emits C source code
+* `"matlab"` -- emits Matlab source code
 * (planned) `"cvx"` -- emits Matlab source code that calls CVX
 
 With the exception of the `"cvx"` target, the code generator will produce
@@ -222,7 +243,7 @@ As an example, consider the Lasso problem,
     minimize sum(square(A*x - 4)) + lambda*norm(x)
 
 Note that dimenions are named, but abstract (they do not refer to any
-numbrs). Similarly, variables and parameters are abstract, their shape is
+numbers). Similarly, variables and parameters are abstract, their shape is
 denoted only by references to named dimensions. Although matrix variable
 *declarations* are possible, QCML's behavior is undefined (and may possibly
 fail). Matrix variables (along with `for` loops, concatenation, and slicing)
