@@ -9,7 +9,7 @@ before_install:
     - sudo apt-get install python-numpy python-scipy
 # install dependencies
 install:
-    - pip install ply coverage pylint cvxopt
+    - pip install ply coverage pylint
     - ./get_ecos.sh
 # command to run tests
 script:
