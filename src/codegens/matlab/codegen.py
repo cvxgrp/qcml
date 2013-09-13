@@ -4,6 +4,7 @@ from qcml.codes.function import MatlabFunction
 import qcml.codes.encoders as encoder
 
 class MatlabCodegen(Codegen):
+
     def __init__(self, dims):
         super(MatlabCodegen, self).__init__(dims)
         self.__prob2socp = MatlabFunction("prob_to_socp", ["params"], ["data"])
@@ -23,22 +24,30 @@ class MatlabCodegen(Codegen):
         yield '; '.join(map(cone_tuple_to_str, self.cone_list))
 
     def functions_setup(self, program_node):
+        self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
+        self.prob2socp.document('Where input struct PARAMS has the following fields:')
         self.prob2socp.document(self.printshapes(program_node))
+        self.prob2socp.newline()
 
-        # Add stuff to ensure that params are in columns not rows?
-        self.prob2socp.add_lines("p = %d; m = %d; n = %d" % v for v in self.pmn)
+        self.prob2socp.add_lines("p = %d; m = %d; n = %d;" % v for v in self.pmn)
         self.prob2socp.add_lines("c = zeros(n,1);")
         self.prob2socp.add_lines("h = zeros(m,1);")
         self.prob2socp.add_lines("b = zeros(p,1);")
         self.prob2socp.add_lines("Gi = []; Gj = []; Gv = [];")
         self.prob2socp.add_lines("Ai = []; Aj = []; Av = [];")
+        self.prob2socp.newline()
+
         self.prob2socp.add_lines("dims.l = %d;" % l for l in self.dimsl)
         self.prob2socp.add_lines("dims.q = [%s];" % q for q in self.dimsq())
         self.prob2socp.add_lines("dims.s = [];")
 
     def functions_return(self, program_node):
-        self.prob2socp.add_lines("A = sparse(Ai+1, Aj+1, Av);")
-        self.prob2socp.add_lines("G = sparse(Gi+1, Gj+1, Gv);")
+        self.prob2socp.add_comment('Convert from sparse triplet to column compressed format.')
+        self.prob2socp.add_comment('Also convert from 0 indexed to 1 indexed.')
+        self.prob2socp.add_lines("A = sparse(Ai+1, Aj+1, Av, p, n);")
+        self.prob2socp.add_lines("G = sparse(Gi+1, Gj+1, Gv, m, n);")
+        self.prob2socp.newline()
+        self.prob2socp.add_comment('Build output')
         self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims);")
 
         recover = (
