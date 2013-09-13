@@ -18,5 +18,6 @@ class Node(Treelike, Showable, Canonicalizable):
         """ Defines what to show; usually via buf.write
         """
         buf.write("%s%s\n" % (offset*' ', self.info()))
-        for c in self.children():
-            c.show(buf, offset + 2)
+        for child in self.children():
+            assert(isinstance(child, Showable))
+            child.show(buf, offset + 2)

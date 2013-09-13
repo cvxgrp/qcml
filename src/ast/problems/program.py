@@ -1,6 +1,6 @@
 from .. node import Node
 import objective as obj
-from .. constraints import *
+from .. constraints import LinearEquality, LinearInequality, SOC, SOCProd, Constraint
 from .. expressions import Variable
 
 class Program(Node):

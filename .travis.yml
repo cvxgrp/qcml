@@ -1,0 +1,18 @@
+language: python
+python:
+    - "2.6"
+    - "2.7"
+# numpy and scipy depend on lapack / blas, which we have to install separately
+virtualenv:
+    - system_site_packages: true
+before_install:
+    - sudo apt-get install -qq python-numpy python-scipy
+# install dependencies
+install:
+    - pip install -r requirements.txt --use-mirrors
+    - pip install coverage pylint cvxopt
+    - ./get_ecos.sh
+# command to run tests
+script:
+    - nosetests --with-cover
+    - pylint -f colorize src

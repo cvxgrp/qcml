@@ -2,7 +2,7 @@ import expression as e
 
 from qcml.properties import sign, shape, curvature
 
-class Number(e.Expression, e.Leaf):
+class Number(e.Leaf):
     """ Number AST node.
 
         Contains a floating point number. It is Affine; its sign depends on
@@ -15,7 +15,7 @@ class Number(e.Expression, e.Leaf):
 
     def __repr__(self): return "Number(%s)" % self.value
 
-class Parameter(e.Expression, e.Leaf):
+class Parameter(e.Leaf):
     """ Parameter AST node.
 
         Contains a representation of Parameters. It is Affine; its sign and
@@ -26,7 +26,7 @@ class Parameter(e.Expression, e.Leaf):
 
     def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
 
-class Variable(e.Expression, e.Leaf):
+class Variable(e.Leaf):
     """ Variable AST node.
 
         Contains a representation of Variables. It is Affine; its sign is

@@ -7,15 +7,15 @@ from . ast.expressions import Number, Parameter, Variable, Sum, Transpose
 from . ast.atoms import atoms
 from . ast import Objective, Program
 from . properties.sign import Neither, Positive, Negative
-from . properties.shape import Scalar, Vector, Matrix, Shape, isscalar
+from . properties.shape import Scalar, Shape, isscalar
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.
 
-def _find_column(data,pos):
+def _find_column(data, pos):
     last_cr = data.rfind('\n',0,pos)
     if last_cr < 0:
-      last_cr = 0
+        last_cr = 0
     column = (pos - last_cr) + 1
     return column
 
@@ -37,8 +37,8 @@ class QCParser(object):
     )
 
     def __init__(self):
-        self.lex = QCLexer();
-        self.lex.build();
+        self.lex = QCLexer()
+        self.lex.build()
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
 

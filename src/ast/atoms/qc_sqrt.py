@@ -19,7 +19,7 @@ from qc_geo_mean import QC_geo_mean
 
 class QC_sqrt(QC_geo_mean):
     def __init__(self, x):
-        super(QC_geo_mean,self).__init__(x, Number(1))
+        super(QC_sqrt, self).__init__(x, Number(1))
 
     def __str__(self):
         return "sqrt(%s)" % self.args[0]

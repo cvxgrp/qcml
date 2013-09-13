@@ -1,6 +1,6 @@
 """ A collection of utility and helper functions for QCML.
 """
-import qcml, time
+import time
 
 def use(attr):
     """ Use decorator.

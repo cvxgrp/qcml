@@ -7,7 +7,7 @@ from ply import lex
 from . ast.atoms import atoms
 
 
-class QCLexer:
+class QCLexer(object):
     def __init__(self):
         self.dimensions = set()
         self.variables = {}
@@ -22,14 +22,6 @@ class QCLexer:
             __init__
         """
         self.lexer = lex.lex(module=self, **kwargs)
-
-    # Test it output
-    def test(self,data):
-        self.lexer.input(data)
-        while True:
-             tok = self.lexer.token()
-             if not tok: break
-             print tok
 
     # reserved keywords in the language
     reserved = dict([
@@ -77,57 +69,57 @@ class QCLexer:
 
     # for parsing constant floats
     # WARNING: this must appear before t_INTEGER
-    def t_CONSTANT(self,t):
+    def t_CONSTANT(self, tok):
         r'\d+\.\d*'
-        t.value = float(t.value)
-        return t
+        tok.value = float(tok.value)
+        return tok
 
     # for parsing integers
-    def t_INTEGER(self,t):
+    def t_INTEGER(self, tok):
         r'\d+'
-        t.value = int(t.value)
-        return t
+        tok.value = int(tok.value)
+        return tok
 
     # for identifiers
-    def t_ID(self,t):
+    def t_ID(self, tok):
         r'[a-zA-Z][a-zA-Z_0-9]*'
-        t.type = self.reserved.get(t.value, 'ID')
-        if t.type == 'ID':
+        tok.type = self.reserved.get(tok.value, 'ID')
+        if tok.type == 'ID':
             # check to see if it's a dimension, variable, or parameter id
-            if t.value in self.dimensions:
-                t.type = 'DIM_ID'
-                return t
+            if tok.value in self.dimensions:
+                tok.type = 'DIM_ID'
+                return tok
 
-            new_value = self.variables.get(t.value, None)
+            new_value = self.variables.get(tok.value, None)
             if new_value is not None:
-                t.type = 'VAR_ID'
-                t.value = new_value
-                return t
+                tok.type = 'VAR_ID'
+                tok.value = new_value
+                return tok
 
-            new_value = self.parameters.get(t.value, None)
+            new_value = self.parameters.get(tok.value, None)
             if new_value is not None:
-                t.type = 'PARAM_ID'
-                t.value = new_value
-                return t
+                tok.type = 'PARAM_ID'
+                tok.value = new_value
+                return tok
 
-        return t
+        return tok
 
-    def t_COMMENT(self,t):
+    def t_COMMENT(self, tok):
         r'\#.*'
         pass
         # comment token
 
     # newline rule
-    def t_NL(self,t):
+    def t_NL(self, tok):
         r'\n+'
-        t.lexer.lineno += len(t.value)
-        return t
+        tok.lexer.lineno += len(tok.value)
+        return tok
 
     # things to ignore (spaces and tabs)
     t_ignore = ' \t'
 
     # error handling
-    def t_error(self,t):
-        print "QC_LEX: Illegal character '%s'" % t.value[0]
-        t.lexer.skip(1)
+    def t_error(self, tok):
+        print "QC_LEX: Illegal character '%s'" % tok.value[0]
+        tok.lexer.skip(1)
 

@@ -51,14 +51,12 @@ class Expression(Node):
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
 
     def info(self):
-        if hasattr(self, 'value'): return "%s: %s, %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape, self.value)
-        else: return "%s: %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape)
+        return "%s: %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape)
 
 
-class Leaf(Node):
+class Leaf(Expression):
     def __init__(self, value, **kwargs):
         self.value = value
-        self.attr_names += ('value',)
         super(Leaf,self).__init__(**kwargs)
 
     def children(self): return []
@@ -69,7 +67,16 @@ class Leaf(Node):
 
     def canonicalize(self): return (self, [])
 
+    def info(self):
+        return "%s: %s, %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape, self.value)
+
+
 class BinaryOperator(Node):
+    OP_NAME = ''
+    OP_FUNC = None
+    IDENTITY = None
+    ZERO = None
+
     def __init__(self, left, right, **kwargs):
         self.left = left
         self.right = right
@@ -131,6 +138,10 @@ class BinaryOperator(Node):
         return (obj, lh_constraints + rh_constraints)
 
 class UnaryOperator(Node):
+    OP_NAME = ''
+    IS_POSTFIX = None
+    OP_FUNC = None
+
     def __init__(self, expr, **kwargs):
         self.expr = expr
         super(UnaryOperator, self).__init__(**kwargs)

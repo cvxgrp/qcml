@@ -76,7 +76,7 @@ class MatlabCodegen(Codegen):
 
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
-        if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
+        if n > 1 and expr.isscalar: expr = coefficient.OnesCoeff(n, expr)
 
         yield "%si = [%si; %s];" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
         yield "%sj = [%sj; %s];" % (mat, mat, encoder.toMatlab(expr.J(c0)))

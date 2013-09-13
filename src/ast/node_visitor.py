@@ -1,4 +1,4 @@
-from node import Node
+from . node import Node
 
 class NodeVisitor(object):
     """
@@ -32,5 +32,5 @@ class NodeVisitor(object):
             node. Implements preorder visiting of the node.
         """
         assert(isinstance(node, Node))
-        for c in node.children():
-            self.visit(c)
+        for child in node.children():
+            self.visit(child)
