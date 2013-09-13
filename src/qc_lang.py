@@ -92,10 +92,7 @@ class QCML(object):
     @profile
     def codegen(self, language="python", *args, **kwargs):
         if self.state is COMPLETE:
-            if language != self.language:
-                self.state = CODEGEN
-            else:
-                return
+            self.state = CODEGEN
         if self.state is PARSE:
             raise Exception("QCML codegen: No problem currently parsed.")
         if self.state is CANONICALIZE:
