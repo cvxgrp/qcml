@@ -44,7 +44,7 @@ class PythonCodegen(Codegen):
         # add some documentation
         self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
         self.prob2socp.document("'params' ought to contain:")
-        self.prob2socp.document(self.printshapes())
+        self.prob2socp.document(self.printshapes(program_node))
 
         # now import cvxopt and itertools
         self.prob2socp.add_lines("import numpy as np")

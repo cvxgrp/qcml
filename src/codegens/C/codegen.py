@@ -219,7 +219,7 @@ class C_Codegen(Codegen, Restrictive):
         # add some documentation
         self.prob2socp.document("maps 'params' into the C socp data type")
         self.prob2socp.document("'params' ought to contain:")
-        self.prob2socp.document(self.printshapes())
+        self.prob2socp.document(self.printshapes(program_node))
         self.prob2socp.newline()
 
         self.params = '\n'.join(self.c_params(program_node))
