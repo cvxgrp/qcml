@@ -60,7 +60,7 @@ def check(obj, exp):
     print (exp)
     print (contents)
     assert exp == contents
-    
+
 def check_constr(prob, exp):
     for c,e in zip(prob.children(), exp):
         print c
@@ -81,7 +81,7 @@ def test_add_constraint():
     o = Objective("maximize", normx)
     local_prob = Program(o, [], [x])
     yield check_constr, local_prob, [o]
-    
+
     # checks that if you add multiple constraints, removes duplicates
     p1 = x == e.Number(1)
     p2 = x <= e.Number(2)
@@ -89,7 +89,7 @@ def test_add_constraint():
     local_prob.add_constraint(p1)
     local_prob.add_constraint(p2)
     local_prob.add_constraint(p3)
-    
+
     yield check_constr, local_prob, [o,p1,p2]
 
 def test_program():

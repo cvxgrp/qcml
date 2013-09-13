@@ -1,7 +1,7 @@
 from qcml.ast import NodeVisitor
 from qcml.ast.constraints import  SOC, SOCProd, LinearConstraint
 from qcml.properties.shape import isscalar
-from qcml.properties.curvature import isconstant 
+from qcml.properties.curvature import isconstant
 from qcml.codes.coefficients import *
 
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -115,7 +115,7 @@ class Codegen(NodeVisitor):
     def printshapes(self, program_node):
         # for function documentation
         return (
-            "  '%s' has shape %s" % (v, v.shape.eval(self.dims)) 
+            "  '%s' has shape %s" % (v, v.shape.eval(self.dims))
             for v in program_node.parameters.values()
         )
 

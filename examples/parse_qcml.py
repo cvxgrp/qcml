@@ -19,7 +19,7 @@ print prob
 
 raw_input("press ENTER to parse....")
 p = QCML(debug=True)
-p.parse(prob)        
+p.parse(prob)
 
 raw_input("press ENTER to canonicalize....")
 p.canonicalize()

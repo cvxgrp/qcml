@@ -49,11 +49,11 @@ class Expression(Node):
     def __le__(self, other): return _compare(self, other, operator.__le__, '<=')
 
     def __ge__(self, other): return _compare(other, self, operator.__le__, '<=')
-    
-    def info(self): 
+
+    def info(self):
         if hasattr(self, 'value'): return "%s: %s, %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape, self.value)
         else: return "%s: %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape)
-    
+
 
 class Leaf(Node):
     def __init__(self, value, **kwargs):
@@ -68,7 +68,7 @@ class Leaf(Node):
     def simplify(self): return self
 
     def canonicalize(self): return (self, [])
-    
+
 class BinaryOperator(Node):
     def __init__(self, left, right, **kwargs):
         self.left = left

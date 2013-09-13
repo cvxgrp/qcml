@@ -169,7 +169,7 @@ class QCRewriter(ast.NodeVisitor):
 
         # visit children first, to gather all the used variables and parameters
         self.generic_visit(node)
-        
+
         node.canonicalize()
         # now, update the variables and constraints
         node.new_variables = QCRewriter.new_variables
@@ -196,7 +196,7 @@ class QCRewriter(ast.NodeVisitor):
     #     # self.rewrite_norm = False
     #     self.norm_node = None
     #     self.generic_visit(node)
-    # 
+    #
     #     if self.norm_node is not None:
     #         if isinstance(self.norm_node, norm.QC_norm):
     #             if len(self.norm_node.args) == 1:
@@ -207,10 +207,10 @@ class QCRewriter(ast.NodeVisitor):
     #             return SOCProd(-node.left, [self.norm_node.args[0]])
     #     else:
     #         return node
-    # 
+    #
     # def visit_LinearEquality(self, node):
     #     return self.visit_RelOp(node)
-    # 
+    #
     # def visit_LinearInequality(self, node):
     #     return self.visit_RelOp(node)
 

@@ -2,12 +2,12 @@ from ply import yacc
 
 import errors
 
-from qc_lexer import QCLexer
-from ast.expressions import Number, Parameter, Variable, Sum, Transpose
-from ast.atoms import atoms
-from ast import Objective, Program
-from properties.sign import Neither, Positive, Negative
-from properties.shape import Scalar, Vector, Matrix, Shape, isscalar
+from . qc_lexer import QCLexer
+from . ast.expressions import Number, Parameter, Variable, Sum, Transpose
+from . ast.atoms import atoms
+from . ast import Objective, Program
+from . properties.sign import Neither, Positive, Negative
+from . properties.shape import Scalar, Vector, Matrix, Shape, isscalar
 
 # TODO: dimlist, arraylist, and idlist are all very similar
 # i would like to merge them.

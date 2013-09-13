@@ -47,39 +47,39 @@ class C_Codegen(Codegen, Restrictive):
     def __init__(self, sparsity_pattern = None, dims = None, name = "problem"):
         super(C_Codegen, self).__init__(dims)
         # TODO: allow optimizations with given sparsity pattern
-        self.sparsity_patterns = sparsity_pattern   
+        self.sparsity_patterns = sparsity_pattern
         self.name = name
 
         # functions we are going to generate
-        self.__prob2socp = CFunction("qc_%s2socp" % self.name, 
-            arguments = ["const %s_params * params" % self.name], 
+        self.__prob2socp = CFunction("qc_%s2socp" % self.name,
+            arguments = ["const %s_params * params" % self.name],
             ret_type="qc_socp *")
-        self.__socp2prob = CFunction("qc_socp2%s" % self.name, 
+        self.__socp2prob = CFunction("qc_socp2%s" % self.name,
             arguments = ["double * x", "%s_vars * vars" % self.name])
-        
+
         # get the paths to the template files
         template_path = os.path.dirname(__file__)
         path = os.getcwd()
-        
+
         self.makefile_template = "%(template_path)s/Makefile_template" % vars()
         self.source_file_template = "%(template_path)s/stuff_template.c" % vars()
         self.header_file_template = "%(template_path)s/stuff_template.h" % vars()
-        
+
         new_dir = "%(path)s/%(name)s" % vars()
         self.new_dir = new_dir                  # new directory to create
         self.data_dir = template_path           # path to data files
         self.makefile = "%(new_dir)s/Makefile" % vars()
         self.source_file = "%(new_dir)s/%(name)s.c" % vars()
         self.header_file = "%(new_dir)s/%(name)s.h" % vars()
-        
+
         # parameters and variables in the optimization problem
         self.params = ""
         self.variables = ""
         self.indent = self.__prob2socp.indent   # set our indent spacing
-        
+
         # keep track of the total nonzeros in each matrix
         self.nnz = {'G': [], 'A': []}
-        
+
         # keep track of the problem dimension
         self.size_lookup = {'m': 0, 'n': 0, 'p': 0}
 
@@ -88,14 +88,14 @@ class C_Codegen(Codegen, Restrictive):
 
     @property
     def socp2prob(self): return self.__socp2prob
-    
+
     def codegen(self):
         super(C_Codegen, self).codegen()
-        
+
         # create the dictionary for the generated code
         if not os.path.exists(self.new_dir):
             os.makedirs(self.new_dir)
-            
+
         # populate the dict needed for codegen
         codegen_dict = {
             'name': self.name,
@@ -107,7 +107,7 @@ class C_Codegen(Codegen, Restrictive):
             'prob2socp_prototype': self.__prob2socp.prototype,
             'socp2prob_prototype': self.__socp2prob.prototype
         }
-        
+
         # copy over the static utility files
         shutil.copy("%s/qcml_utils.c" % self.data_dir, self.new_dir)
         shutil.copy("%s/qcml_utils.h" % self.data_dir, self.new_dir)
@@ -116,7 +116,7 @@ class C_Codegen(Codegen, Restrictive):
         write_template(self.makefile_template, self.makefile, codegen_dict)
         write_template(self.header_file_template, self.header_file, codegen_dict)
         write_template(self.source_file_template, self.source_file, codegen_dict)
-        
+
     # generator to get cone sizes
     def c_dimensions(self):
         self.size_lookup['m'] = self.num_conic + self.num_lps
@@ -129,7 +129,7 @@ class C_Codegen(Codegen, Restrictive):
     # generator to get cone dimensions
     def c_cone_sizes(self):
         num_cone, cone_size = zip(*self.cone_list)
-        
+
         yield "data->l = %d;" % self.num_lps
         yield "data->nsoc = %d;" % sum(num_cone)
         if num_cone == 0:
@@ -143,11 +143,11 @@ class C_Codegen(Codegen, Restrictive):
             for num, sz in self.cone_list:
                 if num == 1: yield "*q_ptr++ = %s;" % sz
                 else: yield "for(i = 0; i < %d; ++i) *q_ptr++ = %s;" % (num, sz)
-        
+
     # function to get parameters
     def c_params(self, program_node):
         return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in program_node.parameters.iteritems()]
-    
+
     # function to get variables
     def c_variables(self, program_node):
         return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in program_node.variables.iteritems()]
@@ -156,7 +156,7 @@ class C_Codegen(Codegen, Restrictive):
     def c_allocate_socp(self):
         yield "qc_socp * data = calloc(1, sizeof(qc_socp));"
         yield "if (!data) return qc_socp_free(data);"
-    
+
     # generator to allocate vectors
     def c_allocate_vector(self, vector, size):
         if self.size_lookup[size] == 0:
@@ -164,12 +164,12 @@ class C_Codegen(Codegen, Restrictive):
         else:
             yield "data->%s = calloc(data->%s, sizeof(double));" % (vector, size)
             yield "if (!data->%s) return qc_socp_free(data);" % (vector)
-    
+
     def c_allocate_matrix(self, matrix):
         const = sum(int(x) for x in self.nnz[matrix] if x.isdigit())
         size = ' + '.join(x for x in self.nnz[matrix] if not x.isdigit())
         if const > 0: size = "%s + %d" % (size, const)
-        
+
         if const > 0 or size:
             yield "long nnz%s = %s;" % (matrix, size)
             yield "data->%(matrix)sx = malloc(nnz%(matrix)s * sizeof(double));" % {'matrix': matrix}
@@ -178,13 +178,13 @@ class C_Codegen(Codegen, Restrictive):
             yield "if ((!data->%(matrix)sx) || (!data->%(matrix)sp) || (!data->%(matrix)si)) return qc_socp_free(data);" % {'matrix': matrix}
         else:
             yield "long nnz%s = 0;" % (matrix)
-            yield "data->%sx = NULL;" % (matrix) 
-            yield "data->%sp = NULL;" % (matrix) 
+            yield "data->%sx = NULL;" % (matrix)
+            yield "data->%sp = NULL;" % (matrix)
             yield "data->%si = NULL;" % (matrix)
         yield "%(matrix)s_data_ptr = data->%(matrix)sx;" % {'matrix': matrix}
         yield "%(matrix)s_row_ptr = data->%(matrix)si;" % {'matrix': matrix}
         yield "%(matrix)s_col_ptr = data->%(matrix)sp;" % {'matrix': matrix}
-    
+
     def c_setup_qc_matrix(self, matrix):
         if self.nnz[matrix]:
             yield "qc_matrix *%s_coo = malloc(sizeof(qc_matrix));" % matrix
@@ -193,7 +193,7 @@ class C_Codegen(Codegen, Restrictive):
             yield "%s_coo->i = data->%si;" % (matrix, matrix)
             yield "%s_coo->j = data->%sp;" % (matrix, matrix)
             yield "%s_coo->v = data->%sx;" % (matrix, matrix)
-    
+
     def c_compress(self, matrix):
         if self.nnz[matrix]:
             yield "qc_matrix *%s_csc = qc_compress(%s_coo);" % (matrix, matrix)
@@ -206,14 +206,14 @@ class C_Codegen(Codegen, Restrictive):
             yield "data->%si = %s_csc->i;" % (matrix, matrix)
             yield "data->%sp = %s_csc->j;" % (matrix, matrix)
             yield "data->%sx = %s_csc->v;" % (matrix, matrix)
-    
+
     def c_recover(self, program):
         for k,v in program.variables.iteritems():
-            if shape.isscalar(v): 
+            if shape.isscalar(v):
                 yield "vars->%s = *(x + %s);" % (k, self.varstart[k])
-            else: 
-                yield "vars->%s = x + %s;  /* length %s */" % (k, self.varstart[k], self.varlength[k]) 
-        
+            else:
+                yield "vars->%s = x + %s;  /* length %s */" % (k, self.varstart[k], self.varlength[k])
+
 
     def functions_setup(self, program_node):
         # add some documentation
@@ -222,7 +222,7 @@ class C_Codegen(Codegen, Restrictive):
         shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
         self.prob2socp.document(shapes)
         self.prob2socp.newline()
-        
+
         self.params = '\n'.join(self.c_params(program_node))
         self.variables = '\n'.join(self.c_variables(program_node))
 
@@ -241,27 +241,27 @@ class C_Codegen(Codegen, Restrictive):
         self.prob2socp.add_comment("allocate problem dimensions")
         self.prob2socp.add_lines(self.c_dimensions())
         self.prob2socp.newline()
-        
+
         self.prob2socp.add_comment("allocate c vector")
         self.prob2socp.add_lines(self.c_allocate_vector("c", "n"))
         self.prob2socp.newline()
-        
+
         self.prob2socp.add_comment("allocate h vector")
         self.prob2socp.add_lines(self.c_allocate_vector("h", "m"))
         self.prob2socp.newline()
-        
+
         self.prob2socp.add_comment("allocate b vector")
         self.prob2socp.add_lines(self.c_allocate_vector("b", "p"))
         self.prob2socp.newline()
-        
+
         self.prob2socp.add_comment("allocate G matrix")
         self.prob2socp.add_lines(self.c_allocate_matrix("G"))
         self.prob2socp.newline()
-        
-        self.prob2socp.add_comment("allocate A matrix")        
+
+        self.prob2socp.add_comment("allocate A matrix")
         self.prob2socp.add_lines(self.c_allocate_matrix("A"))
         self.prob2socp.newline()
-        
+
         self.prob2socp.add_comment("allocate the cone sizes")
         self.prob2socp.add_lines(self.c_cone_sizes())
 
@@ -304,8 +304,8 @@ class C_Codegen(Codegen, Restrictive):
             yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, encoder.toC(expr), tag)
         else:
             yield "for(i = 0; i < %d; ++i) data->h[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
-            
-    
+
+
     def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):
         yield encoder.toC(expr.I(row_start, row_stride)) % ({'ptr': "%s_row_ptr" % matrix})
         yield encoder.toC(expr.J(col_start)) % ({'ptr': "%s_col_ptr" % matrix})
@@ -316,7 +316,7 @@ class C_Codegen(Codegen, Restrictive):
         self.nnz['G'].append(encoder.toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
-                
+
         # but then return this generator
         return self.stuff_matrix("G", row_start, row_end, col_start, col_end, expr, row_stride)
 
@@ -325,9 +325,9 @@ class C_Codegen(Codegen, Restrictive):
         self.nnz['A'].append(encoder.toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        
+
         # but then return this generator
         return self.stuff_matrix("A", row_start, row_end, col_start, col_end, expr, row_stride)
 
-    
-    
+
+

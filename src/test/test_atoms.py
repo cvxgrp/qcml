@@ -63,9 +63,9 @@ def run_atom(template, obj, obj_val):
     p.parse("""
         parameter v(3)
         %s
-    """ % (template % obj))    
+    """ % (template % obj))
     solution = p.solve(params={'v': v})
-    
+
     print solution['objval']
     print obj_val
     assert( abs(solution['objval'] - obj_val) <= TOL )

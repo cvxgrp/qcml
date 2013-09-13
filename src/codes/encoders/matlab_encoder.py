@@ -1,6 +1,6 @@
 """ Everything in here goes with zero indexing.  It could have been one indexed,
     except I wasn't sure if it was okay to make Just return 1 more than its arg.
-    Probably better not to do that.  So I left everything here 0 indexed and 
+    Probably better not to do that.  So I left everything here 0 indexed and
     then add 1 to the Gi Gj Ai Aj when converting to compressed sparse format
     in functions_return
 """

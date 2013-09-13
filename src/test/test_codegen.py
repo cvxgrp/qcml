@@ -79,7 +79,7 @@ def teardown_func():
 def test_C():
     for f in c_files:
         yield exists, f
-    
+
     yield compiles
-    
+
 

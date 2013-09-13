@@ -9,7 +9,7 @@ from qcml.codes.code import *
     the evaluation of the ptr string until after the object has been turned
     into a string. Effectively, an object will be turned into a *format*
     string, instead of a string directly.
-    
+
     TODO: this file is somewhat of a mess. but hopefully the new "parameter"
     or coefficient approach will fix this.
 """
@@ -68,7 +68,7 @@ def assign(x):
 
 def nnz(x):
     return "%s->nnz" % (toC(x.obj))
-    
+
 lookup = {
     ConstantCoeff: constant,
     OnesCoeff: ones,

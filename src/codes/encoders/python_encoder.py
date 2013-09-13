@@ -54,7 +54,7 @@ def assign(x):
 
 def nnz(x):
     return "%s.nnz" % (toPython(x.obj))
-    
+
 lookup = {
     ConstantCoeff: constant,
     OnesCoeff: ones,

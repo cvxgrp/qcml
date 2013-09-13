@@ -6,7 +6,7 @@ from scipy.sparse import spdiags
 
 
 if __name__ == '__main__':
-    
+
     print "Creating data."
     n = 100   # number of assets
     m = 10    # number of factors
@@ -15,9 +15,9 @@ if __name__ == '__main__':
     D = spdiags(rand(n),0,n,n)
     gamma = 1
 
-    
+
     print "Creating portfolio problem."
-    
+
     # a QCML model is specified by strings
     #   the parser parses each model line by line and builds an internal
     #   representation of an SOCP
@@ -34,21 +34,21 @@ if __name__ == '__main__':
             x >= 0
     """
     print s
-    
+
     raw_input("press ENTER to parse....")
     p = QCML(debug=True)
-    p.parse(s)        
-    
+    p.parse(s)
+
     raw_input("press ENTER to canonicalize....")
     p.canonicalize()
-    
+
     raw_input("press ENTER to generate code....")
     p.dims = {'n': n, 'm': m}
     p.codegen("python")
-    
+
     raw_input("press ENTER to solve with ECOS....")
     socp_data = p.prob2socp(params=locals())
     import ecos
     sol = ecos.solve(**socp_data)
 
-    
+

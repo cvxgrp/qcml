@@ -99,19 +99,19 @@ def test_problem():
 
     for p in good_problems:
         yield check_problem, p
-        
+
 def test_bad_problem():
     # ensure that these fail
     for problem in bad_problem_list:
         yield assert_raises, QC_ParseError, parse, problem
-    
+
     for p in nondcp_problems:
         yield assert_raises, QC_DCPError, check_problem, p
-    
+
     for p in syntax_error_problems:
         yield assert_raises, QC_ParseError, check_problem, p
 
-    
+
 
 
     #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])

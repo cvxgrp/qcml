@@ -74,14 +74,14 @@ def check_py_exec(obj, exp):
 
     print result
     print exp
-    
+
     if sp.issparse(result):
         assert (result.todense() == exp).all()
     elif isinstance(result, (int,float)):
         assert result == exp
     else:
         assert list(result) == exp
-    
+
 def test_encoders():
     for obj, exp, result in python_objects:
         yield check, obj, exp

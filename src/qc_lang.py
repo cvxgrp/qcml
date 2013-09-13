@@ -1,23 +1,17 @@
-from qc_parser import QCParser
-from qc_rewrite import QCRewriter
-from codegens import PythonCodegen, \
+from . qc_parser import QCParser
+from . qc_rewrite import QCRewriter
+from . codegens import PythonCodegen, \
     MatlabCodegen, \
     C_Codegen
-from helpers import profile, default_locals
-from errors import QC_DCPError
+from . helpers import profile, default_locals
+from . errors import QC_DCPError
 
-class ParseState(object):
-    """ Parse state enum.
+""" Parse state enum.
 
-        The parser moves from the EMPTY to the PARSED to the CANONICALIZED to
-        the CODEGEN state.
-    """
-    __init__ = NotImplemented
-
-    PARSE = 0
-    CANONICALIZE = 1
-    CODEGEN = 2
-    COMPLETE = 3
+    The parser moves from the EMPTY to the PARSED to the CANONICALIZED to
+    the CODEGEN state.
+"""
+ParseState = type('Enum', (), {'PARSE':0, 'CANONICALIZE':1, 'CODEGEN':2, 'COMPLETE':3})
 
 supported_languages = {
     "C": C_Codegen,
@@ -68,7 +62,7 @@ class QCML(object):
         if self.state > ParseState.CANONICALIZE: return
         if self.state is ParseState.PARSE:
             raise Exception("QCML canonicalize: No problem currently parsed.")
-            
+
         self.__problem_tree = QCRewriter().visit(self.__problem_tree)
         if self.debug: print self.__problem_tree
         self.state = ParseState.CODEGEN
@@ -81,7 +75,7 @@ class QCML(object):
     def dims(self, dims):
         if self.state is ParseState.PARSE:
             raise Exception("QCML set_dims: No problem currently parsed.")
-            
+
         required_dims = self.__problem_tree.dimensions
 
         if not required_dims.issubset(set(dims.keys())):
@@ -105,8 +99,8 @@ class QCML(object):
         if self.state is ParseState.CANONICALIZE:
             raise Exception("QCML codegen: No problem currently canonicalized.")
         if not self.__dims:
-            raise Exception("QCML codegen: No dimensions currently given. Please set the dimensions of the QCML object.")     
-        
+            raise Exception("QCML codegen: No dimensions currently given. Please set the dimensions of the QCML object.")
+
         try:
             codegen_class = supported_languages[language]
             self.__codegen = codegen_class(dims = self.__dims, *args, **kwargs)
@@ -127,14 +121,14 @@ class QCML(object):
 
         self.state = ParseState.COMPLETE
         self.language = language    # set our language
-            
+
     @property
     def solver(self):
         if self.language != "python":
             raise Exception("QCML solver: Cannot execute code generated in %s" % self.language)
         if self.state is not ParseState.COMPLETE:
             raise Exception("QCML solver: No python code currently generated.")
-            
+
         try:
             import ecos
         except ImportError:
@@ -151,7 +145,7 @@ class QCML(object):
             offset = self.__codegen.objective_offset
             result['objval'] = multiplier * sol['info']['pcost'] + offset
             return result
-        return f            
+        return f
 
     @default_locals
     def solve(self, params, dims = None):
@@ -164,7 +158,7 @@ class QCML(object):
         # TODO: what happens if we call solve after codegen(C)?
         if self.state is ParseState.PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
-        
+
         try:
             # attempt to set the dims; if this fails, usually means someone
             # set the dims externally and just wants to solve with the params

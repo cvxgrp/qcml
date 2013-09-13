@@ -36,17 +36,17 @@ class Constraint(Node):
 
     def children(self):
         if self.right is not None: yield self.right
-        if self.left is not None: 
-            if isinstance(self.left, list): 
-                for e in self.left: 
-                    if e is not None: 
+        if self.left is not None:
+            if isinstance(self.left, list):
+                for e in self.left:
+                    if e is not None:
                         yield e
             else:
                 yield self.left
-    
+
     def info(self):
         return "%s: %s, %s" % (self.__class__.__name__, self.is_dcp, self.shape)
-        
+
 
     @abstractmethod
     def canonicalize(self):

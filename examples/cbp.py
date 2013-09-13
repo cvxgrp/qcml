@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """ Continuous basis pursuit example.
-    
+
     TODO: (PHLI) fill in reference to Eero's paper
     See ....
 """
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     n, m = (args.n, args.m)
 
     print "Running CBP example...."
-    
+
     # TODO: takeaways from this example: "diag" constructor?
 
     p = QCML(debug=True)
@@ -40,7 +40,7 @@ if __name__ == "__main__":
           # norm([u_i v_i]) <= radii_i*c_i
           # norm(x,y) applies norm across rows of the matrix [x y]
           norm(u,v) <= radii*c
-          
+
           # rctheta is going to be a diagonal matrix
           # rctheta[i]*c[i] <= u[i] implemented with rctheta a diag matrix
           rctheta*c <= u
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     raw_input("press ENTER to canonicalize....")
     p.canonicalize()
-    
+
     raw_input("press ENTER to generate code....")
     p.dims = {'n': n, 'm': m}
     p.codegen(args.codegen)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     raw_input("press ENTER for raw code....")
     print p.prob2socp.source
     print p.socp2prob.source
-    
+
     #socp_data = p.prob2socp(params=locals())
     #import ecos
     #sol = ecos.ecos(**socp_data)

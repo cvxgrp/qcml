@@ -4,16 +4,16 @@ import sys
 
 class Node(Treelike, Showable, Canonicalizable):
     __metaclass__ = ABCMeta
-    """ Every node in problem's AST is treelike, showable, and 
+    """ Every node in problem's AST is treelike, showable, and
         canonicalizable.
     """
-    
+
     @abstractmethod
     def info(self):
         """ Returns information about the node as a string.
         """
         pass
-    
+
     def show(self, buf = sys.stdout, offset = 0):
         """ Defines what to show; usually via buf.write
         """

@@ -9,16 +9,16 @@ from qcml.codes.csc_matrix import CSCMap, to_C
 #   appearing (very important!)
 #
 # then, create a csc matrix to find the ordering. finally, iterate through v
-# *once* (via generators) to yield count, v==params.count_map for each param 
+# *once* (via generators) to yield count, v==params.count_map for each param
 # (where "count" is the location of the element in Apr and "count_map" tells
 # us which number maps to which parameter key)
 #
 # then, copying is just
 #   dest_map = param_map.(%name);
 #   src = param.(%name).pr
-#   Apr[*dest_map++] = *src++   
+#   Apr[*dest_map++] = *src++
 #
-# requires a many-to-one map, count_map[2-2] gives the "parameter" associated 
+# requires a many-to-one map, count_map[2-2] gives the "parameter" associated
 # with the number (just an array)
 
 
@@ -27,7 +27,7 @@ from qcml.codes.csc_matrix import CSCMap, to_C
 #
 # nice thing about doing this in numpy is that i can always accelerate the
 # slow code via numba or numexpr
-# 
+#
 params = ['A', 'b', 'c', 'G']
 
 #bwd = {v:k for k,v in fwd.iteritems()}
@@ -35,10 +35,10 @@ Apat = sp.coo_matrix((np.ones(2),([1,0],[0,1])))
 Gpat = np.ones((2,2))
 bpat = np.ones(2)
 cpat = np.ones(2)
-mymap = [CSCMap('A', [(1,0),(0,1)], True), 
-        CSCMap('G', [(0,0),(0,1),(1,0),(1,1)], True), 
+mymap = [CSCMap('A', [(1,0),(0,1)], True),
+        CSCMap('G', [(0,0),(0,1),(1,0),(1,1)], True),
         CSCMap('A', [(1,0),(0,1)]),
-        CSCMap('b', [(1,0),(0,0)]), 
+        CSCMap('b', [(1,0),(0,0)]),
         CSCMap('G', [(0,0),(0,1),(1,0),(1,1)]),
         CSCMap('c', [(0,0),(1,0)])]
 count = 6*[0]
@@ -83,16 +83,16 @@ def test_CSCMap():
     A.append(m[0])
     A.append(m[1])
     A.append(m[2])
-    
+
     yield check_name, A, "params.A"
     for i in xrange(3):
         yield check_map, A, i, m[i]
-    
+
     Atrans = CSCMap('B', [(0,0),(0,1),(1,0)], True)
     Atrans.append(m[0])
     Atrans.append(m[2])
     Atrans.append(m[1])
-    
+
     yield check_name, Atrans, "params.B"
     for i in xrange(3):
         yield check_map, Atrans, i, m[i]

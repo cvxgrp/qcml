@@ -40,9 +40,9 @@ if __name__ == "__main__":
 
     # TODO: sum(norms(X))
     # A*x
-    # 
+    #
     p.solve()
-    
+
     pr = cProfile.Profile()
     pr.enable()
 

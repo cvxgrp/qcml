@@ -5,7 +5,7 @@
     Allows us to create abstract objects to represent OnesCoeff, EyeCoeff, etc. and
     perform basic addition, multiplication, etc. on them. Assumes that the
     coefficient math has already passed DCP checking.
-    
+
     TODO: AddCoeff test cases to CoeffExpr
 """
 from .. import code
@@ -104,9 +104,9 @@ class OnesCoeff(CoeffExpr):
         self.isknown = True
         self.isscalar = False
         self.is_matrix_param = False
-    
+
     def nnz(self): return self.n
-    
+
     def I(self, row_offset, stride=1):
         if self.transpose:
             return code.Repeat(row_offset, self.n)

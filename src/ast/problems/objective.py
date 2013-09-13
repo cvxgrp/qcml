@@ -21,7 +21,7 @@ class Objective(Node):
     }
     def __init__(self, sense, expr):
         # for debugging, ensure that objectives are canonicalizable and showable
-        assert(isinstance(expr, (Node, e.Expression)))   
+        assert(isinstance(expr, (Node, e.Expression)))
         if not shape.isscalar(expr): raise QC_DCPError("Objective is not scalar")
 
         self.sense = sense
@@ -30,16 +30,16 @@ class Objective(Node):
             self.is_dcp = Objective.check_dcp[sense](expr)
         except KeyError:
             raise Exception("Unrecognized problem sense '%s'" % sense)
-        
+
     def __str__(self): return "%s %s" % (self.sense, self.expr)
 
     def info(self):
         if self.is_dcp: return "DCP objective: %s" % (self,)
         else: return "Non-DCP objective: %s" % (self,)
-    
+
     def children(self):
         yield self.expr
-        
+
     def canonicalize(self):
         obj, constraints = self.expr.canonicalize()
         self.expr = obj.simplify()

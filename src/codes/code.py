@@ -11,7 +11,7 @@ class Just(Code):
     def __init__(self, x):
         self.x = x
         super(Just, self).__init__()
-        
+
 class LoopIndex(Code):
     """ Loop over all indices of a matrix in column-major order.
     """
@@ -26,7 +26,7 @@ class LoopRows(LoopIndex):
     """
     def __init__(self, matrix, offset, stride):
         super(LoopRows, self).__init__(matrix, offset, stride)
-        
+
 class LoopCols(LoopIndex):
     """ Loops over the col indices in a matrix.
     """
@@ -59,7 +59,7 @@ class Repeat(Code):
         self.obj = obj
         self.n = n
         super(Repeat, self).__init__()
-    
+
 class Assign(Code):
     """ Assign object on right to object on left.
     """

@@ -24,8 +24,8 @@ setup(
                 'qcml.errors',
                 'qcml.test'],
     package_dir={'qcml': 'src'},
-    package_data = {'qcml': 
-        ['codegens/C/*_template*', 
+    package_data = {'qcml':
+        ['codegens/C/*_template*',
          'codegens/C/qcml_utils.*',
          'test/problems/*.prob']
     },

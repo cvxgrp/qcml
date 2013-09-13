@@ -86,7 +86,7 @@ class Restrictive(object):
     def visit_Add(self, node):
         """ For C code generation, we check for PARAMS + PARAMS and promote
             the right hand side to a new variable.
-            
+
             TODO: Won't work if the param is a matrix, but in that case, it
             ought to have been something like PARAMS*x + PARAMS*x....
         """

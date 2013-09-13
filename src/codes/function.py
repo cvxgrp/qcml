@@ -91,21 +91,21 @@ class Function(object):
     @abstractmethod
     def _generate_source(self, documentation, body):
         pass
-    
+
 class PythonFunction(Function):
     def __init__(self, name, arguments = []):
         prototype = "def {:}({:}):".format(name, ', '.join(arguments))
         super(PythonFunction, self).__init__(name, prototype, comment_string = '#')
-    
+
     def _generate_source(self, documentation, body):
         # attach the body; if no body, simply create an empty function
         code = [self.prototype] + documentation + (body if body else ["%spass" % (self.indent)])
         code_str = '\n'.join(code)
-        
+
         # now create its bytecode
         exec code_str in vars()
         self.generated_func = vars()[self.name]
-        
+
         return code_str
 
     def __call__(self, *args, **kwargs):
@@ -132,7 +132,7 @@ class CFunction(Function):
         if documentation: documentation = ["%s/*" % self.indent] + documentation + ["%s */" % self.indent]
         code = [self.prototype, "{"] + documentation + body + ["}"]
         return '\n'.join(code)
-    
+
     def document(self, lines):
         """ Adds a line or lines of documentation
         """
@@ -140,9 +140,9 @@ class CFunction(Function):
             self._Function__documentation.append(("%s * %s" % (self.indent, line)).rstrip() for line in iterable_line(lines))
         else:
             raise Exception("Function document: Cannot add documentation to already generated function.")
-    
+
     def add_comment(self, lines):
         """ Adds comments lines to the source code
         """
         self.add_lines("/* %s */" % line for line in iterable_line(lines))
-        
+

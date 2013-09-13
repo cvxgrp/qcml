@@ -20,13 +20,13 @@ affine = [w*x, x + w, w - y, D*E*z, Sum(z)]
 
 # TODO: add more test cases to convex
 convex = [  # x^2
-            atom.QC_square(x), 
+            atom.QC_square(x),
             # c*x + w*x^2
-            c*x + w*atom.QC_square(x), 
+            c*x + w*atom.QC_square(x),
              # ||x||
             atom.QC_norm(x),
             # ||x||_2^2
-            atom.QC_square(atom.QC_norm(x)), 
+            atom.QC_square(atom.QC_norm(x)),
             # (x-y)^2/(1 - max(x,y))
             atom.QC_quad_over_lin(x - y, a - atom.QC_max(x, y)),
             # square(D*E*z) - x^(3/4)
@@ -45,7 +45,7 @@ concave = [
 ]
 
 # TODO: add more nonconvex test cases
-nonconvex = [   atom.QC_sqrt(a + atom.QC_square(x)), 
+nonconvex = [   atom.QC_sqrt(a + atom.QC_square(x)),
                 c*x + u*atom.QC_square(x),
                 atom.QC_square(D*E*z) + atom.QC_pow_rat(x, Number(3), Number(4)),
                 atom.QC_sqrt(atom.QC_square(x)) ]
@@ -76,7 +76,7 @@ def check(is_curvature, x):
     print "Expected", x, "to be", to_str[is_curvature]
     print "Got", x.curvature
     assert is_curvature(x)
-    
+
 def test_vexities():
     for expr in constants:
         yield check, isconstant, expr
@@ -84,7 +84,7 @@ def test_vexities():
         yield check, isconvex, expr
         yield check, isconcave, expr
         yield check, not_nonconvex, expr
-    
+
     for expr in affine:
         yield check, not_constant, expr
         yield check, isaffine, expr
@@ -98,19 +98,19 @@ def test_vexities():
         yield check, isconvex, expr
         yield check, not_concave, expr
         yield check, not_nonconvex, expr
-    
+
     for expr in concave:
         yield check, not_constant, expr
         yield check, not_affine, expr
         yield check, not_convex, expr
         yield check, isconcave, expr
         yield check, not_nonconvex, expr
-    
+
     for expr in nonconvex:
         yield check, not_constant, expr
         yield check, not_affine, expr
         yield check, not_convex, expr
         yield check, not_concave, expr
         yield check, isnonconvex, expr
-        
-        
+
+

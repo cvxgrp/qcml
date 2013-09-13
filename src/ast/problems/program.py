@@ -13,10 +13,10 @@ class Program(Node):
     def __init__(self, objective, constraints, variables, parameters={}, dimensions=set()):
         assert(isinstance(objective, obj.Objective))
         assert(all(isinstance(x, Constraint) for x in constraints))
-        
+
         self.objective = objective
-        
-        # adds constraints to the proper set (using constr_map) and removes 
+
+        # adds constraints to the proper set (using constr_map) and removes
         # duplicates
         self.eq_constr, self.ineq_constr, self.soc_constr = set(), set(), set()
         self.__constr_map = {
@@ -27,14 +27,14 @@ class Program(Node):
             None.__class__: lambda x: None,   # if None, don't do anything
         }
         for c in constraints: self.__constr_map[c.__class__](c)
-                
+
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
         self.variables = variables     # variables declared by the user
         self.parameters = parameters   # parameters declared by the user
         self.dimensions = dimensions   # dimensions declared by the user
         self.new_variables = {}        # new variables introduced by rewriting
 
-    def __str__(self): 
+    def __str__(self):
         constrs = map(str, self.eq_constr) + map(str, self.ineq_constr) + map(str, self.soc_constr)
         return "%s\nsubject to\n    %s" % (self.objective, '\n    '.join(constrs))
 
@@ -51,10 +51,10 @@ class Program(Node):
         # clear the constraint sets
         map(lambda x: x.clear(), (self.eq_constr, self.ineq_constr, self.soc_constr))
         for c in constraints: self.__constr_map[c.__class__](c)
-             
-        # doesn't actually need to return anything...   
+
+        # doesn't actually need to return anything...
         #return self.objective, filter(None, constraints)
-    
+
     def children(self):
         """ An iterator that yields the children
         """
