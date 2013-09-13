@@ -13,4 +13,4 @@ install:
 # command to run tests
 script:
     - nosetests --with-cover
-    - pylint -f colorize src
+    - pylint -f colorized src
