@@ -21,7 +21,7 @@ class Function(object):
 
     def __init__(self, name, prototype, comment_string):
         self.name = name
-        self.__generated = False
+        self.generated = False
         self.__source = ""          # generated source code
 
         self.prototype = prototype  # function prototype
@@ -44,7 +44,7 @@ class Function(object):
 
     @property
     def source(self):
-        if not self.__generated: self.create()
+        if not self.generated: self.create()
         return self.__source
 
     @property
@@ -55,7 +55,7 @@ class Function(object):
     def document(self, lines):
         """ Adds a line or lines of documentation
         """
-        if not self.__generated:
+        if not self.generated:
             self.__documentation.append("{:}{:} {:}".format(self.indent, self.comment, line).rstrip() for line in iterable_line(lines))
         else:
             raise Exception("Function document: Cannot add documentation to already generated function.")
@@ -63,7 +63,7 @@ class Function(object):
     def add_lines(self, lines):
         """ Add a line or lines of source code
         """
-        if not self.__generated:
+        if not self.generated:
             self.__body.append("{:}{:}".format(self.indent, line).rstrip() for line in iterable_line(lines))
         else:
             raise Exception("Function add_lines: Cannot add lines to already generated function.")
@@ -79,14 +79,14 @@ class Function(object):
         self.add_lines("{:} {:}".format(self.comment, line) for line in iterable_line(lines))
 
     def reset(self):
-        self.__generated = False
+        self.generated = False
 
     def create(self):
-        if not self.__generated:
+        if not self.generated:
             documentation = list(chain.from_iterable(self.__documentation))
             body = list(chain.from_iterable(self.__body))
             self.__source = self._generate_source(documentation, body)
-            self.__generated = True
+            self.generated = True
 
     @abstractmethod
     def _generate_source(self, documentation, body):
@@ -109,7 +109,7 @@ class PythonFunction(Function):
         return code_str
 
     def __call__(self, *args, **kwargs):
-        if not self._Function__generated: self.create()
+        if not self.generated: self.create()
         return self.generated_func(*args, **kwargs)
 
 
@@ -126,20 +126,12 @@ class MatlabFunction(Function):
 class CFunction(Function):
     def __init__(self, name, arguments = [], ret_type = "void", *args, **kwargs):
         prototype = "{:} {:}({:})".format(ret_type, name, ', '.join(arguments))
-        super(CFunction, self).__init__(name, prototype, comment_string = '/* %s */')
+        super(CFunction, self).__init__(name, prototype, comment_string = ' *')
 
     def _generate_source(self, documentation, body):
         if documentation: documentation = ["%s/*" % self.indent] + documentation + ["%s */" % self.indent]
         code = [self.prototype, "{"] + documentation + body + ["}"]
         return '\n'.join(code)
-
-    def document(self, lines):
-        """ Adds a line or lines of documentation
-        """
-        if not self._Function__generated:
-            self._Function__documentation.append(("%s * %s" % (self.indent, line)).rstrip() for line in iterable_line(lines))
-        else:
-            raise Exception("Function document: Cannot add documentation to already generated function.")
 
     def add_comment(self, lines):
         """ Adds comments lines to the source code

@@ -19,7 +19,7 @@ Links with ECOS library.
 import os, shutil, site, math
 from .. base_codegen import Codegen
 
-from ... mixins.restrictive import Restrictive
+from ... mixins import RestrictedMultiplyMixin
 
 from ... ast.expressions import expression
 from ... properties import shape
@@ -41,7 +41,7 @@ def shape_to_c_type(x):
     if shape.ismatrix(x): return "qc_matrix *"
     raise Exception("Unknown shape...")
 
-class C_Codegen(Codegen, Restrictive):
+class C_Codegen(Codegen, RestrictedMultiplyMixin):
     """ This produces two functions and a header file.
     """
     def __init__(self, sparsity_pattern = None, name = "problem"):

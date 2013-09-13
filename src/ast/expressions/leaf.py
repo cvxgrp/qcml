@@ -2,7 +2,7 @@ import expression as e
 
 from ... properties import sign, shape, curvature
 
-class Number(e.Leaf):
+class Number(e.LeafMixin, e.Expression):
     """ Number AST node.
 
         Contains a floating point number. It is Affine; its sign depends on
@@ -15,7 +15,7 @@ class Number(e.Leaf):
 
     def __repr__(self): return "Number(%s)" % self.value
 
-class Parameter(e.Leaf):
+class Parameter(e.LeafMixin, e.Expression):
     """ Parameter AST node.
 
         Contains a representation of Parameters. It is Affine; its sign and
@@ -26,7 +26,7 @@ class Parameter(e.Leaf):
 
     def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
 
-class Variable(e.Leaf):
+class Variable(e.LeafMixin, e.Expression):
     """ Variable AST node.
 
         Contains a representation of Variables. It is Affine; its sign is

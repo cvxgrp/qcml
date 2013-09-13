@@ -32,7 +32,7 @@ def _signed_multiply(left, right):
 
     What follows are nodes that are used to form expressions.
 """
-class Add(e.Expression, e.BinaryOperator):
+class Add(e.Expression, e.BinaryOperatorMixin):
     OP_NAME = ' + '
     OP_FUNC = operator.__add__
     IDENTITY = 0
@@ -68,7 +68,7 @@ class Add(e.Expression, e.BinaryOperator):
             return ( (self.left.left + e.Number(1)) * self.right ).simplify()
         return self
 
-class Mul(e.Expression, e.BinaryOperator):
+class Mul(e.Expression, e.BinaryOperatorMixin):
     """ Assumes the lefthand side is a Number or a Parameter.
 
         Effectively a unary operator.
@@ -101,7 +101,7 @@ class Mul(e.Expression, e.BinaryOperator):
         return self
 
 
-class Sum(e.Expression, e.UnaryOperator):
+class Sum(e.Expression, e.UnaryOperatorMixin):
 
     def sum_func(self,x):
         if isinstance(x, e.Expression): return Sum(x)
@@ -119,7 +119,7 @@ class Sum(e.Expression, e.UnaryOperator):
             return (Sum(self.expr.left) + Sum(self.expr.right)).simplify()
         return self
 
-class Transpose(e.Expression, e.UnaryOperator):
+class Transpose(e.Expression, e.UnaryOperatorMixin):
     """ Can only be applied to parameters
     """
     def transpose(self,x):

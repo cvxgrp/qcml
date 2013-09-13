@@ -59,7 +59,8 @@ def test_indent():
 def test_comment():
     # '#' comment in pyhton
     assert(py_helloWorld.comment == '#')
-    assert(c_helloWorld.comment == '/* %s */')
+    # ' *' comment in C (used for documentation)
+    assert(c_helloWorld.comment == ' *')
 
 def string_gen():
     yield "this function just tests"

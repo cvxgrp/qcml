@@ -86,7 +86,7 @@ def QC_pow_rat(x,p,q):
         try:
             result = pow_rat_func[(p.value, q.value)](x)
         except KeyError:
-            raise TypeError("Nonexistent implementation for %s^(%s/%s)" % (arg.value, p.value, q.value))
+            raise TypeError("Nonexistent implementation for %s^(%s/%s)" % (x.value, p.value, q.value))
         return result
     else:
         raise TypeError("Cannot use non-constant arguments p = %s, q = %s" % (str(p), str(q)))

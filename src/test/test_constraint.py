@@ -1,4 +1,4 @@
-from .. ast.constraints import *
+from .. ast import constraints
 
 from .. ast.expressions import Variable
 from .. properties import shape
@@ -10,10 +10,10 @@ z = Variable('z', shape.Scalar())
 
 # check that the constructors work as expected
 cone_test = [
-    (LinearInequality(x,y), 'x + -1*y <= 0'),
-    (LinearEquality(x,z), 'x + -1*z == 0'),
-    (SOC(x,[y, z]), 'norm([y; z]) <= x'),
-    (SOCProd(y,[y, y]), 'norm(y, y) <= y')
+    (constraints.LinearInequality(x,y), 'x + -1*y <= 0'),
+    (constraints.LinearEquality(x,z), 'x + -1*z == 0'),
+    (constraints.SOC(x,[y, z]), 'norm([y; z]) <= x'),
+    (constraints.SOCProd(y,[y, y]), 'norm(y, y) <= y')
 ]
 
 def check(r,s):

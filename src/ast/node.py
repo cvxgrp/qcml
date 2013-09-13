@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from .. mixins import Treelike, Showable, Canonicalizable
+from .. interfaces import Treelike, Showable, Canonicalizable
 import sys
 
 class Node(Treelike, Showable, Canonicalizable):

@@ -1,9 +1,9 @@
 # TODO: (ECHU) presumably, this will work, but in actuality, i'm not sure...
 # Need to test this.
 from .. properties.shape import Vector, Scalar
-from  .. ast.expressions import expression
+from .. ast.expressions import expression
 
-class FixableCones(object):
+class FixedConeMixin(object):
     """ This implements the fixed cone size behavior.
     """
     def __init__(self, cone_size = None, *args, **kwargs):

@@ -34,8 +34,6 @@ class Expression(Node):
         self.shape = shape
         super(Expression, self).__init__(**kwargs)
 
-    attr_names = ('curvature', 'sign','shape')
-
     def __neg__(self): return Mul(Number(-1), self)
 
     def __sub__(self,other): return Add(self, -other)
@@ -54,10 +52,10 @@ class Expression(Node):
         return "%s: %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape)
 
 
-class Leaf(Expression):
+class LeafMixin(Node):
     def __init__(self, value, **kwargs):
         self.value = value
-        super(Leaf,self).__init__(**kwargs)
+        super(LeafMixin,self).__init__(**kwargs)
 
     def children(self): return []
 
@@ -71,16 +69,11 @@ class Leaf(Expression):
         return "%s: %s, %s, %s, %s" % (self.__class__.__name__, self.curvature, self.sign, self.shape, self.value)
 
 
-class BinaryOperator(Node):
-    OP_NAME = ''
-    OP_FUNC = None
-    IDENTITY = None
-    ZERO = None
-
+class BinaryOperatorMixin(Node):
     def __init__(self, left, right, **kwargs):
         self.left = left
         self.right = right
-        super(BinaryOperator, self).__init__(**kwargs)
+        super(BinaryOperatorMixin, self).__init__(**kwargs)
 
     def children(self):
         if self.left is not None: yield self.left
@@ -137,14 +130,10 @@ class BinaryOperator(Node):
         obj = self.OP_FUNC(lh_obj, rh_obj)
         return (obj, lh_constraints + rh_constraints)
 
-class UnaryOperator(Node):
-    OP_NAME = ''
-    IS_POSTFIX = None
-    OP_FUNC = None
-
+class UnaryOperatorMixin(Node):
     def __init__(self, expr, **kwargs):
         self.expr = expr
-        super(UnaryOperator, self).__init__(**kwargs)
+        super(UnaryOperatorMixin, self).__init__(**kwargs)
 
     def children(self):
         if self.expr is not None: yield self.expr

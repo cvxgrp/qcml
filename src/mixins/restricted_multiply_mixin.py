@@ -6,7 +6,7 @@ from .. ast.expressions import expression
 from .. properties import shape
 from .. properties.curvature import isconstant
 
-class Restrictive(object):
+class RestrictedMultiplyMixin(object):
     """ This implements the restricted multiplication behavior.
     """
     def __init__(self, *args, **kwargs):

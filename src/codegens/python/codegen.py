@@ -1,5 +1,4 @@
 from .. base_codegen import Codegen
-from ... mixins.restrictive import Restrictive
 from ... codes import OnesCoeff, ConstantCoeff
 from ... codes.function import PythonFunction
 from ... codes.encoders import toPython
