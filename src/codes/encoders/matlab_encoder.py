@@ -38,7 +38,6 @@ def mul(x):
     return "dot(%s,%s)" % (toMatlab(x.left), toMatlab(x.right))
 
 def just(elem):
-    # FIXME
     return "%s" % elem.x
 
 def loop_rows(x):
@@ -71,11 +70,10 @@ def _range(x):
     else:             return "(%d:%d:%d)'" % (x.start, x.stride, x.end-1)
 
 def repeat(x):
-    return "repmat(%s,%d,1)" % (toMatlab(x.obj), x.n)
+    return "%s*ones(%d,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
-    # FIXME
-    return "%s = sparse(%s)" % (toMatlab(x.lhs), toMatlab(x.rhs))
+    return "%s = %s" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):
     return "%s.nnz" % (toMatlab(x.obj))
