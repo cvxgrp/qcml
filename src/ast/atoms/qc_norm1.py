@@ -22,10 +22,7 @@ from qc_abs import QC_abs
 def QC_norm1(*args):
     if len(args) == 1: return Sum(QC_abs(args[0]))
     else:
-        v = Number(0)
-        for elem in args:
-            v += QC_abs(args)
-        return v
+        return sum(map(QC_abs, args), Number(0))
 
 atom.atoms['norm1'] = QC_norm1
 

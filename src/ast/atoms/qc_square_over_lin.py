@@ -1,6 +1,3 @@
-import atom
-from utils import *
-
 """ This is the square_over_lin atom.
 
         square_over_lin(x,y) = (x).^2 ./ y
@@ -21,6 +18,8 @@ from utils import *
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
 
 class QC_square_over_lin(atom.Atom):
     def __init__(self, x, y):
@@ -48,7 +47,7 @@ class QC_square_over_lin(atom.Atom):
 
 
     def _canonicalize(self):
-        v = create_variable(self.shape)
+        v = Variable('', self.shape)
         x,y = self.args
         constraints = [
             SOCProd(y + v, [y - v, Number(2.0)*x]),

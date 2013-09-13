@@ -1,9 +1,9 @@
-from .. expressions import expression as e
+from .. expressions import Expression
 from qcml.properties import sign, curvature
 
 atoms = {}
 
-class Atom(e.Expression):
+class Atom(Expression):
     """ Atom AST node.
 
         Stores the name of the atom and its arguments.
@@ -51,7 +51,7 @@ class Atom(e.Expression):
         # TODO: need to take care of what happens when it's
         #   expr + convex_atom(expr) <= expr
         #   expr + concave_atom(expr) >= expr
-        # in these cases, if it's possible (i.e., canonicalizes to a single
+        # in these cases, if it's possible (i.., canonicalizes to a single
         # epigraph variable), replace the epigraph variable with the linear
         # expression
         #

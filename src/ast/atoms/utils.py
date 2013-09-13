@@ -1,20 +1,9 @@
-import qcml
+# TODO: ECHU, I think this file can "go away"
+
 from .. expressions import Variable, Number, Sum, isnumber
 from .. constraints import SOC, SOCProd
 
 from qcml.properties import monotonicity, curvature, sign, shape
-
-def _create_varname():
-    """Creates a new, temporary variable name; begins with underscore."""
-    name = '_t' + str(qcml.QCRewriter.varcount)
-    qcml.QCRewriter.varcount += 1
-
-    return name
-
-def create_variable(shape):
-    v = Variable(_create_varname(), shape)
-    qcml.QCRewriter.new_variables[v.value] = v
-    return v
 
 def annotate(fn_name):
     def decorate(fn, *args):

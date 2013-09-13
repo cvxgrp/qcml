@@ -32,7 +32,13 @@ class Variable(e.Expression, e.Leaf):
         Contains a representation of Variables. It is Affine; its sign is
         Neither positive nor negative. Its shape is supplied from QCML.
     """
+    count = 0
     def __init__(self, value, shape):
-        super(Variable, self).__init__(value = value, curvature = curvature.Affine(), shape = shape, sign = sign.Neither())
+        if value:
+            name = value
+        else:
+            name = "_t%d" % Variable.count
+            Variable.count += 1
+        super(Variable, self).__init__(value = name, curvature = curvature.Affine(), shape = shape, sign = sign.Neither())
 
     def __repr__(self): return "Variable('%s',%s)" % (self.value, self.shape)

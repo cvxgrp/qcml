@@ -1,8 +1,3 @@
-import atom
-from utils import *
-
-from qc_max import QC_max
-
 """ This is the pos atom.
 
         pos(x) = max(x,0)
@@ -15,6 +10,11 @@ from qc_max import QC_max
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
+
+from qc_max import QC_max
+
 class QC_pos(QC_max):
     def __init__(self, x):
         super(QC_pos,self).__init__(x, Number(0))

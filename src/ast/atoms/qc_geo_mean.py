@@ -1,6 +1,3 @@
-import atom
-from utils import *
-
 """ This is the geo_mean atom.
 
         geo_mean(x,y) = sqrt(x * y)
@@ -18,6 +15,9 @@ from utils import *
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
+
 class QC_geo_mean(atom.Atom):
     def __init__(self, x, y):
         super(QC_geo_mean, self).__init__(x,y)
@@ -35,7 +35,7 @@ class QC_geo_mean(atom.Atom):
         return self.args[0].shape + self.args[1].shape
 
     def _canonicalize(self):
-        v = create_variable(self.shape)
+        v = Variable('', self.shape)
         x, y = self.args
         constraints = [
             SOCProd(x + y, [y - x, Number(2.0)*v]),

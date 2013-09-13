@@ -1,6 +1,3 @@
-import atom
-from utils import *
-
 """ This is the max atom.
 
         max(x) = maximum element of x
@@ -14,6 +11,9 @@ from utils import *
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
+
 class QC_max(atom.Atom):
     def __init__(self, *args):
         super(QC_max, self).__init__(*args)
@@ -38,8 +38,8 @@ class QC_max(atom.Atom):
             return base_shape
 
     def _canonicalize(self):
-        v = create_variable(self.shape)
-        constraints = map(lambda x: v >= x, self.args)
+        v = Variable('', self.shape)
+        constraints = [v >= x for x in self.args]
         return (v, constraints)
 
 # register with the atom library

@@ -1,8 +1,3 @@
-import atom
-from utils import *
-
-from qc_square_over_lin import QC_square_over_lin
-
 """ This is the square atom.
 
         square(x) = square_over_lin(x,1)
@@ -20,6 +15,11 @@ from qc_square_over_lin import QC_square_over_lin
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+
+import atom
+from utils import *
+
+from qc_square_over_lin import QC_square_over_lin
 
 class QC_square(QC_square_over_lin):
     def __init__(self, x):

@@ -1,9 +1,3 @@
-import atom
-from utils import *
-
-from qc_geo_mean import QC_geo_mean
-
-
 """ This is the sqrt atom.
 
         sqrt(x) = geo_mean(x,1)
@@ -16,6 +10,13 @@ from qc_geo_mean import QC_geo_mean
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
+
+from qc_geo_mean import QC_geo_mean
+
+
+
 class QC_sqrt(QC_geo_mean):
     def __init__(self, x):
         super(QC_geo_mean,self).__init__(x, Number(1))

@@ -1,9 +1,3 @@
-import atom
-from utils import *
-
-from qc_square import QC_square
-from qc_abs import QC_abs
-
 """ This is the huber atom.
 
         huber(x) = minimize(w.^2 + 2*v) s.t. (abs(x) <= w + v; w<=1; v>=0)
@@ -21,6 +15,11 @@ from qc_abs import QC_abs
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+import atom
+from utils import *
+
+from qc_square import QC_square
+from qc_abs import QC_abs
 
 class QC_huber(atom.Atom):
     def __init__(self, x):
@@ -39,7 +38,7 @@ class QC_huber(atom.Atom):
         return self.args[0].shape
 
     def _canonicalize(self):
-        w, v = create_variable(self.shape), create_variable(self.shape)
+        w, v = Variable('', self.shape), Variable('', self.shape)
         x, = self.args
 
         o1, c1 = QC_square(w).canonicalize()

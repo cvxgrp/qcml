@@ -19,7 +19,7 @@ class QC_abs(atom.Atom):
 
     def _canonicalize(self):
         x, = self.args
-        v = create_variable(self.shape)
+        v = Variable('',self.shape)
         constraints = [x <= v, x >= -v]
         return (v, constraints)
 

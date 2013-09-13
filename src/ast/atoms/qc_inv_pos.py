@@ -1,8 +1,3 @@
-import atom
-from utils import *
-
-from qc_square_over_lin import QC_square_over_lin
-
 """ This is the inv_pos atom.
 
         inv_pos(x) = square_over_lin(1,x)
@@ -17,6 +12,12 @@ from qc_square_over_lin import QC_square_over_lin
         attributes :: [arg] -> (sign, vexity, shape)
         rewrite :: [arg] -> Program
 """
+
+import atom
+from utils import *
+
+from qc_square_over_lin import QC_square_over_lin
+
 class QC_inv_pos(QC_square_over_lin):
     def __init__(self, x):
         super(QC_inv_pos,self).__init__(Number(1), x)

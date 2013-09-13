@@ -23,7 +23,7 @@ class QC_norm(atom.Atom):
             return new_shape
 
     def _canonicalize(self):
-        v = create_variable(self.shape)
+        v = Variable('', self.shape)
         if shape.isscalar(v):
             return (v, [SOC(v, self.args)])
         else:
