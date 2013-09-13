@@ -38,13 +38,9 @@ def mul(x):
     return "dot(%s,%s)" % (toMatlab(x.left), toMatlab(x.right))
 
 def just(elem):
-    # FIXME
     return "%s" % elem.x
 
 def loop_rows(x):
-    # FIXME: This would be cleaner if we ran a meshgrid (or just repmat as 
-    # below) in functions_setup and then could simply access, e.g. 
-    # params.name_rows
     mat = toMatlab(x.matrix)
     ret = "mod(find(%s)-1,size(%s,1))" % (mat, mat)
 
@@ -56,7 +52,6 @@ def loop_rows(x):
     return ret
 
 def loop_cols(x):
-    # FIXME: See loop_rows
     mat = toMatlab(x.matrix)
     ret = "floor((find(%s)-1)/size(%s,1))" % (mat, mat)
 
@@ -68,9 +63,6 @@ def loop_cols(x):
     return ret
 
 def loop_over(x):
-    # FIXME: This probably needs to be changed to ugly direct call to subsref
-    # to be able to handle situations where LoopOver includes an operation on 
-    # the matrix.
     return "nonzeros(%s)" % (x.op % toMatlab(x.matrix))
 
 def _range(x):
@@ -78,11 +70,10 @@ def _range(x):
     else:             return "(%d:%d:%d)'" % (x.start, x.stride, x.end-1)
 
 def repeat(x):
-    return "repmat(%s,%d,1)" % (toMatlab(x.obj), x.n)
+    return "%s*ones(%d,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
-    # FIXME
-    return "%s = sparse(%s)" % (toMatlab(x.lhs), toMatlab(x.rhs))
+    return "%s = %s" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):
     return "%s.nnz" % (toMatlab(x.obj))
