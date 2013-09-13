@@ -12,7 +12,7 @@ if ! $(python -m 'ecos'); then
 
     cd ecos/python
     INSTALL_ECOS='python setup.py install'
-    if ! -z "$1"; then
+    if [ $# -gt 0 ]; then
         INSTALL_ECOS="$INSTALL_ECOS --prefix $1"
     fi
     echo $INSTALL_ECOS
