@@ -1,4 +1,4 @@
-from qcml.properties.shape import Shape, Scalar, Vector, Matrix, isvector, isscalar, ismatrix
+from .. properties.shape import Shape, Scalar, Vector, Matrix, isvector, isscalar, ismatrix
 from nose.tools import assert_raises
 import operator
 

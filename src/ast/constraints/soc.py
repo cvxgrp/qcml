@@ -1,5 +1,5 @@
 from constraint import Constraint
-from qcml.properties import curvature, shape
+from ... properties import curvature, shape
 
 class SOCConstraint(Constraint):
     """ norm([left]) <= right or norms(left) <= right

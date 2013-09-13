@@ -1,4 +1,4 @@
-from qcml.helpers import use
+from .. helpers import use
 
 @use('sign')
 def ispositive(x):

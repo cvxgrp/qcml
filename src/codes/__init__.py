@@ -9,3 +9,8 @@
     in this folder. The encoder figures out how to convert the objects into
     the appropriate code.
 """
+from . code import Just, LoopRows, LoopCols, LoopOver, Range, Repeat, \
+    Assign, NNZ
+from . coefficients.coefficient import ConstantCoeff, OnesCoeff, \
+    NegateCoeff, AddCoeff, MulCoeff, EyeCoeff, TransposeCoeff, \
+    ParameterCoeff, ScalarParameterCoeff

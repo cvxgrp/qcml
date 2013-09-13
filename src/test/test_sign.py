@@ -1,4 +1,4 @@
-from qcml.properties.sign import Positive, Negative, Neither
+from .. properties.sign import Positive, Negative, Neither
 #from nose.tools import assert_raises
 #import operator
 

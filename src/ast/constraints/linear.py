@@ -1,5 +1,5 @@
 from constraint import Constraint
-from qcml.properties import curvature
+from ... properties import curvature
 
 class LinearConstraint(Constraint):
     """ expr == 0 or expr <= 0

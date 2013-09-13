@@ -19,15 +19,15 @@ Links with ECOS library.
 import os, shutil, site, math
 from .. base_codegen import Codegen
 
-from qcml.mixins.restrictive import Restrictive
+from ... mixins.restrictive import Restrictive
 
-from qcml.ast.expressions import expression
-import qcml.properties.shape as shape
-from qcml.properties.curvature import isconstant
-from qcml.codes.function import CFunction
+from ... ast.expressions import expression
+from ... properties import shape
+from ... properties.curvature import isconstant
 
-from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
-import qcml.codes.encoders as encoder
+from ... codes import OnesCoeff, ConstantCoeff
+from ... codes.function import CFunction
+from ... codes.encoders import toC
 
 
 def write_template(template_file, new_file, code):
@@ -288,32 +288,32 @@ class C_Codegen(Codegen, Restrictive):
         # TODO: i shouldn't have to check here....
         if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
         else: tag = "[i];"
-        yield "for(i = 0; i < %d; ++i) data->c[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
+        yield "for(i = 0; i < %d; ++i) data->c[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
     def stuff_b(self, start, end, expr):
         # TODO: i shouldn't have to check here....
         if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
         else: tag = "[i];"
-        yield "for(i = 0; i < %d; ++i) data->b[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
+        yield "for(i = 0; i < %d; ++i) data->b[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
     def stuff_h(self, start, end, expr, stride = None):
         if expr.isscalar: tag = ";"
         else: tag = "[i];"
         if stride is not None and stride != 1:
             numel = math.ceil( float(end - start) / stride )
-            yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, encoder.toC(expr), tag)
+            yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, toC(expr), tag)
         else:
-            yield "for(i = 0; i < %d; ++i) data->h[i + %s] = %s%s" % (end-start, start, encoder.toC(expr), tag)
+            yield "for(i = 0; i < %d; ++i) data->h[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
 
     def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):
-        yield encoder.toC(expr.I(row_start, row_stride)) % ({'ptr': "%s_row_ptr" % matrix})
-        yield encoder.toC(expr.J(col_start)) % ({'ptr': "%s_col_ptr" % matrix})
-        yield encoder.toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
+        yield toC(expr.I(row_start, row_stride)) % ({'ptr': "%s_row_ptr" % matrix})
+        yield toC(expr.J(col_start)) % ({'ptr': "%s_col_ptr" % matrix})
+        yield toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
 
     def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         # execute this code first
-        self.nnz['G'].append(encoder.toC(expr.nnz()))
+        self.nnz['G'].append(toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
 
@@ -322,7 +322,7 @@ class C_Codegen(Codegen, Restrictive):
 
     def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         # execute this code first
-        self.nnz['A'].append(encoder.toC(expr.nnz()))
+        self.nnz['A'].append(toC(expr.nnz()))
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
 

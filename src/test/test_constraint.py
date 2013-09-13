@@ -1,7 +1,7 @@
-from qcml.ast.constraints import *
+from .. ast.constraints import *
 
-from qcml.ast.expressions import Variable
-import qcml.properties.shape as shape
+from .. ast.expressions import Variable
+from .. properties import shape
 
 
 x = Variable('x', shape.Scalar())

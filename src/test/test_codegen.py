@@ -6,7 +6,7 @@ Should be able to run generated Makefile without any errors (except warnings).
 """
 import os, shutil, subprocess
 
-from qcml.codegens import PythonCodegen, MatlabCodegen, C_Codegen
+from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen
 from nose import with_setup
 
 #TODO: matlab = MatlabCodegen()

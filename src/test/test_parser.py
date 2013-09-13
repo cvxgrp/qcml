@@ -1,5 +1,5 @@
-from qcml import QCML
-from qcml.errors import QC_ParseError, QC_DCPError
+from .. import QCML
+from .. errors import QC_ParseError, QC_DCPError
 from nose.tools import assert_raises
 import os
 

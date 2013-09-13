@@ -1,5 +1,5 @@
 from .. expressions import Expression
-from qcml.properties import sign, curvature
+from ... properties import sign, curvature
 
 atoms = {}
 

@@ -1,8 +1,8 @@
-from qcml.ast.expressions import Number, Parameter, Variable, Transpose, Sum
-from qcml.properties.shape import Scalar, Matrix, Vector
-from qcml.properties.sign import Positive, Neither
-from qcml.properties.curvature import isconvex, isconcave, isaffine, isnonconvex, isconstant
-import qcml.ast.atoms as atom
+from .. ast.expressions import Number, Parameter, Variable, Transpose, Sum
+from .. properties.shape import Scalar, Matrix, Vector
+from .. properties.sign import Positive, Neither
+from .. properties.curvature import isconvex, isconcave, isaffine, isnonconvex, isconstant
+from .. ast.atoms import atom
 
 a = Number(1)
 b = Number(2)

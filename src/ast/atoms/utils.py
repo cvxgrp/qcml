@@ -3,7 +3,7 @@
 from .. expressions import Variable, Number, Sum, isnumber
 from .. constraints import SOC, SOCProd
 
-from qcml.properties import monotonicity, curvature, sign, shape
+from ... properties import monotonicity, curvature, sign, shape
 
 # def annotate(fn_name):
 #     def decorate(fn, *args):

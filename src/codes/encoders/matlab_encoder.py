@@ -6,8 +6,7 @@
 """
 
 from encoder import create_encoder
-from qcml.codes.coefficients import *
-from qcml.codes.code import *
+from ... import codes
 
 def constant(x):
     return str(x.value)
@@ -80,23 +79,23 @@ def nnz(x):
 
 
 lookup = {
-    ConstantCoeff:          constant,
-    EyeCoeff:               eye,
-    OnesCoeff:              ones,
-    TransposeCoeff:         trans,
-    ParameterCoeff:         parameter,
-    ScalarParameterCoeff:   parameter,
-    NegateCoeff:            negate,
-    AddCoeff:               add,
-    MulCoeff:               mul,
-    Just:                   just,
-    LoopRows:               loop_rows,
-    LoopCols:               loop_cols,
-    LoopOver:               loop_over,
-    Range:                  _range, # "range" is reserved
-    Repeat:                 repeat,
-    Assign:                 assign,
-    NNZ:                    nnz,
+    codes.ConstantCoeff:          constant,
+    codes.EyeCoeff:               eye,
+    codes.OnesCoeff:              ones,
+    codes.TransposeCoeff:         trans,
+    codes.ParameterCoeff:         parameter,
+    codes.ScalarParameterCoeff:   parameter,
+    codes.NegateCoeff:            negate,
+    codes.AddCoeff:               add,
+    codes.MulCoeff:               mul,
+    codes.Just:                   just,
+    codes.LoopRows:               loop_rows,
+    codes.LoopCols:               loop_cols,
+    codes.LoopOver:               loop_over,
+    codes.Range:                  _range, # "range" is reserved
+    codes.Repeat:                 repeat,
+    codes.Assign:                 assign,
+    codes.NNZ:                    nnz,
     str: lambda x: x,
     int: lambda x: str(x)
 }

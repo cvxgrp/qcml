@@ -1,11 +1,10 @@
-from qcml.codes.code import *
-from qcml.codes.coefficients import *
-from qcml.codes.encoders import toPython
+from .. import codes
+from .. codes.encoders import toPython
 import scipy.sparse as sp
 import numpy as np
 import itertools
 
-# TODO: add test cases here
+# TODO: add test cases for C + Matlab here
 
 """
 CVXOPT data structures....
@@ -32,24 +31,24 @@ params = {'A':sp.coo_matrix([[1.,0,3],[4,5,0]]), 'B':np.matrix([[0.,2,0.],[0,0,6
 elem = 2.3
 
 python_objects = [
-    (ConstantCoeff(3.2), '3.2', 3.2),
-    (OnesCoeff(3, ConstantCoeff(-2.1)), "-2.1 * np.ones((3,))", 3*[-2.1]),
-    (NegateCoeff(ConstantCoeff(2)), "-(2)", -2),
-    (EyeCoeff(3, ConstantCoeff(4.3)), "4.3 * sp.eye(3,format='coo')", np.array([[4.3,0,0],[0,4.3,0],[0,0,4.3]])),
-    (TransposeCoeff(ParameterCoeff('A')), "(params['A']).T", np.array([[1.,4.],[0.,5.], [3.,0.]])),
-    (ParameterCoeff('A'), "params['A']", np.array([[1.,0,3],[4.,5.,0]])),
-    (ScalarParameterCoeff('c'), "params['c']", 2.3),
-    (Just(5), "[5]", [5]),
-    (LoopRows(ParameterCoeff('A'), 3, 2), "(3 + 2*idx for idx in params['A'].row)", [3,3,5,5]),
-    (LoopCols(ParameterCoeff('A'), 2, 3), "(2 + 3*idx for idx in params['A'].col)", [2,8,2,5]),
-    (LoopOver(ParameterCoeff('A')), "(v for v in params['A'].data)",[1,3,4,5]),
-    (LoopOver(ParameterCoeff('A'),"1 + 2*%s"), "(1 + 2*v for v in params['A'].data)",[3,7,9,11]),
-    (LoopOver(LoopOver(ParameterCoeff('A')), "-%s"), "(-v for v in params['A'].data)", [-1,-3,-4,-5]),
-    (Range(3, 6, 2), "xrange(3, 6, 2)", [3,5]),
-    (Repeat(ScalarParameterCoeff('h'), 6), "itertools.repeat(params['h'], 6)", 6*[7]),
-    (Repeat("elem", 5), "itertools.repeat(elem, 5)", 5*[2.3]),
-    (Assign("tmp", AddCoeff(ParameterCoeff('A'), ParameterCoeff('B'))), "tmp = sp.coo_matrix(params['A'] + params['B'])", np.array([[1.,2,3],[4,5,6]])),
-    (NNZ(ParameterCoeff('A')), "params['A'].nnz", 4)
+    (codes.ConstantCoeff(3.2), '3.2', 3.2),
+    (codes.OnesCoeff(3, codes.ConstantCoeff(-2.1)), "-2.1 * np.ones((3,))", 3*[-2.1]),
+    (codes.NegateCoeff(codes.ConstantCoeff(2)), "-(2)", -2),
+    (codes.EyeCoeff(3, codes.ConstantCoeff(4.3)), "4.3 * sp.eye(3,format='coo')", np.array([[4.3,0,0],[0,4.3,0],[0,0,4.3]])),
+    (codes.TransposeCoeff(codes.ParameterCoeff('A')), "(params['A']).T", np.array([[1.,4.],[0.,5.], [3.,0.]])),
+    (codes.ParameterCoeff('A'), "params['A']", np.array([[1.,0,3],[4.,5.,0]])),
+    (codes.ScalarParameterCoeff('c'), "params['c']", 2.3),
+    (codes.Just(5), "[5]", [5]),
+    (codes.LoopRows(codes.ParameterCoeff('A'), 3, 2), "(3 + 2*idx for idx in params['A'].row)", [3,3,5,5]),
+    (codes.LoopCols(codes.ParameterCoeff('A'), 2, 3), "(2 + 3*idx for idx in params['A'].col)", [2,8,2,5]),
+    (codes.LoopOver(codes.ParameterCoeff('A')), "(v for v in params['A'].data)",[1,3,4,5]),
+    (codes.LoopOver(codes.ParameterCoeff('A'),"1 + 2*%s"), "(1 + 2*v for v in params['A'].data)",[3,7,9,11]),
+    (codes.LoopOver(codes.LoopOver(codes.ParameterCoeff('A')), "-%s"), "(-v for v in params['A'].data)", [-1,-3,-4,-5]),
+    (codes.Range(3, 6, 2), "xrange(3, 6, 2)", [3,5]),
+    (codes.Repeat(codes.ScalarParameterCoeff('h'), 6), "itertools.repeat(params['h'], 6)", 6*[7]),
+    (codes.Repeat("elem", 5), "itertools.repeat(elem, 5)", 5*[2.3]),
+    (codes.Assign("tmp", codes.AddCoeff(codes.ParameterCoeff('A'), codes.ParameterCoeff('B'))), "tmp = sp.coo_matrix(params['A'] + params['B'])", np.array([[1.,2,3],[4,5,6]])),
+    (codes.NNZ(codes.ParameterCoeff('A')), "params['A'].nnz", 4)
 ]
 
 
@@ -66,7 +65,7 @@ def check(obj, exp):
 def check_py_exec(obj, exp):
     # check that the expected code actually works in python
     code = toPython(obj)
-    if isinstance(obj, Assign):
+    if isinstance(obj, codes.Assign):
         exec(code)
         result = tmp
     else:

@@ -1,7 +1,7 @@
 from .. node import Node
 from .. expressions import expression as e
-from qcml.errors import QC_DCPError
-from qcml.properties import shape, curvature
+from ... errors import QC_DCPError
+from ... properties import shape, curvature
 import sys
 
 class Objective(Node):

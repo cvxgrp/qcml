@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
-from qcml.codes.csc_matrix import CSCMap, to_C
+from .. codes.csc_matrix import CSCMap, to_C
 
 # create the i,j,v values of a matrix
 # if the entry is numeric, v = 1

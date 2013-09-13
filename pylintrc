@@ -172,7 +172,7 @@ ignore-mixin-members=yes
 
 # List of classes names for which member attributes should not be checked
 # (useful for classes with attributes dynamically set).
-ignored-classes=nose.tools,nose.tools.trivial,scipy.sparse
+ignored-classes=assert_raises,nose.tools,nose.tools.trivial,scipy.sparse
 
 # When zope mode is activated, add a predefined set of Zope acquired attributes
 # to generated-members.

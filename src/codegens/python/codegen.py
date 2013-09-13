@@ -1,8 +1,8 @@
 from .. base_codegen import Codegen
-from qcml.mixins.restrictive import Restrictive
-from qcml.codes.function import PythonFunction
-from qcml.codes.coefficients import OnesCoeff, ConstantCoeff
-import qcml.codes.encoders as encoder
+from ... mixins.restrictive import Restrictive
+from ... codes import OnesCoeff, ConstantCoeff
+from ... codes.function import PythonFunction
+from ... codes.encoders import toPython
 
 def wrap_self(f):
     def wrapped_code(self, *args, **kwargs):
@@ -91,34 +91,34 @@ class PythonCodegen(Codegen):
         self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
 
     def stuff_c(self, start, end, expr):
-        yield "c[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+        yield "c[%s:%s] = %s" % (start, end, toPython(expr))
 
     def stuff_b(self, start, end, expr):
-        yield "b[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+        yield "b[%s:%s] = %s" % (start, end, toPython(expr))
 
     def stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
-            yield "h[%s:%s:%s] = %s" % (start, end, stride, encoder.toPython(expr))
+            yield "h[%s:%s:%s] = %s" % (start, end, stride, toPython(expr))
         else:
-            yield "h[%s:%s] = %s" % (start, end, encoder.toPython(expr))
+            yield "h[%s:%s] = %s" % (start, end, toPython(expr))
 
     def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
-        if to_sparse: yield encoder.toPython(to_sparse)
-        yield "Gi.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
-        yield "Gj.append(%s)" % encoder.toPython(expr.J(col_start))
-        yield "Gv.append(%s)" % encoder.toPython(expr.V())
+        if to_sparse: yield toPython(to_sparse)
+        yield "Gi.append(%s)" % toPython(expr.I(row_start, row_stride))
+        yield "Gj.append(%s)" % toPython(expr.J(col_start))
+        yield "Gv.append(%s)" % toPython(expr.V())
 
     def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
         n = (row_end - row_start)/row_stride
         if n > 1 and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
-        if to_sparse: yield encoder.toPython(to_sparse)
-        yield "Ai.append(%s)" % encoder.toPython(expr.I(row_start, row_stride))
-        yield "Aj.append(%s)" % encoder.toPython(expr.J(col_start))
-        yield "Av.append(%s)" % encoder.toPython(expr.V())
+        if to_sparse: yield toPython(to_sparse)
+        yield "Ai.append(%s)" % toPython(expr.I(row_start, row_stride))
+        yield "Aj.append(%s)" % toPython(expr.J(col_start))
+        yield "Av.append(%s)" % toPython(expr.V())
 

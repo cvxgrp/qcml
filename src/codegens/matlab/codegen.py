@@ -1,7 +1,7 @@
 from .. base_codegen import Codegen
-from qcml.codes.coefficients import coefficient
-from qcml.codes.function import MatlabFunction
-import qcml.codes.encoders as encoder
+from ... codes import OnesCoeff
+from ... codes.function import MatlabFunction
+from ... codes.encoders import toMatlab
 
 class MatlabCodegen(Codegen):
 
@@ -61,9 +61,9 @@ class MatlabCodegen(Codegen):
             0 indexed.  Hopefully this can be cleaned up!
         """
         if stride == 1:
-            yield "%s(%d:%d) = %s;" % (vec, start+1, end, encoder.toMatlab(expr))
+            yield "%s(%d:%d) = %s;" % (vec, start+1, end, toMatlab(expr))
         else:
-            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, encoder.toMatlab(expr))
+            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, toMatlab(expr))
 
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)
@@ -76,11 +76,11 @@ class MatlabCodegen(Codegen):
 
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
-        if n > 1 and expr.isscalar: expr = coefficient.OnesCoeff(n, expr)
+        if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
 
-        yield "%si = [%si; %s];" % (mat, mat, encoder.toMatlab(expr.I(r0, rstride)))
-        yield "%sj = [%sj; %s];" % (mat, mat, encoder.toMatlab(expr.J(c0)))
-        yield "%sv = [%sv; %s];" % (mat, mat, encoder.toMatlab(expr.V()))
+        yield "%si = [%si; %s];" % (mat, mat, toMatlab(expr.I(r0, rstride)))
+        yield "%sj = [%sj; %s];" % (mat, mat, toMatlab(expr.J(c0)))
+        yield "%sv = [%sv; %s];" % (mat, mat, toMatlab(expr.V()))
 
     def stuff_A(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("A", r0, rend, c0, cend, expr, rstride)

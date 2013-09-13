@@ -1,6 +1,6 @@
-from qcml.ast.expressions import Number, Parameter, Variable, Transpose, Sum
-from qcml.properties.shape import Scalar, Matrix
-from qcml.properties.sign import Positive, Neither
+from .. ast.expressions import Number, Parameter, Variable, Transpose, Sum
+from .. properties.shape import Scalar, Matrix
+from .. properties.sign import Positive, Neither
 
 a = Number(1)
 b = Number(2)

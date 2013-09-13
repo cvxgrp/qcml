@@ -1,5 +1,5 @@
 import itertools
-from qcml.helpers import use
+from .. helpers import use
 
 """ Shape class (and its helpers)
     This exposes the class Shape, and the three Shape constructors: Scalar,

@@ -1,4 +1,4 @@
-from qcml.ast import NodeVisitor
+from ... ast import NodeVisitor
 
 class CVXCodegen(NodeVisitor):
     offset = 2*' '

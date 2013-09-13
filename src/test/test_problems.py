@@ -1,12 +1,12 @@
 """ Verifies that the problem tree is properly shown.
 """
 from nose.tools import assert_raises
-from qcml.errors import QC_DCPError
-from qcml.ast import Objective, Program
-import qcml.ast.atoms as atom
+from .. errors import QC_DCPError
+from .. ast import Objective, Program
+from .. ast.atoms import atom
 
-from qcml.ast.expressions import expression as e
-from qcml.properties import shape
+from .. ast.expressions import expression as e
+from .. properties import shape
 import StringIO
 
 x = e.Variable('x', shape.Vector('n'))

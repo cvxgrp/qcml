@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from qcml.mixins import Treelike, Showable, Canonicalizable
+from .. mixins import Treelike, Showable, Canonicalizable
 import sys
 
 class Node(Treelike, Showable, Canonicalizable):

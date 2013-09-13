@@ -1,8 +1,7 @@
 # TODO: (ECHU) presumably, this will work, but in actuality, i'm not sure...
 # Need to test this.
-from qcml.properties.shape import Vector, Scalar
-import qcml.expressions.expression as expression
-import qcml.expressions.qc_ast as qc_ast
+from .. properties.shape import Vector, Scalar
+from  .. ast.expressions import expression
 
 class FixableCones(object):
     """ This implements the fixed cone size behavior.

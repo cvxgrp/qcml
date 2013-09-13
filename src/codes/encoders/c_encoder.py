@@ -1,9 +1,5 @@
-from encoder import create_encoder
-from qcml.codes.coefficients import *
-
-from encoder import create_encoder
-from qcml.codes.coefficients import *
-from qcml.codes.code import *
+from . encoder import create_encoder
+from ... import codes
 
 """ In this file, you'll often see strings with "%%(ptr)s"; this is to delay
     the evaluation of the ptr string until after the object has been turned
@@ -70,25 +66,25 @@ def nnz(x):
     return "%s->nnz" % (toC(x.obj))
 
 lookup = {
-    ConstantCoeff: constant,
-    OnesCoeff: ones,
-    NegateCoeff: negate,
-    EyeCoeff: eye,
-    TransposeCoeff: trans,
-    ParameterCoeff: parameter,
-    ScalarParameterCoeff: scalar_parameter,
-    AddCoeff: add,
-    MulCoeff: mul,
-    Just: just,
-    LoopRows: loop("i"),
-    LoopCols: loop("j"),
-    LoopOver: loop("v"),
-    Range: _range,
-    Repeat: repeat,
-    Assign: assign,
-    NNZ: nnz,
-    str: lambda x: x,
-    int: lambda x: str(x)
+    codes.ConstantCoeff:            constant,
+    codes.OnesCoeff:                ones,
+    codes.NegateCoeff:              negate,
+    codes.EyeCoeff:                 eye,
+    codes.TransposeCoeff:           trans,
+    codes.ParameterCoeff:           parameter,
+    codes.ScalarParameterCoeff:     scalar_parameter,
+    codes.AddCoeff:                 add,
+    codes.MulCoeff:                 mul,
+    codes.Just:                     just,
+    codes.LoopRows:                 loop("i"),
+    codes.LoopCols:                 loop("j"),
+    codes.LoopOver:                 loop("v"),
+    codes.Range:                    _range,
+    codes.Repeat:                   repeat,
+    codes.Assign:                   assign,
+    codes.NNZ:                      nnz,
+    str:                            lambda x: x,
+    int:                            lambda x: str(x)
 }
 
 toC = create_encoder(lookup)

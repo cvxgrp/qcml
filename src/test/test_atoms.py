@@ -1,7 +1,7 @@
 # this tests the atoms by feeding them constant arguments
 # invokes CVXOPT and checks that objval is within tolerance to expected
 # constant value
-from qcml import QCML
+from .. import QCML
 import numpy
 from nose.tools import assert_raises
 

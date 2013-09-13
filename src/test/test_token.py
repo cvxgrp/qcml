@@ -1,4 +1,4 @@
-import qcml.qc_lexer as s
+from .. import qc_lexer as s
 
 
 lexer = s.QCLexer()

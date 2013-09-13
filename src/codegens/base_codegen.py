@@ -1,11 +1,11 @@
-from qcml.ast import NodeVisitor
-from qcml.ast.constraints import  SOC, SOCProd, LinearConstraint
-from qcml.properties.shape import isscalar
-from qcml.properties.curvature import isconstant
-from qcml.codes.coefficients import *
+from .. ast import NodeVisitor
+from .. ast.constraints import  SOC, SOCProd, LinearConstraint
+from .. properties.shape import isscalar
+from .. properties.curvature import isconstant
+from .. codes import ConstantCoeff, ScalarParameterCoeff, ParameterCoeff, \
+    EyeCoeff, OnesCoeff
 
 from abc import ABCMeta, abstractmethod, abstractproperty
-import qcml.codes.function as function
 
 """ Codegen template.
 

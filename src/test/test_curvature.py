@@ -1,4 +1,4 @@
-from qcml.properties.curvature import Constant, Convex, Concave, Affine, Nonconvex
+from .. properties.curvature import Constant, Convex, Concave, Affine, Nonconvex
 #from nose.tools import assert_raises
 #import operator
 

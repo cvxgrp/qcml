@@ -28,6 +28,6 @@ TODO there are actually multiple kinds of encoders depending on data
 
     I think that's the "future."
 """
-from python_encoder import toPython
-from c_encoder import toC
-from matlab_encoder import toMatlab
+from . python_encoder import toPython
+from . c_encoder import toC
+from . matlab_encoder import toMatlab

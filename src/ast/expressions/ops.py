@@ -1,4 +1,4 @@
-from qcml.properties import sign, shape, curvature
+from ... properties import sign, shape, curvature
 import expression as e
 
 import operator

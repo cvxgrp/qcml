@@ -2,9 +2,9 @@
 Mixin for restricted multiplication
 """
 
-from qcml.ast.expressions import expression
-from qcml.properties import shape
-from qcml.properties.curvature import isconstant
+from .. ast.expressions import expression
+from .. properties import shape
+from .. properties.curvature import isconstant
 
 class Restrictive(object):
     """ This implements the restricted multiplication behavior.

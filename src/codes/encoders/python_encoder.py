@@ -1,6 +1,5 @@
 from encoder import create_encoder
-from qcml.codes.coefficients import *
-from qcml.codes.code import *
+from ... import codes
 
 def constant(x):
     return str(x.value)
@@ -56,25 +55,25 @@ def nnz(x):
     return "%s.nnz" % (toPython(x.obj))
 
 lookup = {
-    ConstantCoeff: constant,
-    OnesCoeff: ones,
-    NegateCoeff: negate,
-    EyeCoeff: eye,
-    TransposeCoeff: trans,
-    ParameterCoeff: parameter,
-    ScalarParameterCoeff: scalar_parameter,
-    AddCoeff: add,
-    MulCoeff: mul,
-    Just: just,
-    LoopRows: loop("row"),
-    LoopCols: loop("col"),
-    LoopOver: loop("data"),
-    Range: _range, # "range" is reserved
-    Repeat: repeat,
-    Assign: assign,
-    NNZ: nnz,
-    str: lambda x: x,
-    int: lambda x: str(x)
+    codes.ConstantCoeff:            constant,
+    codes.OnesCoeff:                ones,
+    codes.NegateCoeff:              negate,
+    codes.EyeCoeff:                 eye,
+    codes.TransposeCoeff:           trans,
+    codes.ParameterCoeff:           parameter,
+    codes.ScalarParameterCoeff:     scalar_parameter,
+    codes.AddCoeff:                 add,
+    codes.MulCoeff:                 mul,
+    codes.Just:                     just,
+    codes.LoopRows:                 loop("row"),
+    codes.LoopCols:                 loop("col"),
+    codes.LoopOver:                 loop("data"),
+    codes.Range:                    _range, # "range" is reserved
+    codes.Repeat:                   repeat,
+    codes.Assign:                   assign,
+    codes.NNZ:                      nnz,
+    str:                            lambda x: x,
+    int:                            lambda x: str(x)
 }
 
 

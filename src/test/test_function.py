@@ -1,4 +1,4 @@
-from qcml.codes.function import PythonFunction, MatlabFunction, CFunction
+from .. codes.function import PythonFunction, MatlabFunction, CFunction
 
 py_helloWorld = PythonFunction("hello", arguments=["x", "y", "z", "a"])
 py_hello = """def hello(x, y, z, a):
