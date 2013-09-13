@@ -5,8 +5,8 @@ from ... codes.encoders import toMatlab
 
 class MatlabCodegen(Codegen):
 
-    def __init__(self, dims):
-        super(MatlabCodegen, self).__init__(dims)
+    def __init__(self):
+        super(MatlabCodegen, self).__init__()
         self.__prob2socp = MatlabFunction("prob_to_socp", ["params"], ["data"])
         self.__socp2prob = MatlabFunction("socp_to_prob", ["x"],      ["vars"])
 
