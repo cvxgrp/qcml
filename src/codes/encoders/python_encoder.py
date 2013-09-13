@@ -5,7 +5,7 @@ def constant(x):
     return str(x.value)
 
 def eye(x):
-    return "%s * sp.eye(%s,format='coo')" % (toPython(x.coeff), x.n)
+    return "%s * sp.eye(%s,%s,format='coo')" % (toPython(x.coeff), x.n, x.n)
 
 def ones(x):
     if x.transpose: return "%s * np.ones((1,%s))" % (toPython(x.coeff), x.n)

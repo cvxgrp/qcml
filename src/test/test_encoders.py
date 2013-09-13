@@ -34,7 +34,7 @@ python_objects = [
     (codes.ConstantCoeff(3.2), '3.2', 3.2),
     (codes.OnesCoeff(3, codes.ConstantCoeff(-2.1)), "-2.1 * np.ones((3,))", 3*[-2.1]),
     (codes.NegateCoeff(codes.ConstantCoeff(2)), "-(2)", -2),
-    (codes.EyeCoeff(3, codes.ConstantCoeff(4.3)), "4.3 * sp.eye(3,format='coo')", np.array([[4.3,0,0],[0,4.3,0],[0,0,4.3]])),
+    (codes.EyeCoeff(3, codes.ConstantCoeff(4.3)), "4.3 * sp.eye(3,3,format='coo')", np.array([[4.3,0,0],[0,4.3,0],[0,0,4.3]])),
     (codes.TransposeCoeff(codes.ParameterCoeff('A')), "(params['A']).T", np.array([[1.,4.],[0.,5.], [3.,0.]])),
     (codes.ParameterCoeff('A'), "params['A']", np.array([[1.,0,3],[4.,5.,0]])),
     (codes.ScalarParameterCoeff('c'), "params['c']", 2.3),

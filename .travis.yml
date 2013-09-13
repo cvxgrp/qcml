@@ -12,5 +12,5 @@ install:
     - sudo ./get_ecos.sh
 # command to run tests
 script:
-    - nosetests --with-cover
     - pylint -f colorized src
+    - nosetests --with-cover --cover-package=src
