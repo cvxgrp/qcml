@@ -132,7 +132,7 @@ int main(int argc, char **argv)
     os.chdir("lasso")
     print "Running make...."
     subprocess.call(["make"])
-    cmd = ["gcc", "-O3", "-L%s" % ECOS_PATH, "-I%s/include" % ECOS_PATH, "-lecos", "lasso_main.c", "lasso.o", "qcml_utils.o", "-o","lasso"]
+    cmd = ["gcc", "-O3", "lasso_main.c", "-L%s" % ECOS_PATH, "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH, "-lecos", "-lm", "lasso.o", "qcml_utils.o", "-o","lasso"]
     print ' '.join(cmd)
     subprocess.call(cmd)
     
