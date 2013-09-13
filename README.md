@@ -1,5 +1,7 @@
-Quadratic Cone Modeling Language (QCML)
-=======================================
+QCML: Quadratic Cone Modeling Language
+======================================
+
+[![Build Status](https://travis-ci.org/cvxgrp/qcml.png)](https://travis-ci.org/cvxgrp/qcml)
 
 **This repository is currently a work in progress
 If you wish to use this in your project, please contact
