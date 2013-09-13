@@ -42,6 +42,14 @@ class QCParser(object):
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
 
+        # while self.lex.parameters, self.lex.variables, and
+        # self.lex.dimensions keep track of *declared* variables, parameters,
+        # and dimensions, self.parameters, self.variables, and self.dimensions
+        # keep track of *used* variables, parameters, and dimensions
+        self.parameters = {}
+        self.variables = {}
+        self.dimensions = set()
+
     def parse(self, text):
         """ Parses QCML and returns an AST.
 
@@ -106,11 +114,11 @@ class QCParser(object):
         '''
         constraints = p[1]
         if len(p) > 3: constraints.extend(p[3])
-        p[0] = Program(p[2], constraints, self.lex.variables, self.lex.parameters, self.lex.dimensions)
+        p[0] = Program(p[2], constraints, self.variables, self.parameters, self.dimensions)
 
     def p_program_find(self,p):
         'program : statements'
-        p[0] = Program(Objective('find', Number(0)), p[1], self.lex.variables, self.lex.parameters, self.lex.dimensions)
+        p[0] = Program(Objective('find', Number(0)), p[1], self.variables, self.parameters, self.dimensions)
 
     def p_program_empty(self,p):
         'program : empty'
@@ -201,9 +209,13 @@ class QCParser(object):
         '''
         p[0] = p[1] + [p[3]]
 
+    def p_dimlist_int(self,p):
+        '''dimlist : INTEGER'''
+        p[0] = [p[1]]
+
     def p_dimlist_id(self,p):
-        '''dimlist : DIM_ID
-                   | INTEGER'''
+        '''dimlist : DIM_ID'''
+        self.dimensions.add(p[1])
         p[0] = [p[1]]
 
     # (for declaring multiple dimensions) id id id ...
@@ -293,10 +305,16 @@ class QCParser(object):
                       | VAR_ID
                       | PARAM_ID'''
         # these are leaves in the expression tree
-        if isinstance(p[1], float): p[0] = Number(p[1])
-        elif isinstance(p[1], int): p[0] = Number(float(p[1]))
-        elif isinstance(p[1], Variable): p[0] = p[1]
-        elif isinstance(p[1], Parameter): p[0] = p[1]
+        if isinstance(p[1], float):
+            p[0] = Number(p[1])
+        elif isinstance(p[1], int):
+            p[0] = Number(float(p[1]))
+        elif isinstance(p[1], Variable):
+            p[0] = p[1]
+            self.variables[p[1].value] = p[1]
+        elif isinstance(p[1], Parameter):
+            p[0] = p[1]
+            self.parameters[p[1].value] = p[1]
         else: self._print_err(p[1], "Unknown identifier '%s'" % p[1])
 
     def p_expression_sum(self,p):

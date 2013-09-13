@@ -1,6 +1,7 @@
 from .. node import Node
 import objective as obj
 from .. constraints import *
+from .. expressions import Variable
 
 class Program(Node):
     """ Program node.
@@ -54,6 +55,7 @@ class Program(Node):
 
         # doesn't actually need to return anything...
         #return self.objective, filter(None, constraints)
+        self.new_variables = Variable.anonymous_variables
 
     def children(self):
         """ An iterator that yields the children

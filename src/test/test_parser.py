@@ -111,8 +111,38 @@ def test_bad_problem():
     for p in syntax_error_problems:
         yield assert_raises, QC_ParseError, check_problem, p
 
+def test_unused_variable():
+    p = QCML(debug=True)
+    p.parse("""
+        dimension n
+        variables x(n) y
+        minimize sum(x)
+    """)
+    print p.problem
+    print p.problem.variables
+    assert p.problem.variables.keys() == ['x']
 
+def test_unused_parameter():
+    p = QCML(debug=True)
+    p.parse("""
+        dimension n
+        parameters x(n) y
+        minimize sum(x)
+    """)
+    print p.problem
+    print p.problem.parameters
+    assert p.problem.parameters.keys() == ['x']
 
+def test_unused_dimensions():
+    p = QCML(debug=True)
+    p.parse("""
+        dimensions m n
+        variables x(n) y
+        minimize sum(x)
+    """)
+    print p.problem
+    print p.problem.dimensions
+    assert p.problem.dimensions == set(['n'])
 
     #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])
 

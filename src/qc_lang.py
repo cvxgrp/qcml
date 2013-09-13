@@ -1,5 +1,4 @@
 from . qc_parser import QCParser
-from . qc_rewrite import QCRewriter
 from . codegens import PythonCodegen, \
     MatlabCodegen, \
     C_Codegen
@@ -27,7 +26,7 @@ class QCML(object):
         self.debug = debug
         self.state = PARSE
 
-        self.__problem_tree = None
+        self.problem = None
         self.__codegen = None
         self.__dims = {}
 
@@ -49,12 +48,12 @@ class QCML(object):
             The parser moves from the EMPTY to the PARSED to the CANONICALIZED to
             the CODEGEN state.
         """
-        Variable.count = 0  # reset the variable count
-        self.__problem_tree = QCParser().parse(text)
+        Variable.reset()    # reset the variable count
+        self.problem = QCParser().parse(text)
         if self.debug:
-            self.__problem_tree.show()
+            self.problem.show()
 
-        if not self.__problem_tree.is_dcp:
+        if not self.problem.is_dcp:
             # TODO: if debug, walk the tree and find the problem
             raise QC_DCPError("QCML parse: The problem is not DCP compliant.")
         self.state = CANONICALIZE
@@ -65,8 +64,9 @@ class QCML(object):
         if self.state is PARSE:
             raise Exception("QCML canonicalize: No problem currently parsed.")
 
-        self.__problem_tree.canonicalize()
-        if self.debug: print self.__problem_tree
+        self.problem.canonicalize()
+        if self.debug:
+            print self.problem
         self.state = CODEGEN
 
     @property
@@ -78,7 +78,7 @@ class QCML(object):
         if self.state is PARSE:
             raise Exception("QCML set_dims: No problem currently parsed.")
 
-        required_dims = self.__problem_tree.dimensions
+        required_dims = self.problem.dimensions
 
         if not required_dims.issubset(set(dims.keys())):
             raise Exception("QCML set_dims: Not all required dims are supplied.")
@@ -109,7 +109,7 @@ class QCML(object):
             raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
             self.__codegen = codegen_class(dims = self.__dims, *args, **kwargs)
-            self.__codegen.visit(self.__problem_tree)
+            self.__codegen.visit(self.problem)
 
         # generate the prob2socp and socp2prob functions
         self.__codegen.codegen()
