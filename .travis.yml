@@ -4,13 +4,12 @@ python:
     - "2.7"
 # numpy and scipy depend on lapack / blas, which we have to install separately
 virtualenv:
-    - system_site_packages: true
+    system_site_packages: true
 before_install:
-    - sudo apt-get install -qq python-numpy python-scipy
+    - sudo apt-get install python-numpy python-scipy
 # install dependencies
 install:
-    - pip install -r requirements.txt --use-mirrors
-    - pip install coverage pylint cvxopt
+    - pip install ply coverage pylint cvxopt
     - ./get_ecos.sh
 # command to run tests
 script:
