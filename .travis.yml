@@ -8,7 +8,7 @@ before_install:
     - sudo apt-get install python-numpy python-scipy
 # install dependencies
 install:
-    - pip install ply coverage pylint
+    - pip install ply coverage
     - sudo ./get_ecos.sh
 # command to run tests
 script:
