@@ -70,6 +70,23 @@ class Program(Node):
         """
         self.__constr_map[c.__class__](c)
 
+    @dims.setter
+    def dims(self, dims):
+        (v.shape.eval(self.dims) for v in node.variables.values())
+        (v.shape.eval(self.dims) for v in node.new_variables.values())
+        (v.shape.eval(self.dims) for v in node.parameters.values())
+        self.DimsSetter(dims).generic_visit(self)
+        
+    class DimsSetter(NodeVisitor):
+        """ Goal is to traverse the tree and call eval(dims) on every 
+            possible shape.
+        """
+        def __init__(self, dims):
+            self.dims = dims
+
+        def generic_visit(self, node):
+            if hasattr(node, 'shape'): node.shape.eval(self.dims)
+            super(Program.DimsSetter, self).generic_visit(node)
 
 # test_program
 
