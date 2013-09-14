@@ -20,16 +20,12 @@ SUPPORTED_LANGUAGES = {
 # all cases
 
 class QCML(object):
-    """ Must set .dims externally.
-    """
-
     def __init__(self, debug = False):
         self.debug = debug
         self.state = PARSE
 
         self.problem = None
         self.__codegen = None
-        self.__dims = {}
 
         # keep track of the codegen language
         self.language = ""
@@ -72,22 +68,12 @@ class QCML(object):
 
     @property
     def dims(self):
-        return self.__dims
+        return self.problem.dimensions
 
     @dims.setter
     def dims(self, dims):
         if self.state is PARSE:
             raise Exception("QCML set_dims: No problem currently parsed.")
-
-        required_dims = self.problem.dimensions
-
-        if not required_dims.issubset(set(dims.keys())):
-            raise Exception("QCML set_dims: Not all required dims are supplied.")
-
-        if any(type(dims[k]) != int for k in required_dims):
-            raise Exception("QCML set_dims: Not all supplied dims are integer.")
-
-        self.__dims = dims
         self.problem.dimensions = dims
         if self.state is COMPLETE: self.state = CODEGEN
 
@@ -99,8 +85,6 @@ class QCML(object):
             raise Exception("QCML codegen: No problem currently parsed.")
         if self.state is CANONICALIZE:
             raise Exception("QCML codegen: No problem currently canonicalized.")
-        if not self.__dims:
-            raise Exception("QCML codegen: No dimensions currently given. Please set the dimensions of the QCML object.")
 
         try:
             codegen_class = SUPPORTED_LANGUAGES[language]
