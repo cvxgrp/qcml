@@ -28,7 +28,8 @@ class Program(Node):
             SOCProd: self.soc_constr.add,
             None.__class__: lambda x: None,   # if None, don't do anything
         }
-        for c in constraints: self.__constr_map[c.__class__](c)
+        for c in constraints:
+            self.__constr_map[c.__class__](c)
 
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
         self.__dimensions = dimensions # dimensions declared by the user
@@ -41,8 +42,10 @@ class Program(Node):
         return "%s\nsubject to\n    %s" % (self.objective, '\n    '.join(constrs))
 
     def info(self):
-        if self.is_dcp: return "DCP program:"
-        else: return "Non-DCP program:"
+        if self.is_dcp: 
+            return "DCP program:"
+        else: 
+            return "Non-DCP program:"
 
     def canonicalize(self):
         constraints = []
@@ -52,25 +55,27 @@ class Program(Node):
 
         # clear the constraint sets
         map(lambda x: x.clear(), (self.eq_constr, self.ineq_constr, self.soc_constr))
-        for c in constraints: self.__constr_map[c.__class__](c)
+        for c in constraints:
+            self.__constr_map[c.__class__](c)
 
         # doesn't actually need to return anything...
-        #return self.objective, filter(None, constraints)
         self.new_variables = Variable.anonymous_variables
 
     def children(self):
         """ An iterator that yields the children
         """
         yield self.objective
-        for c in self.eq_constr: yield c
-        for c in self.ineq_constr: yield c
-        for c in self.soc_constr: yield c
+        for c in self.eq_constr: 
+            yield c
+        for c in self.ineq_constr: 
+            yield c
+        for c in self.soc_constr: 
+            yield c
 
     def add_constraint(self, c):
         """ Allows us to add constraints to the program
         """
         self.__constr_map[c.__class__](c)
-
 
     @property
     def dimensions(self):
@@ -98,7 +103,3 @@ class Program(Node):
         def generic_visit(self, node):
             if hasattr(node, 'shape'): node.shape.eval(self.dims)
             super(Program.DimsSetter, self).generic_visit(node)
-
-# test_program
-
-

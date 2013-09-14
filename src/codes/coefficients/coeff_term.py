@@ -60,7 +60,8 @@ def term_updated(lhs_terms, rhs_terms, expr):
     """ This function is called once the variables have been matched.
         Thus, we only need to match the params list.
 
-        Will replace the matching element from the bucket.
+        Will replace the matching element from the bucket. Performs a linear
+        search.
     """
 
     for i, t1 in enumerate(lhs_terms):
@@ -72,8 +73,8 @@ def term_updated(lhs_terms, rhs_terms, expr):
 
 
 def TermFactory(constant, params, expr):
-    # TODO: use variable "type" to determine if it a linear term or nonlinear
-    # term
+    # TODO: use variable "type" to determine if it is a linear term or 
+    # nonlinear term
     if isinstance(expr, int): expr = '' # hack to allow int arguments
     if not params and not expr:
         return Constant(constant)
@@ -88,7 +89,7 @@ def TermFactory(constant, params, expr):
 class TermBucket(object):
     """ Stores the terms as a bucket list.
 
-        The variable name is the key, the key 1 is for parameters.
+        The variable name is the key, the key 1 is for parameters + constants.
     """
     def __init__(self, buckets=None):
         if buckets is None: self.term_bucket = collections.defaultdict(list)
@@ -132,8 +133,8 @@ class TermBucket(object):
 
 class Expression(object):
     def __init__(self, constant, linear_terms, nonlinear_terms):
-        self.linear_terms = linear_terms        # these are linear terms
-        self.nonlinear_terms = nonlinear_terms  # these are nonlinear terms
+        self.linear_terms = linear_terms 
+        self.nonlinear_terms = nonlinear_terms
         self.constant = constant
 
     def __add__(self, other): return Add(self, other)  # TODO: this is a func
