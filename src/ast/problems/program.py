@@ -1,4 +1,5 @@
-from .. node import Node
+from .. import Node
+from .. import NodeVisitor
 import objective as obj
 from .. constraints import LinearEquality, LinearInequality, SOC, SOCProd, Constraint
 from .. expressions import Variable
@@ -30,9 +31,9 @@ class Program(Node):
         for c in constraints: self.__constr_map[c.__class__](c)
 
         self.is_dcp = objective.is_dcp and all(c.is_dcp for c in constraints)
+        self.__dimensions = dimensions # dimensions declared by the user
         self.variables = variables     # variables declared by the user
         self.parameters = parameters   # parameters declared by the user
-        self.dimensions = dimensions   # dimensions declared by the user
         self.new_variables = {}        # new variables introduced by rewriting
 
     def __str__(self):
@@ -70,12 +71,18 @@ class Program(Node):
         """
         self.__constr_map[c.__class__](c)
 
-    @dims.setter
-    def dims(self, dims):
-        (v.shape.eval(self.dims) for v in node.variables.values())
-        (v.shape.eval(self.dims) for v in node.new_variables.values())
-        (v.shape.eval(self.dims) for v in node.parameters.values())
+
+    @property
+    def dimensions(self):
+        return self.__dimensions
+
+    @dimensions.setter
+    def dimensions(self, dims):
+        (v.shape.eval(dims) for v in self.variables.values())
+        (v.shape.eval(dims) for v in self.new_variables.values())
+        (v.shape.eval(dims) for v in self.parameters.values())
         self.DimsSetter(dims).generic_visit(self)
+        self.__dimensions = dims
         
     class DimsSetter(NodeVisitor):
         """ Goal is to traverse the tree and call eval(dims) on every 

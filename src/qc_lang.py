@@ -88,7 +88,7 @@ class QCML(object):
             raise Exception("QCML set_dims: Not all supplied dims are integer.")
 
         self.__dims = dims
-        self.problem.dims = dims
+        self.problem.dimensions = dims
         if self.state is COMPLETE: self.state = CODEGEN
 
     @profile
