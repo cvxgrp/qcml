@@ -10,10 +10,11 @@ from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen
 from nose import with_setup
 
 #TODO: matlab = MatlabCodegen()
-C = C_Codegen({}, name="test_problem")
-python = PythonCodegen({})
+C = C_Codegen(name="test_problem")
+python = PythonCodegen()
+matlab = MatlabCodegen()
 
-codegens = [C, python]
+codegens = [C, python, matlab]
 
 def codegen(codegen_obj):
     # test that empty code generates executes without error

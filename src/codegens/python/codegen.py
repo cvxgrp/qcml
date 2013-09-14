@@ -10,8 +10,8 @@ def wrap_self(f):
     return wrapped_code
 
 class PythonCodegen(Codegen):
-    def __init__(self, dims):
-        super(PythonCodegen, self).__init__(dims)
+    def __init__(self):
+        super(PythonCodegen, self).__init__()
         self.__prob2socp = PythonFunction("prob_to_socp", ["params"])
         self.__socp2prob = PythonFunction("socp_to_prob", ["x"])
 
@@ -44,8 +44,7 @@ class PythonCodegen(Codegen):
         # add some documentation
         self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
         self.prob2socp.document("'params' ought to contain:")
-        shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
-        self.prob2socp.document(shapes)
+        self.prob2socp.document(self.printshapes(program_node))
 
         # now import cvxopt and itertools
         self.prob2socp.add_lines("import numpy as np")

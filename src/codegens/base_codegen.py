@@ -41,7 +41,7 @@ class Codegen(NodeVisitor):
         function_datastructures.
     """
 
-    def __init__(self, dims = None):
+    def __init__(self):
         """ Walks the tree and creates the data structures.
             Creates the functions to stuff and un-stuff the matrices.
         """
@@ -53,7 +53,6 @@ class Codegen(NodeVisitor):
         self.num_lps = 0
         self.num_conic = 0
         self.cone_list = []
-        self.dims = dims    # dimension map
         self.objective_offset = 0
         self.objective_multiplier = 1
 
@@ -115,7 +114,7 @@ class Codegen(NodeVisitor):
     def printshapes(self, program_node):
         # for function documentation
         return (
-            "  '%s' has shape %s" % (v, v.shape.eval(self.dims))
+            "  '%s' has shape %s" % (v, v.shape)
             for v in program_node.parameters.values()
         )
 
@@ -127,19 +126,16 @@ class Codegen(NodeVisitor):
     def dimsl(self): yield self.num_lps
 
     def visit_Program(self, node):
-        if self.dims is None:
-            raise ValueError("Needed to define the dimensions of the code generator.")
-
         # keep track of original variables
         self.orig_varnames = set(node.variables.keys())
 
         # create variable ordering
         # XXX: at this moment, assumes that variables are vectors (not arrays)
         # varlength contains the vector lengths as ints
-        self.varlength = {k: v.shape.eval(self.dims).size() \
+        self.varlength = {k: v.shape.size() \
             for k,v in node.variables.iteritems()
         }
-        self.varlength.update({k: v.shape.eval(self.dims).size() \
+        self.varlength.update({k: v.shape.size() \
             for k,v in node.new_variables.iteritems()
         })
 
@@ -161,7 +157,7 @@ class Codegen(NodeVisitor):
         self.functions_return(node)
 
     def visit_Variable(self, node):
-        n = node.shape.eval(self.dims).size()
+        n = node.shape.size()
         k = node.value
 
         if n == 1:
@@ -172,7 +168,6 @@ class Codegen(NodeVisitor):
         self.expr_stack.append(lineq)
 
     def visit_Parameter(self, node):
-        node.shape.eval(self.dims)
         if isscalar(node):
             self.expr_stack.append({'1':ScalarParameterCoeff(node.value)})
         else:
@@ -217,7 +212,7 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
 
         for k in arg.keys():
-            n = node.expr.shape.eval(self.dims).size()
+            n = node.expr.shape.size()
             arg[k] = OnesCoeff(n, ConstantCoeff(1), True) * arg[k]
 
         self.expr_stack.append(arg)
@@ -268,10 +263,10 @@ class Codegen(NodeVisitor):
 
         if node.op == '==':
             start = self.num_lineqs
-            self.num_lineqs += node.shape.eval(self.dims).size()
+            self.num_lineqs += node.shape.size()
         else:
             start = self.num_lps
-            self.num_lps += node.shape.eval(self.dims).size()
+            self.num_lps += node.shape.size()
 
         self.generic_visit(node)
 
@@ -312,11 +307,11 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
 
-        start += [start[-1] + node.right.shape.eval(self.dims).size()]
-        cone_length = node.right.shape.eval(self.dims).size()
+        start += [start[-1] + node.right.shape.size()]
+        cone_length = node.right.shape.size()
         for e in node.left:
-            start += [start[-1] + e.shape.eval(self.dims).size()]
-            cone_length += e.shape.eval(self.dims).size()
+            start += [start[-1] + e.shape.size()]
+            cone_length += e.shape.size()
 
         self.num_conic += cone_length
         self.cone_list.append( (1, str(cone_length)) )
@@ -347,9 +342,9 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
         stride = node.nargs + 1
-        self.num_conic += stride * node.shape.eval(self.dims).size()
+        self.num_conic += stride * node.shape.size()
 
-        self.cone_list.append( (node.shape.eval(self.dims).size(), str(node.nargs + 1)) )
+        self.cone_list.append( (node.shape.size(), str(node.nargs + 1)) )
 
         self.generic_visit(node)
 

@@ -5,6 +5,7 @@ from . codegens import PythonCodegen, \
 from . helpers import profile, default_locals
 from . errors import QC_DCPError
 from . ast.expressions import Variable
+from . ast import NodeVisitor
 
 PARSE, CANONICALIZE, CODEGEN, COMPLETE = range(4)
 
@@ -87,15 +88,31 @@ class QCML(object):
             raise Exception("QCML set_dims: Not all supplied dims are integer.")
 
         self.__dims = dims
+        sds = self.ShapeDimSetter(dims)
+        sds.visit(self.problem)
         if self.state is COMPLETE: self.state = CODEGEN
+
+    class ShapeDimSetter(NodeVisitor):
+        """ Goal is to traverse the tree and call eval(dims) on every 
+            possible shape.
+        """
+        def __init__(self, dims):
+            self.dims = dims
+
+        def visit_Program(self, node):
+            (v.shape.eval(self.dims) for v in node.variables.values())
+            (v.shape.eval(self.dims) for v in node.new_variables.values())
+            (v.shape.eval(self.dims) for v in node.parameters.values())
+            self.generic_visit(node)
+
+        def generic_visit(self, node):
+            if hasattr(node, 'shape'): node.shape.eval(self.dims)
+            super(QCML.ShapeDimSetter, self).generic_visit(node)
 
     @profile
     def codegen(self, language="python", *args, **kwargs):
         if self.state is COMPLETE:
-            if language != self.language:
-                self.state = CODEGEN
-            else:
-                return
+            self.state = CODEGEN
         if self.state is PARSE:
             raise Exception("QCML codegen: No problem currently parsed.")
         if self.state is CANONICALIZE:
@@ -108,7 +125,7 @@ class QCML(object):
         except KeyError:
             raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
-            self.__codegen = codegen_class(dims = self.__dims, *args, **kwargs)
+            self.__codegen = codegen_class(*args, **kwargs)
             self.__codegen.visit(self.problem)
 
         # generate the prob2socp and socp2prob functions

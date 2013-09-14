@@ -57,14 +57,23 @@ class Shape(object):
         """
         # ensure that dimensions contains ints if possible
         dimensions = map(_int_or_str, dimensions)
-        # if all ints, the shape is already instantiated
-        self.instantiated = all(type(elem) == int for elem in dimensions)
-        self.dimensions = _strip_trailing_ones(dimensions)
-        self.num_dimensions = len(self.dimensions)
 
+        # Squeeze out trailing singleton dimensions
+        dimensions = _strip_trailing_ones(dimensions)
+
+        # Assign abstract properties
+        self.abstract_dims = dimensions
+        self.num_dimensions = len(self.abstract_dims)
+
+        # Copy all into dimensions, whether abstract or not
+        self.dimensions = self.abstract_dims
+        self._check_instantiation()
         self._assign_row()
         self._assign_col()
 
+
+    # FIXME: _assign_row, _assign_col, _check_instantiation could all be put
+    # inside a dimensions setter
     def _assign_row(self):
         self.row = 1
         if self.num_dimensions >= 1: self.row = self.dimensions[0]
@@ -72,6 +81,9 @@ class Shape(object):
     def _assign_col(self):
         self.col = 1
         if self.num_dimensions >= 2: self.col = self.dimensions[1]
+
+    def _check_instantiation(self):
+        self.instantiated = all(type(elem) == int for elem in self.dimensions)
 
     def size(self):
         if self.instantiated:
@@ -86,16 +98,16 @@ class Shape(object):
 
     def eval(self, dimension_dictionary):
         # dimension_dictionary is a dictionary of {string: int}
-        if not self.instantiated:
-            try:
-                # makes the abstract labels concrete numbers
-                self.dimensions = \
-                    [dimension_dictionary.get(k, k) for k in self.dimensions]
-                self._assign_row()
-                self._assign_col()
-                self.instantiated = True
-            except ValueError:
-                raise Exception("Couldn't find corresponding dimension definition.")
+        try:
+            # makes the abstract labels concrete numbers
+            self.dimensions = \
+                [dimension_dictionary.get(k, k) for k in self.abstract_dims]
+            self._check_instantiation()
+            self._assign_row()
+            self._assign_col()
+        except ValueError:
+            raise Exception("Couldn't find corresponding dimension definition.")
+
         # returns self so we can chain .eval(...).size(), etc.
         # allows us to do javascript style programming
         return self

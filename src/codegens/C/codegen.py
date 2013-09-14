@@ -44,8 +44,8 @@ def shape_to_c_type(x):
 class C_Codegen(Codegen, Restrictive):
     """ This produces two functions and a header file.
     """
-    def __init__(self, sparsity_pattern = None, dims = None, name = "problem"):
-        super(C_Codegen, self).__init__(dims)
+    def __init__(self, sparsity_pattern = None, name = "problem"):
+        super(C_Codegen, self).__init__()
         # TODO: allow optimizations with given sparsity pattern
         self.sparsity_patterns = sparsity_pattern
         self.name = name
@@ -219,8 +219,7 @@ class C_Codegen(Codegen, Restrictive):
         # add some documentation
         self.prob2socp.document("maps 'params' into the C socp data type")
         self.prob2socp.document("'params' ought to contain:")
-        shapes = ("  '%s' has shape %s" % (v, v.shape.eval(self.dims)) for v in program_node.parameters.values())
-        self.prob2socp.document(shapes)
+        self.prob2socp.document(self.printshapes(program_node))
         self.prob2socp.newline()
 
         self.params = '\n'.join(self.c_params(program_node))
