@@ -31,6 +31,14 @@ class AbstractDim(object):
         if self._c[key] == 1:  return key
         return "%d*%s" % (self._c[key], key)
 
+    def __eq__(self, other):
+        """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
+            AbstractDim(1) == 1 -> True
+        """
+        if self.concrete and isinstance(other, int): 
+            return self._c[1] == other
+        return self._c == other._c
+
     def __mul__(self, other):
         """ Currently assumes other is an AbstractDim
         """

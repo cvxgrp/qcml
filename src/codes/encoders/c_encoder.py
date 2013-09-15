@@ -58,7 +58,7 @@ def _range(x):
         return "for(i = %d; i < %d; i+=%d) *%%(ptr)s++ = i;" % (x.start, x.end, x.stride)
 
 def repeat(x):
-    return "for(i = 0; i < %d; ++i) *%%(ptr)s++ = %s;" % (x.n, toC(x.obj))
+    return "for(i = 0; i < %s; ++i) *%%(ptr)s++ = %s;" % (x.n, toC(x.obj))
 
 def assign(x):
     raise Exception("Assignment not implemented.... %s = %s" % (x.lhs, x.rhs))
