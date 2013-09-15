@@ -1,5 +1,6 @@
 from . encoder import create_encoder
 from ... import codes
+from ... properties.abstract_dim import AbstractDim
 
 """ In this file, you'll often see strings with "%%(ptr)s"; this is to delay
     the evaluation of the ptr string until after the object has been turned
@@ -84,7 +85,8 @@ lookup = {
     codes.Assign:                   assign,
     codes.NNZ:                      nnz,
     str:                            lambda x: x,
-    int:                            lambda x: str(x)
+    int:                            lambda x: str(x),
+    AbstractDim:                    lambda x: str(x)
 }
 
 toC = create_encoder(lookup)

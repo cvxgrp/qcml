@@ -1,8 +1,7 @@
 import collections
 
 def list_product(l):
-    return reduce(lambda x,y: x * AbstractDim([y]), l, AbstractDim([1]))
-
+    return reduce(lambda x,y: x * AbstractDim(y), l, AbstractDim(1))
 
 class AbstractDim(object):
     def __init__(self, *args, **kwargs):
@@ -10,6 +9,7 @@ class AbstractDim(object):
         for a in args:
             if   isinstance(a, dict): self._c.update(a)
             elif isinstance(a, int):  self._c.update({1:a})
+            elif isinstance(a, str):  self._c.update([a])
             else:                     self._c.update(a)
 
     @property
@@ -22,8 +22,8 @@ class AbstractDim(object):
     def _safe_str(self):
         """ Protect with parentheses if needed
         """
-        if len(self._c) > 1: return "(%s)" % self._c
-        return str(self._c)
+        if len(self._c) > 1: return "(%s)" % self
+        return str(self)
 
     def _str_term(self, key):
         if not key in self._c: return ''
@@ -36,18 +36,39 @@ class AbstractDim(object):
         """
         if self.concrete:
             mul = AbstractDim()
-            for k,v in other.iteritems(): mul[k] = self._c[1]*v 
+            for k,v in other._c.iteritems(): mul._c[k] = self._c[1]*v 
             return mul
         if other.concrete:
             mul = AbstractDim()
-            for k,v in self.iteritems(): mul[k] = other._c[1]*v
+            for k,v in self._c.iteritems(): mul._c[k] = other._c[1]*v
             return mul
         ops = sorted([self._safe_str(), other._safe_str()])
         mulkey = "%s * %s" % (ops[0], ops[1])
-        return AbstractDim([mulkey])
+        return AbstractDim(mulkey)
 
     def __add__(self, other):
         return AbstractDim(self._c + other._c)
 
+    def __sub__(self, other):
+        return AbstractDim(self._c - other._c)
+
+    def __radd__(self, other):
+        """ Currently assumes other is int
+        """
+        if self.concrete:
+            return other + self._c[1]
+        return AbstractDim(other) + self
+
+    def __rmul__(self, other):
+        """ Currently assumes other is int
+        """
+        if self.concrete:
+            return other * self._c[1]
+        return AbstractDim(other) * self
+
 if __name__ == "__main__":
-    print AbstractDim('a', 3, a=3)
+    lp = list_product(['n', 3])
+    m = AbstractDim('m', [1, 1, 1, 1])
+    print lp
+    print m
+    print lp * m

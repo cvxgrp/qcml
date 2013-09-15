@@ -46,7 +46,7 @@ def _range(x):
     return "xrange(%d, %d, %d)" % (x.start, x.end, x.stride)
 
 def repeat(x):
-    return "itertools.repeat(%s, %d)" % (toPython(x.obj), x.n)
+    return "itertools.repeat(%s, %s)" % (toPython(x.obj), x.n)
 
 def assign(x):
     return "%s = sp.coo_matrix(%s)" % (toPython(x.lhs), toPython(x.rhs))

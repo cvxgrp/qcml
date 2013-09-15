@@ -142,7 +142,7 @@ class C_Codegen(Codegen, Restrictive):
             yield "q_ptr = data->q;"
             for num, sz in self.cone_list:
                 if num == 1: yield "*q_ptr++ = %s;" % sz
-                else: yield "for(i = 0; i < %d; ++i) *q_ptr++ = %s;" % (num, sz)
+                else: yield "for(i = 0; i < %s; ++i) *q_ptr++ = %s;" % (num, sz)
 
     # function to get parameters
     def c_params(self, program_node):
