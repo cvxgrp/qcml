@@ -1,9 +1,32 @@
 import collections
 
 def list_product(l):
+    """ Take a list and return an AD by multiplying list elements together
+    """
     return reduce(lambda x,y: x * AbstractDim(y), l, AbstractDim(1))
 
 class AbstractDim(object):
+    """ Implemented by holding a collections.Counter to keep track of terms.
+
+        Counter is held by composition rather than inheriting from there; makes
+        __init__ somewhat simpler and is cleaner.
+
+        The key 1 is used for constant terms.  All other keys should be strs
+        representing abstract terms.
+
+        Designed to have reasonable arithmetic operations with plain ints.  
+        Didn't bother to worry about Python2 long type.  Doesn't currently deal
+        with floats.  
+        
+        In general plain ints are promoted to ADs in operations, but if the AD 
+        is concrete then it can be converted back into an int.  Currently this 
+        is done in most cases, although perhaps would be cleaner not to be so 
+        generous.
+
+        I didn't implement all possible arthmetic or coercions, only the ones
+        that were needed to get codegen to run on example problems.  So there 
+        may be things missing for general case.
+    """
     def __init__(self, *args, **kwargs):
         self._c = collections.Counter(kwargs)
         for a in args:
@@ -14,22 +37,34 @@ class AbstractDim(object):
 
     @property
     def concrete(self):
-        return len(self._c) == 1 and 1 in self._c
-    
+        """ AD is concrete means it can be converted into an int, i.e. it has
+            no abstract part with nonzero coefficients.
+        """
+        nzkeys = self.nzkeys()
+        if len(nzkeys) == 0: return True
+        return len(nzkeys) == 1 and self._c[1] != 0
+
     def keys(self):
         return self._c.keys()
+
+    def nzkeys(self):
+        """ List of keys with nonzero values (i.e. coefficients)
+        """
+        return filter(lambda x: self._c[x] != 0, self.keys())
 
     def __str__(self):
         """ Protect with parentheses if more than one term.  Don't bother to
             print terms with coefficient == 0
         """
-        printkeys = filter(lambda x: self._c[x] != 0, self.keys())
+        printkeys = self.nzkeys()
         if not printkeys: return "0"
         ret = ' + '.join(map(self._str_term, sorted(printkeys)))
         if len(printkeys) < 2: return ret
         return "(%s)" % ret
 
     def _str_term(self, key):
+        """ Format single term nicely
+        """
         if not key in self._c: return ''
         if key == 1:           return str(self._c[1])
         if self._c[key] == 1:  return key
@@ -46,7 +81,7 @@ class AbstractDim(object):
         return False
 
     def __mul__(self, other):
-        """ Currently assumes other is an AbstractDim
+        """ Assumes other is an AD
         """
         if self.concrete:
             mul = AbstractDim()
@@ -61,6 +96,8 @@ class AbstractDim(object):
         return AbstractDim(mulkey)
 
     def __div__(self, other):
+        """ Assumes other is int or AD
+        """
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] / other
@@ -79,6 +116,8 @@ class AbstractDim(object):
 
 
     def __add__(self, other):
+        """ Assumes other is int or AD
+        """
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] + other
@@ -86,6 +125,8 @@ class AbstractDim(object):
         return AbstractDim(self._c + other._c)
 
     def __sub__(self, other):
+        """ Assumes other is int or AD
+        """
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] - other
@@ -95,14 +136,14 @@ class AbstractDim(object):
         return AbstractDim(sub)
 
     def __radd__(self, other):
-        """ Currently assumes other is int
+        """ Assumes other is int
         """
         if self.concrete:
             return other + self._c[1]
         return AbstractDim(other) + self
 
     def __rmul__(self, other):
-        """ Currently assumes other is int
+        """ Assumes other is int
         """
         if self.concrete:
             return other * self._c[1]
