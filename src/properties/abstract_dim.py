@@ -17,13 +17,11 @@ class AbstractDim(object):
         return len(self._c) == 1 and 1 in self._c
 
     def __str__(self):
-        return ' + '.join(map(self._str_term, sorted(self._c.keys())))
-
-    def _safe_str(self):
-        """ Protect with parentheses if needed
+        """ Protect with parentheses if more than one term
         """
-        if len(self._c) > 1: return "(%s)" % self
-        return str(self)
+        ret = ' + '.join(map(self._str_term, sorted(self._c.keys())))
+        if len(self._c) < 2: return ret
+        return "(%s)" % ret
 
     def _str_term(self, key):
         if not key in self._c: return ''
@@ -35,11 +33,11 @@ class AbstractDim(object):
         """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
             AbstractDim(1) == 1 -> True
         """
-        if isinstance(other, int): 
-            if self.concrete:
-                return self._c[1] == other
-            return False
-        return self._c == other._c
+        if isinstance(other, AbstractDim):
+            return self._c == other._c
+        if isinstance(other, int) and self.concrete:
+            return self._c[1] == other
+        return False
 
     def __mul__(self, other):
         """ Currently assumes other is an AbstractDim
@@ -52,26 +50,28 @@ class AbstractDim(object):
             mul = AbstractDim()
             for k,v in self._c.iteritems(): mul._c[k] = other._c[1]*v
             return mul
-        ops = sorted([self._safe_str(), other._safe_str()])
+        ops = sorted([str(self), str(other)])
         mulkey = "%s * %s" % (ops[0], ops[1])
         return AbstractDim(mulkey)
 
     def __div__(self, other):
+        print "self:  %s" % self
+        print "other: %s" % other
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] / other
             return self / AbstractDim(other)
         
         if self.concrete:
-            mul = AbstractDim()
-            for k,v in other._c.iteritems(): mul._c[k] = self._c[1]/v
-            return mul
+            div = AbstractDim()
+            for k,v in other._c.iteritems(): div._c[k] = self._c[1]/v
+            return div
         if other.concrete:
-            mul = AbstractDim()
-            for k,v in self._c.iteritems(): mul._c[k] = other._c[1]/v
-            return mul
-        mulkey = "%s / %s" % (self._safe_str(), other._safe_str())
-        return AbstractDim(mulkey)
+            div = AbstractDim()
+            for k,v in self._c.iteritems(): div._c[k] = v/other._c[1]
+            return div
+        divkey = "%s / %s" % (self, other)
+        return AbstractDim(divkey)
 
 
     def __add__(self, other):
@@ -86,7 +86,9 @@ class AbstractDim(object):
             if self.concrete:
                 return self._c[1] - other
             return self - AbstractDim(other)
-        return AbstractDim(self._c - other._c)
+        sub = self._c.copy()
+        sub.subtract(other._c)
+        return AbstractDim(sub)
 
     def __radd__(self, other):
         """ Currently assumes other is int
@@ -103,8 +105,7 @@ class AbstractDim(object):
         return AbstractDim(other) * self
 
 if __name__ == "__main__":
-    lp = list_product(['n', 3])
-    m = AbstractDim('m', [1, 1, 1, 1])
-    print lp
-    print m
-    print lp * m
+    r = AbstractDim('r')
+    r1 = r - 1
+    print r
+    print r1
