@@ -46,7 +46,7 @@ def loop_rows(x):
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
     if hasattr(x, 'offset') and x.offset != 0:
-        ret = "%d + %s" % (x.offset, ret)
+        ret = "%s + %s" % (x.offset, ret)
 
     return ret
 
@@ -57,7 +57,7 @@ def loop_cols(x):
     if hasattr(x, 'stride') and x.stride != 1:
         ret = "%d*%s" % (x.stride, ret)
     if hasattr(x, 'offset') and x.offset != 0:
-        ret = "%d + %s" % (x.offset, ret)
+        ret = "%s + %s" % (x.offset, ret)
 
     return ret
 
@@ -65,8 +65,8 @@ def loop_over(x):
     return "nonzeros(%s)" % (x.op % toMatlab(x.matrix))
 
 def _range(x):
-    if x.stride == 1: return "(%d:%d)'" % (x.start, x.end-1)
-    else:             return "(%d:%d:%d)'" % (x.start, x.stride, x.end-1)
+    if x.stride == 1: return "(%s:%s)'" % (x.start, x.end-1)
+    else:             return "(%s:%s:%s)'" % (x.start, x.stride, x.end-1)
 
 def repeat(x):
     return "%s*ones(%s,1)" % (toMatlab(x.obj), x.n)

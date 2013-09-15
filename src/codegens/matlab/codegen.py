@@ -29,7 +29,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.document(self.printshapes(program_node))
         self.prob2socp.newline()
 
-        self.prob2socp.add_lines("p = %d; m = %d; n = %d;" % v for v in self.pmn)
+        self.prob2socp.add_lines("p = %s; m = %s; n = %s;" % v for v in self.pmn)
         self.prob2socp.add_lines("c = zeros(n,1);")
         self.prob2socp.add_lines("h = zeros(m,1);")
         self.prob2socp.add_lines("b = zeros(p,1);")
@@ -37,7 +37,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("Ai = []; Aj = []; Av = [];")
         self.prob2socp.newline()
 
-        self.prob2socp.add_lines("dims.l = %d;" % l for l in self.dimsl)
+        self.prob2socp.add_lines("dims.l = %s;" % l for l in self.dimsl)
         self.prob2socp.add_lines("dims.q = [%s];" % q for q in self.dimsq())
         self.prob2socp.add_lines("dims.s = [];")
 
@@ -61,9 +61,9 @@ class MatlabCodegen(Codegen):
             0 indexed.  Hopefully this can be cleaned up!
         """
         if stride == 1:
-            yield "%s(%d:%d) = %s;" % (vec, start+1, end, toMatlab(expr))
+            yield "%s(%s:%s) = %s;" % (vec, start+1, end, toMatlab(expr))
         else:
-            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, toMatlab(expr))
+            yield "%s(%s:%s:%s) = %s;" % (vec, start+1, stride, end, toMatlab(expr))
 
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)

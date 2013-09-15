@@ -56,7 +56,7 @@ if __name__ == "__main__":
     p.canonicalize()
 
     raw_input("press ENTER to generate code....")
-    p.dims = {'n': n, 'm': m}
+#    p.dims = {'n': n, 'm': m}
     p.codegen(args.codegen)
 
     raw_input("press ENTER for raw code....")

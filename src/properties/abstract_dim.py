@@ -35,8 +35,10 @@ class AbstractDim(object):
         """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
             AbstractDim(1) == 1 -> True
         """
-        if self.concrete and isinstance(other, int): 
-            return self._c[1] == other
+        if isinstance(other, int): 
+            if self.concrete:
+                return self._c[1] == other
+            return False
         return self._c == other._c
 
     def __mul__(self, other):
@@ -54,10 +56,36 @@ class AbstractDim(object):
         mulkey = "%s * %s" % (ops[0], ops[1])
         return AbstractDim(mulkey)
 
+    def __div__(self, other):
+        if isinstance(other, int):
+            if self.concrete:
+                return self._c[1] / other
+            return self / AbstractDim(other)
+        
+        if self.concrete:
+            mul = AbstractDim()
+            for k,v in other._c.iteritems(): mul._c[k] = self._c[1]/v
+            return mul
+        if other.concrete:
+            mul = AbstractDim()
+            for k,v in self._c.iteritems(): mul._c[k] = other._c[1]/v
+            return mul
+        mulkey = "%s / %s" % (self._safe_str(), other._safe_str())
+        return AbstractDim(mulkey)
+
+
     def __add__(self, other):
+        if isinstance(other, int):
+            if self.concrete:
+                return self._c[1] + other
+            return self + AbstractDim(other)
         return AbstractDim(self._c + other._c)
 
     def __sub__(self, other):
+        if isinstance(other, int):
+            if self.concrete:
+                return self._c[1] - other
+            return self - AbstractDim(other)
         return AbstractDim(self._c - other._c)
 
     def __radd__(self, other):
