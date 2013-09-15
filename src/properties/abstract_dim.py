@@ -1,9 +1,10 @@
 import collections
 
 def list_product(l):
-    """ Take a list and return an AD by multiplying list elements together
+    """ Take a list and return an AD by multiplying list elements together.
     """
     return reduce(lambda x,y: x * AbstractDim(y), l, AbstractDim(1))
+
 
 class AbstractDim(object):
     """ Implemented by holding a collections.Counter to keep track of terms.
@@ -150,4 +151,4 @@ class AbstractDim(object):
         return AbstractDim(other) * self
 
 if __name__ == "__main__":
-    print AbstractDim()
+    print list_product([5, 'a'])

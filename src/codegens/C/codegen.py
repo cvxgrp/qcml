@@ -122,16 +122,16 @@ class C_Codegen(Codegen, Restrictive):
         self.size_lookup['m'] = self.num_conic + self.num_lps
         self.size_lookup['n'] = self.num_vars
         self.size_lookup['p'] = self.num_lineqs
-        yield "data->p = %d;" % self.num_lineqs
-        yield "data->m = %d;" % (self.num_conic + self.num_lps)
-        yield "data->n = %d;" % self.num_vars
+        yield "data->p = %s;" % self.num_lineqs
+        yield "data->m = %s;" % (self.num_conic + self.num_lps)
+        yield "data->n = %s;" % self.num_vars
 
     # generator to get cone dimensions
     def c_cone_sizes(self):
         num_cone, cone_size = zip(*self.cone_list)
 
-        yield "data->l = %d;" % self.num_lps
-        yield "data->nsoc = %d;" % sum(num_cone)
+        yield "data->l = %s;" % self.num_lps
+        yield "data->nsoc = %s;" % sum(num_cone)
         if num_cone == 0:
             yield "data->q = NULL;"
         else:
@@ -287,13 +287,13 @@ class C_Codegen(Codegen, Restrictive):
         # TODO: i shouldn't have to check here....
         if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
         else: tag = "[i];"
-        yield "for(i = 0; i < %d; ++i) data->c[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
+        yield "for(i = 0; i < %s; ++i) data->c[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
     def stuff_b(self, start, end, expr):
         # TODO: i shouldn't have to check here....
         if expr.isscalar or isinstance(expr, OnesCoeff): tag = ";"
         else: tag = "[i];"
-        yield "for(i = 0; i < %d; ++i) data->b[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
+        yield "for(i = 0; i < %s; ++i) data->b[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
     def stuff_h(self, start, end, expr, stride = None):
         if expr.isscalar: tag = ";"
@@ -302,7 +302,7 @@ class C_Codegen(Codegen, Restrictive):
             numel = math.ceil( float(end - start) / stride )
             yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, toC(expr), tag)
         else:
-            yield "for(i = 0; i < %d; ++i) data->h[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
+            yield "for(i = 0; i < %s; ++i) data->h[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
 
     def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):
@@ -328,5 +328,6 @@ class C_Codegen(Codegen, Restrictive):
         # but then return this generator
         return self.stuff_matrix("A", row_start, row_end, col_start, col_end, expr, row_stride)
 
-
+    def abstractdim_rewriter(self, ad):
+        return "dims.%s" % ad
 

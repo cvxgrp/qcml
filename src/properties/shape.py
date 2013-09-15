@@ -86,8 +86,23 @@ class Shape(object):
     def _check_instantiation(self):
         self.instantiated = all(type(elem) == int for elem in self.dimensions)
 
-    def size(self):
-        return abstract_dim.list_product(self.dimensions)
+    def size(self, abstractdim_rewriter=None):
+        """ Returns product of dimensions, wrapped in an AbstractDim object
+            to handle dimensions that are still abstract, i.e. still string
+            variable names like 'm' or 'n'.
+
+            Additionally, abstract string dimension names can be rewritten
+            (usually for consistency with a particular codegen).  See 
+            Codegen.abstractdim_rewriter for examples.
+        """
+        dims = self.dimensions
+        if abstractdim_rewriter: 
+            # Only apply it to dims that are still abstract
+            def adrw(x):
+                if isinstance(x, str): return abstractdim_rewriter(x)
+                return x
+            dims = map(adrw, dims)
+        return abstract_dim.list_product(dims)
 
     def __str__(self):
         if isscalar(self): return "Scalar()"

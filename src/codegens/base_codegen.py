@@ -106,6 +106,13 @@ class Codegen(NodeVisitor):
         """
         yield ""
 
+    @abstractmethod
+    def abstractdim_rewriter(self, ad):
+        """ Translate a raw abstract dimension name like 'm' or 'n' into a 
+            name like 'dims.m' or dims('n')
+        """
+        return "%s" % ad
+
     def codegen(self):
         # create the source code
         self.prob2socp.create()
@@ -132,10 +139,10 @@ class Codegen(NodeVisitor):
         # create variable ordering
         # XXX: at this moment, assumes that variables are vectors (not arrays)
         # varlength contains the vector lengths as ints
-        self.varlength = {k: v.shape.size() \
+        self.varlength = {k: v.shape.size(abstractdim_rewriter=self.abstractdim_rewriter) \
             for k,v in node.variables.iteritems()
         }
-        self.varlength.update({k: v.shape.size() \
+        self.varlength.update({k: v.shape.size(abstractdim_rewriter=self.abstractdim_rewriter) \
             for k,v in node.new_variables.iteritems()
         })
 
@@ -157,7 +164,7 @@ class Codegen(NodeVisitor):
         self.functions_return(node)
 
     def visit_Variable(self, node):
-        n = node.shape.size()
+        n = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
         k = node.value
 
         if n == 1:
@@ -212,7 +219,7 @@ class Codegen(NodeVisitor):
         arg = self.expr_stack.pop()
 
         for k in arg.keys():
-            n = node.expr.shape.size()
+            n = node.expr.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
             arg[k] = OnesCoeff(n, ConstantCoeff(1), True) * arg[k]
 
         self.expr_stack.append(arg)
@@ -263,10 +270,10 @@ class Codegen(NodeVisitor):
 
         if node.op == '==':
             start = self.num_lineqs
-            self.num_lineqs += node.shape.size()
+            self.num_lineqs += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
         else:
             start = self.num_lps
-            self.num_lps += node.shape.size()
+            self.num_lps += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
 
         self.generic_visit(node)
 
@@ -307,11 +314,11 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = [self.num_lps + self.num_conic]
 
-        start += [start[-1] + node.right.shape.size()]
-        cone_length = node.right.shape.size()
+        start += [start[-1] + node.right.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)]
+        cone_length = node.right.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
         for e in node.left:
-            start += [start[-1] + e.shape.size()]
-            cone_length += e.shape.size()
+            start += [start[-1] + e.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)]
+            cone_length += e.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
 
         self.num_conic += cone_length
         self.cone_list.append( (1, str(cone_length)) )
@@ -342,9 +349,9 @@ class Codegen(NodeVisitor):
         # we assume linear constraints have already been handled
         start = self.num_lps + self.num_conic
         stride = node.nargs + 1
-        self.num_conic += stride * node.shape.size()
+        self.num_conic += stride * node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
 
-        self.cone_list.append( (node.shape.size(), str(node.nargs + 1)) )
+        self.cone_list.append( (node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter), str(node.nargs + 1)) )
 
         self.generic_visit(node)
 

@@ -88,4 +88,5 @@ class MatlabCodegen(Codegen):
     def stuff_G(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("G", r0, rend, c0, cend, expr, rstride)
 
-
+    def abstractdim_rewriter(self, ad):
+        return "dims.%s" % ad

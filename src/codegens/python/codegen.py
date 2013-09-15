@@ -121,3 +121,5 @@ class PythonCodegen(Codegen):
         yield "Aj.append(%s)" % toPython(expr.J(col_start))
         yield "Av.append(%s)" % toPython(expr.V())
 
+    def abstractdim_rewriter(self, ad):
+        return "dims['%s']" % ad
