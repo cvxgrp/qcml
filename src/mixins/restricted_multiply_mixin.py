@@ -10,19 +10,16 @@ class RestrictedMultiplyMixin(object):
     """ This implements the restricted multiplication behavior.
     """
     def __init__(self, *args, **kwargs):
-        super(RestrictedMultiply, self).__init__(*args, **kwargs)
-        self.__new_var_counter = 0
+        super(RestrictedMultiplyMixin, self).__init__(*args, **kwargs)
 
     def create_equality_constraint_variable(self, size):
-        name = "_s%d" % self.__new_var_counter
-        self.__new_var_counter += 1
-        v = expression.Variable(name, shape.Vector(size))
+        v = expression.Variable('', shape.Vector(size))
 
         # add it to the list of lookups for building constraints
         # doesn't matter that it's at the end, since it's only for eq
         # constraints
-        self.varlength[name] = size
-        self.varstart[name] = self.num_vars
+        self.varlength[v.value] = size
+        self.varstart[v.value] = self.num_vars
         self.num_vars += size
 
         return v

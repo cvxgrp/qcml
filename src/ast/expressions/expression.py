@@ -157,4 +157,5 @@ class UnaryOperatorMixin(Node):
         return (obj, constraints)
 
 from leaf import *
+from variable import *
 from ops import *

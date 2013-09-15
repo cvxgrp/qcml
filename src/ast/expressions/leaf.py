@@ -26,26 +26,4 @@ class Parameter(e.LeafMixin, e.Expression):
 
     def __repr__(self): return "Parameter('%s',%s)" % (self.value, self.shape)
 
-class Variable(e.LeafMixin, e.Expression):
-    """ Variable AST node.
 
-        Contains a representation of Variables. It is Affine; its sign is
-        Neither positive nor negative. Its shape is supplied from QCML.
-    """
-    count = 0
-    anonymous_variables = {}
-    def __init__(self, value, shape):
-        if value:
-            name = value
-        else:
-            name = "_t%d" % Variable.count
-            Variable.count += 1
-            Variable.anonymous_variables[name] = self
-        super(Variable, self).__init__(value = name, curvature = curvature.Affine(), shape = shape, sign = sign.Neither())
-
-    def __repr__(self): return "Variable('%s',%s)" % (self.value, self.shape)
-
-    @classmethod
-    def reset(cls):
-        cls.count = 0
-        cls.anonymous_variables = {}

@@ -45,7 +45,6 @@ class QCML(object):
             The parser moves from the EMPTY to the PARSED to the CANONICALIZED to
             the CODEGEN state.
         """
-        Variable.reset()    # reset the variable count
         self.problem = QCParser().parse(text)
         if self.debug:
             self.problem.show()

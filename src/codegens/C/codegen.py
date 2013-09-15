@@ -41,7 +41,7 @@ def shape_to_c_type(x):
     if shape.ismatrix(x): return "qc_matrix *"
     raise Exception("Unknown shape...")
 
-class C_Codegen(Codegen, RestrictedMultiplyMixin):
+class C_Codegen(RestrictedMultiplyMixin, Codegen):
     """ This produces two functions and a header file.
     """
     def __init__(self, sparsity_pattern = None, name = "problem"):

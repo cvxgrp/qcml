@@ -73,7 +73,7 @@ def term_updated(lhs_terms, rhs_terms, expr):
 
 
 def TermFactory(constant, params, expr):
-    # TODO: use variable "type" to determine if it is a linear term or 
+    # TODO: use variable "type" to determine if it is a linear term or
     # nonlinear term
     if isinstance(expr, int): expr = '' # hack to allow int arguments
     if not params and not expr:
@@ -133,7 +133,7 @@ class TermBucket(object):
 
 class Expression(object):
     def __init__(self, constant, linear_terms, nonlinear_terms):
-        self.linear_terms = linear_terms 
+        self.linear_terms = linear_terms
         self.nonlinear_terms = nonlinear_terms
         self.constant = constant
 
