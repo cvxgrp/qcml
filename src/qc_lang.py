@@ -88,26 +88,8 @@ class QCML(object):
             raise Exception("QCML set_dims: Not all supplied dims are integer.")
 
         self.__dims = dims
-        sds = self.ShapeDimSetter(dims)
-        sds.visit(self.problem)
+        self.problem.dimensions = dims
         if self.state is COMPLETE: self.state = CODEGEN
-
-    class ShapeDimSetter(NodeVisitor):
-        """ Goal is to traverse the tree and call eval(dims) on every 
-            possible shape.
-        """
-        def __init__(self, dims):
-            self.dims = dims
-
-        def visit_Program(self, node):
-            (v.shape.eval(self.dims) for v in node.variables.values())
-            (v.shape.eval(self.dims) for v in node.new_variables.values())
-            (v.shape.eval(self.dims) for v in node.parameters.values())
-            self.generic_visit(node)
-
-        def generic_visit(self, node):
-            if hasattr(node, 'shape'): node.shape.eval(self.dims)
-            super(QCML.ShapeDimSetter, self).generic_visit(node)
 
     @profile
     def codegen(self, language="python", *args, **kwargs):
