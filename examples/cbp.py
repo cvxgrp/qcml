@@ -59,9 +59,9 @@ if __name__ == "__main__":
     if q and r: p.dims = {'q': q, 'r': r}
     p.codegen(args.codegen)
 
-    #raw_input("press ENTER for raw code....")
-    #print p.prob2socp.source
-    #print p.socp2prob.source
+    raw_input("press ENTER for raw code....")
+    print p.prob2socp.source
+    print p.socp2prob.source
 
     #socp_data = p.prob2socp(params=locals())
     #import ecos
