@@ -25,7 +25,7 @@ class PythonCodegen(Codegen):
 
     # function to get problem dimensions
     def python_dimensions(self):
-        yield "p, m, n = %d, %d, %d" % (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
+        yield "p, m, n = %s, %s, %s" % (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)
 
     # function to get cone dimensions
     def python_cone_sizes(self):
@@ -38,7 +38,7 @@ class PythonCodegen(Codegen):
             cone_list_str = map(cone_tuple_to_str, self.cone_list)
             cone_list_str = '+'.join(cone_list_str)
 
-        yield "dims = {'l': %d, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
+        yield "dims = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
 
     def functions_setup(self, program_node):
         # add some documentation

@@ -15,12 +15,18 @@ class AbstractDim(object):
     @property
     def concrete(self):
         return len(self._c) == 1 and 1 in self._c
+    
+    def keys(self):
+        return self._c.keys()
 
     def __str__(self):
-        """ Protect with parentheses if more than one term
+        """ Protect with parentheses if more than one term.  Don't bother to
+            print terms with coefficient == 0
         """
-        ret = ' + '.join(map(self._str_term, sorted(self._c.keys())))
-        if len(self._c) < 2: return ret
+        printkeys = filter(lambda x: self._c[x] != 0, self.keys())
+        if not printkeys: return "0"
+        ret = ' + '.join(map(self._str_term, sorted(printkeys)))
+        if len(printkeys) < 2: return ret
         return "(%s)" % ret
 
     def _str_term(self, key):
@@ -55,8 +61,6 @@ class AbstractDim(object):
         return AbstractDim(mulkey)
 
     def __div__(self, other):
-        print "self:  %s" % self
-        print "other: %s" % other
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] / other
@@ -105,7 +109,4 @@ class AbstractDim(object):
         return AbstractDim(other) * self
 
 if __name__ == "__main__":
-    r = AbstractDim('r')
-    r1 = r - 1
-    print r
-    print r1
+    print AbstractDim()
