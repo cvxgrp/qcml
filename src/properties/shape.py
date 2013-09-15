@@ -1,4 +1,5 @@
 import itertools
+from abstract_dim import AbstractDim
 from .. helpers import use
 
 """ Shape class (and its helpers)
@@ -86,9 +87,7 @@ class Shape(object):
         self.instantiated = all(type(elem) == int for elem in self.dimensions)
 
     def size(self):
-        if self.instantiated:
-            return reduce(lambda x,y: x*y, self.dimensions, 1)
-        raise ValueError("Cannot compute size of abstract dimension")
+        return AbstractDim(self.dimensions)
 
     def __str__(self):
         if isscalar(self): return "Scalar()"
