@@ -24,7 +24,7 @@ class QCML(object):
         self.debug = debug
         self.state = PARSE
 
-        self.problem = None
+        self.program = None
         self.__codegen = None
 
         # keep track of the codegen language
@@ -45,11 +45,11 @@ class QCML(object):
             The parser moves from the EMPTY to the PARSED to the CANONICALIZED to
             the CODEGEN state.
         """
-        self.problem = QCParser().parse(text)
+        self.program = QCParser().parse(text)
         if self.debug:
-            self.problem.show()
+            self.program.show()
 
-        if not self.problem.is_dcp:
+        if not self.program.is_dcp:
             # TODO: if debug, walk the tree and find the problem
             raise QC_DCPError("QCML parse: The problem is not DCP compliant.")
         self.state = CANONICALIZE
@@ -60,9 +60,9 @@ class QCML(object):
         if self.state is PARSE:
             raise Exception("QCML canonicalize: No problem currently parsed.")
 
-        self.problem.canonicalize()
+        self.program.canonicalize()
         if self.debug:
-            print self.problem
+            print self.program
         self.state = CODEGEN
 
     @property
@@ -73,8 +73,11 @@ class QCML(object):
     def dims(self, dims):
         if self.state is PARSE:
             raise Exception("QCML set_dims: No problem currently parsed.")
-        self.problem.dimensions = dims
-        if self.state is COMPLETE: self.state = CODEGEN
+            
+        self.program.dimensions = dims
+        
+        if self.state is COMPLETE:
+            self.state = CODEGEN
 
     @profile
     def codegen(self, language="python", *args, **kwargs):
@@ -90,8 +93,8 @@ class QCML(object):
         except KeyError:
             raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
-            self.__codegen = codegen_class(*args, **kwargs)
-            self.__codegen.visit(self.problem)
+            self.__codegen = codegen_class(self.program, *args, **kwargs)
+            self.__codegen.visit(self.program.problem)
 
         # generate the prob2socp and socp2prob functions
         self.__codegen.codegen()

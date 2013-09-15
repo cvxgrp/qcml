@@ -57,6 +57,7 @@ class Codegen(NodeVisitor):
         self.objective_multiplier = 1
         self._code = {} # Could use ordereddict, but that's Python >= 2.7
         self._codekeyorder = None 
+        super(Codegen, self).__init__()
 
     @abstractproperty
     def prob2socp(self):
@@ -150,9 +151,9 @@ class Codegen(NodeVisitor):
     @property
     def conesl(self): yield self.num_lps
 
-    def visit_Program(self, node):
+    def visit_Problem(self, node):
         # keep track of original variables
-        self.orig_varnames = set(node.variables.keys())
+       # self.orig_varnames = set(node.variables.keys())
 
         # create variable ordering
         # XXX: at this moment, assumes that variables are vectors (not arrays)
@@ -173,13 +174,13 @@ class Codegen(NodeVisitor):
         self.varstart = dict(self.varstart)
 
         # set up the functions we want to write
-        self.functions_setup(node)
+        self.functions_setup()
 
         # now, visit all the nodes
         self.generic_visit(node)
 
         # after we visited all the nodes, we set up the return values
-        self.functions_return(node)
+        self.functions_return()
 
     def visit_Variable(self, node):
         n = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)

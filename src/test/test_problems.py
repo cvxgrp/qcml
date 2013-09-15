@@ -2,7 +2,7 @@
 """
 from nose.tools import assert_raises
 from .. errors import QC_DCPError
-from .. ast import Objective, Program
+from .. ast import Objective, Problem
 from .. ast.atoms import atom
 
 from .. ast.expressions import expression as e
@@ -11,7 +11,7 @@ import StringIO
 
 x = e.Variable('x', shape.Vector('n'))
 normx = atom.QC_norm(x)
-prob = Program(Objective("minimize", normx), [x == e.Number(1), e.Number(1) >= x, x <= e.Number(1)], [x])
+prob = Problem(Objective("minimize", normx), [x == e.Number(1), e.Number(1) >= x, x <= e.Number(1)])
 
 
 exp_result = """%sDCP objective: %s norm(x)
@@ -79,7 +79,7 @@ def test_objective():
 
 def test_add_constraint():
     o = Objective("maximize", normx)
-    local_prob = Program(o, [], [x])
+    local_prob = Problem(o, [])
     yield check_constr, local_prob, [o]
 
     # checks that if you add multiple constraints, removes duplicates

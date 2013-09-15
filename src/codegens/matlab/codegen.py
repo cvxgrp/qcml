@@ -4,9 +4,8 @@ from ... codes.function import MatlabFunction
 from ... codes.encoders import toMatlab
 
 class MatlabCodegen(Codegen):
-
-    def __init__(self):
-        super(MatlabCodegen, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(MatlabCodegen, self).__init__(*args, **kwargs)
         self._code = {
             'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
             'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
@@ -30,10 +29,10 @@ class MatlabCodegen(Codegen):
             else:        return "%s*ones(%s,1)" % (sz, num)
         yield '; '.join(map(cone_tuple_to_str, self.cone_list))
 
-    def functions_setup(self, program_node):
+    def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
         self.prob2socp.document('Where input struct PARAMS has the following fields:')
-        self.prob2socp.document(self.printshapes(program_node))
+        self.prob2socp.document(self.printshapes(self.program))
         self.prob2socp.newline()
 
         self.prob2socp.add_lines("p = %s; m = %s; n = %s;" % v for v in self.pmn)
@@ -48,7 +47,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("cones.q = [%s];" % q for q in self.conesq())
         self.prob2socp.add_lines("cones.s = [];")
 
-    def functions_return(self, program_node):
+    def functions_return(self):
         self.prob2socp.add_comment('Convert from sparse triplet to column compressed format.')
         self.prob2socp.add_comment('Also convert from 0 indexed to 1 indexed.')
         self.prob2socp.add_lines("A = sparse(Ai+1, Aj+1, Av, p, n);")
@@ -59,7 +58,7 @@ class MatlabCodegen(Codegen):
 
         recover = (
             "'%s', x(%s:%s)" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
-            for k in program_node.variables.keys()
+            for k in self.program.variables.keys()
         )
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
 

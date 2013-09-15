@@ -1,7 +1,7 @@
 """ This is the node interface.
 
     A node is...
-    
+
 ------------------------------------------------------------------------------
 
     Need to think about them in the context of an n-ary tree. An expression
@@ -78,12 +78,13 @@
 
     but "canonicalize" shouldn't return anything. if you canonicalize it,
     you're done. you should, however, after canonicalizing, be able to access
-    any new constraints and new variables introduced....
+    any new constraints and new variables introduced.... in other words, it
+    ought to have some side effect.
 
     altneratively, i can "go the way" of Variable, where the counter is part
     of the Variable class; i can make "constraints" part of the Program
     class....
-    
+
     This works with Variables because I don't "nest" Variables; will I "nest"
     Programs? I guess that's only minorly useful.
 """
@@ -95,7 +96,7 @@ class Node(object):
     """ A node lives in the context of an optimization *program*. It is able
         to reference the owning program and modify its variables, its problem,
         and so on.
-        
+
         Every node in problem's AST has a show method which will display the
         subtree.
 
@@ -107,8 +108,8 @@ class Node(object):
     """
     __metaclass__ = ABCMeta
     # def __init__(self, parent_program, *args, **kwargs):
-#         self.__program = parent_program
-#         super(Node, self).__init__(*args, **kwargs)
+    #     self.__program = parent_program
+    #     super(Node, self).__init__(*args, **kwargs)
 
     def show(self, buf = sys.stdout, offset = 0):
         """ Defines what to show; usually via buf.write
@@ -117,13 +118,13 @@ class Node(object):
         for child in self.children():
             assert(isinstance(child, Node))
             child.show(buf, offset + 2)
-    
+
     # def canonicalize(self):
- #        """ Defines what happens when an object is canonicalized.
- #        """
- #        for child in self.children():
- #            assert(isinstance(child, Node))
- #            child.canonicalize()
+    #     """ Defines what happens when an object is canonicalized.
+    #     """
+    #     for child in self.children():
+    #         assert(isinstance(child, Node))
+    #         child.canonicalize()
 
     @abstractmethod
     def info(self):
@@ -134,6 +135,12 @@ class Node(object):
     @abstractmethod
     def children(self):
         """ Defines a generator that yields the children of the tree
+        """
+        pass
+
+    @abstractmethod
+    def canonicalize(self):
+        """ Defines what happens when an object is canonicalized.
         """
         pass
 

@@ -5,7 +5,7 @@ import errors
 from . qc_lexer import QCLexer
 from . ast.expressions import Number, Parameter, Variable, Sum, Transpose
 from . ast.atoms import atoms
-from . ast import Objective, Program
+from . ast import Objective, Program, Problem
 from . properties.sign import Neither, Positive, Negative
 from . properties.shape import Scalar, Shape, isscalar
 
@@ -114,11 +114,13 @@ class QCParser(object):
         '''
         constraints = p[1]
         if len(p) > 3: constraints.extend(p[3])
-        p[0] = Program(p[2], constraints, self.variables, self.parameters, self.dimensions)
+        prob = Problem(p[2], constraints)
+        p[0] = Program(prob, self.variables, self.parameters, self.dimensions)
 
     def p_program_find(self,p):
         'program : statements'
-        p[0] = Program(Objective('find', Number(0)), p[1], self.variables, self.parameters, self.dimensions)
+        prob = Problem(Objective('find', Number(0)), p[1])
+        p[0] = Program(prob, self.variables, self.parameters, self.dimensions)
 
     def p_program_empty(self,p):
         'program : empty'

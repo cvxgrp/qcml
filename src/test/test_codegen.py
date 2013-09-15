@@ -10,9 +10,9 @@ from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen
 from nose import with_setup
 
 #TODO: matlab = MatlabCodegen()
-C = C_Codegen(name="test_problem")
-python = PythonCodegen()
-matlab = MatlabCodegen()
+C = C_Codegen(None, name="test_problem")
+python = PythonCodegen(None)
+matlab = MatlabCodegen(None)
 
 codegens = [C, python, matlab]
 

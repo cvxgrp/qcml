@@ -118,9 +118,9 @@ def test_unused_variable():
         variables x(n) y
         minimize sum(x)
     """)
-    print p.problem
-    print p.problem.variables
-    assert p.problem.variables.keys() == ['x']
+    print p.program
+    print p.program.variables
+    assert p.program.variables.keys() == ['x']
 
 def test_unused_parameter():
     p = QCML(debug=True)
@@ -129,9 +129,9 @@ def test_unused_parameter():
         parameters x(n) y
         minimize sum(x)
     """)
-    print p.problem
-    print p.problem.parameters
-    assert p.problem.parameters.keys() == ['x']
+    print p.program
+    print p.program.parameters
+    assert p.program.parameters.keys() == ['x']
 
 def test_unused_dimensions():
     p = QCML(debug=True)
@@ -140,9 +140,9 @@ def test_unused_dimensions():
         variables x(n) y
         minimize sum(x)
     """)
-    print p.problem
-    print p.problem.dimensions
-    assert p.problem.dimensions == set(['n'])
+    print p.program
+    print p.program.dimensions
+    assert p.program.dimensions == set(['n'])
 
     #yield assert_raises, Exception, p1.parse_variable, deque([("VARIABLE","")])
 
