@@ -61,6 +61,7 @@ if __name__ == "__main__":
 
     raw_input("press ENTER for raw code....")
     print p.prob2socp.source
+    print "\n"
     print p.socp2prob.source
 
     #socp_data = p.prob2socp(params=locals())
