@@ -13,7 +13,7 @@ class PythonCodegen(Codegen):
     def __init__(self):
         super(PythonCodegen, self).__init__()
         self.__prob2socp = PythonFunction('prob_to_socp', ['params', 'dims={}'])
-        self.__socp2prob = PythonFunction('socp_to_prob', ['x'])
+        self.__socp2prob = PythonFunction('socp_to_prob', ['x', 'dims={}'])
 
     @property
     def prob2socp(self):
