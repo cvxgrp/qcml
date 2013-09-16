@@ -1,13 +1,6 @@
 """ ProgramData contains the dictionaries for the dimensions, parameters, and 
     variables of a problem. It also has the ability to iterate over them.
 """
-from collections import namedtuple
-
-ProgramData = namedtuple(
-    'ProgramData',
-    ['dimensions', 'parameters', 'variables']
-)
-
 class ProgramData(object):
     def __init__(self, dimensions = None, parameters = None, variables = None):
         """ Creates ProgramData.
