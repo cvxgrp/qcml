@@ -22,18 +22,18 @@ if __name__ == "__main__":
 
     p = QCML(debug=True)
     p.parse("""
-        dimensions q r
-        variable c(r)
-        variable u(r)
-        variable v(r)
+        dimensions m n
+        variable c(n)
+        variable u(n)
+        variable v(n)
         parameter noise positive
-        parameter lambda(r)
-        parameter data(q)
-        parameter dictc(q,r)
-        parameter dictu(q,r)
-        parameter dictv(q,r)
-        parameter radii(r,r)    # diagonal matrix
-        parameter rctheta(r,r)  # diagonal matrix
+        parameter lambda(n)
+        parameter data(m)
+        parameter dictc(m,n)
+        parameter dictu(m,n)
+        parameter dictv(m,n)
+        parameter radii(n,n)    # diagonal matrix
+        parameter rctheta(n,n)  # diagonal matrix
         minimize noise*norm(data - (dictc*c + dictu*u + dictv*v)) + lambda'*c
         subject to
           # || (u[i], v[i]) || <= radii_i * c_i
