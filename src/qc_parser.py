@@ -5,7 +5,7 @@ import errors
 from . qc_lexer import QCLexer
 from . ast.expressions import Number, Parameter, Variable, Sum, Transpose
 from . ast.atoms import atoms
-from . ast import Objective, Program, Problem
+from . ast import SOCP, ProgramData, ProgramConstraints, ProgramObjective
 from . properties.sign import Neither, Positive, Negative
 from . properties.shape import Scalar, Shape, isscalar
 
@@ -114,13 +114,16 @@ class QCParser(object):
         '''
         constraints = p[1]
         if len(p) > 3: constraints.extend(p[3])
-        prob = Problem(p[2], constraints)
-        p[0] = Program(prob, self.variables, self.parameters, self.dimensions)
+        constr = ProgramConstraints(constraints)
+        data = ProgramData(self.dimensions, self.parameters, self.variables)
+        p[0] = SOCP(p[2], constr, data)
 
     def p_program_find(self,p):
         'program : statements'
-        prob = Problem(Objective('find', Number(0)), p[1])
-        p[0] = Program(prob, self.variables, self.parameters, self.dimensions)
+        obj = ProgramObjective('find', Number(0))
+        constr = ProgramConstraints(p[1])
+        data = ProgramData(self.dimensions, self.parameters, self.variables)
+        p[0] = SOCP(obj, constr, data)
 
     def p_program_empty(self,p):
         'program : empty'
@@ -149,7 +152,7 @@ class QCParser(object):
     def p_objective(self,p):
         '''objective : SENSE expression NL
                      | SENSE expression NL SUBJ TO NL'''
-        p[0] = Objective(p[1],p[2])
+        p[0] = ProgramObjective(p[1],p[2])
 
 
     def p_create_dimension(self,p):

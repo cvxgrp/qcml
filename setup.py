@@ -10,7 +10,7 @@ setup(
                 'qcml.ast.atoms',
                 'qcml.ast.constraints',
                 'qcml.ast.expressions',
-                'qcml.ast.problems',
+                'qcml.ast.socps',
                 'qcml.properties',
                 'qcml.codegens',
                 'qcml.codegens.python',

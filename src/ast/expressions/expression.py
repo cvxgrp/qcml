@@ -156,6 +156,6 @@ class UnaryOperatorMixin(Node):
         obj = self.OP_FUNC(obj)
         return (obj, constraints)
 
-from leaf import *
-from variable import *
+from . leaf import Number, Parameter
+from . variable import Variable
 from ops import *

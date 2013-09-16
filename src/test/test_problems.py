@@ -2,7 +2,7 @@
 """
 from nose.tools import assert_raises
 from .. errors import QC_DCPError
-from .. ast import Objective, Problem
+from .. import ast
 from .. ast.atoms import atom
 
 from .. ast.expressions import expression as e
@@ -11,7 +11,11 @@ import StringIO
 
 x = e.Variable('x', shape.Vector('n'))
 normx = atom.QC_norm(x)
-prob = Problem(Objective("minimize", normx), [x == e.Number(1), e.Number(1) >= x, x <= e.Number(1)])
+prob = ast.SOCP(
+    ast.ProgramObjective("minimize", normx), 
+    ast.ProgramConstraints([x == e.Number(1), e.Number(1) >= x, x <= e.Number(1)]),
+    ast.ProgramData()
+)
 
 
 exp_result = """%sDCP objective: %s norm(x)
@@ -19,10 +23,13 @@ exp_result = """%sDCP objective: %s norm(x)
     Variable: affine, neither, Vector(n), x
 """
 
-parsed_prob = """DCP program:
-  DCP objective: minimize norm(x)
-    QC_norm: convex, positive, Scalar()
-      Variable: affine, neither, Vector(n), x
+parsed_prob = """DCP problem:
+    minimize norm(x)
+    subject to
+        x + -1*1 == 0
+        x + -1*1 <= 0
+  QC_norm: convex, positive, Scalar()
+    Variable: affine, neither, Vector(n), x
   LinearEquality: True, Vector(n)
     Add: affine, neither, Vector(n)
       Variable: affine, neither, Vector(n), x
@@ -68,27 +75,27 @@ def check_constr(prob, exp):
         assert(c is e)
 
 def test_unknown_sense_error():
-    yield assert_raises, Exception, Objective, "hello", x
+    yield assert_raises, Exception, ast.ProgramObjective, "hello", x
 
 def test_dcp_error():
-    yield assert_raises, QC_DCPError, Objective, "find", x
+    yield assert_raises, QC_DCPError, ast.ProgramObjective, "find", x
 
 def test_objective():
-    yield check, Objective("minimize", normx), exp_result % ("", "minimize")
-    yield check, Objective("maximize", normx), exp_result % ("Non-", "maximize")
+    yield check, ast.ProgramObjective("minimize", normx), exp_result % ("", "minimize")
+    yield check, ast.ProgramObjective("maximize", normx), exp_result % ("Non-", "maximize")
 
 def test_add_constraint():
-    o = Objective("maximize", normx)
-    local_prob = Problem(o, [])
+    o = ast.ProgramObjective("maximize", normx)
+    local_prob = ast.SOCP(o, ast.ProgramConstraints([]), ast.ProgramData())
     yield check_constr, local_prob, [o]
 
     # checks that if you add multiple constraints, removes duplicates
     p1 = x == e.Number(1)
     p2 = x <= e.Number(2)
     p3 = e.Number(2) >= x
-    local_prob.add_constraint(p1)
-    local_prob.add_constraint(p2)
-    local_prob.add_constraint(p3)
+    local_prob.constraints.add(p1)
+    local_prob.constraints.add(p2)
+    local_prob.constraints.add(p3)
 
     yield check_constr, local_prob, [o,p1,p2]
 

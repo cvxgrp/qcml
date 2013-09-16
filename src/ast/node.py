@@ -1,92 +1,28 @@
 """ This is the node interface.
 
-    A node is...
+    A node is an element of the problem tree.
 
-------------------------------------------------------------------------------
+    It is showable;
 
-    Need to think about them in the context of an n-ary tree. An expression
-    will now consist of three (homogeneous) lists:
-        linear terms
-        nonlinear terms
-        constants
+        node.show()
 
-    It represents an implicit addition.
+    will print the relevant information from the node and its subtree.
 
-    All terms are represented as
-        a constant
-        a list of parameters
-        a variable (or a nonlinear function)
+    It is canonicalizable;
 
-    It represents an implicit multiplication.
+        node.canonical_form()
 
-    A: So when we "canonicalize" an expression what happens?
+    will convert the current node into a standard form SOCP.
 
-        We *only* visit the nonlinear terms.
-        We pop off each nonlinear term and
-            -- canonicalize its children
-            -- canonicalize its definition
-        We then get its "objective" and its "constraints"
-            -- these are going to be *other* (linear) expressions
-            -- we push these onto the current expression's linear term list
-        We return the constraints?
+    It is visitable;
 
-    Canonicalizing an objective:
-        We canonicalize its child
-        We return its constraints--no, make this a property.
+        node.children()
 
-    Canonicalizing a constraint:
-        We canonicalize its children
-        We return any additional constraints
+    will produce a generator that iterates through the children of the node.
 
-    Canonicalizing a problem:
-        We canonicalize its children
-        We append any additional constraints
-
-    Canonicalizing a term:
-        If variable is a Variable, do nothing
-        If it is a nonlinear function, we do (A) above.
-
-    This means a "term" can be asked for its objective and its constraint. In
-    fact, any node can be asked for its objective and its constraints.
-
-    Actually, when parsing, an atom can already construct its objective
-    and its constraints from its arguments. It doesn't need to do anything
-    with it yet.
-
-    ....?
-
-    So "Variables" + "Atoms" are the same "kind" of objects while everything
-    else is, well, something else. They're all expression nodes (of course),
-    but Variables and Atoms can be asked for their objectives and constraints.
-
-    Actually, what gets canonicalized is a *term*.
-
-    So only terms can be canonicalized.... okay...
-
-    So for an expression...
-
-    Canonicalizing an expression:
-        We canonicalize its children
-        We return its constraints (constructed from its children)
-
-    But what happens when what *was* a single term becomes a linear
-    expression?
-
-    hmm...  can you ask a Program to canonicalize itself? yes. can you ask
-    a constraint, an objective, an expr, an atom, a term, etc. to canonicalize
-    itself? yes. yes. and yes.
-
-    but "canonicalize" shouldn't return anything. if you canonicalize it,
-    you're done. you should, however, after canonicalizing, be able to access
-    any new constraints and new variables introduced.... in other words, it
-    ought to have some side effect.
-
-    altneratively, i can "go the way" of Variable, where the counter is part
-    of the Variable class; i can make "constraints" part of the Program
-    class....
-
-    This works with Variables because I don't "nest" Variables; will I "nest"
-    Programs? I guess that's only minorly useful.
+    Although I could separate these three function (show, canonical_form,
+    and children) into three separate interface classes, it is better document
+    them all here.
 """
 from abc import ABCMeta, abstractmethod
 import sys
@@ -144,7 +80,11 @@ class Node(object):
         """
         pass
 
-
+    #@abstractmethod
+    def canonical_form(self):
+        """ Converts the node into an SOCP and returns it.
+        """
+        pass
 
     # @abstractmethod
     # def constraints(self):

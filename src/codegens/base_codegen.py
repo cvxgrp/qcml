@@ -151,6 +151,15 @@ class Codegen(NodeVisitor):
     @property
     def conesl(self): yield self.num_lps
 
+    def visit_Program(self, node):
+        """ Visit the Program node; stores the needed information for codegen.
+
+            TODO: may be overkill, only need to store variables, parameters,
+                and dims (do not need to also have access to problem)
+        """
+        self.program = node
+        self.visit(node.problem)
+
     def visit_Problem(self, node):
         # keep track of original variables
        # self.orig_varnames = set(node.variables.keys())

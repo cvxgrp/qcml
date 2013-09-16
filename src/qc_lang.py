@@ -93,8 +93,8 @@ class QCML(object):
         except KeyError:
             raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
-            self.__codegen = codegen_class(self.program, *args, **kwargs)
-            self.__codegen.visit(self.program.problem)
+            self.__codegen = codegen_class(*args, **kwargs)
+            self.__codegen.visit(self.program)
 
         # generate the prob2socp and socp2prob functions
         self.__codegen.codegen()
