@@ -12,8 +12,8 @@ def wrap_self(f):
 class PythonCodegen(Codegen):
     def __init__(self):
         super(PythonCodegen, self).__init__()
-        self.__prob2socp = PythonFunction("prob_to_socp", ["params"])
-        self.__socp2prob = PythonFunction("socp_to_prob", ["x"])
+        self.__prob2socp = PythonFunction('prob_to_socp', ['params', 'dims'])
+        self.__socp2prob = PythonFunction('socp_to_prob', ['x'])
 
     @property
     def prob2socp(self):
@@ -38,7 +38,7 @@ class PythonCodegen(Codegen):
             cone_list_str = map(cone_tuple_to_str, self.cone_list)
             cone_list_str = '+'.join(cone_list_str)
 
-        yield "dims = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
+        yield "cones = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
 
     def functions_setup(self, program_node):
         # add some documentation
@@ -79,7 +79,7 @@ class PythonCodegen(Codegen):
         self.prob2socp.add_lines("else: G, h = None, None")
         self.prob2socp.add_lines("if p > 0: A = sp.csc_matrix((Av, np.vstack((Ai, Aj))), (p,n))")
         self.prob2socp.add_lines("else: A, b = None, None")
-        self.prob2socp.add_lines("return {'c': c, 'G': G, 'h': h, 'A': A, 'b': b, 'dims': dims}")
+        self.prob2socp.add_lines("return {'c': c, 'G': G, 'h': h, 'A': A, 'b': b, 'dims': cones}")
 
         self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
         # recover the old variables

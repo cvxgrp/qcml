@@ -52,10 +52,12 @@ class C_Codegen(Codegen, Restrictive):
 
         # functions we are going to generate
         self.__prob2socp = CFunction("qc_%s2socp" % self.name,
-            arguments = ["const %s_params * params" % self.name],
+            arguments = ["const %s_params * params" % self.name, 
+                         "const %s_dims * dims" % self.name],
             ret_type="qc_socp *")
         self.__socp2prob = CFunction("qc_socp2%s" % self.name,
-            arguments = ["double * x", "%s_vars * vars" % self.name])
+            arguments = ["double * x", "%s_vars * vars" % self.name,
+                         "const %s_dims * dims" % self.name])
 
         # get the paths to the template files
         template_path = os.path.dirname(__file__)
@@ -329,5 +331,5 @@ class C_Codegen(Codegen, Restrictive):
         return self.stuff_matrix("A", row_start, row_end, col_start, col_end, expr, row_stride)
 
     def abstractdim_rewriter(self, ad):
-        return "dims.%s" % ad
+        return "dims->%s" % ad
 
