@@ -103,6 +103,7 @@ class C_Codegen(Codegen, Restrictive):
             'name': self.name,
             'NAME': self.name.upper(),
             'params': self.params,
+            'dims': self.abstract_dims,
             'variables': self.variables,
             'prob2socp': self.__prob2socp.source,
             'socp2prob': self.__socp2prob.source,
@@ -149,6 +150,10 @@ class C_Codegen(Codegen, Restrictive):
     # function to get parameters
     def c_params(self, program_node):
         return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in program_node.parameters.iteritems()]
+
+    # function to get abstract dims
+    def c_dims(self, program_node):
+        return ["%sint %s;" % (self.indent, k) for k in program_node.abstract_dims]
 
     # function to get variables
     def c_variables(self, program_node):
@@ -225,6 +230,7 @@ class C_Codegen(Codegen, Restrictive):
         self.prob2socp.newline()
 
         self.params = '\n'.join(self.c_params(program_node))
+        self.abstract_dims = '\n'.join(self.c_dims(program_node))
         self.variables = '\n'.join(self.c_variables(program_node))
 
         self.prob2socp.add_comment("local variables")
