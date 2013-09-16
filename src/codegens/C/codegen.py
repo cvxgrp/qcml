@@ -76,6 +76,7 @@ class C_Codegen(Codegen, Restrictive):
 
         # parameters and variables in the optimization problem
         self.params = ""
+        self.abstract_dims = ""
         self.variables = ""
         self.indent = self.__prob2socp.indent   # set our indent spacing
 
@@ -338,4 +339,3 @@ class C_Codegen(Codegen, Restrictive):
 
     def abstractdim_rewriter(self, ad):
         return "dims->%s" % ad
-
