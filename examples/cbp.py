@@ -10,11 +10,11 @@ from qcml import QCML
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Continuous Basis Pursuit QCML example')
-    parser.add_argument('-q', type=int, help='Length of waveform (samples)')
-    parser.add_argument('-r', type=int, help='Number of templates in dictionary')
+    parser.add_argument('-m', type=int, help='Length of waveform (samples)')
+    parser.add_argument('-n', type=int, help='Number of templates in dictionary')
     parser.add_argument('-c', '--codegen', help='Codegen type to use (python, matlab, or C; default python)', default='python')
     args = parser.parse_args()
-    q, r = (args.q, args.r)
+    m, n = (args.m, args.n)
 
     print "Running CBP example...."
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     p.canonicalize()
 
     raw_input("press ENTER to generate code....")
-    if q and r: p.dims = {'q': q, 'r': r}
+    if m and n: p.dims = {'m': m, 'n': n}
     p.codegen(args.codegen)
 
     raw_input("press ENTER for raw code....")
