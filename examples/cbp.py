@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-""" Continuous basis pursuit example.
+""" Continuous basis pursuit example.  This formulation is targeted at the 1D
+    polar formulation for CBP.
 
-    TODO: (PHLI) fill in reference to Eero's paper
-    See ....
+    For details see: http://www.cns.nyu.edu/pub/lcv/Ekanadham11c-preprint.pdf
 """
 
 from argparse import ArgumentParser
