@@ -15,6 +15,11 @@ typedef struct params {
 %(params)s
 } %(name)s_params;
 
+/* the input dimensions struct */
+typedef struct dims {
+%(dims)s
+} %(name)s_dims;
+
 /* the solution struct
  *    users are responsible for keep track of the variable lengths
  */

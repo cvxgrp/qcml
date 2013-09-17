@@ -30,10 +30,10 @@ def test_codegen():
         yield codegen, gen
 
 def test_empty_python_prob2socp():
-    assert python.prob2socp.source == "def prob_to_socp(params):\n    pass"
+    assert python.prob2socp.source == "def prob_to_socp(params, dims={}):\n    pass"
 
 def test_empty_python_socp2prob():
-    assert python.socp2prob.source == "def socp_to_prob(x):\n    pass"
+    assert python.socp2prob.source == "def socp_to_prob(x, dims={}):\n    pass"
 
 c_files = [
     "test_problem",

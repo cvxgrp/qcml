@@ -38,15 +38,15 @@ def loop(ijv):
         if hasattr(x, 'offset') and hasattr(x, 'stride'):
             if x.offset == 0 and x.stride == 1:
                 return "(idx for idx in %s.%s)" % (matrix, ijv)
-            return "(%d + %d*idx for idx in %s.%s)" % (x.offset, x.stride, matrix, ijv)
+            return "(%s + %s*idx for idx in %s.%s)" % (x.offset, x.stride, matrix, ijv)
         return "(%s for v in %s.%s)" % (x.op % "v", matrix, ijv)
     return to_str
 
 def _range(x):
-    return "xrange(%d, %d, %d)" % (x.start, x.end, x.stride)
+    return "xrange(%s, %s, %s)" % (x.start, x.end, x.stride)
 
 def repeat(x):
-    return "itertools.repeat(%s, %d)" % (toPython(x.obj), x.n)
+    return "itertools.repeat(%s, %s)" % (toPython(x.obj), x.n)
 
 def assign(x):
     return "%s = sp.coo_matrix(%s)" % (toPython(x.lhs), toPython(x.rhs))

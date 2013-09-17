@@ -76,6 +76,10 @@ class Program(Node):
     def dimensions(self):
         return self.__dimensions
 
+    @property
+    def abstract_dims(self):
+        return filter(lambda x: isinstance(x,str), self.dimensions)
+
     @dimensions.setter
     def dimensions(self, dims):
         (v.shape.eval(dims) for v in self.variables.values())

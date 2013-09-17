@@ -7,8 +7,8 @@ class MatlabCodegen(Codegen):
 
     def __init__(self):
         super(MatlabCodegen, self).__init__()
-        self.__prob2socp = MatlabFunction("prob_to_socp", ["params"], ["data"])
-        self.__socp2prob = MatlabFunction("socp_to_prob", ["x"],      ["vars"])
+        self.__prob2socp = MatlabFunction('prob_to_socp', ['params', 'dims'], ['data'])
+        self.__socp2prob = MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars'])
 
     @property
     def prob2socp(self): return self.__prob2socp
@@ -16,7 +16,7 @@ class MatlabCodegen(Codegen):
     @property
     def socp2prob(self): return self.__socp2prob
 
-    def dimsq(self):
+    def conesq(self):
         def cone_tuple_to_str(x):
             num, sz = x
             if num == 1: return str(sz)
@@ -29,7 +29,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.document(self.printshapes(program_node))
         self.prob2socp.newline()
 
-        self.prob2socp.add_lines("p = %d; m = %d; n = %d;" % v for v in self.pmn)
+        self.prob2socp.add_lines("p = %s; m = %s; n = %s;" % v for v in self.pmn)
         self.prob2socp.add_lines("c = zeros(n,1);")
         self.prob2socp.add_lines("h = zeros(m,1);")
         self.prob2socp.add_lines("b = zeros(p,1);")
@@ -37,9 +37,9 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("Ai = []; Aj = []; Av = [];")
         self.prob2socp.newline()
 
-        self.prob2socp.add_lines("dims.l = %d;" % l for l in self.dimsl)
-        self.prob2socp.add_lines("dims.q = [%s];" % q for q in self.dimsq())
-        self.prob2socp.add_lines("dims.s = [];")
+        self.prob2socp.add_lines("cones.l = %s;"   % l for l in self.conesl)
+        self.prob2socp.add_lines("cones.q = [%s];" % q for q in self.conesq())
+        self.prob2socp.add_lines("cones.s = [];")
 
     def functions_return(self, program_node):
         self.prob2socp.add_comment('Convert from sparse triplet to column compressed format.')
@@ -48,7 +48,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("G = sparse(Gi+1, Gj+1, Gv, m, n);")
         self.prob2socp.newline()
         self.prob2socp.add_comment('Build output')
-        self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', dims);")
+        self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', cones);")
 
         recover = (
             "'%s', x(%s:%s)" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
@@ -61,9 +61,9 @@ class MatlabCodegen(Codegen):
             0 indexed.  Hopefully this can be cleaned up!
         """
         if stride == 1:
-            yield "%s(%d:%d) = %s;" % (vec, start+1, end, toMatlab(expr))
+            yield "%s(%s:%s) = %s;" % (vec, start+1, end, toMatlab(expr))
         else:
-            yield "%s(%d:%d:%d) = %s;" % (vec, start+1, stride, end, toMatlab(expr))
+            yield "%s(%s:%s:%s) = %s;" % (vec, start+1, stride, end, toMatlab(expr))
 
     def stuff_c(self, start, end, expr, stride = 1):
         return self.stuff_vec("c", start, end, expr, stride)
@@ -88,4 +88,5 @@ class MatlabCodegen(Codegen):
     def stuff_G(self, r0, rend, c0, cend, expr, rstride = 1):
         return self.stuff_matrix("G", r0, rend, c0, cend, expr, rstride)
 
-
+    def abstractdim_rewriter(self, ad):
+        return "dims.%s" % ad

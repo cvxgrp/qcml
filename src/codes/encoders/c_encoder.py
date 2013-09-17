@@ -1,5 +1,6 @@
 from . encoder import create_encoder
 from ... import codes
+from ... properties.abstract_dim import AbstractDim
 
 """ In this file, you'll often see strings with "%%(ptr)s"; this is to delay
     the evaluation of the ptr string until after the object has been turned
@@ -45,19 +46,19 @@ def loop(ijv):
             if x.offset == 0 and x.stride == 1:
                 s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(matrix)s->%(ijv)s[i];"
             else:
-                s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(offset)d + %(stride)d*(%(matrix)s->%(ijv)s[i]);"
+                s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(offset)s + %(stride)s*(%(matrix)s->%(ijv)s[i]);"
             return  s % ({'matrix': matrix, 'offset': x.offset, 'stride': x.stride, 'ijv': ijv})
         return "for(i = 0; i < %s->nnz; ++i) *%%(ptr)s++ = %s;" % (matrix, x.op % ("%s->%s[i]" % (matrix, ijv)))
     return to_str
 
 def _range(x):
     if x.stride == 1:
-        return "for(i = %d; i < %d; ++i) *%%(ptr)s++ = i;" % (x.start, x.end)
+        return "for(i = %s; i < %s; ++i) *%%(ptr)s++ = i;" % (x.start, x.end)
     else:
-        return "for(i = %d; i < %d; i+=%d) *%%(ptr)s++ = i;" % (x.start, x.end, x.stride)
+        return "for(i = %s; i < %s; i+=%s) *%%(ptr)s++ = i;" % (x.start, x.end, x.stride)
 
 def repeat(x):
-    return "for(i = 0; i < %d; ++i) *%%(ptr)s++ = %s;" % (x.n, toC(x.obj))
+    return "for(i = 0; i < %s; ++i) *%%(ptr)s++ = %s;" % (x.n, toC(x.obj))
 
 def assign(x):
     raise Exception("Assignment not implemented.... %s = %s" % (x.lhs, x.rhs))
@@ -84,7 +85,8 @@ lookup = {
     codes.Assign:                   assign,
     codes.NNZ:                      nnz,
     str:                            lambda x: x,
-    int:                            lambda x: str(x)
+    int:                            lambda x: str(x),
+    AbstractDim:                    lambda x: str(x)
 }
 
 toC = create_encoder(lookup)
