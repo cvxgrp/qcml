@@ -55,6 +55,8 @@ class Codegen(NodeVisitor):
         self.cone_list = []
         self.objective_offset = 0
         self.objective_multiplier = 1
+        self._code = {} # Could use ordereddict, but that's Python >= 2.7
+        self._codekeyorder = None 
 
     @abstractproperty
     def prob2socp(self):
@@ -117,6 +119,22 @@ class Codegen(NodeVisitor):
         # create the source code
         self.prob2socp.create()
         self.socp2prob.create()
+
+    @property
+    def code(self):
+        return self._code
+
+    @property
+    def codekeyorder(self):
+        return self._codekeyorder or self.code.keys()
+
+    @property
+    def source(self, order=None):
+        return map(lambda k: self.code[k].source, order or self.codekeyorder)
+
+    @property
+    def numbered_source(self, order=None):
+        return map(lambda k: self.code[k].numbered_source, order or self.codekeyorder)
 
     def printshapes(self, program_node):
         # for function documentation

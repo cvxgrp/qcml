@@ -7,14 +7,21 @@ class MatlabCodegen(Codegen):
 
     def __init__(self):
         super(MatlabCodegen, self).__init__()
-        self.__prob2socp = MatlabFunction('prob_to_socp', ['params', 'dims'], ['data'])
-        self.__socp2prob = MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars'])
+        self._code = {
+            'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
+            'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
+            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars']),
+        }
+        self._codekeyorder = ['wrap', 'prob2socp', 'socp2prob']
 
     @property
-    def prob2socp(self): return self.__prob2socp
+    def prob2socp(self): return self.code['prob2socp']
 
     @property
-    def socp2prob(self): return self.__socp2prob
+    def socp2prob(self): return self.code['socp2prob']
+
+    @property
+    def wrap(self): return self.code['wrap']
 
     def conesq(self):
         def cone_tuple_to_str(x):
@@ -55,6 +62,11 @@ class MatlabCodegen(Codegen):
             for k in program_node.variables.keys()
         )
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
+
+        self.wrap.add_lines("data = prob2socp(params, dims);")
+        self.wrap.add_lines("[x,y,info,s,z] = ECOS(data.c, data.G, data.h, data.dims, data.A, data.b);")
+        self.wrap.add_lines("vars = socp2prob(x, dims);")
+        self.wrap.add_lines("optval = x' * b;")
 
     def stuff_vec(self, vec, start, end, expr, stride):
         """ Stuffing here is 1 indexed, even though in matlab_encoder we stay

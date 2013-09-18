@@ -12,16 +12,19 @@ def wrap_self(f):
 class PythonCodegen(Codegen):
     def __init__(self):
         super(PythonCodegen, self).__init__()
-        self.__prob2socp = PythonFunction('prob_to_socp', ['params', 'dims={}'])
-        self.__socp2prob = PythonFunction('socp_to_prob', ['x', 'dims={}'])
+        self._code = {
+            'prob2socp': PythonFunction('prob_to_socp', ['params', 'dims={}']),
+            'socp2prob': PythonFunction('socp_to_prob', ['x', 'dims={}']),
+        }
+        self._codekeyorder = ['prob2socp', 'socp2prob']
 
     @property
     def prob2socp(self):
-        return self.__prob2socp
+        return self.code['prob2socp']
 
     @property
     def socp2prob(self):
-        return self.__socp2prob
+        return self.code['socp2prob']
 
     # function to get problem dimensions
     def python_dimensions(self):

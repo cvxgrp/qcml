@@ -71,22 +71,34 @@ class AbstractDim(object):
         if self._c[key] == 1:  return key
         return "%d*%s" % (self._c[key], key)
 
+    def __int__(self):
+        if self.concrete: return self._c[1]
+        return None
+
     def __eq__(self, other):
         """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
             AbstractDim(1) == 1 -> True
         """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
         if isinstance(other, AbstractDim):
             return self._c == other._c
         if isinstance(other, int) and self.concrete:
-            return self._c[1] == other
+            return int(self) == other
         return False
 
     def __mul__(self, other):
-        """ Assumes other is an AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
+        if isinstance(other, int):
+            if self.concrete:
+                return int(self) * other
+            return self * AbstractDim(other)
+
         if self.concrete:
             mul = AbstractDim()
-            for k,v in other._c.iteritems(): mul._c[k] = self._c[1]*v 
+            for k,v in other._c.iteritems(): mul._c[k] = int(self)*v 
             return mul
         if other.concrete:
             mul = AbstractDim()
@@ -97,16 +109,17 @@ class AbstractDim(object):
         return AbstractDim(mulkey)
 
     def __div__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] / other
+                return int(self) / other
             return self / AbstractDim(other)
         
         if self.concrete:
             div = AbstractDim()
-            for k,v in other._c.iteritems(): div._c[k] = self._c[1]/v
+            for k,v in other._c.iteritems(): div._c[k] = int(self)/v
             return div
         if other.concrete:
             div = AbstractDim()
@@ -117,38 +130,34 @@ class AbstractDim(object):
 
 
     def __add__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] + other
+                return int(self) + other
             return self + AbstractDim(other)
+
         return AbstractDim(self._c + other._c)
 
     def __sub__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] - other
+                return int(self) - other
             return self - AbstractDim(other)
+
         sub = self._c.copy()
         sub.subtract(other._c)
         return AbstractDim(sub)
 
     def __radd__(self, other):
-        """ Assumes other is int
-        """
-        if self.concrete:
-            return other + self._c[1]
-        return AbstractDim(other) + self
+        return self + other
 
     def __rmul__(self, other):
-        """ Assumes other is int
-        """
-        if self.concrete:
-            return other * self._c[1]
-        return AbstractDim(other) * self
+        return self * other
 
 if __name__ == "__main__":
     print list_product([5, 'a'])

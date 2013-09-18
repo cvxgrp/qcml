@@ -154,3 +154,8 @@ class QCML(object):
 
         return self.solver(params)
 
+    def printsource(self):
+        print '\n\n'.join(self.__codegen.source)
+
+    def prettyprintsource(self):
+        print '\n\n'.join(self.__codegen.numbered_source)
