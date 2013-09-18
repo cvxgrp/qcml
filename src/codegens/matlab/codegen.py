@@ -8,7 +8,7 @@ class MatlabCodegen(Codegen):
     def __init__(self):
         super(MatlabCodegen, self).__init__()
         self._code = {
-            'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval'])
+            'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
             'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
             'socp2prob': MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars']),
         }
