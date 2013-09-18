@@ -16,6 +16,7 @@ class PythonCodegen(Codegen):
             'prob2socp': PythonFunction('prob_to_socp', ['params', 'dims={}']),
             'socp2prob': PythonFunction('socp_to_prob', ['x', 'dims={}']),
         }
+        self._codekeyorder = ['prob2socp', 'socp2prob']
 
     @property
     def prob2socp(self):

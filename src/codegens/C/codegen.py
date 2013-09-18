@@ -52,13 +52,14 @@ class C_Codegen(Codegen, Restrictive):
 
         # functions we are going to generate
         self._code = {}
-        self.code['prob2socp'] = CFunction("qc_%s2socp" % self.name,
+        self._code['prob2socp'] = CFunction("qc_%s2socp" % self.name,
             arguments = ["const %s_params * params" % self.name, 
                          "const %s_dims * dims" % self.name],
             ret_type="qc_socp *")
-        self.code['socp2prob'] = CFunction("qc_socp2%s" % self.name,
+        self._code['socp2prob'] = CFunction("qc_socp2%s" % self.name,
             arguments = ["double * x", "%s_vars * vars" % self.name,
                          "const %s_dims * dims" % self.name])
+        self._codekeyorder = ['prob2socp', 'socp2prob']
 
         # get the paths to the template files
         template_path = os.path.dirname(__file__)
