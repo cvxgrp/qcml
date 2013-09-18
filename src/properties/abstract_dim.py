@@ -71,6 +71,10 @@ class AbstractDim(object):
         if self._c[key] == 1:  return key
         return "%d*%s" % (self._c[key], key)
 
+    def __int__(self):
+        if self.concrete: return self._c[1]
+        return None
+
     def __eq__(self, other):
         """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
             AbstractDim(1) == 1 -> True
@@ -80,7 +84,7 @@ class AbstractDim(object):
         if isinstance(other, AbstractDim):
             return self._c == other._c
         if isinstance(other, int) and self.concrete:
-            return self._c[1] == other
+            return int(self) == other
         return False
 
     def __mul__(self, other):
@@ -89,12 +93,12 @@ class AbstractDim(object):
 
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] * other
+                return int(self) * other
             return self * AbstractDim(other)
 
         if self.concrete:
             mul = AbstractDim()
-            for k,v in other._c.iteritems(): mul._c[k] = self._c[1]*v 
+            for k,v in other._c.iteritems(): mul._c[k] = int(self)*v 
             return mul
         if other.concrete:
             mul = AbstractDim()
@@ -110,12 +114,12 @@ class AbstractDim(object):
 
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] / other
+                return int(self) / other
             return self / AbstractDim(other)
         
         if self.concrete:
             div = AbstractDim()
-            for k,v in other._c.iteritems(): div._c[k] = self._c[1]/v
+            for k,v in other._c.iteritems(): div._c[k] = int(self)/v
             return div
         if other.concrete:
             div = AbstractDim()
@@ -131,7 +135,7 @@ class AbstractDim(object):
 
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] + other
+                return int(self) + other
             return self + AbstractDim(other)
 
         return AbstractDim(self._c + other._c)
@@ -142,7 +146,7 @@ class AbstractDim(object):
 
         if isinstance(other, int):
             if self.concrete:
-                return self._c[1] - other
+                return int(self) - other
             return self - AbstractDim(other)
 
         sub = self._c.copy()
