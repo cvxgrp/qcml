@@ -25,4 +25,4 @@ class ProgramData(object):
             elem.shape.eval(dims)
         for elem in self.variables.values():
             elem.shape.eval(dims)
-        self.__dimensions = dims
+        self.__dimensions = set([dims.get(k, k) for k in self.dimensions])
