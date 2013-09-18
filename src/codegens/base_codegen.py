@@ -124,6 +124,18 @@ class Codegen(NodeVisitor):
     def code(self):
         return self._code
 
+    @property
+    def codekeyorder(self):
+        return self._codekeyorder or self.code.keys()
+
+    @property
+    def source(self, order=None):
+        return map(lambda k: self.code[k].source, order or self.codekeyorder)
+
+    @property
+    def numbered_source(self, order=None):
+        return map(lambda k: self.code[k].numbered_source, order or self.codekeyorder)
+
     def printshapes(self, program_node):
         # for function documentation
         return (

@@ -31,10 +31,6 @@ class QCML(object):
         self.language = ""
 
     @property
-    def code(self):
-      return self.__codegen.code
-
-    @property
     def prob2socp(self):
         return self.__codegen.prob2socp
 
@@ -158,3 +154,8 @@ class QCML(object):
 
         return self.solver(params)
 
+    def printsource(self):
+        print '\n\n'.join(self.__codegen.source)
+
+    def prettyprintsource(self):
+        print '\n\n'.join(self.__codegen.numbered_source)

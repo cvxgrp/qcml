@@ -60,12 +60,7 @@ if __name__ == "__main__":
     p.codegen(args.codegen)
 
     raw_input("press ENTER for raw code....")
-    if 'wrap' in p.code: 
-        print p.code['wrap'].source
-        print "\n"
-    print p.prob2socp.source
-    print "\n"
-    print p.socp2prob.source
+    p.printsource()
 
     #socp_data = p.prob2socp(params=locals())
     #import ecos
