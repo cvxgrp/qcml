@@ -15,13 +15,13 @@ class MatlabCodegen(Codegen):
         self._codekeyorder = ['wrap', 'prob2socp', 'socp2prob']
 
     @property
-    def prob2socp(self): return self._code['prob2socp']
+    def prob2socp(self): return self.code['prob2socp']
 
     @property
-    def socp2prob(self): return self._code['socp2prob']
+    def socp2prob(self): return self.code['socp2prob']
 
     @property
-    def wrap(self): return self._code['wrap']
+    def wrap(self): return self.code['wrap']
 
     def conesq(self):
         def cone_tuple_to_str(x):
