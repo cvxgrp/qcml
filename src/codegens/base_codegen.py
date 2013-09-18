@@ -118,6 +118,10 @@ class Codegen(NodeVisitor):
         self.prob2socp.create()
         self.socp2prob.create()
 
+    @property
+    def code(self):
+        return self._code
+
     def printshapes(self, program_node):
         # for function documentation
         return (

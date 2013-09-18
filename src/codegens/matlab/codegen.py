@@ -7,14 +7,20 @@ class MatlabCodegen(Codegen):
 
     def __init__(self):
         super(MatlabCodegen, self).__init__()
-        self.__prob2socp = MatlabFunction('prob_to_socp', ['params', 'dims'], ['data'])
-        self.__socp2prob = MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars'])
+        self._code = {
+            'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
+            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars']),
+            'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval'])
+        }
 
     @property
-    def prob2socp(self): return self.__prob2socp
+    def prob2socp(self): return self._code['prob2socp']
 
     @property
-    def socp2prob(self): return self.__socp2prob
+    def socp2prob(self): return self._code['socp2prob']
+
+    @property
+    def wrap(self): return self._code['wrap']
 
     def conesq(self):
         def cone_tuple_to_str(x):
@@ -55,6 +61,8 @@ class MatlabCodegen(Codegen):
             for k in program_node.variables.keys()
         )
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
+
+        self.wrap.add_lines("data = prob2socp(params, dims);")
 
     def stuff_vec(self, vec, start, end, expr, stride):
         """ Stuffing here is 1 indexed, even though in matlab_encoder we stay

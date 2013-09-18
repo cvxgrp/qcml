@@ -31,6 +31,10 @@ class QCML(object):
         self.language = ""
 
     @property
+    def code(self):
+      return self.__codegen.code
+
+    @property
     def prob2socp(self):
         return self.__codegen.prob2socp
 
