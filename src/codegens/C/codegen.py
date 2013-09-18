@@ -51,11 +51,12 @@ class C_Codegen(Codegen, Restrictive):
         self.name = name
 
         # functions we are going to generate
-        self.__prob2socp = CFunction("qc_%s2socp" % self.name,
+        self._code = {}
+        self.code['prob2socp'] = CFunction("qc_%s2socp" % self.name,
             arguments = ["const %s_params * params" % self.name, 
                          "const %s_dims * dims" % self.name],
             ret_type="qc_socp *")
-        self.__socp2prob = CFunction("qc_socp2%s" % self.name,
+        self.code['socp2prob'] = CFunction("qc_socp2%s" % self.name,
             arguments = ["double * x", "%s_vars * vars" % self.name,
                          "const %s_dims * dims" % self.name])
 
@@ -78,7 +79,7 @@ class C_Codegen(Codegen, Restrictive):
         self.params = ""
         self.abstract_dims = ""
         self.variables = ""
-        self.indent = self.__prob2socp.indent   # set our indent spacing
+        self.indent = self.prob2socp.indent   # set our indent spacing
 
         # keep track of the total nonzeros in each matrix
         self.nnz = {'G': [], 'A': []}
@@ -87,10 +88,10 @@ class C_Codegen(Codegen, Restrictive):
         self.size_lookup = {'m': 0, 'n': 0, 'p': 0}
 
     @property
-    def prob2socp(self): return self.__prob2socp
+    def prob2socp(self): return self.code['prob2socp']
 
     @property
-    def socp2prob(self): return self.__socp2prob
+    def socp2prob(self): return self.code['socp2prob']
 
     def codegen(self):
         super(C_Codegen, self).codegen()
@@ -106,10 +107,10 @@ class C_Codegen(Codegen, Restrictive):
             'params': self.params,
             'dims': self.abstract_dims,
             'variables': self.variables,
-            'prob2socp': self.__prob2socp.source,
-            'socp2prob': self.__socp2prob.source,
-            'prob2socp_prototype': self.__prob2socp.prototype,
-            'socp2prob_prototype': self.__socp2prob.prototype
+            'prob2socp': self.prob2socp.source,
+            'socp2prob': self.socp2prob.source,
+            'prob2socp_prototype': self.prob2socp.prototype,
+            'socp2prob_prototype': self.socp2prob.prototype
         }
 
         # copy over the static utility files

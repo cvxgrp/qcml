@@ -60,8 +60,9 @@ if __name__ == "__main__":
     p.codegen(args.codegen)
 
     raw_input("press ENTER for raw code....")
-    print p.code['wrap'].source
-    print "\n"
+    if 'wrap' in p.code: 
+        print p.code['wrap'].source
+        print "\n"
     print p.prob2socp.source
     print "\n"
     print p.socp2prob.source
