@@ -63,6 +63,9 @@ class MatlabCodegen(Codegen):
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
 
         self.wrap.add_lines("data = prob2socp(params, dims);")
+        self.wrap.add_lines("[x,y,info,s,z] = ECOS(data.c, data.G, data.h, data.dims, data.A, data.b);")
+        self.wrap.add_lines("vars = socp2prob(x, dims);")
+        self.wrap.add_lines("optval = x' * b;")
 
     def stuff_vec(self, vec, start, end, expr, stride):
         """ Stuffing here is 1 indexed, even though in matlab_encoder we stay
