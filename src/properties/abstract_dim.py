@@ -75,6 +75,8 @@ class AbstractDim(object):
         """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
             AbstractDim(1) == 1 -> True
         """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
         if isinstance(other, AbstractDim):
             return self._c == other._c
         if isinstance(other, int) and self.concrete:
@@ -82,12 +84,14 @@ class AbstractDim(object):
         return False
 
     def __mul__(self, other):
-        """ Assumes other is an AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] * other
             return self * AbstractDim(other)
+
         if self.concrete:
             mul = AbstractDim()
             for k,v in other._c.iteritems(): mul._c[k] = self._c[1]*v 
@@ -101,8 +105,9 @@ class AbstractDim(object):
         return AbstractDim(mulkey)
 
     def __div__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] / other
@@ -121,21 +126,25 @@ class AbstractDim(object):
 
 
     def __add__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] + other
             return self + AbstractDim(other)
+
         return AbstractDim(self._c + other._c)
 
     def __sub__(self, other):
-        """ Assumes other is int or AD
-        """
+        if not isinstance(other, (AbstractDim, int)):
+            return NotImplemented
+
         if isinstance(other, int):
             if self.concrete:
                 return self._c[1] - other
             return self - AbstractDim(other)
+
         sub = self._c.copy()
         sub.subtract(other._c)
         return AbstractDim(sub)
