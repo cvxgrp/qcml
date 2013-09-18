@@ -55,6 +55,7 @@ class Codegen(NodeVisitor):
         self.cone_list = []
         self.objective_offset = 0
         self.objective_multiplier = 1
+        self._code = {}
 
     @abstractproperty
     def prob2socp(self):
