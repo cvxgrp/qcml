@@ -92,11 +92,11 @@ class Shape(object):
             variable names like 'm' or 'n'.
 
             Additionally, abstract string dimension names can be rewritten
-            (usually for consistency with a particular codegen).  See 
+            (usually for consistency with a particular codegen).  See
             Codegen.abstractdim_rewriter for examples.
         """
         dims = self.dimensions
-        if abstractdim_rewriter: 
+        if abstractdim_rewriter:
             # Only apply it to dims that are still abstract
             def adrw(x):
                 if isinstance(x, str): return abstractdim_rewriter(x)

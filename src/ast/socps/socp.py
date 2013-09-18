@@ -61,7 +61,8 @@ class SOCP(Node):
         self.data = data
 
     def __str__(self):
-        return "%s\nsubject to\n    %s" % (self.objective, self.constraints)
+        constr = '\n    '.join(str(self.constraints).split('\n'))
+        return "%s\nsubject to\n    %s" % (self.objective, constr)
 
     def info(self):
         prob = '\n    '.join(str(self).split('\n'))
@@ -81,21 +82,17 @@ class SOCP(Node):
     # TODO: old canonicalize
     def canonicalize(self):
         SOCP.reset()
-        constraints = []
-        for child in self.children():
-            _, constr = child.canonicalize()
-            constraints.extend(expr.simplify() for expr in constr)
-
-        self.constraints.clear()
+        _, constraints = self.objective.canonicalize()
+        self.constraints.canonicalize()
+        
         for constr in constraints:
             self.constraints.add(constr)
 
     def children(self):
         """ An iterator that yields a program's children
         """
-        yield self.objective.expr
-        for constr in self.constraints:
-            yield constr
+        yield self.objective
+        yield self.constraints
 
     @classmethod
     def reset(cls):
@@ -103,13 +100,28 @@ class SOCP(Node):
         cls.new_variables = {}
     
     @property
+    def parameters(self):
+        return self.data.parameters
+    
+    @property
+    def variables(self):
+        return self.data.variables
+
+    @property
     def dimensions(self):
         return self.data.dimensions
+    
+    @property
+    def abstract_dims(self):
+        return self.data.abstract_dims
 
     @dimensions.setter
     def dimensions(self, dims):
-        for elem in self.data:
+        for elem in self.new_variables.values():
             elem.shape.eval(dims)
         DimsSetter(dims).generic_visit(self)
         self.data.dimensions = dims
+        
     
+
+

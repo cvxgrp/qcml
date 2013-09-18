@@ -1,22 +1,28 @@
-""" ProgramData contains the dictionaries for the dimensions, parameters, and 
+""" ProgramData contains the dictionaries for the dimensions, parameters, and
     variables of a problem. It also has the ability to iterate over them.
 """
 class ProgramData(object):
     def __init__(self, dimensions = None, parameters = None, variables = None):
         """ Creates ProgramData.
         """
-        self.dimensions = dimensions if dimensions else set()
+        self.__dimensions = dimensions if dimensions else set()
         # parameters declared by the user
         self.parameters = parameters if parameters else {}
         # variables declared by the user
         self.variables = variables if variables else {}
+
+    @property
+    def abstract_dims(self):
+        return [dim for dim in self.__dimensions if isinstance(dim, str)]
+        
+    @property
+    def dimensions(self):
+        return self.__dimensions
     
-    def __iter__(self):
-        for dim in self.dimensions:
-            yield dim
-        for param in self.parameters:
-            yield param
-        for variable in self.variables:
-            yield variable
-
-
+    @dimensions.setter
+    def dimensions(self, dims):
+        for elem in self.parameters.values():
+            elem.shape.eval(dims)
+        for elem in self.variables.values():
+            elem.shape.eval(dims)
+        self.__dimensions = dims

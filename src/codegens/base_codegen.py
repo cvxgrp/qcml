@@ -111,7 +111,7 @@ class Codegen(NodeVisitor):
 
     @abstractmethod
     def abstractdim_rewriter(self, ad):
-        """ Translate a raw abstract dimension name like 'm' or 'n' into a 
+        """ Translate a raw abstract dimension name like 'm' or 'n' into a
             name like 'dims.m' or dims('n')
         """
         return "%s" % ad
@@ -151,16 +151,13 @@ class Codegen(NodeVisitor):
     @property
     def conesl(self): yield self.num_lps
 
-    def visit_Program(self, node):
+    def visit_SOCP(self, node):
         """ Visit the Program node; stores the needed information for codegen.
 
             TODO: may be overkill, only need to store variables, parameters,
                 and dims (do not need to also have access to problem)
         """
         self.program = node
-        self.visit(node.problem)
-
-    def visit_Problem(self, node):
         # keep track of original variables
        # self.orig_varnames = set(node.variables.keys())
 
@@ -266,7 +263,7 @@ class Codegen(NodeVisitor):
 
         self.expr_stack.append(left)
 
-    def visit_Objective(self, node):
+    def visit_ProgramObjective(self, node):
         self.prob2socp.newline()
         self.prob2socp.add_comment("stuffing the objective vector")
 
@@ -387,6 +384,7 @@ class Codegen(NodeVisitor):
         count = stride - 1
         coneend = self.num_conic + self.num_lps
 
+        print self.expr_stack
         while self.expr_stack:
             e = self.expr_stack.pop()
             conestart = start + count

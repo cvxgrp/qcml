@@ -15,17 +15,17 @@ class AbstractDim(object):
         The key 1 is used for constant terms.  All other keys should be strs
         representing abstract terms.
 
-        Designed to have reasonable arithmetic operations with plain ints.  
+        Designed to have reasonable arithmetic operations with plain ints.
         Didn't bother to worry about Python2 long type.  Doesn't currently deal
-        with floats.  
-        
-        In general plain ints are promoted to ADs in operations, but if the AD 
-        is concrete then it can be converted back into an int.  Currently this 
-        is done in most cases, although perhaps would be cleaner not to be so 
+        with floats.
+
+        In general plain ints are promoted to ADs in operations, but if the AD
+        is concrete then it can be converted back into an int.  Currently this
+        is done in most cases, although perhaps would be cleaner not to be so
         generous.
 
         I didn't implement all possible arthmetic or coercions, only the ones
-        that were needed to get codegen to run on example problems.  So there 
+        that were needed to get codegen to run on example problems.  So there
         may be things missing for general case.
     """
     def __init__(self, *args, **kwargs):
@@ -76,8 +76,9 @@ class AbstractDim(object):
         return None
 
     def __eq__(self, other):
-        """ Coefficient operations like codegen_mul check whether expressions ==            1 or == -1 to allow simplifications.  So we want to be able to have
-            AbstractDim(1) == 1 -> True
+        """ Coefficient operations like codegen_mul check whether expressions 
+            == 1 or == -1 to allow simplifications.  So we want to be able to 
+            have AbstractDim(1) == 1 -> True
         """
         if not isinstance(other, (AbstractDim, int)):
             return NotImplemented
@@ -116,7 +117,7 @@ class AbstractDim(object):
             if self.concrete:
                 return int(self) / other
             return self / AbstractDim(other)
-        
+
         if self.concrete:
             div = AbstractDim()
             for k,v in other._c.iteritems(): div._c[k] = int(self)/v

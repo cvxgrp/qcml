@@ -67,15 +67,15 @@ class QCML(object):
 
     @property
     def dims(self):
-        return self.problem.dimensions
+        return self.program.dimensions
 
     @dims.setter
     def dims(self, dims):
         if self.state is PARSE:
             raise Exception("QCML set_dims: No problem currently parsed.")
-            
+
         self.program.dimensions = dims
-        
+
         if self.state is COMPLETE:
             self.state = CODEGEN
 
@@ -150,6 +150,7 @@ class QCML(object):
             # set the dims externally and just wants to solve with the params
             self.dims = dims if dims else params
         except:
+            raise
             raise Exception("QCML solve: Perhaps you've already canonicalized and/or generated code. Call .solver instead.")
         self.canonicalize()
         self.codegen("python")

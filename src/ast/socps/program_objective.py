@@ -2,7 +2,7 @@ from .. node import Node
 from ... errors import QC_DCPError
 from ... properties import shape, curvature
 
-class ProgramObjective(object):
+class ProgramObjective(Node):
     """ ProgramObjective object.
 
         This object contains the representation of the objective. It also
@@ -36,4 +36,28 @@ class ProgramObjective(object):
 
     def __str__(self):
         return "%s %s" % (self.sense, self.expr)
+    
+
+    def info(self):
+        if self.is_dcp: 
+            return "DCP objective: %s" % (self,)
+        else: 
+            return "Non-DCP objective: %s" % (self,)
+   
+    def children(self):
+        yield self.expr
+
+    # TODO: old canonicalize
+    def canonicalize(self):
+        obj, constraints = self.expr.canonicalize()
+        self.expr = obj.simplify()
+        return (obj, constraints)
+    
+    # TODO: below is "future"
+    # def canonical_form(self):
+    #     children = self.children()
+    #     p = children.next().canonical_form()
+    #     for child in children:
+    #         p += child.canonical_form()  # this returns an SOCP
+    #     return p
 
