@@ -51,7 +51,7 @@ def test_data_dimension_setter():
     for expected_shape, elem in zip(expected_shapes, elems()):
         yield eq_, elem.shape, expected_shape
     
-    yield eq_, data.dimensions, {'m': 5}
+    yield eq_, data.dimensions, set([5, 'n'])
         
     
 
