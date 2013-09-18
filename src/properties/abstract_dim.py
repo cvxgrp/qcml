@@ -84,6 +84,10 @@ class AbstractDim(object):
     def __mul__(self, other):
         """ Assumes other is an AD
         """
+        if isinstance(other, int):
+            if self.concrete:
+                return self._c[1] * other
+            return self * AbstractDim(other)
         if self.concrete:
             mul = AbstractDim()
             for k,v in other._c.iteritems(): mul._c[k] = self._c[1]*v 
@@ -137,18 +141,10 @@ class AbstractDim(object):
         return AbstractDim(sub)
 
     def __radd__(self, other):
-        """ Assumes other is int
-        """
-        if self.concrete:
-            return other + self._c[1]
-        return AbstractDim(other) + self
+        return self + other
 
     def __rmul__(self, other):
-        """ Assumes other is int
-        """
-        if self.concrete:
-            return other * self._c[1]
-        return AbstractDim(other) * self
+        return self * other
 
 if __name__ == "__main__":
     print list_product([5, 'a'])
