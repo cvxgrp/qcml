@@ -31,26 +31,30 @@ Python string as follows:
 
 Our tool parses the problem and rewrites it, after which it can generate
 Python code or external source code. The basic workflow is as follows
-(assuming `s` stores a problem specification).
+(assuming `s` stores a problem specification as above).
 
     p.parse(s)
     p.canonicalize()
-    p.dims = {'m': m, 'n': n}
-    p.codegen("python")
-    socp_data = p.prob2socp({'gamma':1,'F':F,'D':D})
+    p.dims = {'m': 5}
+    p.codegen('python')
+    socp_data = p.prob2socp({'mu':mu, 'gamma':1,'F':F,'D':D}, {'n': 10})
     sol = ecos.solve(**socp_data)
-    my_vars = p.socp2prob(sol['x'])
+    my_vars = p.socp2prob(sol['x'], {'n': 10})
 
 We will walk through each line:
 
 1. `parse` the optimization problem and check that it is convex
 2. `canonicalize` the problem by symbolically converting it to a second-order
-    cone program
-3. assign the `dims` of the problem
+   cone program
+3. assign some `dims` of the problem; others can be left abstract (see [below] (# abstract dimensions))
 4. generate `python` code for converting parameters into SOCP data and for 
    converting the SOCP solution into the problem variables
-5. call a solver with the SOCP data structure
-6. recover the original solution
+5. run the conversion code on an instance of problem data, pulling in local 
+   variables such as `mu`, `F`, `D`; because only one dimension was specified
+   in the codegen step (3), the other dimension must be supplied when the 
+   conversion code is run
+6. call a solver with the SOCP data structure
+7. recover the original solution; again, the dimension left unspecified at codegen step (3) must be given here
 
 For rapid prototyping, we provide the convenience function:
 
@@ -80,8 +84,8 @@ this might work is in `examples/lasso.py`.
 The `qc_utils` files are static; meaning, if you have multiple sources you wish 
 to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
 
-The generated code uses portions of CSparse, which is LGPL. Although QCML is BSD, 
-the generated code is LGPL for this reason.
+The generated code uses portions of CSparse, which is LGPL. Although QCML is 
+BSD, the generated code is LGPL for this reason.
 
 For more information, see the [features](# features) section.
 
@@ -134,6 +138,31 @@ all `parameters` are assumed to be (sparse) matrices. For example, the code
 declares two dimensions, `m` and `n`; two variables of length `n` and `m`,
 respectively; an elementwise positive (sparse) parameter matrix, `A`; the
 scalar parameter `b`; and the vector parameter `c`.
+
+Abstract dimensions
+-------------------
+Dimensions are initially specified as abstract values, e.g. `m` and `n` in the 
+example above.  These abstract values must be converted into concrete values
+before the problem can be solved.  There are two ways to specify concrete
+problem dimensions: prior to code generation, or after code generation.
+
+Any dimensions specified using `p.dims = {...}` prior to calling `p.codegen()`
+will be hard-coded into the resulting problem formulation functions.  Thus all 
+problem data fed into the generated code must match these prespecified 
+dimensions.
+
+Alternatively, dimensions can be left in abstract form for code generation.  In
+this case, problems of variable size can be fed into the generated functions, 
+but the dimensions of each specific problem must be fed in at the same time.  
+Problem dimension must also be given at the recovery step to allow variables 
+to be recovered from the solver output.
+
+(A future release will allow some dimensions to be inferred from the size of 
+some inputs, at least in Python and Matlab.  Another possible future change
+would remove the requirement to specify problem dimensions in the variable 
+recovery step by embedding that information in the output of the problem 
+formulation function.)
+
 
 Parsing and canonicalization
 ----------------------------
@@ -214,7 +243,7 @@ The output of the `prob2socp` function is a dictionary/struct with the fields:
 * `c` -- dense vector
 * `G` -- sparse matrix
 * `h` -- dense vector
-* `dims` -- struct with fields `l` (a number) and `q` (an array)
+* `dims` -- dict/struct with fields `l` (a number) and `q` (an array)
 * `A` -- sparse matrix
 * `b` -- dense vector
 
