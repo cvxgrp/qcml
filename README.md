@@ -165,9 +165,10 @@ to allow variables to be recovered from the solver output.
 The user may freely mix prespecified and postspecified dimensions.
 
 (A future release may allow some dimensions to be inferred from the size of 
-the inputs.  <!--Another possible future change would remove the requirement to 
+the inputs.)  
+<!-- Another possible future change would remove the requirement to 
 specify problem dimensions in the variable recovery step by embedding that 
-information in the output of the problem formulation function.-->)
+information in the output of the problem formulation function. -->
 
 
 Parsing and canonicalization
