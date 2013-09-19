@@ -46,15 +46,16 @@ We will walk through each line:
 1. `parse` the optimization problem and check that it is convex
 2. `canonicalize` the problem by symbolically converting it to a second-order
    cone program
-3. assign some `dims` of the problem; others can be left abstract (see [below] (# abstract dimensions))
+3. assign some `dims` of the problem; others can be left abstract (see [below] (#abstract-dimensions))
 4. generate `python` code for converting parameters into SOCP data and for 
    converting the SOCP solution into the problem variables
-5. run the conversion code on an instance of problem data, pulling in local 
-   variables such as `mu`, `F`, `D`; because only one dimension was specified
-   in the codegen step (3), the other dimension must be supplied when the 
-   conversion code is run
-6. call a solver with the SOCP data structure
-7. recover the original solution; again, the dimension left unspecified at codegen step (3) must be given here
+5. run the `prob2socp` conversion code on an instance of problem data, pulling 
+   in local variables such as `mu`, `F`, `D`; because only one dimension was 
+   specified in the codegen step (3), the other dimension must be supplied when 
+   the conversion code is run
+6. call the solver `ecos` with the SOCP data structure
+7. recover the original solution with the generated `socp2prob` function; 
+   again, the dimension left unspecified at codegen step (3) must be given here
 
 For rapid prototyping, we provide the convenience function:
 
@@ -87,7 +88,7 @@ to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
 The generated code uses portions of CSparse, which is LGPL. Although QCML is 
 BSD, the generated code is LGPL for this reason.
 
-For more information, see the [features](# features) section.
+For more information, see the [features](#features) section.
 
 Prerequisites
 =============
@@ -157,11 +158,10 @@ but the dimensions of each specific problem must be fed in at the same time.
 Problem dimension must also be given at the recovery step to allow variables 
 to be recovered from the solver output.
 
-(A future release will allow some dimensions to be inferred from the size of 
-some inputs, at least in Python and Matlab.  Another possible future change
-would remove the requirement to specify problem dimensions in the variable 
-recovery step by embedding that information in the output of the problem 
-formulation function.)
+(A future release may allow some dimensions to be inferred from the size of 
+the inputs.  <!--Another possible future change would remove the requirement to 
+specify problem dimensions in the variable recovery step by embedding that 
+information in the output of the problem formulation function.-->)
 
 
 Parsing and canonicalization
@@ -196,14 +196,12 @@ The generator/solver can be used in prototyping or deployment mode. In
 prototyping mode (or solve mode), a *function* is generated which, when
 supplied with the problem parameters, will call an interior-point solver to
 solve the problem. In deployment mode (or code generation mode), *source
-code* (in a target language) is generated which solves a particular problem
-instance with fixed dimensions.
+code* (in a target language) is generated which solves problem instances.  
 
-In prototyping mode, the problem data may change with each invocation of
-the generated function. If problem dimensions change, you must set the
-dimensions of the QCML object and codegen the Python function again.
-In deployment mode, the problem dimensions are fixed,
-but problem data is allowed to change.
+The generated code can have problem dimensions hard-coded if dims were 
+specified prior to codegen, or it can have 
+[abstract dimensions] (#abstract-dimensions) to allow problems of variable size 
+to be solved.
 
 The valid choice of languages are:
 
