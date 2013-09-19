@@ -158,7 +158,7 @@ dimensions.
 
 Alternatively, some dimensions can be left in abstract form for code 
 generation.  In this case, problems of variable size can be fed into the 
-generated functions, but the dimensions of each input problem must be fed in 
+generated functions, but the dimensions of the input problem must be fed in 
 at the same time.  Problem dimensions must also be given at the recovery step 
 to allow variables to be recovered from the solver output.
 
