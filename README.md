@@ -143,20 +143,26 @@ scalar parameter `b`; and the vector parameter `c`.
 Abstract dimensions
 -------------------
 Dimensions are initially specified as abstract values, e.g. `m` and `n` in the 
-example above.  These abstract values must be converted into concrete values
-before the problem can be solved.  There are two ways to specify concrete
-problem dimensions: prior to code generation, or after code generation.
+examples above.  These abstract values must be converted into concrete values
+before the problem can be solved.  There are two ways to make dimensions 
+concrete: 
 
-Any dimensions specified using `p.dims = {...}` prior to calling `p.codegen()`
+1. specified prior to code generation with a call to `dims = {...}`
+2. specified after code generation by passing a `dims` dict/struct to the 
+   generated functions, e.g. `prob2socp`, `socp2prob`
+
+Any dimensions specified using `dims = {...}` prior to calling `codegen()`
 will be hard-coded into the resulting problem formulation functions.  Thus all 
 problem data fed into the generated code must match these prespecified 
 dimensions.
 
-Alternatively, dimensions can be left in abstract form for code generation.  In
-this case, problems of variable size can be fed into the generated functions, 
-but the dimensions of each specific problem must be fed in at the same time.  
-Problem dimension must also be given at the recovery step to allow variables 
-to be recovered from the solver output.
+Alternatively, some dimensions can be left in abstract form for code 
+generation.  In this case, problems of variable size can be fed into the 
+generated functions, but the dimensions of each input problem must be fed in 
+at the same time.  Problem dimensions must also be given at the recovery step 
+to allow variables to be recovered from the solver output.
+
+The user may freely mix prespecified and postspecified dimensions.
 
 (A future release may allow some dimensions to be inferred from the size of 
 the inputs.  <!--Another possible future change would remove the requirement to 
@@ -308,16 +314,15 @@ Inside Python, the code might look like
           minimize sum(square(A*x - 4)) + lambda*norm(x)
         """)
         
-        p.dims = {'m':m, 'n':n}
         p.canonicalize()
 
 This will canonicalize the problem and build an internal problem parse
-tree inside Python. The `dims` must be set before canonicalizing.
-Once the problem has been canonicalized, the user can
+tree inside Python.  Once the problem has been canonicalized, the user can
 decide to either generate a function to prototype problems or generate source
-code. For instance, the following three lines will create a solver function
+code. For instance, the following lines will create a solver function
 `f` and call the solver, with the parameter arguments supplied.
 
+    p.dims = {'m':m, 'n':n}
     p.codegen("python")  # this creates a solver in Python calling CVXOPT
     f = p.solver
     f({'A': A, 'lambda':0.01})
