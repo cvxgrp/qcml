@@ -257,6 +257,13 @@ stored as a C `double` array. The sparse matrices are in column-compressed
 format. In Python, vectors are represented by Numpy arrays and sparse matrices
 are represented in CSC format.
 
+(Note that the `dims` field in the output of `prob2socp` does not correspond to
+the `dims` input into `prob2socp`.  The output represents number of conic 
+constraints, while the input specifies input problem dimensions left abstract
+at codegen time.  The output might better be named `cones`, but it is called
+`dims` to be compatible with the ECOS solver.
+
+
 Use as embedded language
 ------------------------
 Although QCML's original intent was to be used to parse files with problems
