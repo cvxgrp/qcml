@@ -95,6 +95,7 @@ Prerequisites
 For the most basic usage, this project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
+* [PLY](http://www.dabeaz.com/ply/), the Python Lex-Yacc parsing framework.  Available as python-ply or py-ply package in most distributions
 * [ECOS](http://github.com/ifa-ethz/ecos)
 * [NUMPY](http://numpy.org)
 * [SCIPY](http://scipy.org)
