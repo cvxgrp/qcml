@@ -15,8 +15,8 @@ def eye(x):
     return "%s * speye(%s)" % (toMatlab(x.coeff), x.n)
 
 def ones(x):
-    if x.transpose: return "%s * ones(1,%d)" % (toMatlab(x.coeff), x.n)
-    else:           return "%s * ones(%d,1)" % (toMatlab(x.coeff), x.n)
+    if x.transpose: return "%s * ones(1,%s)" % (toMatlab(x.coeff), x.n)
+    else:           return "%s * ones(%s,1)" % (toMatlab(x.coeff), x.n)
 
 def trans(x):
     return "(%s).'" % toMatlab(x.arg)

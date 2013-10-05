@@ -1,0 +1,274 @@
+\documentclass[11pt]{article}
+
+\usepackage{fullpage, xspace, hyperref}
+
+\input defs.tex
+
+\def\qcmlver{0.1\xspace}
+\def\qcml{\texttt{QCML}\xspace}
+\def\cvxpy{\texttt{CVXPY}\xspace}
+\def\cvx{\texttt{CVX}\xspace}
+\def\cvxgen{\texttt{CVXGEN}\xspace}
+
+
+\title{\qcml version \qcmlver \\
+A Python Toolbox for Matrix Stuffing}
+
+\author{
+Eric Chu\\\texttt{echu508@stanford.edu}
+\and
+Stephen Boyd\\\texttt{boyd@stanford.edu}
+}
+
+\date{\today}
+
+\begin{document}
+  \maketitle
+  
+\qcml is a Python module that provides a simple and lightweight domain
+specific language (DSL) for describing convex optimization problem families
+representable as second-order cone problems (SOCP). It is a code generator
+that produces lightweight Python, Matlab, or C code for \emph{matrix
+stuffing}. This allows one to extend SOCP solvers in these langauges to a 
+variety of problem classes. It is intended to complement the paper, 
+\emph{Code Generation for Embedded Second-order Cone Programming} \cite{ECC}, 
+although the main ideas in its
+implementation are well-documented in \emph{Graph Implementation}
+\cite{Grant}.
+
+\qcml comes with a small example library and consists of a single Python
+object, \texttt{QCML}, with three methods
+\BIT
+\item \texttt{parse}, which parses an optimization problem specified as a
+string and checks that it is convex,
+\item \texttt{canonicalize}, which symbolically converts the problem into
+a second-order cone program, and
+\item \texttt{codegen}, which produces source code that performs the
+transformation from problem-specific data to second-order cone problem data
+and back.
+\EIT
+The \texttt{codegen} method can be used to generate Python, C, and Matlab
+source code.
+
+Some important features:
+\BIT
+\item \qcml is similar in spirit to \cvx, \cvxgen, and 
+\cvxpy. Unlike these packages, however, \qcml exposes and generates code
+for matrix stuffing, allowing the resulting code to be paired with any solver
+that targets a standard SOCP.
+\item \qcml is capable of generating fully abstract code with problem data and
+dimensions as input to the \emph{generated} code, although it can specialize
+the code if given problem dimensions before code is generated.
+\item \qcml supports sparse matrices.
+\EIT
+That said, there are several important caveats:
+\BIT
+\item \qcml is intended for use by \emph{developers} wishing to employ convex
+optimization in their packages with little to no overhead from the modeling 
+layer.
+\item \qcml is not a full-featured modeling language. Several features are
+conspicuously missing and unless specifically requested, will remain missing.
+\item For general purpose convex optimization in Python with more flexibility
+than \qcml, we recommend \cvxpy 
+(\url{http://github.com/cvxgrp/cvxpy}).
+\item For general purpose convex optimization in Matlab, we recommend 
+\cvx (\url{http://cvxr.com}).
+\EIT
+
+Please send your feedback or report any bugs through our github repository.
+
+The rest of this document covers the basic use of \qcml and walks through an
+example with a lasso ($\ell_1$-regularized least-squares) problem. 
+\qcml is licensed under BSD. 
+
+\section{Installing \qcml}
+\qcml depends on the following:
+\BIT 
+\item Python 2.7.2+ (no Python 3 support yet)
+\item \href{http://www.dabeaz.com/ply/}{\tt PLY}, the Python Lex-Yacc parsing framework.
+  Available as python-ply or py-ply package in most distributions.
+\item \href{http://github.com/ifa-ethz/ecos}{\tt ECOS}
+\item \href{http://numpy.org}{\tt NUMPY}
+\item \href{http://scipy.org}{\tt SCIPY}
+\EIT
+For (some) unit testing, we use \href{http://nose.readthedocs.org}{Nose}.
+
+Once these dependencies are installed, usually through a package manager
+or from source, \qcml can be installed by typing
+{\tt
+\begin{tabbing}
+  \qquad \= \$ python setup.py install
+\end{tabbing}
+}
+\noindent at the command line. The unit tests can be run with {\tt nosetests}.
+
+\section{\qcml language}
+Optimization problems in \qcml are specified as string which must adhere to 
+the rules of the \qcml modeling language. We describe that language here.
+
+\subsection{Basic types}
+\subsection{Basic operations and functions}
+List of available atoms...
+\subsection{Expressions}
+Expressions in \qcml.. blah blah, must adhere to DCP rules
+
+can use numeric constants....
+
+symbols must have been previously declared (basic types).
+
+\subsection{Objectives}
+\subsection{Constraints}
+\subsection{Problems}
+A \qcml problem consists of a list of basic type declarations, zero or one
+objective, and zero or more constraints. 
+
+
+\section{Abstract dimensions}
+Dimensions are initially specified as abstract values and can be left abstract
+in \qcml. These abstract values must be converted into concrete values
+before the problem can be solved. There are two ways to make dimensions 
+concrete:
+\begin{enumerate}
+\item specified prior to code generation
+\item specified after code generation by passing a {\tt dims} map (as a
+  dictionary or struct) to the generated functions %, e.g. \texttt{prob2socp`, `socp2prob`
+\end{enumerate}
+
+Dimensions can be set prior to code generation by supplying
+a partial map, \ie, if {\tt problem} contains a \qcml problem with 
+dimensions \texttt{m} and \texttt{n}, then the Python code
+{\tt
+\begin{tabbing}
+  \qquad \= >>> p = QCML() \\
+  \> >>> p.parse(problem) \\
+  \> >>> p.dims = \{'m': 5\}
+\end{tabbing}
+}
+\noindent will set the dimension {\tt m} to $5$ in all expressions, but leave 
+the dimension {\tt n} to be specified later.
+
+Any dimensions specified before code generation will be hard-coded into the
+resulting problem formulation functions. Thus all problem data fed into the
+generated code must match these prespecified dimensions. In other words, the
+generated code is \emph{specialized} to this fixed dimension.
+
+Dimensions that are left abstract allow users to specify problems of
+differing size, but the dimensions of the input problem must be supplied at
+the same time. A future release may allow some dimensions to be inferred from
+the size of the inputs.
+
+\section{Code generation}
+The 
+\subsection{Python}
+can view string
+\subsection{Matlab}
+can view string
+\subsection{C}
+Produces folder
+
+\section{Rapid prototyping}
+\qcml also provides a helper function for rapid prototyping in Python. This
+is useful to verify the optimization model before generating code to use
+elsewhere.
+
+\section{Lasso example}
+As an example, consider the lasso problem
+\[
+\begin{array}{ll}
+  \mbox{minimize} & (1/2)\|Ax - b\|_2^2 + \lambda \|x\|_1,
+\end{array}
+\]
+with variable $x \in \reals^n$ and problem data $A\in\reals^{m\times n}$, 
+$b \in \reals^m$, and $\lambda > 0$.
+
+This problem can be specified as a \qcml problem as follows:
+{\tt
+\begin{tabbing}
+\qquad 
+\= dimensions m n \\
+\> variable x(n) \\
+\> parameters A(m,n) b(m)\\ 
+\> parameter gamma positive\\
+\\
+\> minimize square(norm(A*x - b)) + gamma*norm1(x)
+\end{tabbing}
+}
+\noindent blhbladslkasf
+
+This example can be found under the {\tt qcml/examples} directory.
+
+%     """
+%     dimensions m n
+% 
+%     variable x(n)
+%     parameter mu(n)
+%     parameter gamma positive
+%     parameter F(n,m)
+%     parameter D(n,n)
+%     maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
+%         sum(x) == 1
+%         x >= 0
+%     """
+% 
+% Our tool parses the problem and rewrites it, after which it can generate
+% Python code or external source code. The basic workflow is as follows
+% (assuming `s` stores a problem specification as above).
+% 
+%     p.parse(s)
+%     p.canonicalize()
+%     p.dims = {'m': 5}
+%     p.codegen('python')
+%     socp_data = p.prob2socp({'mu':mu, 'gamma':1,'F':F,'D':D}, {'n': 10})
+%     sol = ecos.solve(**socp_data)
+%     my_vars = p.socp2prob(sol['x'], {'n': 10})
+% 
+% We will walk through each line:
+% 
+% 1. `parse` the optimization problem and check that it is convex
+% 2. `canonicalize` the problem by symbolically converting it to a second-order
+%    cone program
+% 3. assign some `dims` of the problem; others can be left abstract (see [below] (#abstract-dimensions))
+% 4. generate `python` code for converting parameters into SOCP data and for 
+%    converting the SOCP solution into the problem variables
+% 5. run the `prob2socp` conversion code on an instance of problem data, pulling 
+%    in local variables such as `mu`, `F`, `D`; because only one dimension was 
+%    specified in the codegen step (3), the other dimension must be supplied when 
+%    the conversion code is run
+% 6. call the solver `ecos` with the SOCP data structure
+% 7. recover the original solution with the generated `socp2prob` function; 
+%    again, the dimension left unspecified at codegen step (3) must be given here
+% 
+% For rapid prototyping, we provide the convenience function:
+% 
+%     solution = p.solve()
+% 
+% This functions wraps all six steps above into a single call and
+% assumes that all parameters and dimensions are defined in the local
+% namespace.
+% 
+% Finally, you can call
+% 
+%     p.codegen("C", name="myprob")
+%   
+% which will produce a directory called `myprob` with five files:
+% 
+% * `myprob.h` -- header file for the `prob2socp` and `socp2prob` functions
+% * `myprob.c` -- source code / implementation of the two functions
+% * `qc_utils.h` -- defines static matrices and basic data structures
+% * `qc_utils.c` -- source code for matrices and data structures
+% * `Makefile` -- sample Makefile to compile the `.o` files
+% 
+% You can include the header and source files with any project, although you must
+% supply your own solver. The code simply stuffs the matrices for you; you are
+% still responsible for using the proper solver and linking it. An example of how
+% this might work is in `examples/lasso.py`.
+% 
+% The `qc_utils` files are static; meaning, if you have multiple sources you wish 
+% to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
+% 
+% The generated code uses portions of CSparse, which is LGPL. Although QCML is 
+% BSD, the generated code is LGPL for this reason.
+% 
+% For more information, see the [features](#features) section.
+% woot
+\end{document}
