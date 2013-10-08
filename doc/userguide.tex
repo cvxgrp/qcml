@@ -79,7 +79,11 @@ Please send your feedback or report any bugs through our Github repository.
 
 The rest of this document covers the basic use of \qcml and walks through a
 full example with a lasso ($\ell_1$-regularized least-squares) problem. 
-\qcml is licensed under BSD. 
+\qcml is licensed under BSD.
+
+\newpage
+\tableofcontents
+\newpage
 
 \section{Installing \qcml}
 \qcml depends on the following:
@@ -107,16 +111,18 @@ Optimization problems in \qcml are specified as strings which must adhere to
 the rules of the \qcml modeling language. We describe that language and its
 rules here.
 
-\subsection{Basic types}
+\subsection{Types}
 There are three basic types in \qcml:
 \BIT
 \item {\tt dimension} (or {\tt dimensions} for multiple dimension declarations)
 \item {\tt parameter} (or {\tt parameters} for multiple parameter declrations)
 \item {\tt variable} (or {\tt variables} for multiple variable declarations)
 \EIT
-Objects named and declared in this fashion are entirely abstract.
+Objects named and declared in this fashion are entirely \emph{abstract}.
+Numeric literals such as {\tt 2}, {\tt 0.52}, \etc in \qcml are
+\emph{concrete} and can be used directly in the \qcml problem string. 
 
-The {\tt dimension} objects are used to specify the (optinal) sizes of {\tt
+The {\tt dimension} objects are used to specify the (optional) sizes of {\tt
 variable}s and {\tt parameter}s. So a single {\tt variable} or {\tt
 parameter} object can represent an collection (or array) of scalar variables
 or parameters with abstract dimension. (For more detail on abstract
@@ -125,8 +131,8 @@ can represent vectors (one-dimensional arrays), and {\tt parameters} can
 represent vectors or matrices (two-dimensional arrays). If a {\tt parameter}
 represents a matrix, it is assumed to represent a \emph{sparse} matrix.
 
-A {\tt parameter} may optionally take a sign argument ({\tt positive} or 
-{\tt negative}). These are shorthand `nonnegative' and `nonpositve', 
+A {\tt parameter} may optionally take a sign modifier ({\tt positive} or 
+{\tt negative}). These are shorthand for `nonnegative' and `nonpositve', 
 respectively.
 
 To declare an object, give its type, followed by its name, and (optionally) 
@@ -135,69 +141,109 @@ its size:
 \begin{tabbing}
   \qquad \= variable x(n)
 \end{tabbing}}
-\noindent declares a vector variable with dimension {\tt n} and named {\tt x}.
-A more involved example is the following code
+\noindent declares a vector variable with dimension {\tt n} and named {\tt
+x}. Integer literals can also be used in place of dimensions. A more involved
+example is the following code
 {\tt
 \begin{tabbing}
   \qquad \= dimensions m n \\
-  \> variables x(n) y(m) \\
+  \> variables x(n) y(m) z(5)\\
   \> parameter A(m,n) positive \\
   \> parameters b c(n)
 \end{tabbing}}
-\noindent which declares two dimensions, {\tt m} and {\tt n}; two variables
-{\tt x} and {\tt y} of length {\tt n} and {\tt m}, respectively; an
-elementwise positive (sparse) parameter matrix, {\tt A}; the scalar parameter
-{\tt b}; and the vector parameter {\tt c} with dimension {\tt n}.
+\noindent which declares two dimensions, {\tt m} and {\tt n}; three variables
+{\tt x}, {\tt y}, and {\tt z} of length {\tt n}, {\tt m}, and {\tt 5},
+respectively; an elementwise positive (sparse) parameter matrix, {\tt A}; the
+scalar parameter {\tt b}; and the vector parameter {\tt c} with dimension
+{\tt n}.
 
-\subsection{Basic operations and functions}
-QCML provides a set of linear operators and atoms for use with modeling.
-Since an SOCP only consists of affine functions and second-order cone
-inequalities, we only provide linear operators and operators for constructing
-second-order cones. All other atoms are implemented as *macros*. Whenever the
-parser encounters an atom, it simply expands its definition.
+\subsection{Operators}
+\qcml provides a set of operators for use with modeling. These are used in
+conjunction with the basic {\tt variable} and {\tt parameter} types to
+construct (affine) expressions. The standard (infix) operators are: {\tt +},
+{\tt -}, {\tt *}, and {\tt /}. The division operator {\tt /} has the
+restriction that both operands must be numeric constants. The {\tt -}
+operator can also be used as a prefix to denote negation.
 
-Operators
----------
-The standard linear operators are:
+\subsection{Functions}
+\qcml also provides a set of atoms (or functions) which take expressions constructed from the basic operations as arguments. These functions have additional properties associated with them:
+\BIT
+\item the \emph{sign} of the output expression (either positive, negative, or unknown),
+\item the \emph{monotonicity} of the function in each argument (either increasing, decreasing, or nonmonotone),
+\item and the \emph{curvature} of the function (either convex, concave, or affine).
+\EIT
+Roughly speaking, these can be associated with the sign of the zeroth, first, and second derivatives of the function, respectively. (Although not all functions we provide are differentiable.) More importantly, the sign and monotonicities of a function may change depending on the sign of the input. For instance, the {\tt square} function has positive sign (its outputs are always positive) and is typically a nonmonotone function. However, when its input is restricted to be positive, it is an increasing function.
 
-* infix operators
-  * `+`
-  * `-`
-  * `*`, lhs *must* be a parameter
-  * `/`, rhs and lhs *must* be numeric constants
-* prefix operators
-  * `-`, unary minus / negate
-* vector operators (map vectors to scalars)
-  * `sum(x)`
-  * `sum(x,y,..)`, defined as `x + y + ...`
+Before listing the atoms, a slight word on notation. We deviate slightly from
+standard notation and use $f : \reals^p \to \reals^q$ to mean that a function
+$f$ takes as input a real $p$-vector and produces a real $q$-vector as
+output. Valid inputs are a \emph{subset} of all possible $p$-vectors,
+specifically, its domain which we denote with $\dom f$. In other words, the
+notation $f : \reals^p \to \reals^q$ can be thought of in the computer
+science way---as a \emph{type signature} for the function $f$. As an example,
+the $\log$ function has the following type signature, $\log : \reals \to
+\reals$, although $\dom f$ is the set of strictly positive reals.
 
-The operators used for constructing second-order cones are:
+We can take the analogy to computer science functions one step further: a function is overloaded and can have multiple type signatures. Its implementation depends on the matched type. For instance, the {\tt square} function can have the type signatures,
+\begin{align*}
+{\tt square} &: \reals \to \reals_+ \\
+{\tt square} &: \reals_+ \to \reals_+,
+\end{align*}
+where $\reals_+$ denotes the set of positive reals. The first {\tt square} function is nonmonotone; the second is increasing in its argument. The argument type (real expression or positive real expression) determines which
+version of the {\tt square} function to use.
 
-* scalar operators (map scalars to scalars)
-  * `abs(x)`
-* vector operators (map vectors to scalars)
-  * `norm(x)`
-  * `norm2(x)`, equivalent to `norm(x)`
+
+% %\renewcommand\arraystretch{1.2}
+% \BT
+%   \centering
+%   \begin{tabular}{|l|l|l|} \hline
+%     & Atom (graph) & SOC canonical definition \\ \hline \hline
+%     
+%     \multicolumn{3}{|l|}{Functions with parameters}  \\ \hline
+%     & $t = \phi^\mathrm{smult}(x;a)$ & $t = ax$  \\ \cline{2-3}
+%     & $t = \phi^\mathrm{mmult}(x;A)$ & $t = Ax$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{const}(;a)$ & $t = a$ \\ \hline \hline
+%     
+%     \multicolumn{3}{|l|}{Scalar functions, $\phi: \reals \to \reals$ (XXX: not quite right)} \\ \hline
+%     & $t \geq \phi^\mathrm{pos}(x)$ & $t \in \soc^1, \; t-x \in \soc^1$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{neg}(x)$ & $t \in \soc^1, \; t+x \in \soc^1$ \\ \cline{2-3}
+%     & $t \leq \phi^\mathrm{geo\_mean}(x,y)$ & $\left((1/2)(y+x), (1/2)(y-x),t\right) \in \soc^{3}, \; y \in \soc^1$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{square}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(x,1)$ \\ \cline{2-3}
+%     & $t \leq \phi^\mathrm{sqrt}(x)$ & $t \leq \phi^\mathrm{geo\_mean}(x,1)$\\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{inv\_pos}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(1,x)$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{abs}(x)$ & $(t,x) \in \soc^2$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{plus}(x,y)$ & $t = x+y$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{minus}(x,y)$ & $t = x-y$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{negate}(x)$ & $t = -x$ \\ \hline \hline
+%     
+%     \multicolumn{3}{|l|}{Vector functions, $\phi: \reals^n \to \reals$ (XXX: not quite right)} \\ \hline
+%     & $t \geq \phi^\mathrm{max}(x)$ & $t - x_i \in \soc^1, \, i=1,\ldots,n$ \\ \cline{2-3}
+%     & $t \leq \phi^\mathrm{min}(x)$ & $x_i - t \in \soc^1, \, i=1,\ldots,n$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{quad\_over\_lin}(x,y)$ & $\left((1/2)(y+t), (1/2)(y-t),x\right) \in \soc^{n+2}, \; y \in \soc^1$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{sum}(x)$ & $t = \ones^Tx$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{norm}(x)$ & $(t,x) \in \soc^{n+1}$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{norm1}(x)$ & $t \geq \phi^\mathrm{sum}(\phi^\mathrm{abs}(x))$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{norm\_inf}(x)$ & $t \geq \phi^\mathrm{max}(\phi^\mathrm{abs}(x))$ \\ \hline
+%   \end{tabular}
+%   \caption{List of atoms in DSL function library.}
+%   \label{t-atoms}
+% \ET
+% * vector operators (map vectors to scalars)
+%   * `sum(x)`
+%   * `sum(x,y,..)`, defined as `x + y + ...`
+% 
+% The operators used for constructing second-order cones are:
+% 
+% * scalar operators (map scalars to scalars)
+%   * `abs(x)`
+% * vector operators (map vectors to scalars)
+%   * `norm(x)`
+%   * `norm2(x)`, equivalent to `norm(x)`
   
   
 \subsubsection{Scalar atoms}
-A scalar atom is a function with the \emph{type signature} 
-$f : \reals \to \reals$. This means the function $f$ takes as input scalar
-real numbers and produces a scalar real number as output. Note that this 
-differs slightly from standard notation, in which the domain is explicit; 
-our notation means that $f$ is
-scalar-valued function over a subset of $\reals$, specifically, its domain,
-which we denote with $\dom f$. As an example, the $\log$ function has the
-following type signature, $\log : \reals \to \reals$, although $\dom f$ is
-the set of strictly positive reals.
+A scalar atom is a function with the type signature $f : \reals \to \reals$ (this includes functions with the signature $f : \reals_+ \to \reals$, $f : \reals_- \to \reals$, \etc).
 
-We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$, 
-of a scalar atom $f$ to vector arguments as
-\[
-\tilde f(x) = \left( f(x_1), f(x_2), \ldots, f(x_n) \right).
-\]
-Whenever scalar functions are called with vector arguments, this extension
-is automatically applied.
 
 * scalar atoms (map scalars to scalars)
   * `pos(x)`, defined as `max(x, 0)`
@@ -207,10 +253,41 @@ is automatically applied.
   * `geo\_mean(x,y)`
   * `pow\_rat(x,p,q)', defined as `x\^(p/q)' only for 1 <= p,q <= 4
   * `sqrt(x)`
+\begin{table}
+  \centering
+\begin{tabular}{|l|l|l|l|} \hline
+  Atom signature & Sign & Monotonicity & Curvature \\ \hline
+  ${\tt abs} : \reals \to \reals_+$ & positive & nonmonotone & convex \\ \hline
+  ${\tt abs} : \reals_+ \to \reals_+$ & positive & increasing & convex \\ \hline
+  ${\tt abs} : \reals_- \to \reals_+$ & positive & decreasing & convex \\ \hline
+%     \multicolumn{3}{|l|}{Scalar functions, $\phi: \reals \to \reals$ (XXX: not quite right)} \\ \hline
+%     & $t \geq \phi^\mathrm{pos}(x)$ & $t \in \soc^1, \; t-x \in \soc^1$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{neg}(x)$ & $t \in \soc^1, \; t+x \in \soc^1$ \\ \cline{2-3}
+%     & $t \leq \phi^\mathrm{geo\_mean}(x,y)$ & $\left((1/2)(y+x), (1/2)(y-x),t\right) \in \soc^{3}, \; y \in \soc^1$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{square}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(x,1)$ \\ \cline{2-3}
+%     & $t \leq \phi^\mathrm{sqrt}(x)$ & $t \leq \phi^\mathrm{geo\_mean}(x,1)$\\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{inv\_pos}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(1,x)$ \\ \cline{2-3}
+%     & $t \geq \phi^\mathrm{abs}(x)$ & $(t,x) \in \soc^2$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{plus}(x,y)$ & $t = x+y$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{minus}(x,y)$ & $t = x-y$ \\ \cline{2-3}
+%     & $t = \phi^\mathrm{negate}(x)$ & $t = -x$ \\ \hline \hline
+\end{tabular}
+\end{table}
+
+
+We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$, 
+of a scalar atom $f$ to vector arguments as
+\[
+\tilde f(x) = \left( f(x_1), f(x_2), \ldots, f(x_n) \right).
+\]
+Whenever scalar functions are called with vector arguments, this extension
+is automatically applied.
+
+
 
 \subsubsection{Vector atom}
-A vector atom is a function with the \emph{type signature} 
-$f : \reals^n \to \reals$.
+A vector atom is a function with the type signature $f : \reals^n \to \reals$.
+
 
 Vector atoms can take variable arguments. 
 The \emph{extension}, $\tilde f : \reals^n \times \reals^n \to \reals^n$, of 
@@ -234,13 +311,32 @@ is automatically applied.
   * `norm1(x,y,..)`, defined as `abs(x) + abs(y) + ...`
   * `norm\_inf(x)`, defined as `max(abs(x))`
   * `norm\_inf(x,y,...)`, defined as `max(abs(x),abs(y),...)`
-
+  
 \subsection{Expressions}
-Expressions in \qcml.. blah blah, must adhere to DCP rules
+Expressions in \qcml are formed by applying basic operators and functions to
+numeric constants and to previously declared {\tt parameters} and {\tt
+variables}. Every expression has additional properties:
+\BIT
+\item a \emph{shape} (either scalar, vector, or matrix),
+\item a \emph{sign} (either positive, negative, or neither),
+\item and a \emph{curvature} (either convex, concave, affine, or nonconvex).
+\EIT
+An expression with \emph{nonconvex} curvature only means that it cannot be verified as either convex, concave, or affine. These properties are inferred from properties of the basic objects that compose the function using disciplined convex programming (DCP) rules. We detail the DCP rules in \S\ref{s-dcp}.
 
-can use numeric constants....
+% For convenience in the sequel and with a slight abuse of notation, we use
+% $\reals$ to refer to the set of all scalar-valued \emph{expressions} and $\reals_+$ to refer to the set of all scalar-valued expressions with positive sign. Similarly, $\reals^n$ and $\reals_-$ refer to the set of all vector-valued expressions of length $n$ and negative expressions, respectively.
 
-symbols must have been previously declared (basic types).
+%  associate shape scalar, vector, or matrix) and is categorized by its sign: positive, negative, or neither.
+% 
+% 
+% .. blah blah, must adhere to DCP rules
+% 
+% can use numeric constants....
+% 
+% symbols must have been previously declared (basic types).
+% 
+% have sign and shape (vector or matrix) associated with them.
+
 
 \subsection{Objectives}
 \subsection{Constraints}
@@ -248,6 +344,8 @@ symbols must have been previously declared (basic types).
 A \qcml problem consists of a list of basic type declarations, zero or one
 objective, and zero or more constraints. 
 
+\section{Disciplined convex programming}
+\label{s-dcp}
 
 \section{Abstract dimensions}
 \label{s-abstract-dims}
