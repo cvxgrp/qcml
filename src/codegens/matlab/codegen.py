@@ -57,7 +57,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', cones);")
 
         recover = (
-            "'%s', x(%s:%s)" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
+            "'%s', x(%s:%s)" % (k, 1+self.varstart[k], self.varstart[k]+self.varlength[k])
             for k in self.program.variables.keys()
         )
         self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
