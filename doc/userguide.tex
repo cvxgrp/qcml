@@ -2,13 +2,20 @@
 
 \usepackage{fullpage, xspace, hyperref, amsmath}
 
-\input defs.tex
-
 \def\qcmlver{0.1\xspace}
 \def\qcml{\texttt{QCML}\xspace}
 \def\cvxpy{\texttt{CVXPY}\xspace}
 \def\cvx{\texttt{CVX}\xspace}
 \def\cvxgen{\texttt{CVXGEN}\xspace}
+
+% text abbrevs
+\newcommand{\eg}{{\it e.g.}}
+\newcommand{\ie}{{\it i.e.}}
+\newcommand{\etc}{{\it etc.}}
+
+% math defs
+\newcommand{\reals}{{\mbox{\bf R}}}
+\newcommand{\dom}{\mathop{\bf dom}}
 
 
 \title{\qcml version \qcmlver \\
@@ -38,7 +45,7 @@ implementation are well-documented in \emph{Graph Implementation}
 
 \qcml comes with a small example library and consists of a single Python
 object, \texttt{QCML}, with three methods
-\BIT
+\begin{itemize}
 \item \texttt{parse}, which parses an optimization problem specified as a
 string and checks that it is convex,
 \item \texttt{canonicalize}, which symbolically converts the problem into
@@ -46,12 +53,12 @@ a second-order cone program, and
 \item \texttt{codegen}, which produces source code that performs the
 transformation from problem-specific data to second-order cone problem data
 and back.
-\EIT
+\end{itemize}
 The \texttt{codegen} method can be used to generate Python, C, and Matlab
 source code.
 
 Some important features:
-\BIT
+\begin{itemize}
 \item \qcml is similar in spirit to \cvx, \cvxgen, and 
 \cvxpy. Unlike these packages, however, \qcml exposes and generates code
 for matrix stuffing, allowing the resulting code to be paired with any solver
@@ -60,9 +67,9 @@ that targets a standard SOCP.
 dimensions as input to the \emph{generated} code, although it can specialize
 the code if given problem dimensions before code is generated.
 \item \qcml supports matrix parameters with arbitrary sparsity patterns.
-\EIT
+\end{itemize}
 That said, there are several important caveats:
-\BIT
+\begin{itemize}
 \item \qcml is intended for use by \emph{developers} wishing to employ convex
 optimization in their packages with little to no overhead from the modeling 
 layer. Typically, these are users familiar with \cvx or \cvxpy who wish to
@@ -74,7 +81,7 @@ than \qcml, we recommend \cvxpy
 (\url{http://github.com/cvxgrp/cvxpy}).
 \item For general purpose convex optimization in Matlab, we recommend 
 \cvx (\url{http://cvxr.com}).
-\EIT
+\end{itemize}
 Please send your feedback or report any bugs through our Github repository.
 
 The rest of this document covers the basic use of \qcml and walks through a
@@ -87,14 +94,14 @@ full example with a lasso ($\ell_1$-regularized least-squares) problem.
 
 \section{Installing \qcml}
 \qcml depends on the following:
-\BIT 
+\begin{itemize} 
 \item Python 2.7.2+ (no Python 3 support)
 \item \href{http://www.dabeaz.com/ply/}{\tt PLY}, the Python Lex-Yacc parsing framework.
   Available as the {\tt python-ply} or {\tt py-ply} package in most distributions.
 \item {\tt ECOS} (\url{http://github.com/ifa-ethz/ecos})
 \item {\tt NUMPY} (\url{http://numpy.org})
 \item {\tt SCIPY} (\url{http://scipy.org})
-\EIT
+\end{itemize}
 For (some) unit testing, we use Nose (\url{http://nose.readthedocs.org}).
 
 Once these dependencies are installed, typically through a package manager,
@@ -113,11 +120,11 @@ rules here.
 
 \subsection{Types}
 There are three basic types in \qcml:
-\BIT
+\begin{itemize}
 \item {\tt dimension} (or {\tt dimensions} for multiple dimension declarations)
 \item {\tt parameter} (or {\tt parameters} for multiple parameter declrations)
 \item {\tt variable} (or {\tt variables} for multiple variable declarations)
-\EIT
+\end{itemize}
 Objects named and declared in this fashion are entirely \emph{abstract}.
 Numeric literals such as {\tt 2}, {\tt 0.52}, \etc in \qcml are
 \emph{concrete} and can be used directly in the \qcml problem string. 
@@ -167,11 +174,11 @@ operator can also be used as a prefix to denote negation.
 
 \subsection{Functions}
 \qcml also provides a set of atoms (or functions) which take expressions constructed from the basic operations as arguments. These functions have additional properties associated with them:
-\BIT
+\begin{itemize}
 \item the \emph{sign} of the output expression (either positive, negative, or unknown),
 \item the \emph{monotonicity} of the function in each argument (either increasing, decreasing, or nonmonotone),
 \item and the \emph{curvature} of the function (either convex, concave, or affine).
-\EIT
+\end{itemize}
 Roughly speaking, these can be associated with the sign of the zeroth, first, and second derivatives of the function, respectively. (Although not all functions we provide are differentiable.) More importantly, the sign and monotonicities of a function may change depending on the sign of the input. For instance, the {\tt square} function has positive sign (its outputs are always positive) and is typically a nonmonotone function. However, when its input is restricted to be positive, it is an increasing function.
 
 Before listing the atoms, a slight word on notation. We deviate slightly from
@@ -316,11 +323,11 @@ is automatically applied.
 Expressions in \qcml are formed by applying basic operators and functions to
 numeric constants and to previously declared {\tt parameters} and {\tt
 variables}. Every expression has additional properties:
-\BIT
+\begin{itemize}
 \item a \emph{shape} (either scalar, vector, or matrix),
 \item a \emph{sign} (either positive, negative, or neither),
 \item and a \emph{curvature} (either convex, concave, affine, or nonconvex).
-\EIT
+\end{itemize}
 An expression with \emph{nonconvex} curvature only means that it cannot be verified as either convex, concave, or affine. These properties are inferred from properties of the basic objects that compose the function using disciplined convex programming (DCP) rules. We detail the DCP rules in \S\ref{s-dcp}.
 
 % For convenience in the sequel and with a slight abuse of notation, we use
