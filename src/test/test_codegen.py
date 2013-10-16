@@ -9,7 +9,19 @@ import os, shutil, subprocess
 from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen
 from nose import with_setup
 
-#TODO: matlab = MatlabCodegen()
+LP = """
+variable x
+parameter c
+minimize c*x
+x >= 0
+"""
+SOCP = """
+variable x
+parameter c
+minimize c*x
+norm(x) <= 0
+"""
+
 C = C_Codegen(name="test_problem")
 python = PythonCodegen()
 matlab = MatlabCodegen()
@@ -83,4 +95,27 @@ def test_C():
 
     yield compiles
 
+def parse_and_generate(prob, lang):
+    from .. qc_lang import QCML
+    p = QCML(debug=True)
+    p.parse(prob)
+    p.canonicalize()
+    if lang == "C":
+        p.codegen(lang, name="test_problem")
+        shutil.rmtree("%s/test_problem" % os.getcwd())
+    else:
+        p.codegen(lang)
+    
+    # only checks for exceptions
+    assert True
+
+def test_parse_and_compiles():
+    yield parse_and_generate, LP, "python"
+    yield parse_and_generate, LP, "matlab"
+    yield parse_and_generate, LP, "C"
+    
+    yield parse_and_generate, SOCP, "python"
+    yield parse_and_generate, SOCP, "matlab"
+    yield parse_and_generate, SOCP, "C"
+    
 

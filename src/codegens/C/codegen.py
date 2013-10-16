@@ -134,11 +134,14 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     # generator to get cone dimensions
     def c_cone_sizes(self):
-        num_cone, cone_size = zip(*self.cone_list)
+        if self.cone_list:
+            num_cone, cone_size = zip(*self.cone_list)
+        else:
+            num_cone, cone_size = [0], 0
 
         yield "data->l = %s;" % self.num_lps
         yield "data->nsoc = %s;" % sum(num_cone)
-        if num_cone == 0:
+        if sum(num_cone) == 0:
             yield "data->q = NULL;"
         else:
             yield "data->q = malloc(data->nsoc * sizeof(long));"
