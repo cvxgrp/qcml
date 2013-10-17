@@ -10,6 +10,10 @@
 
 #include "qcml_utils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* the parameter struct */
 typedef struct params {
 %(params)s
@@ -26,7 +30,7 @@ typedef struct dims {
 typedef struct sol {
 %(variables)s
 } %(name)s_vars;
-
+  
 /* converts the '%(name)s' parameters into SOCP data
  *     allocates a qc_socp struct
  */
@@ -36,5 +40,9 @@ typedef struct sol {
  * memory locations in the solution vector
  */
 %(socp2prob_prototype)s;
+
+#ifdef __cplusplus
+}
+#endif
   
 #endif // __%(NAME)s_H__

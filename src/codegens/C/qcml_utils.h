@@ -10,9 +10,13 @@
 #define QC_CSC 0
 #define QC_COO 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* external coordinate (i,j,v) format for sparse matrices
- * if i, j are NULL but v is not, the matrix is assumed to be dense in C 
- * (row-major) ordering
+ * TODO: if i, j are NULL but v is not, the matrix is assumed to be 
+ * dense in C (row-major) ordering
  */
 typedef struct coo {
   double *v;  /* nonzero values */
@@ -45,12 +49,16 @@ typedef struct socp {
 /* free an allocated socp data struct
  *     socp is allocated by corresponding prob2socp function
  */
-void *qc_socp_free(qc_socp *data);
+qc_socp *qc_socp_free(qc_socp *data);
 
 /* free an allocated sparse matrix */
-void *qc_spfree(qc_matrix *A);
+qc_matrix *qc_spfree(qc_matrix *A);
 
 /* compress a COO matrix into CSC, allocates new matrix memory */
 qc_matrix *qc_compress(const qc_matrix *T);
+
+#ifdef __cplusplus
+}
+#endif
   
 #endif /* __QCML_UTILS_H__ */

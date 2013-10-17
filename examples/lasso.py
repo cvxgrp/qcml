@@ -72,6 +72,11 @@ int main(int argc, char **argv)
 {
   double Av[%(Asize)d], b[%(bsize)d];
   long Ai[%(Asize)d], Aj[%(Asize)d];
+  
+  // create parameter struct
+  lasso_params p;
+  lasso_dims d;
+  qc_matrix A;
 
   int res1 = read_file("Av", Av, sizeof(double), %(Asize)d);
   int res2 = read_file("Ai", Ai, sizeof(long), %(Asize)d);
@@ -84,19 +89,17 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  // create parameter struct
-  lasso_params p;
-
-  qc_matrix A;
   A.v = Av; A.i = Ai; A.j = Aj; A.nnz = %(Asize)d;
   A.m = %(m)d; A.n = %(n)d;
 
   p.A = &A;
   p.b = b;
   p.gamma = %(gamma)f;
+  
+  // assign dims, if any
 
   // stuff the matrices
-  qc_socp *data = qc_lasso2socp(&p);
+  qc_socp *data = qc_lasso2socp(&p, &d);
 
   // run ecos and solve it
   pwork *mywork = ECOS_setup(data->n, data->m, data->p,

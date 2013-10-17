@@ -2,7 +2,7 @@
 #include "qcml_utils.h"
 
 /* free a qc_socp structure */
-void *qc_socp_free(qc_socp *data)
+qc_socp *qc_socp_free(qc_socp *data)
 {
   if(data) {
     if (data->q) free(data->q);
@@ -27,7 +27,7 @@ void *qc_socp_free(qc_socp *data)
  */
 
 /* free a coo matrix */
-void *qc_spfree(qc_matrix *A)
+qc_matrix *qc_spfree(qc_matrix *A)
 {
   if(A) {
     if (A->i) free(A->i);
@@ -42,14 +42,14 @@ void *qc_spfree(qc_matrix *A)
 qc_matrix *qc_spalloc (long m, long n, long nnz, int triplet)
 {
   /* allocate the coo struct */
-  qc_matrix *A = calloc (1, sizeof (qc_matrix)) ;
+  qc_matrix *A = (qc_matrix *) calloc (1, sizeof (qc_matrix)) ;
   if (!A) return (NULL) ;                 /* out of memory */
   A->m = m ;                              /* define dimensions and nzmax */
   A->n = n ;
   A->nnz = triplet ? nnz : -1 ;
-  A->j = malloc (triplet ? (nnz * sizeof(long)) : ((n+1) * sizeof(long))) ;
-  A->i = malloc (nnz * sizeof (long)) ;
-  A->v = malloc (nnz * sizeof (double)) ;
+  A->j = (long *) malloc (triplet ? (nnz * sizeof(long)) : ((n+1) * sizeof(long))) ;
+  A->i = (long *) malloc (nnz * sizeof (long)) ;
+  A->v = (double *) malloc (nnz * sizeof (double)) ;
   return ((!A->v || !A->i || !A->j) ? qc_spfree(A) : A);
 }
 
@@ -82,7 +82,7 @@ int remove_dup (qc_matrix *A)
   long i, j, p, q, nz = 0, n, m, *Ap, *Ai, *w ;
   double *Ax ;
   m = A->m ; n = A->n ; Ap = A->j ; Ai = A->i ; Ax = A->v ;
-  w = malloc (m * sizeof (long)) ;            /* get workspace */
+  w = (long *) malloc (m * sizeof (long)) ;   /* get workspace */
   if (!w) return 0;                           /* out of memory */
   for (i = 0 ; i < m ; i++) w [i] = -1 ;      /* row i not yet seen */
   for (j = 0 ; j < n ; j++)
@@ -114,18 +114,18 @@ int remove_dup (qc_matrix *A)
  * removes duplicate entires as a last step */
 qc_matrix *qc_compress (const qc_matrix *T)
 {
-  if (T->v == NULL) return NULL;
-  
   long m, n, nnz, p, k, *Cp, *Ci, *w, *Ti, *Tj ;
   double *Cx, *Tx ;
-  
   qc_matrix *C ;
+  
+  if (T->v == NULL) return NULL;
+  
   m = T->m ; n = T->n ; Ti = T->i ; Tj = T->j ; Tx = T->v ; nnz = T->nnz ;
   C = qc_spalloc(m, n, nnz, QC_CSC) ;    /* allocate memory for CSC format */
   if (!C) return NULL;
   
   /* create temporary workspace */
-  w = calloc (n, sizeof(long));
+  w = (long *) calloc (n, sizeof(long));
   if (!w) {
     free(C->i);
     free(C->j);
