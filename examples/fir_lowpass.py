@@ -148,6 +148,7 @@ if __name__ == '__main__':
     subprocess.call(["make"])
     cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
             "-I%s/include" % ECOS_PATH, 
+            "-I%s/external/SuiteSparse_config" % ECOS_PATH,
             "-lecos", "-lm", "fir_lowpass.o", 
             "qcml_utils.o", "-o","fir_lowpass"]
     print ' '.join(cmd)
