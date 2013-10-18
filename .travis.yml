@@ -9,8 +9,9 @@ before_install:
 # install dependencies
 install:
     - pip install ply coverage
+    - cd scripts
     - sudo ./get_ecos.sh
 # command to run tests
 script:
-    - cd scripts; ./run_example.sh; cd ..
-    - nosetests --with-cover --cover-package=src
+    - ./run_examples.sh
+    - cd ..; nosetests --with-cover --cover-package=src
