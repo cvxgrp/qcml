@@ -12,4 +12,5 @@ install:
     - sudo ./get_ecos.sh
 # command to run tests
 script:
+    - cd scripts; ./run_example.sh; cd ..
     - nosetests --with-cover --cover-package=src
