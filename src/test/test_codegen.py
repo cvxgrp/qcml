@@ -59,10 +59,13 @@ c_files = [
 def exists(filename):
     assert os.path.exists("%s/%s" % (os.getcwd(), filename))
 
-def compiles():
+def compiles(with_cplus_plus=False):
     try:
         with open(os.devnull, "w") as fnull:
-            subprocess.check_call(["make", "-C", "test_problem"], stdout=fnull, stderr=fnull)
+            if with_cplus_plus:
+                subprocess.check_call(["make", "-C", "test_problem", "CC=c++"], stdout=fnull, stderr=fnull)
+            else:
+                subprocess.check_call(["make", "-C", "test_problem"], stdout=fnull, stderr=fnull)
     except subprocess.CalledProcessError as e:
         # compilation fails
         print "Generated (empty) C code unable to compile."
@@ -93,7 +96,8 @@ def test_C():
     for f in c_files:
         yield exists, f
 
-    yield compiles
+    yield compiles, False
+    yield compiles, True
 
 def parse_and_generate(prob, lang):
     from .. qc_lang import QCML
