@@ -384,7 +384,6 @@ class Codegen(NodeVisitor):
         count = stride - 1
         coneend = self.num_conic + self.num_lps
 
-        print self.expr_stack
         while self.expr_stack:
             e = self.expr_stack.pop()
             conestart = start + count

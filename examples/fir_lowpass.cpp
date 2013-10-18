@@ -59,9 +59,6 @@ int main(void) {
 		}
 	}
 
-	printf("A:\n");
-	printm(params->A);
-
 	// Find passband length
 	int length;
 	for (int i = 0; i < m; i++) {
@@ -89,14 +86,9 @@ int main(void) {
 		}
 	}
 
-	printf("Ap:\n");
-	printm(params->Ap);
-
-	printf("Lp, Up\n");
 	for (int i = 0; i < length; i++) {
 		params->Lp[i] = pow(pow(10.0, -delta/20.0), 2.0);
 		params->Up[i] = pow(pow(10.0, +delta/20.0), 2.0);
-		printf("%f, %f\n", params->Lp[i], params->Up[i]);
 	}
 
 	// Find stopband length
@@ -122,24 +114,12 @@ int main(void) {
 		}
 	}
 
-	printf("As:\n");
-	printm(params->As);
-
 	qc_socp *data = qc_fir_lowpass2socp(params, dims);
 
-	if (data) {
-		printf("Data!\n");
-	}
-	else {
+	if (!data) {
 		printf("No data!\n");
 		return 1;
 	}
-
-	printf("G:\n");
-	for (int i = 0; i < data->m; i++) {
-		printf("%2ld,%2ld: %f\n", data->Gi[i], data->Gp[i], data->Gx[i]);
-	}
-	printf("n:%ld, m:%ld, p:%ld, l:%ld, nsoc:%ld\n", data->n, data->m, data->p, data->l, data->nsoc);
 
 	// run ecos and solve it
 	pwork *mywork = ECOS_setup(data->n, data->m, data->p,

@@ -189,9 +189,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         
         if const > 0: size = "%s + %d" % (size, const)
         if const > 0 or size:
-            yield "nnz%s = %s;" % (matrix, size)
-            print self.nnz
-            
+            yield "nnz%s = %s;" % (matrix, size)            
             yield "data->%(matrix)sx = (double *) malloc(nnz%(matrix)s * sizeof(double));" % {'matrix': matrix}
             yield "data->%(matrix)sp = (long *) malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}
             yield "data->%(matrix)si = (long *) malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}

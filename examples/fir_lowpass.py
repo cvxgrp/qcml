@@ -141,8 +141,9 @@ if __name__ == '__main__':
     p.codegen("C", name="fir_lowpass")
 
     raw_input("press ENTER to compile the test C++ program....")
+    PATH_TO_EXAMPLES = "../../examples"
     os.chdir("fir_lowpass")
-    shutil.copyfile("../fir_lowpass.cpp", "fir_lowpass.cpp")
+    shutil.copyfile(PATH_TO_EXAMPLES + "/fir_lowpass.cpp", "fir_lowpass.cpp")
     print "Running make...."
     subprocess.call(["make"])
     cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 

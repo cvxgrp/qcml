@@ -9,5 +9,5 @@ done
 for example in lasso.py fir_lowpass.py
 do
   echo "Running $example"
-  yes "" | ../examples/$example ecos
+  yes "" | ../examples/$example `pwd`/ecos
 done
