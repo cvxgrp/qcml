@@ -87,7 +87,31 @@ class AbstractDim(object):
         if isinstance(other, int) and self.concrete:
             return int(self) == other
         return False
+        
+    def __gt__(self, other): 
+        """ This assumes that all user-defined dims are always > 1. Even
+            if they are equal to 1, the codegen still works. This is a
+            function of the way coefficients are implemented. Hopefully, we
+            can remove this assumption in a future implementation.
+        """
+        if isinstance(other, int) and other == 1:
+            return True
+        return NotImplemented
 
+    def __ne__(self, other):
+        result = (self == other)
+        if result is NotImplemented:
+            return NotImplemented
+        else:
+            return not result
+        
+    def __lt__(self, other):
+        result = (self > other)
+        if result is NotImplemented:
+            return NotImplemented
+        else:
+            return not result
+        
     def __mul__(self, other):
         if not isinstance(other, (AbstractDim, int)):
             return NotImplemented
