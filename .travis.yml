@@ -11,7 +11,7 @@ before_install:
 install:
     - pip install ply coverage
     - cd scripts; sudo ./get_ecos.sh    # installs python library
-    - cd ecos; make                     # make the C static library
+    - cd ecos; sudo make                # make the C static library
     - cd ../..; sudo python setup.py install
 # command to run tests
 script:
