@@ -159,7 +159,10 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     # function to get abstract dims
     def c_dims(self):
-        return ["%sint %s;" % (self.indent, k) for k in self.program.abstract_dims]
+        if self.program.abstract_dims:
+            return ["%sint %s;" % (self.indent, k) for k in self.program.abstract_dims]
+        else:
+            return ["%sconst char SENTINEL; /* empty dims struct */" % self.indent]
 
     # function to get variables
     def c_variables(self):
