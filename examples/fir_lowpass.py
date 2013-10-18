@@ -7,7 +7,7 @@
 # See FIR Filter Design via Spectral Factorization and Convex Optimization - Wu, Boyd, Vandengerghe
 # and fir_mag_design_low.m - Mutapcic at http://cvxr.com/cvx/examples
 
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, platform
 from qcml import QCML
 from numpy import *
 from scipy import *
@@ -146,11 +146,18 @@ if __name__ == '__main__':
     shutil.copyfile(PATH_TO_EXAMPLES + "/fir_lowpass.cpp", "fir_lowpass.cpp")
     print "Running make...."
     subprocess.call(["make"])
-    cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
-            "-I%s/include" % ECOS_PATH, 
-            "-I%s/external/SuiteSparse_config" % ECOS_PATH,
-            "-lecos", "-lm", "fir_lowpass.o", 
-            "qcml_utils.o", "-o","fir_lowpass"]
+    if platform.system() == 'Linux':
+        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
+                "-I%s/include" % ECOS_PATH, 
+                "-I%s/external/SuiteSparse_config" % ECOS_PATH,
+                "-lecos", "-lm", "-lrt", "fir_lowpass.o", 
+                "qcml_utils.o", "-o","fir_lowpass"]
+    else:
+        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
+                "-I%s/include" % ECOS_PATH, 
+                "-I%s/external/SuiteSparse_config" % ECOS_PATH,
+                "-lecos", "-lm", "fir_lowpass.o", 
+                "qcml_utils.o", "-o","fir_lowpass"]
     print ' '.join(cmd)
     subprocess.call(cmd)
 

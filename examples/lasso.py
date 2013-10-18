@@ -3,7 +3,7 @@ from qcml import QCML
 import numpy as np
 from numpy.random import randn
 import scipy.sparse as sparse
-import subprocess, os, sys
+import subprocess, os, sys, platform
 
 if __name__ == '__main__':
 
@@ -135,10 +135,16 @@ int main(int argc, char **argv)
     os.chdir("lasso")
     print "Running make...."
     subprocess.call(["make"])
-    cmd = ["cc", "-O3", "lasso_main.c", 
-            "-L%s" % ECOS_PATH, 
-            "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
-            "-lecos", "-lm", "lasso.o", "qcml_utils.o", "-o","lasso"]
+    if platform.system() == 'Linux':
+        cmd = ["cc", "-O3", "lasso_main.c", 
+                "-L%s" % ECOS_PATH, 
+                "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
+                "-lecos", "-lm", "-lrt", "lasso.o", "qcml_utils.o", "-o","lasso"]
+    else:
+        cmd = ["cc", "-O3", "lasso_main.c", 
+                "-L%s" % ECOS_PATH, 
+                "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
+                "-lecos", "-lm", "lasso.o", "qcml_utils.o", "-o","lasso"]
     print ' '.join(cmd)
     subprocess.call(cmd)
 
