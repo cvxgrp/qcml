@@ -331,22 +331,30 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
 
     def stuff_matrix(self, matrix, rstart, rend, cstart, cend, expr, rstride):
+        yield toC(expr.I(rstart, rstride)) % ({'ptr': "%s_row_ptr" % matrix})
+        yield toC(expr.J(cstart)) % ({'ptr': "%s_col_ptr" % matrix})
+        yield toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
+
+    def stuff_G(self, rstart, rend, cstart, cend, expr, rstride = 1):
         # in case we need to promote scalar into vector
         n = (rend - rstart) / rstride
         if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
 
         # execute this code first
-        self.nnz[matrix].append(toC(expr.nnz()))
+        self.nnz['G'].append(toC(expr.nnz()))
         
-        yield toC(expr.I(rstart, rstride)) % ({'ptr': "%s_row_ptr" % matrix})
-        yield toC(expr.J(cstart)) % ({'ptr': "%s_col_ptr" % matrix})
-        yield toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
-
-    def stuff_G(self, rstart, rend, cstart, cend, expr, rstride = 1):
         return self.stuff_matrix("G", rstart, rend, cstart, cend, expr, rstride)
 
     def stuff_A(self, rstart, rend, cstart, cend, expr, rstride = 1):
+        # in case we need to promote scalar into vector
+        n = (rend - rstart) / rstride
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+            expr = OnesCoeff(n,ConstantCoeff(1))*expr
+
+        # execute this code first
+        self.nnz['A'].append(toC(expr.nnz()))
+        
         return self.stuff_matrix("A", rstart, rend, cstart, cend, expr, rstride)
 
     def abstractdim_rewriter(self, ad):
