@@ -2,6 +2,7 @@ from .. base_codegen import Codegen
 from ... codes import OnesCoeff, ConstantCoeff
 from ... codes.function import PythonFunction
 from ... codes.encoders import toPython
+from ... properties.abstract_dim import AbstractDim
 
 def wrap_self(f):
     def wrapped_code(self, *args, **kwargs):
@@ -103,25 +104,21 @@ class PythonCodegen(Codegen):
         else:
             yield "h[%s:%s] = %s" % (start, end, toPython(expr))
 
-    def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
-        n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar:
+    def stuff_matrix(self, mat, rstart, rend, cstart, cend, expr, rstride):
+        n = (rend - rstart) / rstride
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
         to_sparse = expr.to_sparse()
         if to_sparse: yield toPython(to_sparse)
-        yield "Gi.append(%s)" % toPython(expr.I(row_start, row_stride))
-        yield "Gj.append(%s)" % toPython(expr.J(col_start))
-        yield "Gv.append(%s)" % toPython(expr.V())
+        yield "%si.append(%s)" % (mat, toPython(expr.I(rstart, rstride)))
+        yield "%sj.append(%s)" % (mat, toPython(expr.J(cstart)))
+        yield "%sv.append(%s)" % (mat, toPython(expr.V()))
 
-    def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
-        n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar:
-            expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        to_sparse = expr.to_sparse()
-        if to_sparse: yield toPython(to_sparse)
-        yield "Ai.append(%s)" % toPython(expr.I(row_start, row_stride))
-        yield "Aj.append(%s)" % toPython(expr.J(col_start))
-        yield "Av.append(%s)" % toPython(expr.V())
+    def stuff_G(self, rstart, rend, cstart, cend, expr, rstride = 1):
+        return self.stuff_matrix("G", rstart, rend, cstart, cend, expr, rstride)
+
+    def stuff_A(self, rstart, rend, cstart, cend, expr, rstride = 1):
+        return self.stuff_matrix("A", rstart, rend, cstart, cend, expr, rstride)
 
     def abstractdim_rewriter(self, ad):
         return "dims['%s']" % ad
