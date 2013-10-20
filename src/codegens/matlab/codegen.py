@@ -2,6 +2,7 @@ from .. base_codegen import Codegen
 from ... codes import OnesCoeff
 from ... codes.function import MatlabFunction
 from ... codes.encoders import toMatlab
+from ... properties.abstract_dim import AbstractDim
 
 class MatlabCodegen(Codegen):
     def __init__(self, *args, **kwargs):
@@ -87,7 +88,9 @@ class MatlabCodegen(Codegen):
 
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
-        if n > 1 and expr.isscalar: expr = OnesCoeff(n, expr)
+
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+            expr = OnesCoeff(n, expr)
 
         yield "%si = [%si; %s];" % (mat, mat, toMatlab(expr.I(r0, rstride)))
         yield "%sj = [%sj; %s];" % (mat, mat, toMatlab(expr.J(c0)))

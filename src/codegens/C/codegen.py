@@ -30,6 +30,8 @@ from ... codes import OnesCoeff, ConstantCoeff
 from ... codes.function import CFunction
 from ... codes.encoders import toC
 
+from ... properties.abstract_dim import AbstractDim
+
 
 def write_template(template_file, new_file, code):
     with open(template_file, 'r') as template, open(new_file, 'w') as output:
@@ -328,32 +330,24 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             yield "for(i = 0; i < %s; ++i) data->h[i + %s] = %s%s" % (end-start, start, toC(expr), tag)
 
 
-    def stuff_matrix(self, matrix, row_start, row_end, col_start, col_end, expr, row_stride):
-        yield toC(expr.I(row_start, row_stride)) % ({'ptr': "%s_row_ptr" % matrix})
-        yield toC(expr.J(col_start)) % ({'ptr': "%s_col_ptr" % matrix})
+    def stuff_matrix(self, matrix, rstart, rend, cstart, cend, expr, rstride):
+        # in case we need to promote scalar into vector
+        n = (rend - rstart) / rstride
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+            expr = OnesCoeff(n,ConstantCoeff(1))*expr
+
+        # execute this code first
+        self.nnz[matrix].append(toC(expr.nnz()))
+        
+        yield toC(expr.I(rstart, rstride)) % ({'ptr': "%s_row_ptr" % matrix})
+        yield toC(expr.J(cstart)) % ({'ptr': "%s_col_ptr" % matrix})
         yield toC(expr.V()) % ({'ptr': "%s_data_ptr" % matrix})
 
-    def stuff_G(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
-        # in case we need to promote scalar into vector
-        n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        
-        # execute this code first
-        self.nnz['G'].append(toC(expr.nnz()))
+    def stuff_G(self, rstart, rend, cstart, cend, expr, rstride = 1):
+        return self.stuff_matrix("G", rstart, rend, cstart, cend, expr, rstride)
 
-        # but then return this generator
-        return self.stuff_matrix("G", row_start, row_end, col_start, col_end, expr, row_stride)
-
-    def stuff_A(self, row_start, row_end, col_start, col_end, expr, row_stride = 1):
-        # in case we need to promote scalar into vector
-        n = (row_end - row_start)/row_stride
-        if n > 1 and expr.isscalar: expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        
-        # execute this code first
-        self.nnz['A'].append(toC(expr.nnz()))
-
-        # but then return this generator
-        return self.stuff_matrix("A", row_start, row_end, col_start, col_end, expr, row_stride)
+    def stuff_A(self, rstart, rend, cstart, cend, expr, rstride = 1):
+        return self.stuff_matrix("A", rstart, rend, cstart, cend, expr, rstride)
 
     def abstractdim_rewriter(self, ad):
         return "dims->%s" % ad
