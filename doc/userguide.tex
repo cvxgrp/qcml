@@ -1,12 +1,33 @@
 \documentclass[11pt]{article}
 
-\usepackage{fullpage, xspace, hyperref, amsmath}
+\usepackage{fullpage, xspace, hyperref, amsmath, multirow}
 
 \def\qcmlver{0.1\xspace}
 \def\qcml{\texttt{QCML}\xspace}
 \def\cvxpy{\texttt{CVXPY}\xspace}
 \def\cvx{\texttt{CVX}\xspace}
 \def\cvxgen{\texttt{CVXGEN}\xspace}
+
+% for captions
+\makeatletter
+\long\def\@makecaption#1#2{
+   \vskip 9pt 
+   \begin{small}
+   \setbox\@tempboxa\hbox{{\bf #1:} #2}
+   \ifdim \wd\@tempboxa > 5.5in
+        \begin{center}
+        \begin{minipage}[t]{5.5in}
+        \addtolength{\baselineskip}{-0.95pt}
+        {\bf #1:} #2 \par
+        \addtolength{\baselineskip}{0.95pt}
+        \end{minipage}
+        \end{center}
+   \else 
+	\hbox to\hsize{\hfil\box\@tempboxa\hfil}  
+   \fi
+   \end{small}\par
+}
+\makeatother
 
 % text abbrevs
 \newcommand{\eg}{{\it e.g.}}
@@ -38,10 +59,10 @@ representable as second-order cone problems (SOCP). It is a code generator
 that produces lightweight Python, Matlab, or C code for \emph{matrix
 stuffing}. This allows one to extend SOCP solvers in these langauges to a 
 variety of problem classes. It is intended to complement the paper, 
-\emph{Code Generation for Embedded Second-order Cone Programming} \cite{ECC}, 
+\emph{Code Generation for Embedded Second-order Cone Programming} \cite{CPD:13}, 
 although the main ideas in its
-implementation are well-documented in \emph{Graph Implementation}
-\cite{Grant}.
+implementation are well-documented in \emph{Graph Implementation for Nonsmooth Convex Programs}
+\cite{GB:08}.
 
 \qcml comes with a small example library and consists of a single Python
 object, \texttt{QCML}, with three methods
@@ -49,7 +70,7 @@ object, \texttt{QCML}, with three methods
 \item \texttt{parse}, which parses an optimization problem specified as a
 string and checks that it is convex,
 \item \texttt{canonicalize}, which symbolically converts the problem into
-a second-order cone program, and
+a second-order cone program,~and
 \item \texttt{codegen}, which produces source code that performs the
 transformation from problem-specific data to second-order cone problem data
 and back.
@@ -71,7 +92,7 @@ the code if given problem dimensions before code is generated.
 That said, there are several important caveats:
 \begin{itemize}
 \item \qcml is intended for use by \emph{developers} wishing to employ convex
-optimization in their packages with little to no overhead from the modeling 
+optimization in their source code with little to no overhead from the modeling 
 layer. Typically, these are users familiar with \cvx or \cvxpy who wish to
 do away with modeling overhead in their applications.
 \item \qcml is not a full-featured modeling language. Several features are
@@ -96,8 +117,8 @@ full example with a lasso ($\ell_1$-regularized least-squares) problem.
 \qcml depends on the following:
 \begin{itemize} 
 \item Python 2.7.2+ (no Python 3 support)
-\item \href{http://www.dabeaz.com/ply/}{\tt PLY}, the Python Lex-Yacc parsing framework.
-  Available as the {\tt python-ply} or {\tt py-ply} package in most distributions.
+\item \href{http://www.dabeaz.com/ply/}{\tt PLY}, the Python Lex-Yacc parsing framework,
+  available as the {\tt python-ply} or {\tt py-ply} package in most distributions.
 \item {\tt ECOS} (\url{http://github.com/ifa-ethz/ecos})
 \item {\tt NUMPY} (\url{http://numpy.org})
 \item {\tt SCIPY} (\url{http://scipy.org})
@@ -114,7 +135,7 @@ Once these dependencies are installed, typically through a package manager,
 \noindent at the command line. The unit tests can be run with {\tt nosetests}.
 
 \section{\qcml language}
-Optimization problems in \qcml are specified as strings which must adhere to 
+Optimization problems in \qcml are specified as \emph{strings} which must adhere to 
 the rules of the \qcml modeling language. We describe that language and its
 rules here.
 
@@ -133,7 +154,7 @@ The {\tt dimension} objects are used to specify the (optional) sizes of {\tt
 variable}s and {\tt parameter}s. So a single {\tt variable} or {\tt
 parameter} object can represent an collection (or array) of scalar variables
 or parameters with abstract dimension. (For more detail on abstract
-dimensions, consult \S\ref{s-abstract-dims}.) At the moment {\tt variables}
+dimensions, consult \S\ref{s-abstract-dims}.) At the moment, {\tt variables}
 can represent vectors (one-dimensional arrays), and {\tt parameters} can
 represent vectors or matrices (two-dimensional arrays). If a {\tt parameter}
 represents a matrix, it is assumed to represent a \emph{sparse} matrix.
@@ -143,13 +164,14 @@ A {\tt parameter} may optionally take a sign modifier ({\tt positive} or
 respectively.
 
 To declare an object, give its type, followed by its name, and (optionally) 
-its size:
+its size: for instance,
 {\tt
 \begin{tabbing}
   \qquad \= variable x(n)
 \end{tabbing}}
-\noindent declares a vector variable with dimension {\tt n} and named {\tt
-x}. Integer literals can also be used in place of dimensions. A more involved
+\noindent declares a vector variable named {\tt
+x} with length {\tt n}. 
+Integer literals can also be used in place of dimensions. A more involved
 example is the following code
 {\tt
 \begin{tabbing}
@@ -176,10 +198,23 @@ operator can also be used as a prefix to denote negation.
 \qcml also provides a set of atoms (or functions) which take expressions constructed from the basic operations as arguments. These functions have additional properties associated with them:
 \begin{itemize}
 \item the \emph{sign} of the output expression (either positive, negative, or unknown),
-\item the \emph{monotonicity} of the function in each argument (either increasing, decreasing, or nonmonotone),
+\item the \emph{monotonicity} of the function in each argument 
+(either increasing, decreasing, or nonmonotone),
 \item and the \emph{curvature} of the function (either convex, concave, or affine).
 \end{itemize}
-Roughly speaking, these can be associated with the sign of the zeroth, first, and second derivatives of the function, respectively. (Although not all functions we provide are differentiable.) More importantly, the sign and monotonicities of a function may change depending on the sign of the input. For instance, the {\tt square} function has positive sign (its outputs are always positive) and is typically a nonmonotone function. However, when its input is restricted to be positive, it is an increasing function.
+Roughly speaking, these can be associated with the sign of the zeroth, first,
+and second derivatives of the function, respectively. (Although not all
+functions we provide are differentiable.) More importantly, the sign and
+monotonicities of a function may change depending on the sign of the input.
+For instance, the {\tt square} function has positive sign (its outputs are
+always positive) and is typically a nonmonotone function. However, when its
+input is restricted to be positive, it is an increasing function. When a
+\emph{convex} function has this property, we say that its monotonicity is 
+\emph{signed}. This means it is increasing if the argument is positive, 
+decreasing if the argument is negative, and nonmonotone otherwise. When a
+\emph{concave} function has a signed monotonicity, it means that it is
+decreasing if the argument is positive, increasing if the argument is negative,
+and nonmonotone otherwise.
 
 Before listing the atoms, a slight word on notation. We deviate slightly from
 standard notation and use $f : \reals^p \to \reals^q$ to mean that a function
@@ -191,13 +226,13 @@ science way---as a \emph{type signature} for the function $f$. As an example,
 the $\log$ function has the following type signature, $\log : \reals \to
 \reals$, although $\dom f$ is the set of strictly positive reals.
 
-We can take the analogy to computer science functions one step further: a function is overloaded and can have multiple type signatures. Its implementation depends on the matched type. For instance, the {\tt square} function can have the type signatures,
-\begin{align*}
-{\tt square} &: \reals \to \reals_+ \\
-{\tt square} &: \reals_+ \to \reals_+,
-\end{align*}
-where $\reals_+$ denotes the set of positive reals. The first {\tt square} function is nonmonotone; the second is increasing in its argument. The argument type (real expression or positive real expression) determines which
-version of the {\tt square} function to use.
+% We can take the analogy to computer science functions one step further: a function is overloaded and can have multiple type signatures. Its implementation depends on the matched type. For instance, the {\tt square} function can have the type signatures,
+% \begin{align*}
+% {\tt square} &: \reals \to \reals_+ \\
+% {\tt square} &: \reals_+ \to \reals_+,
+% \end{align*}
+% where $\reals_+$ denotes the set of positive reals. The first {\tt square} function is nonmonotone; the second is increasing in its argument. The argument type (real expression or positive real expression) determines which
+% version of the {\tt square} function to use.
 
 
 % %\renewcommand\arraystretch{1.2}
@@ -249,24 +284,60 @@ version of the {\tt square} function to use.
   
   
 \subsubsection{Scalar atoms}
-A scalar atom is a function with the type signature $f : \reals \to \reals$ (this includes functions with the signature $f : \reals_+ \to \reals$, $f : \reals_- \to \reals$, \etc).
+A scalar atom is a function with the type signature $f : \reals \to \reals$.
+Table~\ref{t-scalar-atoms} lists out all the scalar atoms in our library
+and their signs, monotonicity, and curvatures.
+\begin{table}
+  \small
+  \renewcommand{\arraystretch}{1.5}
+  \centering
+\begin{tabular}{|l|l||l|l|l|} \hline
+  Function & Definition & Sign & Monotonicity & Curvature \\ \hline
+  {\tt abs(x)} & $f(x) = |x|$ & positive & signed & convex \\ \hline
+  {\tt huber(x)} & $f(x) = \begin{cases} x^2 & |x| \leq 1 \\
+    2|x| - 1 \leq 1 & |x| > 1 \end{cases}$ & positive & signed & convex \\ \hline
+  {\tt inv\_pos(x)} & $f(x) = 1/x, \; x > 0$ & positive & decreasing & convex \\ \hline
+  {\tt neg(x)} & $f(x) = \max(-x, 0)$ & positive & increasing & convex \\ \hline
+  {\tt pos(x)} & $f(x) = \max(x, 0)$ & positive & increasing & convex \\ \hline
+  {\tt pow\_rat(x,p,q)} & $f(x) = x^{p/q}, \; x >0$ & positive & (depends) & (depends) \\ \hline
+  {\tt square\_over\_lin(x,y)} & $f(x) = x^2/y, \; y >0$ & positive & signed, decreasing & convex\\ \hline
+  {\tt geo\_mean(x,y)} & $f(x,y) = \sqrt{xy}, \; x,y >0$ & positive & increasing, increasing & concave \\ \hline
+  {\tt sqrt(x)} & $f(x) = \sqrt{x}, \; x >0$ & positive & increasing & concave \\ \hline
+\end{tabular}
+\caption{A list of the scalar atoms in \qcml. Scalar atoms with multiple arguments
+require the same dimension for both arguments; their montonicities are listed separately.}
+\label{t-scalar-atoms}
+\end{table}
 
+The {\tt pow\_rat} atom is slightly special in that it takes two \emph{integer
+literal} arguments, {\tt p} and {\tt q}, which must be in the set $\{1,2,3,4\}$.
+The monotonicity and curvature of the atom depend on the values of {\tt p}
+and {\tt q} chosen. If $p > q$, the function is increasing and convex.
+If $p < q$, the function is decreasing and concave. If $p = q$, the function
+is affine and, moreover, is the identity function.
 
-* scalar atoms (map scalars to scalars)
-  * `pos(x)`, defined as `max(x, 0)`
-  * `neg(x)`, defined as `max(-x, 0)`
-  * `square(x)`
-  * `inv\_pos(x)`
-  * `geo\_mean(x,y)`
-  * `pow\_rat(x,p,q)', defined as `x\^(p/q)' only for 1 <= p,q <= 4
-  * `sqrt(x)`
+We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$, 
+of a scalar atom $f$ to a vector argument $x = (x_1, x_2, \ldots, x_n)$ as
+\[
+\tilde f(x) = \left( f(x_1), f(x_2), \ldots, f(x_n) \right),
+\]
+\ie, $\tilde f$ is $f$ applied elementwise.
+Whenever scalar functions are called with vector arguments, this extension
+is automatically applied. For scalar functions with the signature 
+$f : \reals \times \reals \to \reals$, their extension has the signature
+$\tilde f : \reals^n \times \reals^n \to \reals^n$.
+
+\subsubsection{Vector atom}
+A vector atom is a function with the type signature $f : \reals^n \to \reals$.
+
 \begin{table}
   \centering
-\begin{tabular}{|l|l|l|l|} \hline
-  Atom signature & Sign & Monotonicity & Curvature \\ \hline
-  ${\tt abs} : \reals \to \reals_+$ & positive & nonmonotone & convex \\ \hline
-  ${\tt abs} : \reals_+ \to \reals_+$ & positive & increasing & convex \\ \hline
-  ${\tt abs} : \reals_- \to \reals_+$ & positive & decreasing & convex \\ \hline
+\begin{tabular}{|l|l||l|l|l|} \hline  
+  \multicolumn{5}{|c|}{Vector atoms} \\ \hline
+  Function & Argument & Sign & Monotonicity & Curvature \\ \hline
+  \multirow{3}{*}{\tt abs} & unknown & positive & nonmonotone & convex \\
+  & positive & positive & increasing & convex \\
+  & negative & positive & decreasing & convex \\ \hline
 %     \multicolumn{3}{|l|}{Scalar functions, $\phi: \reals \to \reals$ (XXX: not quite right)} \\ \hline
 %     & $t \geq \phi^\mathrm{pos}(x)$ & $t \in \soc^1, \; t-x \in \soc^1$ \\ \cline{2-3}
 %     & $t \geq \phi^\mathrm{neg}(x)$ & $t \in \soc^1, \; t+x \in \soc^1$ \\ \cline{2-3}
@@ -281,24 +352,9 @@ A scalar atom is a function with the type signature $f : \reals \to \reals$ (thi
 \end{tabular}
 \end{table}
 
-
-We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$, 
-of a scalar atom $f$ to vector arguments as
-\[
-\tilde f(x) = \left( f(x_1), f(x_2), \ldots, f(x_n) \right).
-\]
-Whenever scalar functions are called with vector arguments, this extension
-is automatically applied.
-
-
-
-\subsubsection{Vector atom}
-A vector atom is a function with the type signature $f : \reals^n \to \reals$.
-
-
 Vector atoms can take variable arguments. 
 The \emph{extension}, $\tilde f : \reals^n \times \reals^n \to \reals^n$, of 
-a vector atom $f$ to two arguments is
+a vector atom $f$ to two vector arguments is
 \[
 \tilde f(x, y) = \left( f\left(\begin{bmatrix} x_1 \\ y_1 \end{bmatrix}\right), 
   f\left(\begin{bmatrix}x_2 \\ y_2 \end{bmatrix}\right), \ldots, 
@@ -503,4 +559,7 @@ This example can be found under the {\tt qcml/examples} directory.
 % 
 % For more information, see the [features](#features) section.
 % woot
+\newpage
+\bibliographystyle{plain}
+\bibliography{userguide}
 \end{document}
