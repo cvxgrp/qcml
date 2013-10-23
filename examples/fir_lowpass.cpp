@@ -1,3 +1,12 @@
+/* 
+ * Author: Andrew Best
+ * abest@ccrma.stanford.edu
+ *
+ * FIR Lowpass Filter with Maximum Stop Band Attenuation
+ * See FIR Filter Design via Spectral Factorization and Convex Optimization - Wu, Boyd, Vandengerghe
+ * and fir_mag_design_low.m - Mutapcic at http://cvxr.com/cvx/examples
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
@@ -19,7 +28,7 @@ void printm(qc_matrix *M) {
 }
 
 int main(void) {
-	const int n = 2;
+	const int n = 25;
 	const int m = 15*n;
 	const double wpass = 0.12*PI;
 	const double wstop = 0.24*PI;

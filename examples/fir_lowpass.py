@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     print "Creating data."
 
-    n = 2
+    n = 25
 
     wpass = 0.12*pi
     wstop = 0.24*pi

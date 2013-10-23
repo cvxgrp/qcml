@@ -301,6 +301,7 @@ and their signs, monotonicity, and curvatures.
   {\tt pos(x)} & $f(x) = \max(x, 0)$ & positive & increasing & convex \\ \hline
   {\tt pow\_rat(x,p,q)} & $f(x) = x^{p/q}, \; x >0$ & positive & (depends) & (depends) \\ \hline
   {\tt square\_over\_lin(x,y)} & $f(x) = x^2/y, \; y >0$ & positive & signed, decreasing & convex\\ \hline
+  {\tt square(x)} & $f(x) = x^2$ & positive & signed & convex\\ \hline
   {\tt geo\_mean(x,y)} & $f(x,y) = \sqrt{xy}, \; x,y >0$ & positive & increasing, increasing & concave \\ \hline
   {\tt sqrt(x)} & $f(x) = \sqrt{x}, \; x >0$ & positive & increasing & concave \\ \hline
 \end{tabular}
@@ -329,32 +330,50 @@ $\tilde f : \reals^n \times \reals^n \to \reals^n$.
 
 \subsubsection{Vector atom}
 A vector atom is a function with the type signature $f : \reals^n \to \reals$.
+Table~\ref{t-vector-atoms} lists out all the scalar atoms in our library
+and their signs, monotonicity, and curvatures.
 
 \begin{table}
   \centering
-\begin{tabular}{|l|l||l|l|l|} \hline  
-  \multicolumn{5}{|c|}{Vector atoms} \\ \hline
-  Function & Argument & Sign & Monotonicity & Curvature \\ \hline
-  \multirow{3}{*}{\tt abs} & unknown & positive & nonmonotone & convex \\
-  & positive & positive & increasing & convex \\
-  & negative & positive & decreasing & convex \\ \hline
-%     \multicolumn{3}{|l|}{Scalar functions, $\phi: \reals \to \reals$ (XXX: not quite right)} \\ \hline
-%     & $t \geq \phi^\mathrm{pos}(x)$ & $t \in \soc^1, \; t-x \in \soc^1$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{neg}(x)$ & $t \in \soc^1, \; t+x \in \soc^1$ \\ \cline{2-3}
-%     & $t \leq \phi^\mathrm{geo\_mean}(x,y)$ & $\left((1/2)(y+x), (1/2)(y-x),t\right) \in \soc^{3}, \; y \in \soc^1$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{square}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(x,1)$ \\ \cline{2-3}
-%     & $t \leq \phi^\mathrm{sqrt}(x)$ & $t \leq \phi^\mathrm{geo\_mean}(x,1)$\\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{inv\_pos}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(1,x)$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{abs}(x)$ & $(t,x) \in \soc^2$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{plus}(x,y)$ & $t = x+y$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{minus}(x,y)$ & $t = x-y$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{negate}(x)$ & $t = -x$ \\ \hline \hline
+  \small
+  \renewcommand{\arraystretch}{1.5}
+  \centering
+\begin{tabular}{|l|l||l|l|l|} \hline
+  Function & Definition & Sign & Monotonicity & Curvature \\ \hline
+  {\tt quad\_over\_lin(x,y)} & $f(x) = x^Tx/y, \; y >0$ & positive & signed, decreasing & convex \\ \hline
+  {\tt norm\_inf(x)} & $f(x) = \|x\|_\infty$ & positive & signed & convex \\ \hline
+  {\tt norm1(x)} & $f(x) = \|x\|_1$ & positive & signed & convex \\ \hline
+  {\tt norm(x)} or {\tt norm2(x)} & $f(x) = \|x\|_2$ & positive & signed & convex \\ \hline
+  {\tt max(x)} & $f(x) = \max_i x_i$ & (depends) & increasing & convex \\ \hline
+  {\tt min(x)} & $f(x) = \min_i x_i$ & (depends) & increasing & concave \\ \hline
 \end{tabular}
+\caption{A list of the vector atoms in \qcml. Vector atoms with multiple arguments
+require the same dimension for both arguments; their montonicities are listed separately.}
+\label{t-vector-atoms}
 \end{table}
 
-Vector atoms can take variable arguments. 
-The \emph{extension}, $\tilde f : \reals^n \times \reals^n \to \reals^n$, of 
-a vector atom $f$ to two vector arguments is
+The {\tt quad\_over\_lin} atom is slightly special in that it has a mixed
+type signature, $f : \reals^n \times \reals \to \reals$. Its second argument
+is \emph{always} scalar. If a nonscalar is provided, an exception will be
+raised.
+
+The {\tt max} and {\tt min} atoms have signs which depend on the sign of their
+arguments. The rule for the sign of {\tt max} is as follows:
+\begin{itemize}
+\item if \emph{any} of its arguments are positive {\tt max} is positive,
+\item if \emph{all} its arguments are negative {\tt max} is negative,
+\item otherwise, {\tt max} has unknown sign.
+\end{itemize}
+The rule for the sign of {\tt min} is as follows:
+\begin{itemize}
+\item if \emph{any} of its arguments are negative {\tt min} is negative,
+\item if \emph{all} its arguments are positive {\tt min} is positive,
+\item otherwise, {\tt min} has unknown sign.
+\end{itemize}
+
+With the exception of {\tt quad\_over\_lin}, vector atoms can take variable
+arguments. The \emph{extension}, $\tilde f : \reals^n \times \reals^n \to
+\reals^n$, of a vector atom $f$ to two vector arguments is
 \[
 \tilde f(x, y) = \left( f\left(\begin{bmatrix} x_1 \\ y_1 \end{bmatrix}\right), 
   f\left(\begin{bmatrix}x_2 \\ y_2 \end{bmatrix}\right), \ldots, 
@@ -364,17 +383,17 @@ The extension to an arbitrary number of input arguments can be obtained inductiv
 Whenever vector functions are called with variable arguments, this extension
 is automatically applied.
 
-* vector atoms (map vectors to scalars)
-  * `max(x)`, the max elem of `x`
-  * `max(x,y,..)`, the max vector consisting of max elements across rows
-  * `min(x)`, the min elem of `x`,
-  * `min(x,y,..)`, the min vector consisting of min elements across rows
-  * `quad\_over\_lin(x,y)`, if `y` is a vector, returns element-wise operator
-  * `norm1(x)`, defined as `sum(abs(x))`
-  * `norm1(x,y,..)`, defined as `abs(x) + abs(y) + ...`
-  * `norm\_inf(x)`, defined as `max(abs(x))`
-  * `norm\_inf(x,y,...)`, defined as `max(abs(x),abs(y),...)`
-  
+As an example, the expression {\tt norm(x,y,z)} forms the vector expression
+\[
+\left(  
+  \|(x_1,y_1,z_1)\|_2,
+  \|(x_2, y_2, z_2)\|_2
+\right),
+\]
+where $x = (x_1,x_2)$, $y = (y_1, y_2)$, and $z = (z_1, z_2)$. The extension
+can be thought of as first performing a horizontal concatenation and applying
+the atom \emph{row-wise}.
+
 \subsection{Expressions}
 Expressions in \qcml are formed by applying basic operators and functions to
 numeric constants and to previously declared {\tt parameters} and {\tt
@@ -384,7 +403,13 @@ variables}. Every expression has additional properties:
 \item a \emph{sign} (either positive, negative, or neither),
 \item and a \emph{curvature} (either convex, concave, affine, or nonconvex).
 \end{itemize}
-An expression with \emph{nonconvex} curvature only means that it cannot be verified as either convex, concave, or affine. These properties are inferred from properties of the basic objects that compose the function using disciplined convex programming (DCP) rules. We detail the DCP rules in \S\ref{s-dcp}.
+An expression with \emph{nonconvex} curvature only means that it cannot be
+verified as either convex, concave, or affine. The shape and sign of the
+expression is inferred starting from the properties of the basic objects and
+applying the operators and atoms (as listed in
+Tables~\ref{t-scalar-atom,t-vector-atom}). The expression curvature is
+inferred in a similar way but using disciplined convex programming (DCP)
+rules. We detail the DCP rules in \S\ref{s-dcp}.
 
 % For convenience in the sequel and with a slight abuse of notation, we use
 % $\reals$ to refer to the set of all scalar-valued \emph{expressions} and $\reals_+$ to refer to the set of all scalar-valued expressions with positive sign. Similarly, $\reals^n$ and $\reals_-$ refer to the set of all vector-valued expressions of length $n$ and negative expressions, respectively.
@@ -402,10 +427,36 @@ An expression with \emph{nonconvex} curvature only means that it cannot be verif
 
 
 \subsection{Objectives}
+Objectives are optional in \qcml. If no objective is provided, the problem
+is assumed to be a feasibility problem.
+
 \subsection{Constraints}
+<=
+>=
+==
+
 \subsection{Problems}
 A \qcml problem consists of a list of basic type declarations, zero or one
-objective, and zero or more constraints. 
+objective, and zero or more constraints. Here is a \qcml problem for
+completeness:
+{\tt
+\begin{tabbing}
+\qquad 
+\= dimensions m n \\
+\> variable x(n) \\
+\> parameter mu(n)\\ 
+\> parameter gamma positive\\
+\> parameter F(n,m) \\
+\> parameter D(n,n) \\
+\\
+\> maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x)))) \\
+\> subject to \\
+\> \qquad \= sum(x) == 1 \\
+\> \> x >= 0
+\end{tabbing}
+}
+This sample problem has six type declarations, one maximization objective, and
+two constraints.
 
 \section{Disciplined convex programming}
 \label{s-dcp}
