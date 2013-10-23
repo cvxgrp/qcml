@@ -34,7 +34,7 @@ def add(x):
     return "%s + %s" % (toMatlab(x.left), toMatlab(x.right))
 
 def mul(x):
-    return "dot(%s,%s)" % (toMatlab(x.left), toMatlab(x.right))
+    return "%s * %s" % (toMatlab(x.left), toMatlab(x.right))
 
 def just(elem):
     return "%s" % elem.x
@@ -72,7 +72,7 @@ def repeat(x):
     return "%s*ones(%s,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
-    return "%s = %s" % (toMatlab(x.lhs), toMatlab(x.rhs))
+    return "%s = sparse(%s)" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):
     return "%s.nnz" % (toMatlab(x.obj))

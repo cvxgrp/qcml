@@ -91,7 +91,8 @@ class MatlabCodegen(Codegen):
 
         if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
             expr = OnesCoeff(n, expr)
-
+        to_sparse = expr.to_sparse()
+        if to_sparse: yield toMatlab(to_sparse)
         yield "%si = [%si; %s];" % (mat, mat, toMatlab(expr.I(r0, rstride)))
         yield "%sj = [%sj; %s];" % (mat, mat, toMatlab(expr.J(c0)))
         yield "%sv = [%sv; %s];" % (mat, mat, toMatlab(expr.V()))
