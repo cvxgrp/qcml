@@ -103,7 +103,11 @@ class PythonFunction(Function):
         code_str = '\n'.join(code)
 
         # now create its bytecode
-        exec code_str in vars()
+        try:
+            exec code_str in vars()
+        except:
+            print code_str
+            raise
         self.generated_func = vars()[self.name]
 
         return code_str

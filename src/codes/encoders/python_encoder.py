@@ -27,7 +27,7 @@ def add(x):
     return "%s + %s" % (toPython(x.left), toPython(x.right))
 
 def mul(x):
-    return "%(lhs)s.dot(%(rhs)s) if isinstance(%(lhs)s, np.ndarray) and isinstance(%(rhs)s, np.ndarray) else %(lhs)s * %(rhs)s # test if both are numpy arrays" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
+    return "%(lhs)s.dot(%(rhs)s) if (isinstance(%(lhs)s, np.ndarray) and isinstance(%(rhs)s, np.ndarray)) else %(lhs)s * %(rhs)s" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
 
 def just(elem):
     return "[%s]" % elem.x
