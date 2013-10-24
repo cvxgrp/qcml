@@ -29,7 +29,6 @@ class RestrictedMultiplyMixin(object):
         if left.is_matrix_param and right.is_matrix_param:
             # introduce a new variable for expr
             n = node.right.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
-            print n
             new_var = self.create_equality_constraint_variable(n)
 
             # reset the stack and save the state

@@ -9,7 +9,7 @@ qc_socp *qc_socp_free(qc_socp *data)
     if (data->Gx) free(data->Gx);
     if (data->Gp) free(data->Gp);
     if (data->Gi) free(data->Gi);
-    if (data->Ai) free(data->Ai);
+    if (data->Ax) free(data->Ax);
     if (data->Ap) free(data->Ap);
     if (data->Ai) free(data->Ai);
     if (data->c) free(data->c);

@@ -208,25 +208,24 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     def c_setup_qc_matrix(self, matrix):
         if self.nnz[matrix]:
-            yield "%s_coo = (qc_matrix *) malloc(sizeof(qc_matrix));" % matrix
-            yield "if (!%s_coo) return qc_socp_free(data);" % matrix
-            yield "%s_coo->m = data->m; %s_coo->n = data->n; %s_coo->nnz = nnz%s;" % (matrix, matrix, matrix, matrix)
-            yield "%s_coo->i = data->%si;" % (matrix, matrix)
-            yield "%s_coo->j = data->%sp;" % (matrix, matrix)
-            yield "%s_coo->v = data->%sx;" % (matrix, matrix)
+            rows = "data->m" if matrix == "G" else "data->p"
+            #yield "%s_coo = (qc_matrix *) malloc(sizeof(qc_matrix));" % matrix
+            #yield "if (!%s_coo) return qc_socp_free(data);" % matrix
+            
+            yield "%s_coo.m = %s; %s_coo.n = data->n; %s_coo.nnz = nnz%s;" % (matrix, rows, matrix, matrix, matrix)
+            yield "%s_coo.i = data->%si;" % (matrix, matrix)
+            yield "%s_coo.j = data->%sp;" % (matrix, matrix)
+            yield "%s_coo.v = data->%sx;" % (matrix, matrix)
 
     def c_compress(self, matrix):
         if self.nnz[matrix]:
-            yield "%s_csc = qc_compress(%s_coo);" % (matrix, matrix)
+            yield "%s_csc = qc_compress(&%s_coo);" % (matrix, matrix)
             yield "if (!%s_csc) return qc_socp_free(data);" % matrix
-            yield ""
-            yield "/* free the old memory */"
-            yield "qc_spfree(%s_coo);" % matrix
-            yield ""
             yield "/* reassign into data, pointer now owned by data */"
             yield "data->%si = %s_csc->i;" % (matrix, matrix)
             yield "data->%sp = %s_csc->j;" % (matrix, matrix)
             yield "data->%sx = %s_csc->v;" % (matrix, matrix)
+            yield ""
 
     def c_recover(self):
         for k,v in self.program.variables.iteritems():
@@ -254,8 +253,8 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         self.prob2socp.add_lines("long *G_row_ptr, *G_col_ptr;")
         self.prob2socp.add_lines("double *A_data_ptr, *G_data_ptr;")
         self.prob2socp.add_lines("long nnzA, nnzG;")
-        self.prob2socp.add_lines("qc_matrix *G_csc, *G_coo;  /* possibly un-used */")
-        self.prob2socp.add_lines("qc_matrix *A_csc, *A_coo;  /* possibly un-used */")
+        self.prob2socp.add_lines("qc_matrix *G_csc, *A_csc;  /* possibly un-used */")
+        self.prob2socp.add_lines("qc_matrix G_coo, A_coo;    /* possibly un-used */")
         
         self.prob2socp.newline()
         self.prob2socp.add_comment("allocate socp data structure")
