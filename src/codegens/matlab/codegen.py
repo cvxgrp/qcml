@@ -5,8 +5,8 @@ from ... codes.encoders import toMatlab
 from ... properties.abstract_dim import AbstractDim
 
 class MatlabCodegen(Codegen):
-    def __init__(self, *args, **kwargs):
-        super(MatlabCodegen, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super(MatlabCodegen, self).__init__()
         self._code = {
             'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
             'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
@@ -19,6 +19,10 @@ class MatlabCodegen(Codegen):
 
     @property
     def socp2prob(self): return self.code['socp2prob']
+    
+    @property
+    def extension(self):
+        return ".m"
 
     @property
     def wrap(self): return self.code['wrap']

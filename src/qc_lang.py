@@ -18,6 +18,7 @@ SUPPORTED_LANGUAGES = {
 # TODO: add custom Exception classes
 # TODO: add test cases for ensuring that errors are properly triggered in
 # all cases
+# TODO: what happens when the transformed code has offsets, etc?
 
 class QCML(object):
     def __init__(self, debug = False):
@@ -80,7 +81,7 @@ class QCML(object):
             self.state = CODEGEN
 
     @profile
-    def codegen(self, language="python", *args, **kwargs):
+    def codegen(self, language="python"):
         if self.state is COMPLETE:
             self.state = CODEGEN
         if self.state is PARSE:
@@ -93,7 +94,7 @@ class QCML(object):
         except KeyError:
             raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
-            self.__codegen = codegen_class(*args, **kwargs)
+            self.__codegen = codegen_class()
             self.__codegen.visit(self.program)
 
         # generate the prob2socp and socp2prob functions
@@ -107,6 +108,16 @@ class QCML(object):
 
         self.state = COMPLETE
         self.language = language    # set our language
+        
+    @profile
+    def save(self, name = "problem"):
+        """
+            Saves the generated code into a folder with name `name`.
+        """
+        if self.state is COMPLETE:
+            self.__codegen.save(name)
+        else:
+            raise Exception("QCML save: No generated code to save.")
 
     @property
     def solver(self):
@@ -156,7 +167,20 @@ class QCML(object):
         self.codegen("python")
 
         return self.solver(params)
-
+    
+    @property
+    def offset_and_multiplier(self):
+        """
+            Gets the offset and multiplier (+1 or -1) for converting the 
+            solver objective value into the desired objective value.
+            
+            Usually, the desired objective is
+                multipler * solver objval + offset
+                
+            Returns (offset, multiplier).
+        """
+        return (self.__codegen.objective_offset, self.__codegen.objective_multiplier)
+        
     def printsource(self):
         print '\n\n'.join(self.__codegen.source)
 

@@ -6,6 +6,11 @@ from .. codes import ConstantCoeff, ScalarParameterCoeff, ParameterCoeff, \
     EyeCoeff, OnesCoeff
 
 from abc import ABCMeta, abstractmethod, abstractproperty
+import os
+
+def write_file(new_file, code):
+    with open(new_file, 'w') as output:
+        output.write(code)
 
 """ Codegen template.
 
@@ -66,6 +71,12 @@ class Codegen(NodeVisitor):
     @abstractproperty
     def socp2prob(self):
         pass
+        
+    @abstractproperty
+    def extension(self):
+        """ File extension
+        """
+        pass
 
     @abstractmethod
     def functions_setup(self, program_node):
@@ -120,7 +131,23 @@ class Codegen(NodeVisitor):
         # create the source code
         self.prob2socp.create()
         self.socp2prob.create()
-
+    
+    def save(self, name):
+        """ Saves prob2socp and socp2prob to a folder called `name`.
+        """
+        # get the current path and create the new directory in it
+        path = os.getcwd()
+        new_dir = "%(path)s/%(name)s" % vars()
+        prob2socp = "%s/%s%s" % (new_dir, self.prob2socp.name, self.extension)
+        socp2prob = "%s/%s%s" % (new_dir, self.socp2prob.name, self.extension)
+        
+        # create the dictionary for the generated code
+        if not os.path.exists(self.new_dir):
+            os.makedirs(self.new_dir)
+        
+        write_file(prob2socp, self.prob2socp.source)
+        write_file(socp2prob, self.socp2prob.source)
+        
     @property
     def code(self):
         return self._code

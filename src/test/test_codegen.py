@@ -22,7 +22,7 @@ minimize c*x
 norm(x) <= 0
 """
 
-C = C_Codegen(name="test_problem")
+C = C_Codegen()
 python = PythonCodegen()
 matlab = MatlabCodegen()
 
@@ -85,7 +85,7 @@ def compiles(with_cplus_plus=False):
 
 
 def setup_func():
-    pass
+    C.save("test_problem")
 
 def teardown_func():
     # remove the generated directory
@@ -105,7 +105,8 @@ def parse_and_generate(prob, lang):
     p.parse(prob)
     p.canonicalize()
     if lang == "C":
-        p.codegen(lang, name="test_problem")
+        p.codegen(lang)
+        p.save("test_problem")
         shutil.rmtree("%s/test_problem" % os.getcwd())
     else:
         p.codegen(lang)

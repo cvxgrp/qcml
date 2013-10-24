@@ -47,37 +47,20 @@ def shape_to_c_type(x):
 class C_Codegen(RestrictedMultiplyMixin, Codegen):
     """ This produces two functions and a header file.
     """
-    def __init__(self, sparsity_pattern = None, name = "problem", *args, **kwargs):
-        super(C_Codegen, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super(C_Codegen, self).__init__()
         # TODO: allow optimizations with given sparsity pattern
-        self.sparsity_patterns = sparsity_pattern
-        self.name = name
 
         # functions we are going to generate
         self._code = {}
-        self._code['prob2socp'] = CFunction("qc_%s2socp" % self.name,
-            arguments = ["const %s_params * params" % self.name, 
-                         "const %s_dims * dims" % self.name],
+        self._code['prob2socp'] = CFunction("qc_%(name)s2socp",
+            arguments = ["const %(name)s_params * params", 
+                         "const %(name)s_dims * dims"],
             ret_type="qc_socp *")
-        self._code['socp2prob'] = CFunction("qc_socp2%s" % self.name,
-            arguments = ["double * x", "%s_vars * vars" % self.name,
-                         "const %s_dims * dims" % self.name])
+        self._code['socp2prob'] = CFunction("qc_socp2%(name)s",
+            arguments = ["double * x", "%(name)s_vars * vars",
+                         "const %(name)s_dims * dims"])
         self._codekeyorder = ['prob2socp', 'socp2prob']
-
-        # get the paths to the template files
-        template_path = os.path.dirname(__file__)
-        path = os.getcwd()
-
-        self.makefile_template = "%(template_path)s/Makefile_template" % vars()
-        self.source_file_template = "%(template_path)s/stuff_template.c" % vars()
-        self.header_file_template = "%(template_path)s/stuff_template.h" % vars()
-
-        new_dir = "%(path)s/%(name)s" % vars()
-        self.new_dir = new_dir                  # new directory to create
-        self.data_dir = template_path           # path to data files
-        self.makefile = "%(new_dir)s/Makefile" % vars()
-        self.source_file = "%(new_dir)s/%(name)s.c" % vars()
-        self.header_file = "%(new_dir)s/%(name)s.h" % vars()
 
         # parameters and variables in the optimization problem
         self.params = ""
@@ -96,35 +79,53 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     @property
     def socp2prob(self): return self.code['socp2prob']
+    
+    @property
+    def extension(self):
+        return ".c"
 
-    def codegen(self):
-        super(C_Codegen, self).codegen()
+    def save(self, name):
+        # get the paths to the template files
+        data_dir = os.path.dirname(__file__)
+        path = os.getcwd()
+
+        makefile_template = "%(data_dir)s/Makefile_template" % vars()
+        source_file_template = "%(data_dir)s/stuff_template.c" % vars()
+        header_file_template = "%(data_dir)s/stuff_template.h" % vars()
+
+        new_dir = "%(path)s/%(name)s" % vars()
+        makefile = "%(new_dir)s/Makefile" % vars()
+        source_file = "%(new_dir)s/%(name)s.c" % vars()
+        header_file = "%(new_dir)s/%(name)s.h" % vars()
+        
 
         # create the dictionary for the generated code
-        if not os.path.exists(self.new_dir):
-            os.makedirs(self.new_dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
 
         # populate the dict needed for codegen
         codegen_dict = {
-            'name': self.name,
-            'NAME': self.name.upper(),
+            'name': name,
+            'NAME': name.upper(),
             'params': self.params,
             'dims': self.abstract_dims,
             'variables': self.variables,
-            'prob2socp': self.prob2socp.source,
-            'socp2prob': self.socp2prob.source,
-            'prob2socp_prototype': self.prob2socp.prototype,
-            'socp2prob_prototype': self.socp2prob.prototype
+            # the name of the source isn't known until this point, so we
+            # interpolate the string and insert it here
+            'prob2socp': self.prob2socp.source % {'name': name},
+            'socp2prob': self.socp2prob.source % {'name': name},
+            'prob2socp_prototype': self.prob2socp.prototype % {'name': name},
+            'socp2prob_prototype': self.socp2prob.prototype % {'name': name}
         }
 
         # copy over the static utility files
-        shutil.copy("%s/qcml_utils.c" % self.data_dir, self.new_dir)
-        shutil.copy("%s/qcml_utils.h" % self.data_dir, self.new_dir)
+        shutil.copy("%s/qcml_utils.c" % data_dir, new_dir)
+        shutil.copy("%s/qcml_utils.h" % data_dir, new_dir)
 
         # write out the files
-        write_template(self.makefile_template, self.makefile, codegen_dict)
-        write_template(self.header_file_template, self.header_file, codegen_dict)
-        write_template(self.source_file_template, self.source_file, codegen_dict)
+        write_template(makefile_template, makefile, codegen_dict)
+        write_template(header_file_template, header_file, codegen_dict)
+        write_template(source_file_template, source_file, codegen_dict)
 
     # generator to get cone sizes
     def c_dimensions(self):

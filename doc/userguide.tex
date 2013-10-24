@@ -190,12 +190,26 @@ scalar parameter {\tt b}; and the vector parameter {\tt c} with dimension
 \qcml provides a set of operators for use with modeling. These are used in
 conjunction with the basic {\tt variable} and {\tt parameter} types to
 construct (affine) expressions. The standard (infix) operators are: {\tt +},
-{\tt -}, {\tt *}, and {\tt /}. The division operator {\tt /} has the
-restriction that both operands must be numeric constants. The {\tt -}
+{\tt -}, {\tt *}, and {\tt /}. We also provide the (postfix) transpose 
+operator: {\tt '}, following Matlab convention. The {\tt -}
 operator can also be used as a prefix to denote negation.
 
+While the addition, subtraction, transposition, and negation operators 
+behave as standard linear operators and can act on any objects, the 
+multiplication and division operators are more restrictive:
+\begin{itemize}
+\item The division operator {\tt /} has the restriction that both operands 
+must be numeric constants. 
+\item The multiplication operator {\tt *} has the restriction that the
+\emph{lefthand size} must be a parameter.
+\end{itemize}
+These restrictions are in place to ensure that expressions are \emph{affine}
+(or linear) as a function of the variable objects (\ie, variables).
+
 \subsection{Functions}
-\qcml also provides a set of atoms (or functions) which take expressions constructed from the basic operations as arguments. These functions have additional properties associated with them:
+\qcml also provides a set of atoms (or functions) which take expressions 
+constructed from the basic operations as arguments. These functions have 
+additional properties associated with them:
 \begin{itemize}
 \item the \emph{sign} of the output expression (either positive, negative, or unknown),
 \item the \emph{monotonicity} of the function in each argument 
@@ -407,9 +421,9 @@ An expression with \emph{nonconvex} curvature only means that it cannot be
 verified as either convex, concave, or affine. The shape and sign of the
 expression is inferred starting from the properties of the basic objects and
 applying the operators and atoms (as listed in
-Tables~\ref{t-scalar-atom,t-vector-atom}). The expression curvature is
+Table~\ref{t-scalar-atoms} and Table~\ref{t-vector-atoms}). The expression curvature is
 inferred in a similar way but using disciplined convex programming (DCP)
-rules. We detail the DCP rules in \S\ref{s-dcp}.
+rules. We detail the DCP rules in \S\ref{s-ug-dcp}.
 
 % For convenience in the sequel and with a slight abuse of notation, we use
 % $\reals$ to refer to the set of all scalar-valued \emph{expressions} and $\reals_+$ to refer to the set of all scalar-valued expressions with positive sign. Similarly, $\reals^n$ and $\reals_-$ refer to the set of all vector-valued expressions of length $n$ and negative expressions, respectively.
@@ -428,12 +442,26 @@ rules. We detail the DCP rules in \S\ref{s-dcp}.
 
 \subsection{Objectives}
 Objectives are optional in \qcml. If no objective is provided, the problem
-is assumed to be a feasibility problem.
+is assumed to be a feasibility problem. A (nonempty) objective consists of a
+\emph{sense}, either {\tt minimize} or {\tt maximize} and an objective 
+expression.
+
+The objective expression must agree with the objective sense. 
+If the sense is {\tt minimize}, then the expression must be convex (or affine).
+If the sense if {\tt maximize}, then the expression must be concave (or affine). 
 
 \subsection{Constraints}
-<=
->=
-==
+Constraints are formed using the typical relational operators: {\tt <=},
+{\tt >=}, and {\tt ==}. The only restriction for these operators is the 
+curvature of the lefthand and righthand sides. Valid constraints are:
+\begin{itemize}
+\item affine expression {\tt ==} affine expression
+\item convex expression {\tt <=} concave expression
+\item concave expression {\tt >=} convex expression
+\end{itemize}
+
+Note that affine expressions are both convex and concave, so can be used
+in either side of an inequality constraint.
 
 \subsection{Problems}
 A \qcml problem consists of a list of basic type declarations, zero or one
@@ -459,7 +487,26 @@ This sample problem has six type declarations, one maximization objective, and
 two constraints.
 
 \section{Disciplined convex programming}
-\label{s-dcp}
+\label{s-ug-dcp}
+Disciplined convex programming describes how to infer the curvature of an
+expression using only local information (from the immediate operands of an
+operation) \cite{CVX}. We start from the leaves of an expression, which consists
+of basic objects, {\tt variable}s, {\tt parameter}s, and numeric constants.
+
+All three of these have \emph{affine} curvature.
+We then infer the curvature of the expression by recursively applying the
+following composition rule:
+$\phi(g_1(x),\ldots,
+g_n(x); \alpha)$ is convex if the atom $\phi$ is convex and for each $i$
+\begin{itemize}
+  \item $g_i$ is affine, or
+  \item $\phi$ is increasing in the $i$th argument and $g_i$ is convex, or 
+  \item $\phi$ is decreasing in the $i$th argument and $g_i$ is
+concave.
+\end{itemize}
+The rule for verifying concavity is similar.  The expression is
+affine if $\phi$ is affine and $g_1,\ldots, g_n$ are all affine. This extends
+the basic idea that the sum of two convex functions is convex.
 
 \section{Abstract dimensions}
 \label{s-abstract-dims}

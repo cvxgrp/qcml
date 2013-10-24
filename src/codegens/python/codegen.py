@@ -10,8 +10,8 @@ def wrap_self(f):
     return wrapped_code
 
 class PythonCodegen(Codegen):
-    def __init__(self, *args, **kwargs):
-        super(PythonCodegen, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super(PythonCodegen, self).__init__()
         self._code = {
             'prob2socp': PythonFunction('prob_to_socp', ['params', 'dims={}']),
             'socp2prob': PythonFunction('socp_to_prob', ['x', 'dims={}']),
@@ -25,6 +25,10 @@ class PythonCodegen(Codegen):
     @property
     def socp2prob(self):
         return self.code['socp2prob']
+        
+    @property
+    def extension(self):
+        return ".py"
 
     # function to get problem dimensions
     def python_dimensions(self):
