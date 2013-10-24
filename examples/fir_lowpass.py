@@ -136,9 +136,10 @@ if __name__ == '__main__':
     print 
     print ">> Now we'll generate C code and compile it with C++ compiler."
     print
-    raw_input("press ENTER to generate C code....")
+    raw_input("press ENTER to generate C code and save it....")
     p.dims = {'m': m, 'n': n}   # only specify *some* of the dimensions
-    p.codegen("C", name="fir_lowpass")
+    p.codegen("C")
+    p.save("fir_lowpass")
 
     raw_input("press ENTER to compile the test C++ program....")
     PATH_TO_EXAMPLES = "../../examples"
