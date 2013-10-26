@@ -142,8 +142,8 @@ class Codegen(NodeVisitor):
         socp2prob = "%s/%s%s" % (new_dir, self.socp2prob.name, self.extension)
         
         # create the dictionary for the generated code
-        if not os.path.exists(self.new_dir):
-            os.makedirs(self.new_dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
         
         write_file(prob2socp, self.prob2socp.source)
         write_file(socp2prob, self.socp2prob.source)

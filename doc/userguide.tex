@@ -65,15 +65,17 @@ implementation are well-documented in \emph{Graph Implementation for Nonsmooth C
 \cite{GB:08}.
 
 \qcml comes with a small example library and consists of a single Python
-object, \texttt{QCML}, with three methods
+object, \texttt{QCML}, with four methods
 \begin{itemize}
-\item \texttt{parse}, which parses an optimization problem specified as a
+\item {\tt parse}, which parses an optimization problem specified as a
 string and checks that it is convex,
-\item \texttt{canonicalize}, which symbolically converts the problem into
-a second-order cone program,~and
-\item \texttt{codegen}, which produces source code that performs the
+\item {\tt canonicalize}, which symbolically converts the problem into
+a second-order cone program,
+\item {\tt codegen}, which produces source code that performs the
 transformation from problem-specific data to second-order cone problem data
-and back.
+and back,~and
+\item {\tt save}, which saves the resulting source code into a folder for
+future use.
 \end{itemize}
 The \texttt{codegen} method can be used to generate Python, C, and Matlab
 source code.
@@ -134,9 +136,53 @@ Once these dependencies are installed, typically through a package manager,
 }
 \noindent at the command line. The unit tests can be run with {\tt nosetests}.
 
+\section{Basic usage}
+A \qcml problem must be specified following the language described in 
+\S\ref{s-ug-language}, but we give a basic example of \qcml here. The \qcml
+API consists of four main functions, {\tt parse}, {\tt canonicalize},
+{\tt codegen}, and {\tt save}. All optimization problems in \qcml are
+specified as strings; suppose {\tt prob} is a string that represents a
+particular optimization problem, then basic usage is summarized
+in the following Python code:
+{\tt
+\begin{tabbing}
+  \qquad \= from qcml import QCML \\
+  \> p = QCML() \qquad \qquad \qquad \= \# creates a QCML object \\
+  \> p.parse(prob) \> \# verifies that `prob' is a valid QCML string \\
+  \> p.canonicalize() \> \# converts the problem into standard form \\
+  \> p.codegen("python") \> \# generates Python source code for transforming `prob' \\
+  \> p.save("myprob") \> \# saves the source code into a folder called `myprob'
+\end{tabbing}
+}
+\noindent The {\tt parse} step verifies that the optimization problem adheres
+to the rules described in \S\ref{s-ug-language}.
+
+The {\tt canonicalize} step converts a \qcml problem into the
+standard conic form 
+\begin{equation}
+  \label{e-stdform}
+\begin{array}{ll}
+  \mbox{minimize} & c^Tx \\
+  \mbox{subject to} & Gx + s = h \\
+  & Ax = b\\
+  & s \in \mathcal{K},
+\end{array}
+\end{equation}
+where $x \in \reals^n$ and $s \in \reals^m$ are the optimization variables, 
+$c \in \reals^n$, $h \in \reals^m$, $b \in \reals^p$, $G \in \reals^{m\times n}$,
+$A \in \reals^{p \times n}$, and the convex cone $\mathcal{K}$ are problem 
+data. The generated code is thus compatible with any solver that solves 
+\eqref{e-stdform}. We do not give more detail about canonicalization in this
+user guide; for more detail, consult \cite{CVX, GB:08, CPD:13}.
+
+The {\tt codegen} and {\tt save} steps target three different languages, 
+Python, C, and Matlab. We detail these in \S\ref{s-ug-codegen}.
+
 \section{\qcml language}
+\label{s-ug-language}
 Optimization problems in \qcml are specified as \emph{strings} which must adhere to 
-the rules of the \qcml modeling language. We describe that language and its
+the rules of the \qcml modeling language. The {\tt parse} function checks that
+the problem string adheres to these rules. We describe that language and its
 rules here.
 
 \subsection{Types}
@@ -240,62 +286,6 @@ science way---as a \emph{type signature} for the function $f$. As an example,
 the $\log$ function has the following type signature, $\log : \reals \to
 \reals$, although $\dom f$ is the set of strictly positive reals.
 
-% We can take the analogy to computer science functions one step further: a function is overloaded and can have multiple type signatures. Its implementation depends on the matched type. For instance, the {\tt square} function can have the type signatures,
-% \begin{align*}
-% {\tt square} &: \reals \to \reals_+ \\
-% {\tt square} &: \reals_+ \to \reals_+,
-% \end{align*}
-% where $\reals_+$ denotes the set of positive reals. The first {\tt square} function is nonmonotone; the second is increasing in its argument. The argument type (real expression or positive real expression) determines which
-% version of the {\tt square} function to use.
-
-
-% %\renewcommand\arraystretch{1.2}
-% \BT
-%   \centering
-%   \begin{tabular}{|l|l|l|} \hline
-%     & Atom (graph) & SOC canonical definition \\ \hline \hline
-%     
-%     \multicolumn{3}{|l|}{Functions with parameters}  \\ \hline
-%     & $t = \phi^\mathrm{smult}(x;a)$ & $t = ax$  \\ \cline{2-3}
-%     & $t = \phi^\mathrm{mmult}(x;A)$ & $t = Ax$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{const}(;a)$ & $t = a$ \\ \hline \hline
-%     
-%     \multicolumn{3}{|l|}{Scalar functions, $\phi: \reals \to \reals$ (XXX: not quite right)} \\ \hline
-%     & $t \geq \phi^\mathrm{pos}(x)$ & $t \in \soc^1, \; t-x \in \soc^1$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{neg}(x)$ & $t \in \soc^1, \; t+x \in \soc^1$ \\ \cline{2-3}
-%     & $t \leq \phi^\mathrm{geo\_mean}(x,y)$ & $\left((1/2)(y+x), (1/2)(y-x),t\right) \in \soc^{3}, \; y \in \soc^1$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{square}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(x,1)$ \\ \cline{2-3}
-%     & $t \leq \phi^\mathrm{sqrt}(x)$ & $t \leq \phi^\mathrm{geo\_mean}(x,1)$\\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{inv\_pos}(x)$ & $t \geq \phi^\mathrm{quad\_over\_lin}(1,x)$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{abs}(x)$ & $(t,x) \in \soc^2$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{plus}(x,y)$ & $t = x+y$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{minus}(x,y)$ & $t = x-y$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{negate}(x)$ & $t = -x$ \\ \hline \hline
-%     
-%     \multicolumn{3}{|l|}{Vector functions, $\phi: \reals^n \to \reals$ (XXX: not quite right)} \\ \hline
-%     & $t \geq \phi^\mathrm{max}(x)$ & $t - x_i \in \soc^1, \, i=1,\ldots,n$ \\ \cline{2-3}
-%     & $t \leq \phi^\mathrm{min}(x)$ & $x_i - t \in \soc^1, \, i=1,\ldots,n$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{quad\_over\_lin}(x,y)$ & $\left((1/2)(y+t), (1/2)(y-t),x\right) \in \soc^{n+2}, \; y \in \soc^1$ \\ \cline{2-3}
-%     & $t = \phi^\mathrm{sum}(x)$ & $t = \ones^Tx$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{norm}(x)$ & $(t,x) \in \soc^{n+1}$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{norm1}(x)$ & $t \geq \phi^\mathrm{sum}(\phi^\mathrm{abs}(x))$ \\ \cline{2-3}
-%     & $t \geq \phi^\mathrm{norm\_inf}(x)$ & $t \geq \phi^\mathrm{max}(\phi^\mathrm{abs}(x))$ \\ \hline
-%   \end{tabular}
-%   \caption{List of atoms in DSL function library.}
-%   \label{t-atoms}
-% \ET
-% * vector operators (map vectors to scalars)
-%   * `sum(x)`
-%   * `sum(x,y,..)`, defined as `x + y + ...`
-% 
-% The operators used for constructing second-order cones are:
-% 
-% * scalar operators (map scalars to scalars)
-%   * `abs(x)`
-% * vector operators (map vectors to scalars)
-%   * `norm(x)`
-%   * `norm2(x)`, equivalent to `norm(x)`
-  
   
 \subsubsection{Scalar atoms}
 A scalar atom is a function with the type signature $f : \reals \to \reals$.
@@ -443,7 +433,7 @@ rules. We detail the DCP rules in \S\ref{s-ug-dcp}.
 \subsection{Objectives}
 Objectives are optional in \qcml. If no objective is provided, the problem
 is assumed to be a feasibility problem. A (nonempty) objective consists of a
-\emph{sense}, either {\tt minimize} or {\tt maximize} and an objective 
+\emph{sense}, either {\tt minimize} or {\tt maximize} and a scalar objective 
 expression.
 
 The objective expression must agree with the objective sense. 
@@ -484,7 +474,7 @@ completeness:
 \end{tabbing}
 }
 This sample problem has six type declarations, one maximization objective, and
-two constraints.
+two constraints. The {\tt subject to} keyword is optional.
 
 \section{Disciplined convex programming}
 \label{s-ug-dcp}
@@ -496,8 +486,7 @@ of basic objects, {\tt variable}s, {\tt parameter}s, and numeric constants.
 All three of these have \emph{affine} curvature.
 We then infer the curvature of the expression by recursively applying the
 following composition rule:
-$\phi(g_1(x),\ldots,
-g_n(x); \alpha)$ is convex if the atom $\phi$ is convex and for each $i$
+$\phi(g_1(x),\ldots, g_n(x))$ is convex if the atom $\phi$ is convex and for each $i$
 \begin{itemize}
   \item $g_i$ is affine, or
   \item $\phi$ is increasing in the $i$th argument and $g_i$ is convex, or 
@@ -505,8 +494,8 @@ g_n(x); \alpha)$ is convex if the atom $\phi$ is convex and for each $i$
 concave.
 \end{itemize}
 The rule for verifying concavity is similar.  The expression is
-affine if $\phi$ is affine and $g_1,\ldots, g_n$ are all affine. This extends
-the basic idea that the sum of two convex functions is convex.
+affine if $\phi$ is affine and $g_1,\ldots, g_n$ are all affine. 
+%This extends the basic idea that the sum of two convex functions is convex.
 
 \section{Abstract dimensions}
 \label{s-abstract-dims}
@@ -544,18 +533,231 @@ the same time. A future release may allow some dimensions to be inferred from
 the size of the inputs.
 
 \section{Code generation}
-The 
+\label{s-ug-codegen}
+Once a \qcml problem has been parsed and canonicalized, code is generated
+to perform the matrix stuffing, converting the parameters in an optimization
+problem into the data for a standard cone program. This is done by the
+{\tt codegen} function. The {\tt save} function saves the generated code to
+a folder or file for use later.
+
+The {\tt codegen} function generates two functions in the desired language:
+\begin{itemize}
+\item a {\tt prob\_to\_socp} function which maps {\tt parameter}s into the cone
+program data, and
+\item a {\tt socp\_to\_prob} function which unpacks a solution of the cone program
+into the {\tt variable}s of the problem.
+\end{itemize}
+We describe specifics of these functions in the sequel.
+
 \subsection{Python}
-can view string
+To generate Python code, invoke the {\tt codegen} function with the string
+{\tt `C'} as the argument. This will generate two functions
+\begin{itemize}
+\item {\tt prob\_to\_socp(params, dims)} and
+\item {\tt socp\_to\_prob(x, dims)}.
+\end{itemize}
+Invoking the {\tt save} function will save the two functions to a folder.
+
+\subsubsection{The {\tt prob\_to\_socp} function}
+The {\tt prob\_to\_socp} function takes two dictionary
+arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
+concrete before {\tt codegen} is invoked, the {\tt dims} argument is optional.
+The keys in these
+dictionaries correspond to the names of the {\tt parameter}s and the 
+remaining (abstract)
+{\tt dimension}s specified in the problem string.
+
+The {\tt dims} values must be Python integers. Vector {\tt parameter}s are
+supplied by Numpy arrays (not matrices), and matrix {\tt parameter}s can be
+either Numpy arrays or Scipy sparse matrices.
+
+Any extra parameters or dimensions will be unused. 
+
+The function will return a dictionary which contains all the information
+necessary for solving a cone program. This consists of the key-value pairs
+\begin{itemize}
+  \item {\tt c}, a Numpy array,
+  \item {\tt G}, a Scipy sparse matrix in column-compressed format,
+  \item {\tt h}, a Numpy array,
+  \item {\tt A}, a Scipy sparse matrix in column-compressed format,
+  \item {\tt b}, a Numpy array, and
+  \item {\tt dims}, a Python dictionary with the key-value pairs,
+  \begin{itemize}
+    \item {\tt l}, the number of linear cones, and
+    \item {\tt q}, a list of the size of second-order cones.
+  \end{itemize}
+\end{itemize}
+The {\tt dims} output dictionary, which describes the cones, 
+is not to be confused with the {\tt dims} input 
+dictionary, which specifies problem dimensions. 
+The ouput dictionary corresponds to the problem data in \eqref{e-stdform}
+and are sufficient for \emph{any} conic solver.
+
+The data {\tt G} and {\tt h} may be `None,' in which case the standard form
+\qcml problem has no conic constraints. Similarly, {\tt A} and {\tt b} may be
+`None,' in which case the standard form \qcml problem has no equality
+constraints.
+
+\subsubsection{The {\tt socp\_to\_prob} function}
+The {\tt socp\_to\_prob} function takes two arguments, {\tt x} and {\tt dims}.
+The {\tt dims} argument is the same as in {\tt prob\_to\_socp}; the {\tt x}
+argument is
+the solution to the cone program and returns a dictionary with keys
+corresponding to the names of the {\tt variable}s in the given \qcml problem.
+The values of these entries are Numpy arrays (if vectors) or Python floats.
+
+The input argument is a Numpy array.
+
 \subsection{Matlab}
-can view string
+To generate Matlab code, invoke the {\tt codegen} function with the string
+{\tt `matlab'} as the argument. This will generate two functions
+\begin{itemize}
+\item {\tt prob\_to\_socp(params, dims)} and
+\item {\tt socp\_to\_prob(x, dims)}.
+\end{itemize}
+Invoking the {\tt save} function will save the two functions to a folder.
+
+\subsubsection{The {\tt prob\_to\_socp} function}
+The {\tt prob\_to\_socp} function takes two Matlab struct
+arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
+concrete before {\tt codegen} is invoked, the {\tt dims} argument is unused.
+The fields in these
+structs correspond to the names of the {\tt parameter}s and the 
+remaining (abstract)
+{\tt dimension}s specified in the problem string.
+
+Any extra parameters or dimensions will be unused. 
+
+The function will return a struct which contains all the information
+necessary for solving a cone program. This consists of the fields
+\begin{itemize}
+  \item {\tt c}, a dense vector,
+  \item {\tt G}, a sparse matrix,
+  \item {\tt h}, a dense vector,
+  \item {\tt A}, a sparse matrix,
+  \item {\tt b}, a dense vector, and
+  \item {\tt dims}, a Matlab struct with the fields,
+  \begin{itemize}
+    \item {\tt l}, the number of linear cones, and
+    \item {\tt q}, a vector with the size of second-order cones.
+  \end{itemize}
+\end{itemize}
+The {\tt dims} output struct, which describes the cones, 
+is not to be confused with the {\tt dims} input 
+struct, which specifies problem dimensions. 
+The ouput struct corresponds to the problem data in \eqref{e-stdform}
+and are sufficient for \emph{any} conic solver.
+
+The matrix {\tt G} and vector {\tt h} may be empty, in which case the
+standard form \qcml problem has no conic constraints. Similarly, {\tt A} and
+{\tt b} may be empty, in which case the standard form \qcml problem has no
+equality constraints.
+
+\subsubsection{The {\tt socp\_to\_prob} function}
+The {\tt socp\_to\_prob} function takes two arguments, {\tt x} and {\tt dims}.
+The {\tt dims} argument is the same as in {\tt prob\_to\_socp}; the {\tt x}
+argument is
+the solution to the cone program and returns a struct with fields
+corresponding to the names of the {\tt variable}s in the given \qcml problem.
+
 \subsection{C}
-Produces folder
+To generate C code, invoke the {\tt codegen} function with the string
+{\tt `C'} as the argument. This will generate two functions
+\begin{itemize}
+\item {\tt qc\_socp * qc\_prob2socp(const prob\_params * params, const prob\_dims * dims)} and
+\item {\tt void qc\_socp2prob(double * x, prob\_vars * vars, const prob\_dims * dims)}.
+\end{itemize}
+Invoking the {\tt save} function will save the two functions to a folder along
+with several other files:
+\begin{itemize}
+  \item {\tt Makefile}
+  \item {\tt qc\_utils.h}
+  \item {\tt qc\_utils.c}
+  \item {\tt prob.h}
+  \item {\tt prob.c}
+\end{itemize}
+To prevent naming clashes, occurences of {\tt prob} in filenames, function
+names, and struct names are replaced by the name of the folder specified in
+the {\tt save} method.
+
+The {\tt qc\_utils} header and source file are \emph{not} custom generated
+for each problem. Instead, they
+contain the common matrix data structures and functions needed by the
+generated code. Thus, multiple problems can use the \emph{same} {\tt qc\_utils} header
+and source code.
+
+The supplied {\tt Makefile} only compiles the source code into binary objects.
+It is up to the user to link them against a main binary.
+
+
+\subsubsection{The {\tt prob\_to\_socp} function}
+The {\tt prob\_to\_socp} function takes two dictionary
+arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
+concrete before {\tt codegen} is invoked, the {\tt dims} argument is optional.
+The keys in these
+dictionaries correspond to the names of the {\tt parameter}s and the 
+remaining (abstract)
+{\tt dimension}s specified in the problem string.
+
+The {\tt dims} values must be Python integers. Vector {\tt parameter}s are
+supplied by Numpy arrays (not matrices), and matrix {\tt parameter}s can be
+either Numpy arrays or Scipy sparse arrays.
+
+Any extra parameters or dimensions will be unused. 
+
+The function will return a dictionary which contains all the information
+necessary for solving a cone program. This consists of the key-value pairs
+\begin{itemize}
+  \item {\tt c}, a Numpy array,
+  \item {\tt G}, a Scipy sparse matrix in column-compressed format,
+  \item {\tt h}, a Numpy array,
+  \item {\tt A}, a Scipy sparse matrix in column-compressed format,
+  \item {\tt b}, a Numpy array, and
+  \item {\tt dims}, a Python dictionary with the key-value pairs,
+  \begin{itemize}
+    \item {\tt l}, the number of linear cones, and
+    \item {\tt q}, a list of the size of second-order cones.
+  \end{itemize}
+\end{itemize}
+The {\tt dims} output dictionary, which describes the cones, 
+is not to be confused with the {\tt dims} input 
+dictionary, which specifies problem dimensions. 
+The ouput dictionary corresponds to the problem data in \eqref{e-stdform}
+and are sufficient for \emph{any} conic solver.
+
+The data {\tt G} and {\tt h} may be `None,' in which case the standard form
+\qcml problem has no conic constraints. Similarly, {\tt A} and {\tt b} may be
+`None,' in which case the standard form \qcml problem has no equality
+constraints.
+
+\subsubsection{The {\tt socp\_to\_prob} function}
+The {\tt socp\_to\_prob} function takes a single argument {\tt x}, which is
+the solution to the cone program and returns a dictionary with keys
+corresponding to the names of the {\tt variable}s in the given \qcml problem.
+The values of these entries are Numpy arrays (if vectors) or Python floats.
+
+The input argument is a Numpy array.
+
+
+\subsubsection{Struct internals??}
+
 
 \section{Rapid prototyping}
 \qcml also provides a helper function for rapid prototyping in Python. This
 is useful to verify the optimization model before generating code to use
-elsewhere.
+elsewhere. The {\tt solve} function exectues the {\tt parse}, {\tt canonicalize},
+and {\tt codegen} functions in succession. It also takes the generated source
+code and produces bytecode that is executed on-the-fly.
+
+Thus, if {\tt prob} is a \qcml problem, then
+{\tt
+\begin{tabbing}
+  \qquad \= >>> p = QCML() \\
+  \> >>> p.solve(prob)
+\end{tabbing}
+}
+will use parameters and dimensions defined locally to stuff the matrices and
+invoke the ECOS solver to solve the problem.
 
 \section{Lasso example}
 As an example, consider the lasso problem
@@ -579,7 +781,17 @@ This problem can be specified as a \qcml problem as follows:
 \> minimize square(norm(A*x - b)) + gamma*norm1(x)
 \end{tabbing}
 }
-\noindent blhbladslkasf
+\noindent Storing this description in the Python string variable {\tt prob},
+we can generate Python code as follows
+
+Suppose, for whatever reason, the number of variables is fixed, but the data
+dimension is not. We can set dims.n.
+
+Now, we can generate C code.
+Then we can save it and use the result.
+
+In the C code, the size of the variable is fixed, but the number of rows of A
+and b can be variable (and must be supplied).
 
 This example can be found under the {\tt qcml/examples} directory.
 
