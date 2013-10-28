@@ -763,7 +763,8 @@ Thus, if {\tt prob} is a \qcml problem, then
 {\tt
 \begin{tabbing}
   \qquad \= >>> p = QCML() \\
-  \> >>> p.solve(prob)
+  \> >>> p.parse(prob) \\
+  \> >>> p.solve()
 \end{tabbing}
 }
 \noindent 
@@ -774,16 +775,33 @@ This feature is useful in Python to test (small) models before commiting to
 a source code.
 
 \section{Lasso example}
-As an example, consider the lasso problem
+In this section, we will walk through a simple \qcml use-case by implementing
+a lasso ($\ell_1$-regularized least squares) solver in C. This example
+and others like it can be found under the {\tt qcml/examples} directory.
+
+The lasso problem is
 \[
 \begin{array}{ll}
   \mbox{minimize} & \|Ax - b\|_2^2 + \lambda \|x\|_1,
 \end{array}
 \]
 with variable $x \in \reals^n$ and problem data $A\in\reals^{m\times n}$, 
-$b \in \reals^m$, and $\lambda > 0$.
+$b \in \reals^m$, and $\lambda > 0$. We can solve this problem using a
+standard interior-point solver, such as ECOS, with the transformation
+to standard cone form provided by \qcml.
 
-This problem can be specified as a \qcml problem as follows:
+First, we begin by generating some random problem data using Numpy,
+{\tt
+\begin{tabbing}
+\qquad \= from numpy.random import randn\\
+\> n = 1000    \# number of features\\
+\> m = 100     \# number of examples\\
+\> A = randn(m,n)\\
+\> b = randn(m)\\
+\> gamma = 1
+\end{tabbing}
+}
+\noindent We then specify the lasso problem in \qcml as follows:
 {\tt
 \begin{tabbing}
 \qquad 
@@ -796,94 +814,87 @@ This problem can be specified as a \qcml problem as follows:
 \end{tabbing}
 }
 \noindent Storing this description in the Python string variable {\tt prob},
-we can generate Python code as follows
+we first solve the problem using ECOS,
+{\tt
+\begin{tabbing}
+\qquad \= from qcml import QCML\\
+\> p = QCML()\\
+\> p.parse(prob)\\
+\> res = p.solve()
+\end{tabbing}
+}
+\noindent Typically, at this stage, one would tweak the model as needed to
+obtain better performance (on a cross-validation set, say), but since we 
+have committed to solving the lasso problem, this step is only to verify that 
+the problem is properly solved.
 
-Suppose, for whatever reason, the number of variables is fixed, but the data
-dimension is not. We can set dims.n.
+We can print the value of {\tt res['objval']} to see the optimal
+value of the randomly generated lasso problem and save the randomly generated
+data for validation later. Next, we generate C source
+code for the lasso problem
+{\tt
+\begin{tabbing}
+\qquad \= p.codegen("C")\\
+\> p.save("lasso")
+\end{tabbing}
+}
 
-Now, we can generate C code.
-Then we can save it and use the result.
+This will create a directory named `{\tt lasso}' which contains the source code 
+along with a Makefile. The
+generated functions will be named {\tt qc\_lasso2socp} and {\tt qc\_socp2lasso}.
+We can then write a separate main function which calls the {\tt qc\_lasso2socp}
+to create the necessary data structures for calling the ECOS solver:
+{\tt
+\begin{tabbing}
+\qquad \= /* read Python-generated data into arrays */ \\
+\> double *Av = ...; /* nonzero values of A parameter */\\
+\> double *b = ...;  /* values of b parameter */\\
+\> long *Ai = ...;   /* nonzero row indices */\\
+\> long *Aj = ...;   /* nonzero col indices */\\
+\\
+\> /* create parameter, dimension, and solution structs */\\
+\> lasso\_params p;\\
+\> lasso\_dims d;\\
+\> lasso\_vars sol;\\
+\\
+\> /* matrix used in lasso\_params */\\
+\> qc\_matrix A;\\
+\> A.v = Av; A.i = Ai; A.j = Aj; A.nnz = m*n;\\
+\> A.m = m; A.n = n; /* m, n provided exogenously */ \\
+\\
+\> /* set the parameters and dims*/\\
+\> p.A = \&A; p.b = b; p.gamma = 1.0;\\
+\> d.m = A.m; d.n = A.n;\\
+\\
+\> /* stuff the matrices */\\
+\> qc\_socp *data = qc\_lasso2socp(\&p, \&d);\\
+\\
+\> /* run ecos and solve it */\\
+\> pwork *mywork = ECOS\_setup(data->n, data->m, data->p,\\
+\> \quad \= data->l, data->nsoc, data->q,\\
+\> \> data->Gx, data->Gp, data->Gi,\\
+\> \> data->Ax, data->Ap, data->Ai,\\
+\> \> data->c, data->h, data->b);\\
+\> if (mywork)\\
+\> \{\\
+\> \quad \= ECOS\_solve(mywork);\\
+\\
+\> \> /* recover the solution */ \\
+\> \> qc\_socp2lasso(mywork->x, \&sol, \&d);\\
+\> \> ... sol.x ... /* do something with solution */\\
+\> \}\\
+\\
+\> /* free the data */ \\
+\> qc\_socp\_free(data);\\
+\> if (mywork) ECOS\_cleanup(mywork, 0);
+\end{tabbing}  
+}
 
-In the C code, the size of the variable is fixed, but the number of rows of A
-and b can be variable (and must be supplied).
+Finally, the main file can be linked against the {\tt qcml\_utils} and
+generated {\tt lasso} objects and used as a stand-alone binary.
 
-This example can be found under the {\tt qcml/examples} directory.
 
-%     """
-%     dimensions m n
-% 
-%     variable x(n)
-%     parameter mu(n)
-%     parameter gamma positive
-%     parameter F(n,m)
-%     parameter D(n,n)
-%     maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
-%         sum(x) == 1
-%         x >= 0
-%     """
-% 
-% Our tool parses the problem and rewrites it, after which it can generate
-% Python code or external source code. The basic workflow is as follows
-% (assuming `s` stores a problem specification as above).
-% 
-%     p.parse(s)
-%     p.canonicalize()
-%     p.dims = {'m': 5}
-%     p.codegen('python')
-%     socp_data = p.prob2socp({'mu':mu, 'gamma':1,'F':F,'D':D}, {'n': 10})
-%     sol = ecos.solve(**socp_data)
-%     my_vars = p.socp2prob(sol['x'], {'n': 10})
-% 
-% We will walk through each line:
-% 
-% 1. `parse` the optimization problem and check that it is convex
-% 2. `canonicalize` the problem by symbolically converting it to a second-order
-%    cone program
-% 3. assign some `dims` of the problem; others can be left abstract (see [below] (#abstract-dimensions))
-% 4. generate `python` code for converting parameters into SOCP data and for 
-%    converting the SOCP solution into the problem variables
-% 5. run the `prob2socp` conversion code on an instance of problem data, pulling 
-%    in local variables such as `mu`, `F`, `D`; because only one dimension was 
-%    specified in the codegen step (3), the other dimension must be supplied when 
-%    the conversion code is run
-% 6. call the solver `ecos` with the SOCP data structure
-% 7. recover the original solution with the generated `socp2prob` function; 
-%    again, the dimension left unspecified at codegen step (3) must be given here
-% 
-% For rapid prototyping, we provide the convenience function:
-% 
-%     solution = p.solve()
-% 
-% This functions wraps all six steps above into a single call and
-% assumes that all parameters and dimensions are defined in the local
-% namespace.
-% 
-% Finally, you can call
-% 
-%     p.codegen("C", name="myprob")
-%   
-% which will produce a directory called `myprob` with five files:
-% 
-% * `myprob.h` -- header file for the `prob2socp` and `socp2prob` functions
-% * `myprob.c` -- source code / implementation of the two functions
-% * `qc_utils.h` -- defines static matrices and basic data structures
-% * `qc_utils.c` -- source code for matrices and data structures
-% * `Makefile` -- sample Makefile to compile the `.o` files
-% 
-% You can include the header and source files with any project, although you must
-% supply your own solver. The code simply stuffs the matrices for you; you are
-% still responsible for using the proper solver and linking it. An example of how
-% this might work is in `examples/lasso.py`.
-% 
-% The `qc_utils` files are static; meaning, if you have multiple sources you wish 
-% to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
-% 
-% The generated code uses portions of CSparse, which is LGPL. Although QCML is 
-% BSD, the generated code is LGPL for this reason.
-% 
-% For more information, see the [features](#features) section.
-% woot
-\newpage
+% \newpage
 \bibliographystyle{plain}
 \bibliography{userguide}
 \end{document}
