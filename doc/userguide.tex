@@ -193,7 +193,7 @@ There are three basic types in \qcml:
 \item {\tt variable} (or {\tt variables} for multiple variable declarations)
 \end{itemize}
 Objects named and declared in this fashion are entirely \emph{abstract}.
-Numeric literals such as {\tt 2}, {\tt 0.52}, \etc in \qcml are
+Numeric literals such as {\tt 2}, {\tt 0.52}, \etc, in \qcml are
 \emph{concrete} and can be used directly in the \qcml problem string. 
 
 The {\tt dimension} objects are used to specify the (optional) sizes of {\tt
@@ -538,7 +538,8 @@ Once a \qcml problem has been parsed and canonicalized, code is generated
 to perform the matrix stuffing, converting the parameters in an optimization
 problem into the data for a standard cone program. This is done by the
 {\tt codegen} function. The {\tt save} function saves the generated code to
-a folder or file for use later.
+a folder or file for use later. The generated code can be used with \qcml as
+a dependency and thus can be easily included with any project.
 
 The {\tt codegen} function generates two functions in the desired language:
 \begin{itemize}
@@ -551,7 +552,7 @@ We describe specifics of these functions in the sequel.
 
 \subsection{Python}
 To generate Python code, invoke the {\tt codegen} function with the string
-{\tt `C'} as the argument. This will generate two functions
+{\tt `python'} as the argument. This will generate two functions
 \begin{itemize}
 \item {\tt prob\_to\_socp(params, dims)} and
 \item {\tt socp\_to\_prob(x, dims)}.
@@ -607,6 +608,14 @@ corresponding to the names of the {\tt variable}s in the given \qcml problem.
 The values of these entries are Numpy arrays (if vectors) or Python floats.
 
 The input argument is a Numpy array.
+
+\subsubsection{Dynamic execution}
+In addition to saving the generated Python source code, the code is compiled
+into Python bytecode during runtime and can be \emph{executed} right after
+{\tt codegen}. After the {\tt codegen} step, the QCML object will have two
+new methods, {\tt prob2socp} and {\tt socp2prob}, which correspond to the
+generated code. These methods can be used without having to save the Python
+source.
 
 \subsection{Matlab}
 To generate Matlab code, invoke the {\tt codegen} function with the string
@@ -664,82 +673,83 @@ corresponding to the names of the {\tt variable}s in the given \qcml problem.
 To generate C code, invoke the {\tt codegen} function with the string
 {\tt `C'} as the argument. This will generate two functions
 \begin{itemize}
-\item {\tt qc\_socp * qc\_prob2socp(const prob\_params * params, const prob\_dims * dims)} and
-\item {\tt void qc\_socp2prob(double * x, prob\_vars * vars, const prob\_dims * dims)}.
+\item {\tt qc\_socp *qc\_prob2socp(const prob\_params *params, const prob\_dims *dims)}, and
+\item {\tt void qc\_socp2prob(double *x, prob\_vars *vars, const prob\_dims *dims)}.
 \end{itemize}
 Invoking the {\tt save} function will save the two functions to a folder along
 with several other files:
 \begin{itemize}
-  \item {\tt Makefile}
-  \item {\tt qc\_utils.h}
-  \item {\tt qc\_utils.c}
-  \item {\tt prob.h}
-  \item {\tt prob.c}
+  \item a {\tt qcml\_utils.h} header file defining matrix and {\tt qc\_socp} data structures,
+  \item a {\tt qcml\_utils.c} source file implementing matrix utility functions,
+  \item a {\tt prob.h} header file defining {\tt qc\_prob2socp} and {\tt qc\_socp2prob},
+  \item a {\tt prob.c} source file implementing the matrix stuffing, and
+  \item a {\tt Makefile} to compile the sources into object files.
 \end{itemize}
 To prevent naming clashes, occurences of {\tt prob} in filenames, function
 names, and struct names are replaced by the name of the folder specified in
 the {\tt save} method.
 
-The {\tt qc\_utils} header and source file are \emph{not} custom generated
-for each problem. Instead, they
-contain the common matrix data structures and functions needed by the
-generated code. Thus, multiple problems can use the \emph{same} {\tt qc\_utils} header
-and source code.
+The {\tt qcml\_utils} header and source file are \emph{not} custom generated
+for each problem. Instead, they contain the common matrix data structures and
+functions needed by \emph{any} generated code. Thus, multiple problems can
+use the \emph{same} {\tt qcml\_utils} header and source code.
 
 The supplied {\tt Makefile} only compiles the source code into binary objects.
 It is up to the user to link them against a main binary.
 
 
 \subsubsection{The {\tt prob\_to\_socp} function}
-The {\tt prob\_to\_socp} function takes two dictionary
-arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
-concrete before {\tt codegen} is invoked, the {\tt dims} argument is optional.
-The keys in these
-dictionaries correspond to the names of the {\tt parameter}s and the 
-remaining (abstract)
-{\tt dimension}s specified in the problem string.
+The {\tt prob\_to\_socp} function takes two struct arguments, a {\tt
+prob\_params} and a {\tt prob\_dims} struct. If all dimensions are concrete
+before {\tt codegen} is invoked, the {\tt prob\_dims} argument can be {\tt
+NULL}. The fields in these structus correspond to the names of the {\tt
+parameter}s and the remaining (abstract) {\tt dimension}s specified in the
+problem string.
 
-The {\tt dims} values must be Python integers. Vector {\tt parameter}s are
-supplied by Numpy arrays (not matrices), and matrix {\tt parameter}s can be
-either Numpy arrays or Scipy sparse arrays.
+Vector {\tt parameter}s
+are supplied as a pointer to (dense) double arrays, and matrix {\tt
+parameter}s are supplied as a pointer to the custom {\tt qc\_matrix} struct,
+which stores the matrix in triplet ($i,j,v$) format.
 
 Any extra parameters or dimensions will be unused. 
 
-The function will return a dictionary which contains all the information
-necessary for solving a cone program. This consists of the key-value pairs
+The function will return a {\tt qc\_socp} struct which contains all the
+information necessary for solving a cone program. This consists of the 
+fields (with their type):
 \begin{itemize}
-  \item {\tt c}, a Numpy array,
-  \item {\tt G}, a Scipy sparse matrix in column-compressed format,
-  \item {\tt h}, a Numpy array,
-  \item {\tt A}, a Scipy sparse matrix in column-compressed format,
-  \item {\tt b}, a Numpy array, and
-  \item {\tt dims}, a Python dictionary with the key-value pairs,
-  \begin{itemize}
-    \item {\tt l}, the number of linear cones, and
-    \item {\tt q}, a list of the size of second-order cones.
-  \end{itemize}
+  \item {\tt long n}, the number of variables in \eqref{e-stdform},
+  \item {\tt long m}, number of cone constraints in \eqref{e-stdform},
+  \item {\tt long p}, number of equality constraints in \eqref{e-stdform},
+  \item {\tt long l}, number of linear cones,
+  \item {\tt long nsoc}, number of second-order cones, 
+  \item {\tt long *q}, list of second-order cone sizes,
+  \item {\tt double *G}, nonzero values of G (in column-compressed format),  
+  \item {\tt long *Gp}, column pointers of G (in column-compressed format), 
+  \item {\tt long *Gi}, row values of G (in column-compressed format), 
+  \item {\tt double *A}, nonzero values of A (in column-compressed format),  
+  \item {\tt long *Ap}, column pointers of A (in column-compressed format), 
+  \item {\tt long *Ai}, row values of A (in column-compressed format), 
+  \item {\tt double *c}, c vector (dense),       
+  \item {\tt double *h}, h vector (dense), and            
+  \item {\tt double *b}, b vector (dense),              
 \end{itemize}
-The {\tt dims} output dictionary, which describes the cones, 
-is not to be confused with the {\tt dims} input 
-dictionary, which specifies problem dimensions. 
-The ouput dictionary corresponds to the problem data in \eqref{e-stdform}
-and are sufficient for \emph{any} conic solver.
+The {\tt qc\_socp} struct corresponds to the problem data in \eqref{e-stdform}
+and are sufficient for \emph{any} conic solver. It must be freed when no
+longer in use.
 
-The data {\tt G} and {\tt h} may be `None,' in which case the standard form
-\qcml problem has no conic constraints. Similarly, {\tt A} and {\tt b} may be
-`None,' in which case the standard form \qcml problem has no equality
+The data pointers {\tt Gx}, {\tt Gp}, {\tt Gi}, and {\tt h} may be {\tt
+NULL}, in which case the standard form \qcml problem has no conic
+constraints. Similarly, {\tt Ax}, {\tt Ap}, {\tt Ai}, and {\tt b} may be {\tt
+NULL}, in which case the standard form \qcml problem has no equality
 constraints.
 
+
 \subsubsection{The {\tt socp\_to\_prob} function}
-The {\tt socp\_to\_prob} function takes a single argument {\tt x}, which is
-the solution to the cone program and returns a dictionary with keys
-corresponding to the names of the {\tt variable}s in the given \qcml problem.
-The values of these entries are Numpy arrays (if vectors) or Python floats.
-
-The input argument is a Numpy array.
-
-
-\subsubsection{Struct internals??}
+The {\tt socp\_to\_prob} function takes three arguments: a {\tt double *}, which
+points to a double array containing the solution to the cone program; 
+a {\tt prob\_vars} struct, which is set to
+the \emph{pointers} in the underlying {\tt prob\_vars} struct to the 
+{\tt variable}s in the \qcml problem; and a {\tt prob\_dims} struct.
 
 
 \section{Rapid prototyping}
@@ -756,8 +766,12 @@ Thus, if {\tt prob} is a \qcml problem, then
   \> >>> p.solve(prob)
 \end{tabbing}
 }
+\noindent 
 will use parameters and dimensions defined locally to stuff the matrices and
 invoke the ECOS solver to solve the problem.
+
+This feature is useful in Python to test (small) models before commiting to 
+a source code.
 
 \section{Lasso example}
 As an example, consider the lasso problem

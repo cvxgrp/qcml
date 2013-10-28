@@ -77,6 +77,7 @@ int main(int argc, char **argv)
   // create parameter struct
   lasso_params p;
   lasso_dims d;
+  d.m = %(m)d; d.n = %(n)d;
   qc_matrix A;
 
   int res1 = read_file("Av", Av, sizeof(double), %(Asize)d);

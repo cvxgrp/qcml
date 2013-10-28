@@ -131,10 +131,10 @@ class QCML(object):
         except ImportError:
             raise ImportError("QCML solver: To generate a solver, requires ecos.")
 
-        def solve_func(params):
-            data = self.prob2socp(params)
+        def solve_func(params, dims):
+            data = self.prob2socp(params, dims)
             sol = ecos.solve(**data)
-            result = self.socp2prob(sol['x'])
+            result = self.socp2prob(sol['x'], dims)
             result['info'] = sol['info']
 
             # set the objective value
@@ -148,25 +148,18 @@ class QCML(object):
     def solve(self, params, dims = None):
         """
             .solve(locals())
-            .solve(dims,params)
+            .solve(params, dims)
 
             Assumes all matrices and vectors are cvxopt matrices.
         """
         # TODO: what happens if we call solve after codegen(C)?
         if self.state is PARSE:
             raise Exception("QCML solve: No problem currently parsed.")
-
-        try:
-            # attempt to set the dims; if this fails, usually means someone
-            # set the dims externally and just wants to solve with the params
-            self.dims = dims if dims else params
-        except:
-            raise
-            raise Exception("QCML solve: Perhaps you've already canonicalized and/or generated code. Call .solver instead.")
+        local_dims = dims if dims else params
         self.canonicalize()
         self.codegen("python")
 
-        return self.solver(params)
+        return self.solver(params, local_dims)
     
     @property
     def offset_and_multiplier(self):

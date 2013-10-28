@@ -74,6 +74,10 @@ class AbstractDim(object):
     def __int__(self):
         if self.concrete: return self._c[1]
         return None
+    
+    def __float__(self):
+        if self.concrete: return float(self._c[1])
+        return None
 
     def __eq__(self, other):
         """ Coefficient operations like codegen_mul check whether expressions 
