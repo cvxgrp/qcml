@@ -1,5 +1,6 @@
 from encoder import create_encoder
 from ... import codes
+from ... properties.abstract_dim import AbstractDim
 
 def constant(x):
     return str(x.value)
@@ -73,7 +74,8 @@ lookup = {
     codes.Assign:                   assign,
     codes.NNZ:                      nnz,
     str:                            lambda x: x,
-    int:                            lambda x: str(x)
+    int:                            lambda x: str(x),
+    AbstractDim:                    lambda x: str(x)
 }
 
 
