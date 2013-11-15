@@ -57,7 +57,7 @@ Stephen Boyd\\\texttt{boyd@stanford.edu}
 specific language (DSL) for describing convex optimization problem families
 representable as second-order cone problems (SOCP). It is a code generator
 that produces lightweight Python, Matlab, or C code for \emph{matrix
-stuffing}. This allows one to extend SOCP solvers in these langauges to a 
+stuffing}. This allows one to extend SOCP solvers in these languages to a 
 variety of problem classes. It is intended to complement the paper, 
 \emph{Code Generation for Embedded Second-order Cone Programming} \cite{CPD:13}, 
 although the main ideas in its
@@ -189,7 +189,7 @@ rules here.
 There are three basic types in \qcml:
 \begin{itemize}
 \item {\tt dimension} (or {\tt dimensions} for multiple dimension declarations)
-\item {\tt parameter} (or {\tt parameters} for multiple parameter declrations)
+\item {\tt parameter} (or {\tt parameters} for multiple parameter declarations)
 \item {\tt variable} (or {\tt variables} for multiple variable declarations)
 \end{itemize}
 Objects named and declared in this fashion are entirely \emph{abstract}.
@@ -206,7 +206,7 @@ represent vectors or matrices (two-dimensional arrays). If a {\tt parameter}
 represents a matrix, it is assumed to represent a \emph{sparse} matrix.
 
 A {\tt parameter} may optionally take a sign modifier ({\tt positive} or 
-{\tt negative}). These are shorthand for `nonnegative' and `nonpositve', 
+{\tt negative}). These are shorthand for `nonnegative' and `nonpositive', 
 respectively.
 
 To declare an object, give its type, followed by its name, and (optionally) 
@@ -310,7 +310,7 @@ and their signs, monotonicity, and curvatures.
   {\tt sqrt(x)} & $f(x) = \sqrt{x}, \; x >0$ & positive & increasing & concave \\ \hline
 \end{tabular}
 \caption{A list of the scalar atoms in \qcml. Scalar atoms with multiple arguments
-require the same dimension for both arguments; their montonicities are listed separately.}
+require the same dimension for both arguments; their monotonicities are listed separately.}
 \label{t-scalar-atoms}
 \end{table}
 
@@ -352,7 +352,7 @@ and their signs, monotonicity, and curvatures.
   {\tt min(x)} & $f(x) = \min_i x_i$ & (depends) & increasing & concave \\ \hline
 \end{tabular}
 \caption{A list of the vector atoms in \qcml. Vector atoms with multiple arguments
-require the same dimension for both arguments; their montonicities are listed separately.}
+require the same dimension for both arguments; their monotonicities are listed separately.}
 \label{t-vector-atoms}
 \end{table}
 
@@ -591,7 +591,7 @@ necessary for solving a cone program. This consists of the key-value pairs
 The {\tt dims} output dictionary, which describes the cones, 
 is not to be confused with the {\tt dims} input 
 dictionary, which specifies problem dimensions. 
-The ouput dictionary corresponds to the problem data in \eqref{e-stdform}
+The output dictionary corresponds to the problem data in \eqref{e-stdform}
 and are sufficient for \emph{any} conic solver.
 
 The data {\tt G} and {\tt h} may be `None,' in which case the standard form
@@ -654,7 +654,7 @@ necessary for solving a cone program. This consists of the fields
 The {\tt dims} output struct, which describes the cones, 
 is not to be confused with the {\tt dims} input 
 struct, which specifies problem dimensions. 
-The ouput struct corresponds to the problem data in \eqref{e-stdform}
+The output struct corresponds to the problem data in \eqref{e-stdform}
 and are sufficient for \emph{any} conic solver.
 
 The matrix {\tt G} and vector {\tt h} may be empty, in which case the
@@ -685,7 +685,7 @@ with several other files:
   \item a {\tt prob.c} source file implementing the matrix stuffing, and
   \item a {\tt Makefile} to compile the sources into object files.
 \end{itemize}
-To prevent naming clashes, occurences of {\tt prob} in filenames, function
+To prevent naming clashes, occurrences of {\tt prob} in filenames, function
 names, and struct names are replaced by the name of the folder specified in
 the {\tt save} method.
 
@@ -702,7 +702,7 @@ It is up to the user to link them against a main binary.
 The {\tt prob\_to\_socp} function takes two struct arguments, a {\tt
 prob\_params} and a {\tt prob\_dims} struct. If all dimensions are concrete
 before {\tt codegen} is invoked, the {\tt prob\_dims} argument can be {\tt
-NULL}. The fields in these structus correspond to the names of the {\tt
+NULL}. The fields in these structs correspond to the names of the {\tt
 parameter}s and the remaining (abstract) {\tt dimension}s specified in the
 problem string.
 
@@ -755,7 +755,7 @@ the \emph{pointers} in the underlying {\tt prob\_vars} struct to the
 \section{Rapid prototyping}
 \qcml also provides a helper function for rapid prototyping in Python. This
 is useful to verify the optimization model before generating code to use
-elsewhere. The {\tt solve} function exectues the {\tt parse}, {\tt canonicalize},
+elsewhere. The {\tt solve} function executes the {\tt parse}, {\tt canonicalize},
 and {\tt codegen} functions in succession. It also takes the generated source
 code and produces bytecode that is executed on-the-fly.
 
@@ -771,7 +771,7 @@ Thus, if {\tt prob} is a \qcml problem, then
 will use parameters and dimensions defined locally to stuff the matrices and
 invoke the ECOS solver to solve the problem.
 
-This feature is useful in Python to test (small) models before commiting to 
+This feature is useful in Python to test (small) models before committing to 
 a source code.
 
 \section{Lasso example}
