@@ -846,7 +846,7 @@ We can then write a separate main function which calls the {\tt qc\_lasso2socp}
 to create the necessary data structures for calling the ECOS solver:
 {\tt
 \begin{tabbing}
-\qquad \= /* read Python-generated data into arrays */ \\
+\qquad \= /* read data into arrays */ \\
 \> double *Av = ...; /* nonzero values of A parameter */\\
 \> double *b = ...;  /* values of b parameter */\\
 \> long *Ai = ...;   /* nonzero row indices */\\
