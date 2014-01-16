@@ -15,7 +15,8 @@ dimensions to change. This means you can re-use the same optimization model in C
 without having to re-generate the problem.
 
 If you are a developer looking to use optimization, feel free to contact 
-[us](mailto:eytchu@gmail.com) with issues or support.
+[us](mailto:eytchu@gmail.com) with issues or support. Complete
+documentation is available [**here**](doc/userguide.pdf).
 
 Introduction
 ============
@@ -101,7 +102,7 @@ to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
 The generated code uses portions of CSparse, which is LGPL. Although QCML is 
 BSD, the generated code is LGPL for this reason.
 
-For more information, see the [features](#features) section.
+For more information, see the [features](#features) section. 
 
 Prerequisites
 =============
