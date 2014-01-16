@@ -3,9 +3,22 @@ QCML: Quadratic Cone Modeling Language
 
 [![Build Status](https://travis-ci.org/cvxgrp/qcml.png)](https://travis-ci.org/cvxgrp/qcml)
 
-**This repository is currently a work in progress
-If you wish to use this in your project, please contact
-[us](mailto:echu508@stanford.edu).**
+Who is this for?
+================
+For casual users of convex optimization, the [CVXPY](http://github.com/cvxgrp/cvxpy) project
+is a friendlier user experience, and we recommend all beginners start there. 
+
+This project is designed primarily for **developers** who want to deploy optimization
+code. It generates a lightweight wrapper to [ECOS](http://github.com/ifa-ethz/ecos)
+for use in Matlab, Python, or C. This avoids repeated parsing and also allows problem
+dimensions to change. This means you can re-use the same optimization model in C
+without having to re-generate the problem.
+
+If you are a developer looking to use optimization, feel free to contact 
+[us](mailto:eytchu@gmail.com) with issues or support.
+
+Introduction
+============
 
 This project is a modular convex optimization framework for solving
 *second-order cone* optimization problems (SOCP). It separates the parsing
