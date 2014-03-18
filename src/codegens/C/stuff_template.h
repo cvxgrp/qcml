@@ -15,19 +15,19 @@ extern "C" {
 #endif
 
 /* the parameter struct */
-typedef struct params {
+typedef struct %(name)s_params {
 %(params)s
 } %(name)s_params;
 
 /* the input dimensions struct */
-typedef struct dims {
+typedef struct %(name)s_dims {
 %(dims)s
 } %(name)s_dims;
 
 /* the solution struct
  *    users are responsible for keep track of the variable lengths
  */
-typedef struct sol {
+typedef struct %(name)s_sol {
 %(variables)s
 } %(name)s_vars;
   
