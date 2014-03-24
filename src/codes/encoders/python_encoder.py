@@ -31,7 +31,7 @@ def mul(x):
     return "%(lhs)s.dot(%(rhs)s) if (isinstance(%(lhs)s, np.ndarray) and isinstance(%(rhs)s, np.ndarray)) else %(lhs)s * %(rhs)s" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
 
 def just(elem):
-    return "[%s]" % elem.x
+    return "[%s]" % toPython(elem.x)
 
 def loop(ijv):
     def to_str(x):
@@ -75,6 +75,7 @@ lookup = {
     codes.NNZ:                      nnz,
     str:                            lambda x: x,
     int:                            lambda x: str(x),
+    float:                          lambda x: str(x),
     AbstractDim:                    lambda x: str(x)
 }
 

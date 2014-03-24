@@ -39,6 +39,9 @@ python_objects = [
     (codes.ParameterCoeff('A'), "params['A']", np.array([[1.,0,3],[4.,5.,0]])),
     (codes.ScalarParameterCoeff('c'), "params['c']", 2.3),
     (codes.Just(5), "[5]", [5]),
+    (codes.Just(3.2), "[3.2]", [3.2]),
+    (codes.Just(codes.ScalarParameterCoeff('c')), "[params['c']]", [2.3]),
+    (codes.Just(codes.ParameterCoeff('A')), "[params['A']]", [np.array([[1.,0,3],[4.,5.,0]])]),
     (codes.LoopRows(codes.ParameterCoeff('A'), 3, 2), "(3 + 2*idx for idx in params['A'].row)", [3,3,5,5]),
     (codes.LoopCols(codes.ParameterCoeff('A'), 2, 3), "(2 + 3*idx for idx in params['A'].col)", [2,8,2,5]),
     (codes.LoopOver(codes.ParameterCoeff('A')), "(v for v in params['A'].data)",[1,3,4,5]),
@@ -62,6 +65,14 @@ def check(obj, exp):
     print exp
     assert (code == exp)
 
+def equals(result,exp):
+    if sp.issparse(result):
+        return (result.todense() == exp).all()
+    elif isinstance(result, (int,float)):
+        return result == exp
+    else:
+        return False
+
 def check_py_exec(obj, exp):
     # check that the expected code actually works in python
     code = toPython(obj)
@@ -74,12 +85,11 @@ def check_py_exec(obj, exp):
     print result
     print exp
 
-    if sp.issparse(result):
-        assert (result.todense() == exp).all()
-    elif isinstance(result, (int,float)):
-        assert result == exp
+    if isinstance(exp, list):
+        for a,b in itertools.izip(list(result), exp):
+            assert equals(a,b)
     else:
-        assert list(result) == exp
+        assert equals(result, exp)
 
 def test_encoders():
     for obj, exp, result in python_objects:

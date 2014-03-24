@@ -37,7 +37,7 @@ def mul(x):
     raise Exception("Multiply not implemented.... %s * %s" % (x.left, x.right))
 
 def just(elem):
-    return "*%%(ptr)s++ = %s;" % (elem.x)
+    return "*%%(ptr)s++ = %s;" % toC(elem.x)
 
 def loop(ijv):
     def to_str(x):
@@ -86,6 +86,7 @@ lookup = {
     codes.NNZ:                      nnz,
     str:                            lambda x: x,
     int:                            lambda x: str(x),
+    float:                          lambda x: str(x),
     AbstractDim:                    lambda x: str(x)
 }
 

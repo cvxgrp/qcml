@@ -41,7 +41,7 @@ class ConstantCoeff(CoeffExpr):
     def nnz(self): return "1"
     def I(self, row_offset, stride=1): return code.Just(row_offset)
     def J(self, col_offset, stride=1): return code.Just(col_offset)
-    def V(self): return code.Just(self.value)
+    def V(self): return code.Just(self)
 
 class ParameterCoeff(CoeffExpr):
     def __init__(self, value):
@@ -65,7 +65,7 @@ class ScalarParameterCoeff(ParameterCoeff):
     def nnz(self): return "1"
     def I(self, row_offset, stride=1): return code.Just(row_offset)
     def J(self, col_offset, stride=1): return code.Just(col_offset)
-    def V(self): return code.Just(self.value)
+    def V(self): return code.Just(self)
 
 class NegateCoeff(CoeffExpr):
     def __init__(self, arg):

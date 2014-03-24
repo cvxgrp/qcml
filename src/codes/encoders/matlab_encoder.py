@@ -38,7 +38,8 @@ def mul(x):
     return "%s * %s" % (toMatlab(x.left), toMatlab(x.right))
 
 def just(elem):
-    return "%s" % elem.x
+    return "%s" % toMatlab(elem.x)
+
 
 def loop_rows(x):
     mat = toMatlab(x.matrix)
@@ -73,7 +74,7 @@ def repeat(x):
     return "%s*ones(%s,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
-    return "%s = sparse(%s)" % (toMatlab(x.lhs), toMatlab(x.rhs))
+    return "%s = sparse(%s);" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):
     return "%s.nnz" % (toMatlab(x.obj))
@@ -99,6 +100,7 @@ lookup = {
     codes.NNZ:                    nnz,
     str:                          lambda x: x,
     int:                          lambda x: str(x),
+    float:                        lambda x: str(x),
     AbstractDim:                  lambda x: str(x)
 }
 toMatlab = create_encoder(lookup)
