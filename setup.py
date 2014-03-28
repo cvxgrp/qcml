@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='qcml',
-    version='0.0.1',
+    version='0.1.0',
     author='Eric Chu',
     author_email='eytchu@gmail.com',
     packages=[  'qcml',
@@ -29,7 +29,7 @@ setup(
          'codegens/C/qcml_utils.*',
          'test/problems/*.prob']
     },
-        url='http://cvxgrp.github.io/qcml/',
+        url='http://github.com/cvxgrp/qcml/',
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',
     long_description=open('README.md').read(),

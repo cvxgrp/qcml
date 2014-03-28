@@ -136,17 +136,16 @@ class Codegen(NodeVisitor):
         """ Saves prob2socp and socp2prob to a folder called `name`.
         """
         # get the current path and create the new directory in it
-        path = os.getcwd()
-        new_dir = "%(path)s/%(name)s" % vars()
-        prob2socp = "%s/%s%s" % (new_dir, self.prob2socp.name, self.extension)
-        socp2prob = "%s/%s%s" % (new_dir, self.socp2prob.name, self.extension)
+        new_dir = "%(path)s/%(name)s" % {'path': os.getcwd(), 'name': name}
         
         # create the dictionary for the generated code
         if not os.path.exists(new_dir):
             os.makedirs(new_dir)
         
-        write_file(prob2socp, self.prob2socp.source)
-        write_file(socp2prob, self.socp2prob.source)
+        # write out the functions in the code
+        for k in self.codekeyorder:
+            filename = "%s/%s%s" % (new_dir, self.code[k].name, self.extension)
+            write_file(filename, self.code[k].source)
         
     @property
     def code(self):
