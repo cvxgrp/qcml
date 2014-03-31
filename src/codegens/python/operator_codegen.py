@@ -149,11 +149,12 @@ class PythonOperatorCodegen(OperatorCodegen):
             yield "h[%s:%s] = %s" % (start, end, toPython(expr))
 
     def stuff_function(self, func, rstart, rend, cstart, cend, expr, rstride):
+        self.code[func].add_lines("y[%s:%s:%s] += %s * x[%s:%s]" % (rstart, rend, rstride, toPython(expr), cstart, cend))
         n = (rend - rstart) / rstride
         if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
-            expr = OnesCoeff(n,ConstantCoeff(1))*expr
-        self.code[func].add_lines("y[%s:%s:%s] += %s * x[%s:%s]" % (rstart, rstride, rend, toPython(expr), cstart, cend))
-        self.code[func + 'T'].add_lines("x[%s:%s] += %s * y[%s:%s:%s]" % (cstart, cend, toPython(expr), rstart, rstride, rend))
+            self.code[func + 'T'].add_lines("x[%s:%s] += %s * np.sum(y[%s:%s:%s])" % (cstart, cend, toPython(expr.trans()), rstart, rend, rstride))
+        else:
+            self.code[func + 'T'].add_lines("x[%s:%s] += %s * y[%s:%s:%s]" % (cstart, cend, toPython(expr.trans()), rstart, rend, rstride))
         #yield expr
 
         # to_sparse = expr.to_sparse()

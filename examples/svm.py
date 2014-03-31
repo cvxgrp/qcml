@@ -46,4 +46,14 @@ if __name__ == '__main__':
     import ecos
     sol = ecos.solve(**socp_data)
 
+    raw_input("press ENTER to generate operator....")
+    p.codegen("operator")
+    other = p.prob2socp(params=locals())
+
+    x = randn(204,)
+    y = randn(403,)
+
+    raw_input("press ENTER to check operator G does the same thing as matrix G....")
+    print "G norm diff", np.linalg.norm(socp_data['G'] * x - other['G'](x))
+    print "G trans norm diff", np.linalg.norm(socp_data['G'].T * y - other['GT'](y))
 
