@@ -1,7 +1,8 @@
 from . qc_parser import QCParser
 from . codegens import PythonCodegen, \
     MatlabCodegen, \
-    C_Codegen
+    C_Codegen, \
+    PythonOperatorCodegen
 from . helpers import profile, default_locals
 from . errors import QC_DCPError
 from . ast.expressions import Variable
@@ -12,6 +13,7 @@ PARSE, CANONICALIZE, CODEGEN, COMPLETE = range(4)
 SUPPORTED_LANGUAGES = {
     "C": C_Codegen,
     "python": PythonCodegen,
+    "operator": PythonOperatorCodegen,
     "matlab": MatlabCodegen
 }
 

@@ -109,6 +109,13 @@ class PythonCodegen(Codegen):
             yield "h[%s:%s] = %s" % (start, end, toPython(expr))
 
     def stuff_matrix(self, mat, rstart, rend, cstart, cend, expr, rstride):
+        """
+            rstart - row start
+            rend   - row end
+            cstart - column start
+            cend   - column end
+            rstride - row stride
+        """
         n = (rend - rstart) / rstride
         if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr

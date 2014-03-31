@@ -1,6 +1,6 @@
 import collections
 from itertools import chain
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 def iterable_line(line):
     if isinstance(line, str):
@@ -78,18 +78,25 @@ class Function(object):
         """
         self.add_lines("{:} {:}".format(self.comment, line) for line in iterable_line(lines))
 
-    def reset(self):
-        self.generated = False
+    # def reset(self):
+    #     self.generated = False
 
     def create(self):
         if not self.generated:
-            documentation = list(chain.from_iterable(self.__documentation))
-            body = list(chain.from_iterable(self.__body))
-            self.__source = self._generate_source(documentation, body)
+            self.__source = self._generate_source(self.code)
             self.generated = True
 
+    @property
+    def code(self):
+        documentation = list(chain.from_iterable(self.__documentation))
+        body = list(chain.from_iterable(self.__body))
+        return self._generate_code(documentation, body)
+
+    def _generate_source(self, code):
+        return '\n'.join(code)
+
     @abstractmethod
-    def _generate_source(self, documentation, body):
+    def _generate_code(self, documentation, body):
         pass
 
 class PythonFunction(Function):
@@ -97,11 +104,12 @@ class PythonFunction(Function):
         prototype = "def {:}({:}):".format(name, ', '.join(arguments))
         super(PythonFunction, self).__init__(name, prototype, comment_string = '#')
 
-    def _generate_source(self, documentation, body):
+    def _generate_code(self, documentation, body):
         # attach the body; if no body, simply create an empty function
-        code = [self.prototype] + documentation + (body if body else ["%spass" % (self.indent)])
-        code_str = '\n'.join(code)
+        return [self.prototype] + documentation + (body if body else ["%spass" % (self.indent)])
 
+    def _generate_source(self, code):
+        code_str = '\n'.join(code)
         # now create its bytecode
         try:
             exec code_str in vars()
@@ -122,20 +130,17 @@ class MatlabFunction(Function):
         prototype = "function [{:}] = {:}({:})".format(', '.join(ret_args), name, ', '.join(arguments))
         super(MatlabFunction, self).__init__(name, prototype, comment_string = '%')
 
-    def _generate_source(self, documentation, body):
-        code = [self.prototype] + documentation + body + ["end"]
-        return '\n'.join(code)
-
+    def _generate_code(self, documentation, body):
+        return [self.prototype] + documentation + body + ["end"]
 
 class CFunction(Function):
     def __init__(self, name, arguments = [], ret_type = "void", *args, **kwargs):
         prototype = "{:} {:}({:})".format(ret_type, name, ', '.join(arguments))
         super(CFunction, self).__init__(name, prototype, comment_string = ' *')
 
-    def _generate_source(self, documentation, body):
+    def _generate_code(self, documentation, body):
         if documentation: documentation = ["%s/*" % self.indent] + documentation + ["%s */" % self.indent]
-        code = [self.prototype, "{"] + documentation + body + ["}"]
-        return '\n'.join(code)
+        return [self.prototype, "{"] + documentation + body + ["}"]
 
     def add_comment(self, lines):
         """ Adds comments lines to the source code

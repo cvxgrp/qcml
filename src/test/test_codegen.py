@@ -6,7 +6,7 @@ Should be able to run generated Makefile without any errors (except warnings).
 """
 import os, shutil, subprocess
 
-from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen
+from .. codegens import PythonCodegen, MatlabCodegen, C_Codegen, PythonOperatorCodegen
 from nose import with_setup
 
 LP = """
@@ -25,8 +25,9 @@ norm(x) <= 0
 C = C_Codegen()
 python = PythonCodegen()
 matlab = MatlabCodegen()
+operator = PythonOperatorCodegen()
 
-codegens = [C, python, matlab]
+codegens = [C, python, matlab, operator]
 
 def codegen(codegen_obj):
     # test that empty code generates executes without error
@@ -118,9 +119,10 @@ def test_parse_and_compiles():
     yield parse_and_generate, LP, "python"
     yield parse_and_generate, LP, "matlab"
     yield parse_and_generate, LP, "C"
+    yield parse_and_generate, LP, "operator"
     
     yield parse_and_generate, SOCP, "python"
     yield parse_and_generate, SOCP, "matlab"
     yield parse_and_generate, SOCP, "C"
-    
+    yield parse_and_generate, SOCP, "operator"
 

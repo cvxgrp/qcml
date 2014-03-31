@@ -215,8 +215,8 @@ class Codegen(NodeVisitor):
         self.functions_return()
 
     def visit_Variable(self, node):
-        n = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
         k = node.value
+        n = self.varlength[k]
 
         if n == 1:
             lineq = {k: ConstantCoeff(1)}
@@ -377,7 +377,6 @@ class Codegen(NodeVisitor):
         self.generic_visit(node)
 
         # copy into the appropriate block
-        count = 0
         while self.expr_stack:
             e = self.expr_stack.pop()
             coneend = start.pop()
