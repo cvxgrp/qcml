@@ -1,5 +1,4 @@
 from .. base_operator_codegen import OperatorCodegen
-from ... codes import OnesCoeff, ConstantCoeff
 from ... codes.function import PythonFunction
 from ... codes.encoders import toPython
 from ... properties.abstract_dim import AbstractDim

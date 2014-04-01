@@ -7,6 +7,9 @@ class Variable(LeafMixin, Expression):
 
         Contains a representation of Variables. It is Affine; its sign is
         Neither positive nor negative. Its shape is supplied from QCML.
+
+        It uses a global variable counter from the SOCP ast object
+        (see ast.socps.socp).
     """
 
     def __init__(self, name, shape):

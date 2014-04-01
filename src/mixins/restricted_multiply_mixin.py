@@ -2,37 +2,23 @@
 Mixin for restricted multiplication
 """
 
-from .. ast.expressions import expression
-from .. properties import shape
 from .. properties.curvature import isconstant
+from variable_creation_mixin import VariableCreatorMixin
 
-class RestrictedMultiplyMixin(object):
+class RestrictedMultiplyMixin(VariableCreatorMixin):
     """ This implements the restricted multiplication behavior.
     """
     def __init__(self, *args, **kwargs):
         super(RestrictedMultiplyMixin, self).__init__(*args, **kwargs)
 
-    def create_equality_constraint_variable(self, size):
-        v = expression.Variable('', shape.Vector(size))
-
-        # add it to the list of lookups for building constraints
-        # doesn't matter that it's at the end, since it's only for eq
-        # constraints
-        self.varlength[v.value] = size
-        self.varstart[v.value] = self.num_vars
-        self.num_vars += size
-
-        return v
-
     def expand_param(self, left, right, node):
         # ONLY FOR BINARY OPERATORS
         if left.is_matrix_param and right.is_matrix_param:
             # introduce a new variable for expr
-            n = node.right.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
-            new_var = self.create_equality_constraint_variable(n)
+            new_var = self.create_variable(node.right.shape)
 
             # reset the stack and save the state
-            stack = self.expr_stack
+            stack = list(self.expr_stack)
             self.expr_stack = []
 
             # add an equality constraint

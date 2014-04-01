@@ -1,4 +1,5 @@
 from .. properties.shape import Shape, Scalar, Vector, Matrix, isvector, isscalar, ismatrix
+from .. properties.abstract_dim import AbstractDim
 from nose.tools import assert_raises
 import operator
 
@@ -7,7 +8,7 @@ def add_shape(s1,s2, exp,row,col):
     assert(exp(result) and result.row == row and result.col == col)
 
 def sub_shape(s1,s2, exp,row,col):
-    result = s1+s2
+    result = s1-s2
     assert(exp(result) and result.row == row and result.col == col)
 
 def negate_shape(s):
@@ -96,6 +97,11 @@ def test_eval():
     s = Shape(['m','n','p','q',1,5,1,1,1])
     shape_dict = {'m':3, 'n':6, 'p':2, 'q':3}
     s.eval(shape_dict)
-    assert(s.dimensions == [3,6,2,3,1,5])
+    assert(map(int, s.dimensions) == [3,6,2,3,1,5])
 
+def test_with_abstract_dim():
+    n = AbstractDim('n')
+    s = Vector(n)
+
+    assert(map(str, s.dimensions) == ['n'])
 

@@ -142,13 +142,21 @@ class Transpose(e.Expression, e.UnaryOperatorMixin):
             return (Transpose(self.expr.right) * Transpose(self.expr.left)).simplify()
         return self
 
-# ... TODO: up to here, the code is done...
+# Code below for slicing is outdated. Needs to be rethought
 
-class Slice(e.Parameter,e.Variable):
+class Slice(e.Expression, e.UnaryOperatorMixin):
     """ Can only be applied to parameters or variables.
 
         At the moment, assumes that begin and end are of type int
     """
+    def slice(self,x):
+        if isinstance(x, e.Expression): return Slice(x)
+        return x
+
+    OP_NAME = "'"
+    IS_POSTFIX = True
+    OP_FUNC = slice
+
     def __init__(self, expr, begin, end, dim):
         assert (type(begin) is int), "Expected beginning index to be an integer"
         assert (type(end) is int), "Expected end index to be an integer"

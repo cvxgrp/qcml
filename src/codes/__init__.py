@@ -13,4 +13,4 @@ from . code import Just, LoopRows, LoopCols, LoopOver, Range, Repeat, \
     Assign, NNZ
 from . coefficients.coefficient import ConstantCoeff, OnesCoeff, \
     NegateCoeff, AddCoeff, MulCoeff, EyeCoeff, TransposeCoeff, \
-    ParameterCoeff, ScalarParameterCoeff
+    ParameterCoeff, ScalarParameterCoeff, SliceCoeff

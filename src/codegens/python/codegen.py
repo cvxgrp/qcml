@@ -4,6 +4,9 @@ from ... codes.function import PythonFunction
 from ... codes.encoders import toPython
 from ... properties.abstract_dim import AbstractDim
 
+# for testing
+from ... mixins import SSALikeMixin, SmithFormMixin
+
 def wrap_self(f):
     def wrapped_code(self, *args, **kwargs):
         return f(*args, **kwargs)

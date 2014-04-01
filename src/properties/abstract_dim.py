@@ -3,7 +3,7 @@ import collections
 def list_product(l):
     """ Take a list and return an AD by multiplying list elements together.
     """
-    return reduce(lambda x,y: x * AbstractDim(y), l, AbstractDim(1))
+    return reduce(lambda x,y: x * y, l, AbstractDim(1))
 
 
 class AbstractDim(object):
