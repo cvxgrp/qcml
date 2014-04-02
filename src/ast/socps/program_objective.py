@@ -36,14 +36,14 @@ class ProgramObjective(Node):
 
     def __str__(self):
         return "%s %s" % (self.sense, self.expr)
-    
+
 
     def info(self):
-        if self.is_dcp: 
+        if self.is_dcp:
             return "DCP objective: %s" % (self,)
-        else: 
+        else:
             return "Non-DCP objective: %s" % (self,)
-   
+
     def children(self):
         yield self.expr
 
@@ -52,7 +52,7 @@ class ProgramObjective(Node):
         obj, constraints = self.expr.canonicalize()
         self.expr = obj.simplify()
         return (obj, constraints)
-    
+
     # TODO: below is "future"
     # def canonical_form(self):
     #     children = self.children()

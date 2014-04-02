@@ -111,7 +111,7 @@ def parse_and_generate(prob, lang):
         shutil.rmtree("%s/test_problem" % os.getcwd())
     else:
         p.codegen(lang)
-    
+
     # only checks for exceptions
     assert True
 
@@ -120,7 +120,7 @@ def test_parse_and_compiles():
     yield parse_and_generate, LP, "matlab"
     yield parse_and_generate, LP, "C"
     yield parse_and_generate, LP, "operator"
-    
+
     yield parse_and_generate, SOCP, "python"
     yield parse_and_generate, SOCP, "matlab"
     yield parse_and_generate, SOCP, "C"

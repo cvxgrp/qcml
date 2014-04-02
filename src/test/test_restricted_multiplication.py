@@ -45,34 +45,34 @@ def properly_solves(lang):
 int main(int argc, char **argv) {
     double Adata[6] = {1,2,3,4,5,6};
     double Bdata[6] = {1,2,3,4,5,6};
-    
+
     long Ai[6] = {0,0,1,1,2,2};
     long Aj[6] = {0,1,0,1,0,1};
-    
+
     long Bi[6] = {0,0,0,1,1,1};
     long Bj[6] = {0,1,2,0,1,2};
-    
+
     double c[3] = {1,2,3};
     double d[3] = {4,5,6};
 
     qc_matrix A;
     qc_matrix B;
-    
+
     A.v = Adata; A.i = Ai; A.j = Aj; A.nnz = 6;
     A.m = 3; A.n = 2;
 
     B.v = Bdata; B.i = Bi; B.j = Bj; B.nnz = 6;
     B.m = 2; B.n = 3;
-    
+
     test_problem_params p;
 
     p.A = &A;
     p.B = &B;
     p.c = c;
     p.d = d;
-    
+
 	qc_socp *data = qc_test_problem2socp(&p, NULL);
-    
+
 	// run ecos and solve it
 	pwork *mywork = ECOS_setup(data->n, data->m, data->p,
 		data->l, data->nsoc, data->q,
@@ -87,9 +87,9 @@ int main(int argc, char **argv) {
 		ECOS_cleanup(mywork, 0);
 	}
 	qc_socp_free(data);
-  
+
     return 0;
-}        
+}
 """
         with open("test_problem/main.c", "w") as f:
             f.write(c_test_code)
@@ -98,13 +98,13 @@ int main(int argc, char **argv) {
         print "Running make...."
         subprocess.check_output(["make"])
         if platform.system() == 'Linux':
-            cmd = ["cc", "-O3", "main.c", 
-                    "-L%s" % ECOS_PATH, 
+            cmd = ["cc", "-O3", "main.c",
+                    "-L%s" % ECOS_PATH,
                     "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
                     "-lecos", "-lm", "-lrt", "test_problem.o", "qcml_utils.o", "-o","main"]
         else:
-            cmd = ["cc", "-O3", "main.c", 
-                    "-L%s" % ECOS_PATH, 
+            cmd = ["cc", "-O3", "main.c",
+                    "-L%s" % ECOS_PATH,
                     "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
                     "-lecos", "-lm", "test_problem.o", "qcml_utils.o", "-o","main"]
         print ' '.join(cmd)
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
             print "    export ECOS_PATH=/PATH/TO/ECOS"
             print ""
             raise
-            
+
         try:
             output = subprocess.check_output(["./main"])
         except:
@@ -129,14 +129,14 @@ int main(int argc, char **argv) {
         objval = re.findall(r'Objective value at termination of C program is (\d+\.\d*)', output)
         os.chdir("..")
         shutil.rmtree("%s/test_problem" % os.getcwd())
-        
+
         assert len(objval) == 1
         assert float(objval[0]) == solution
     else:
         p.codegen(lang)
         socp_data = p.prob2socp({'A': np.array(A), 'B': np.array(B), 'c': np.array(c), 'd': np.array(d)})
         print socp_data
-        
+
         import ecos
         sol = ecos.solve(**socp_data)
         print sol
@@ -144,14 +144,14 @@ int main(int argc, char **argv) {
 
 def test_parse_and_compiles():
     yield properly_solves, "python"
-    
+
     # this fails because G and h are NULL; ECOS doesn't handle that gracefully
     yield properly_solves, "C"
-    
+
     # this fails... i guess that's fine?
     # yield properly_solves, "python", np.matrix
-    
-    
-    
-    
+
+
+
+
 

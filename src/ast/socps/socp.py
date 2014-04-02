@@ -84,7 +84,7 @@ class SOCP(Node):
         SOCP.reset()
         _, constraints = self.objective.canonicalize()
         self.constraints.canonicalize()
-        
+
         for constr in constraints:
             self.constraints.add(constr)
 
@@ -98,11 +98,11 @@ class SOCP(Node):
     def reset(cls):
         cls.count = 0
         cls.new_variables = {}
-    
+
     @property
     def parameters(self):
         return self.data.parameters
-    
+
     @property
     def variables(self):
         return self.data.variables
@@ -110,7 +110,7 @@ class SOCP(Node):
     @property
     def dimensions(self):
         return self.data.dimensions
-    
+
     @property
     def abstract_dims(self):
         return self.data.abstract_dims
@@ -121,7 +121,7 @@ class SOCP(Node):
             elem.shape.eval(dims)
         DimsSetter(dims).generic_visit(self)
         self.data.dimensions = dims
-        
-    
+
+
 
 

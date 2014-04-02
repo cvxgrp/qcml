@@ -102,7 +102,7 @@ class Shape(object):
         if abstractdim_rewriter:
             # Only apply it to dims that are still abstract
             def adrw(x):
-                if not x.concrete: 
+                if not x.concrete:
                     return abstract_dim.AbstractDim(abstractdim_rewriter(str(x)))
                 return x
             dims = map(adrw, dims)

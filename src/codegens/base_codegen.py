@@ -61,7 +61,7 @@ class Codegen(NodeVisitor):
         self.objective_offset = 0
         self.objective_multiplier = 1
         self._code = {} # Could use ordereddict, but that's Python >= 2.7
-        self._codekeyorder = None 
+        self._codekeyorder = None
         super(Codegen, self).__init__()
 
     @abstractproperty
@@ -71,7 +71,7 @@ class Codegen(NodeVisitor):
     @abstractproperty
     def socp2prob(self):
         pass
-        
+
     @abstractproperty
     def extension(self):
         """ File extension
@@ -131,22 +131,22 @@ class Codegen(NodeVisitor):
         # create the source code
         self.prob2socp.create()
         self.socp2prob.create()
-    
+
     def save(self, name):
         """ Saves prob2socp and socp2prob to a folder called `name`.
         """
         # get the current path and create the new directory in it
         new_dir = "%(path)s/%(name)s" % {'path': os.getcwd(), 'name': name}
-        
+
         # create the dictionary for the generated code
         if not os.path.exists(new_dir):
             os.makedirs(new_dir)
-        
+
         # write out the functions in the code
         for k in self.codekeyorder:
             filename = "%s/%s%s" % (new_dir, self.code[k].name, self.extension)
             write_file(filename, self.code[k].source)
-        
+
     @property
     def code(self):
         return self._code
@@ -228,6 +228,8 @@ class Codegen(NodeVisitor):
     def visit_Parameter(self, node):
         if isscalar(node):
             self.expr_stack.append({'1':ScalarParameterCoeff(node.value)})
+        # elif isvector(node):
+        #     self.expr_stack.append({'1':VectorParameterCoeff(node.value)})
         else:
             self.expr_stack.append({'1':ParameterCoeff(node.value)})
 

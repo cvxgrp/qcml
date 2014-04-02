@@ -58,15 +58,15 @@ class ProgramConstraints(Node):
         self.eq_constr.clear()
         self.ineq_constr.clear()
         self.soc_constr.clear()
-    
+
     def info(self):
         """ The description to show in the AST for debugging.
         """
-        if self.is_dcp: 
+        if self.is_dcp:
             return "DCP constraints:"
-        else: 
+        else:
             return "Non-DCP constraints:"
-   
+
     def children(self):
         """ The children for traversing the AST.
         """
@@ -87,4 +87,4 @@ class ProgramConstraints(Node):
         self.clear()
         for constr in constraints:
             self.add(constr)
-        
+

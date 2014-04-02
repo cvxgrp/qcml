@@ -54,7 +54,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         # functions we are going to generate
         self._code = {}
         self._code['prob2socp'] = CFunction("qc_%(name)s2socp",
-            arguments = ["const %(name)s_params * params", 
+            arguments = ["const %(name)s_params * params",
                          "const %(name)s_dims * dims"],
             ret_type="qc_socp *")
         self._code['socp2prob'] = CFunction("qc_socp2%(name)s",
@@ -79,7 +79,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     @property
     def socp2prob(self): return self.code['socp2prob']
-    
+
     @property
     def extension(self):
         return ".c"
@@ -97,7 +97,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         makefile = "%(new_dir)s/Makefile" % vars()
         source_file = "%(new_dir)s/%(name)s.c" % vars()
         header_file = "%(new_dir)s/%(name)s.h" % vars()
-        
+
 
         # create the dictionary for the generated code
         if not os.path.exists(new_dir):
@@ -185,14 +185,14 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             yield "data->%s = (double *) calloc(data->%s, sizeof(double));" % (vector, size)
             yield "if (!data->%s) return qc_socp_free(data);" % (vector)
 
-    def c_allocate_matrix(self, matrix):        
+    def c_allocate_matrix(self, matrix):
         const = sum(int(x) for x in self.nnz[matrix] if x.isdigit())
         expr_counts = Counter(x for x in self.nnz[matrix] if not x.isdigit())
         size = ' + '.join('%d*%s' % (v,k) for k,v in expr_counts.iteritems())
-        
+
         if const > 0: size = "%s + %d" % (size, const)
         if const > 0 or size:
-            yield "nnz%s = %s;" % (matrix, size)            
+            yield "nnz%s = %s;" % (matrix, size)
             yield "data->%(matrix)sx = (double *) malloc(nnz%(matrix)s * sizeof(double));" % {'matrix': matrix}
             yield "data->%(matrix)sp = (long *) malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}
             yield "data->%(matrix)si = (long *) malloc(nnz%(matrix)s * sizeof(long));" % {'matrix': matrix}
@@ -211,7 +211,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             rows = "data->m" if matrix == "G" else "data->p"
             #yield "%s_coo = (qc_matrix *) malloc(sizeof(qc_matrix));" % matrix
             #yield "if (!%s_coo) return qc_socp_free(data);" % matrix
-            
+
             yield "%s_coo.m = %s; %s_coo.n = data->n; %s_coo.nnz = nnz%s;" % (matrix, rows, matrix, matrix, matrix)
             yield "%s_coo.i = data->%si;" % (matrix, matrix)
             yield "%s_coo.j = data->%sp;" % (matrix, matrix)
@@ -255,7 +255,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         self.prob2socp.add_lines("long nnzA, nnzG;")
         self.prob2socp.add_lines("qc_matrix *G_csc, *A_csc;  /* possibly un-used */")
         self.prob2socp.add_lines("qc_matrix G_coo, A_coo;    /* possibly un-used */")
-        
+
         self.prob2socp.newline()
         self.prob2socp.add_comment("allocate socp data structure")
         self.prob2socp.add_lines(self.c_allocate_socp())
@@ -287,7 +287,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         self.prob2socp.newline()
 
         self.prob2socp.add_comment("allocate the cone sizes")
-        self.prob2socp.add_lines(self.c_cone_sizes())        
+        self.prob2socp.add_lines(self.c_cone_sizes())
 
     def functions_return(self):
         #self.prob2socp.add_lines("""for(i=0; i< 16; ++i) printf("%f ", data->Gx[i]);""")
@@ -342,23 +342,23 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
     def stuff_G(self, rstart, rend, cstart, cend, expr, rstride = 1):
         # in case we need to promote scalar into vector
         n = (rend - rstart) / rstride
-        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
 
         # execute this code first
         self.nnz['G'].append(toC(expr.nnz()))
-        
+
         return self.stuff_matrix("G", rstart, rend, cstart, cend, expr, rstride)
 
     def stuff_A(self, rstart, rend, cstart, cend, expr, rstride = 1):
         # in case we need to promote scalar into vector
         n = (rend - rstart) / rstride
-        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
             expr = OnesCoeff(n,ConstantCoeff(1))*expr
 
         # execute this code first
         self.nnz['A'].append(toC(expr.nnz()))
-        
+
         return self.stuff_matrix("A", rstart, rend, cstart, cend, expr, rstride)
 
     def abstractdim_rewriter(self, ad):

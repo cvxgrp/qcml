@@ -19,7 +19,7 @@ class MatlabCodegen(Codegen):
 
     @property
     def socp2prob(self): return self.code['socp2prob']
-    
+
     @property
     def extension(self):
         return ".m"
@@ -93,7 +93,7 @@ class MatlabCodegen(Codegen):
     def stuff_matrix(self, mat, r0, rend, c0, cend, expr, rstride):
         n = (rend - r0) / rstride
 
-        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar: 
+        if (isinstance(n, AbstractDim) or n > 1) and expr.isscalar:
             expr = OnesCoeff(n, expr)
         to_sparse = expr.to_sparse()
         if to_sparse: yield toMatlab(to_sparse)

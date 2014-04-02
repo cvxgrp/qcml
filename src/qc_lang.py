@@ -110,7 +110,7 @@ class QCML(object):
 
         self.state = COMPLETE
         self.language = language    # set our language
-        
+
     @profile
     def save(self, name = "problem"):
         """
@@ -162,20 +162,20 @@ class QCML(object):
         self.codegen("python")
 
         return self.solver(params, local_dims)
-    
+
     @property
     def offset_and_multiplier(self):
         """
-            Gets the offset and multiplier (+1 or -1) for converting the 
+            Gets the offset and multiplier (+1 or -1) for converting the
             solver objective value into the desired objective value.
-            
+
             Usually, the desired objective is
                 multipler * solver objval + offset
-                
+
             Returns (offset, multiplier).
         """
         return (self.__codegen.objective_offset, self.__codegen.objective_multiplier)
-        
+
     def printsource(self):
         print '\n\n'.join(self.__codegen.source)
 

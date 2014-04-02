@@ -102,7 +102,7 @@ class OperatorCodegen(Codegen):
         self.fG.create()
         self.fGT.create()
         super(OperatorCodegen, self).codegen()
-    
+
     """
         # essentially the same as base_codegen except that i have to handle fA, fAT, etc.
     """

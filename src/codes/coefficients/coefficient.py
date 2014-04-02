@@ -56,6 +56,7 @@ class ParameterCoeff(CoeffExpr):
     def J(self, col_offset, stride=1): return code.LoopCols(self, col_offset, stride)
     def V(self): return code.LoopOver(self)
 
+
 class ScalarParameterCoeff(ParameterCoeff):
     def __init__(self,value):
         super(ScalarParameterCoeff, self).__init__(value)
@@ -63,6 +64,7 @@ class ScalarParameterCoeff(ParameterCoeff):
         self.is_matrix_param = False
 
     def nnz(self): return "1"
+    def to_sparse(self): return ""
     def I(self, row_offset, stride=1): return code.Just(row_offset)
     def J(self, col_offset, stride=1): return code.Just(col_offset)
     def V(self): return code.Just(self)
@@ -78,7 +80,11 @@ class NegateCoeff(CoeffExpr):
     def to_sparse(self): return self.arg.to_sparse()
     def I(self, row_offset, stride=1): return self.arg.I(row_offset, stride)
     def J(self, col_offset, stride=1): return self.arg.J(col_offset, stride)
-    def V(self): return code.LoopOver(self.arg.V(),"-%s")
+    def V(self):
+        if self.arg.isscalar:
+            return code.Just(self)
+        else:
+            return code.LoopOver(self.arg.V(),"-%s")
 
 
 class EyeCoeff(CoeffExpr):

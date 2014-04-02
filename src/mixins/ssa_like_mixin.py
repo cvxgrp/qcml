@@ -18,7 +18,7 @@ class SSALikeMixin(VariableCreatorMixin):
     """
     def __init__(self, *args, **kwargs):
         super(SSALikeMixin, self).__init__(*args, **kwargs)
-        self.__variable_reference = set()
+        self.__variable_reference = {}
         self.__is_adding_new_var = False
         self.__is_objective = False
 
@@ -32,7 +32,8 @@ class SSALikeMixin(VariableCreatorMixin):
         n = self.varlength[k]
 
         if not self.__is_adding_new_var and \
-           k in self.__variable_reference:
+           not self.__is_objective and \
+           k in self.__variable_reference.keys():
             # introduce new variable
             new_var = self.create_variable(node.shape)
             newval = new_var.value
@@ -40,12 +41,14 @@ class SSALikeMixin(VariableCreatorMixin):
             self.__is_adding_new_var = True
             old_expr_stack = list(self.expr_stack)
             self.expr_stack = []
-            self.visit(new_var == node)
+            self.visit(new_var == self.__variable_reference[k])
             self.__is_adding_new_var = False
             self.expr_stack = old_expr_stack
+
+            self.__variable_reference[k] = new_var
         else:
             if not self.__is_objective:
-                self.__variable_reference.add(k)
+                self.__variable_reference[k] = node
             newval = k
 
         if n == 1:

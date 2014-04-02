@@ -44,7 +44,7 @@ class PythonOperatorCodegen(OperatorCodegen):
     @property
     def fGT(self):
         return self.code['fGT']
-        
+
     @property
     def extension(self):
         return ".py"

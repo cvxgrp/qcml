@@ -20,7 +20,7 @@ except ImportError:
 
 
 if __name__ == '__main__':
-    
+
     if len(sys.argv) < 2:
         print "Please provide a path to ECOS solver."
         sys.exit(0)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     p.canonicalize()
 
     raw_input("press ENTER to generate python code....")
-    
+
     p.dims = {'m': m, 'n': n, 'pb': pb, 'sb': sb}
     p.codegen("python")
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     print "The minimum attenuation in the stop band is " + str(10*log10(optval)) + " dB."
     vars = p.socp2prob(sol['x'])
     r = transpose(asmatrix(vars['r']))
-    
+
     # Spectral Factorization
     jay = complex(0,1)
     mult_factor = 100
@@ -132,8 +132,8 @@ if __name__ == '__main__':
     print "h ---------------"
     h = real(ifft(exp(alpha1+jay*phi1),n))
     print h
-    
-    print 
+
+    print
     print ">> Now we'll generate C code and compile it with C++ compiler."
     print
     raw_input("press ENTER to generate C code and save it....")
@@ -148,16 +148,16 @@ if __name__ == '__main__':
     print "Running make...."
     subprocess.call(["make"])
     if platform.system() == 'Linux':
-        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
-                "-I%s/include" % ECOS_PATH, 
+        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH,
+                "-I%s/include" % ECOS_PATH,
                 "-I%s/external/SuiteSparse_config" % ECOS_PATH,
-                "-lecos", "-lm", "-lrt", "fir_lowpass.o", 
+                "-lecos", "-lm", "-lrt", "fir_lowpass.o",
                 "qcml_utils.o", "-o","fir_lowpass"]
     else:
-        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH, 
-                "-I%s/include" % ECOS_PATH, 
+        cmd = ["c++", "-O3", "fir_lowpass.cpp", "-L%s" % ECOS_PATH,
+                "-I%s/include" % ECOS_PATH,
                 "-I%s/external/SuiteSparse_config" % ECOS_PATH,
-                "-lecos", "-lm", "fir_lowpass.o", 
+                "-lecos", "-lm", "fir_lowpass.o",
                 "qcml_utils.o", "-o","fir_lowpass"]
     print ' '.join(cmd)
     subprocess.call(cmd)
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     subprocess.call(["./fir_lowpass"])
 
     print "Verify that the reported objective in C is %f" % optval
-    
+
     # Plot
     if plotting:
         H = fft(h, 2048);

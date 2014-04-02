@@ -117,7 +117,7 @@ def test_add_constraint():
     p1 = x == e.Number(1)
     p2 = x <= e.Number(2)
     p3 = e.Number(2) >= x
-    
+
     exp_constraints = ast.ProgramConstraints([p1, p2])
     local_prob.constraints.add(p1)
     local_prob.constraints.add(p2)

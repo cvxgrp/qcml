@@ -74,14 +74,14 @@ class AbstractDim(object):
     def __int__(self):
         if self.concrete: return self._c[1]
         return None
-    
+
     def __float__(self):
         if self.concrete: return float(self._c[1])
         return None
 
     def __eq__(self, other):
-        """ Coefficient operations like codegen_mul check whether expressions 
-            == 1 or == -1 to allow simplifications.  So we want to be able to 
+        """ Coefficient operations like codegen_mul check whether expressions
+            == 1 or == -1 to allow simplifications.  So we want to be able to
             have AbstractDim(1) == 1 -> True
         """
         if not isinstance(other, (AbstractDim, int)):
@@ -91,7 +91,7 @@ class AbstractDim(object):
         if isinstance(other, int) and self.concrete:
             return int(self) == other
         return False
-        
+
     def __mul__(self, other):
         if not isinstance(other, (AbstractDim, int)):
             return NotImplemented
@@ -102,7 +102,7 @@ class AbstractDim(object):
 
         if self.concrete:
             mul = AbstractDim()
-            for k,v in other._c.iteritems(): mul._c[k] = int(self)*v 
+            for k,v in other._c.iteritems(): mul._c[k] = int(self)*v
             return mul
         if other.concrete:
             mul = AbstractDim()

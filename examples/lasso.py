@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 {
   double Av[%(Asize)d], b[%(bsize)d];
   long Ai[%(Asize)d], Aj[%(Asize)d];
-  
+
   // create parameter struct
   lasso_params p;
   lasso_dims d;
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
   p.A = &A;
   p.b = b;
   p.gamma = %(gamma)f;
-  
+
   // assign dims, if any
 
   // stuff the matrices
@@ -138,13 +138,13 @@ int main(int argc, char **argv)
     print "Running make...."
     subprocess.call(["make"])
     if platform.system() == 'Linux':
-        cmd = ["cc", "-O3", "lasso_main.c", 
-                "-L%s" % ECOS_PATH, 
+        cmd = ["cc", "-O3", "lasso_main.c",
+                "-L%s" % ECOS_PATH,
                 "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
                 "-lecos", "-lm", "-lrt", "lasso.o", "qcml_utils.o", "-o","lasso"]
     else:
-        cmd = ["cc", "-O3", "lasso_main.c", 
-                "-L%s" % ECOS_PATH, 
+        cmd = ["cc", "-O3", "lasso_main.c",
+                "-L%s" % ECOS_PATH,
                 "-I%s/include" % ECOS_PATH, "-I%s/external/SuiteSparse_config" % ECOS_PATH,
                 "-lecos", "-lm", "lasso.o", "qcml_utils.o", "-o","lasso"]
     print ' '.join(cmd)

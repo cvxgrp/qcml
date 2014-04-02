@@ -28,7 +28,7 @@ class PythonCodegen(Codegen):
     @property
     def socp2prob(self):
         return self.code['socp2prob']
-        
+
     @property
     def extension(self):
         return ".py"
