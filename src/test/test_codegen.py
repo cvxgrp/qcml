@@ -21,6 +21,10 @@ parameter c
 minimize c*x
 norm(x) <= 0
 """
+sq_norm = """
+variable x(3)
+minimize square(norm(x))
+"""
 
 C = C_Codegen()
 python = PythonCodegen()
@@ -126,3 +130,7 @@ def test_parse_and_compiles():
     yield parse_and_generate, SOCP, "C"
     yield parse_and_generate, SOCP, "operator"
 
+    yield parse_and_generate, sq_norm, "python"
+    yield parse_and_generate, sq_norm, "matlab"
+    yield parse_and_generate, sq_norm, "C"
+    yield parse_and_generate, sq_norm, "operator"

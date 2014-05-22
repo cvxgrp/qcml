@@ -324,7 +324,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         if expr.isscalar: tag = ";"
         else: tag = "[i];"
         if stride is not None and stride != 1:
-            if end.concrete and start.concrete:
+            if (isinstance(end,int) or end.concrete) and (isinstance(start,int) or start.concrete):
                 numel = math.ceil( float(end - start) / stride )
                 yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, toC(expr), tag)
             else:
