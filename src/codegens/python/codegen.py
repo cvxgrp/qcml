@@ -100,16 +100,16 @@ class PythonCodegen(Codegen):
         self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
 
     def stuff_c(self, start, end, expr):
-        yield "c[%s:%s] = %s" % (start, end, toPython(expr))
+        yield "c[%s:%s] = np.squeeze(%s)" % (start, end, toPython(expr))
 
     def stuff_b(self, start, end, expr):
-        yield "b[%s:%s] = %s" % (start, end, toPython(expr))
+        yield "b[%s:%s] = np.squeeze(%s)" % (start, end, toPython(expr))
 
     def stuff_h(self, start, end, expr, stride = None):
         if stride is not None:
-            yield "h[%s:%s:%s] = %s" % (start, end, stride, toPython(expr))
+            yield "h[%s:%s:%s] = np.squeeze(%s)" % (start, end, stride, toPython(expr))
         else:
-            yield "h[%s:%s] = %s" % (start, end, toPython(expr))
+            yield "h[%s:%s] = np.squeeze(%s)" % (start, end, toPython(expr))
 
     def stuff_matrix(self, mat, rstart, rend, cstart, cend, expr, rstride):
         """

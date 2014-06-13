@@ -119,6 +119,9 @@ def parse_and_generate(prob, lang):
     # only checks for exceptions
     assert True
 
+
+
+
 def test_parse_and_compiles():
     yield parse_and_generate, LP, "python"
     yield parse_and_generate, LP, "matlab"
@@ -134,3 +137,4 @@ def test_parse_and_compiles():
     yield parse_and_generate, sq_norm, "matlab"
     yield parse_and_generate, sq_norm, "C"
     yield parse_and_generate, sq_norm, "operator"
+
