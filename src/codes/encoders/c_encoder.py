@@ -1,4 +1,4 @@
-from . encoder import create_encoder
+from encoder import create_encoder
 from ... import codes
 from ... properties.abstract_dim import AbstractDim
 

@@ -264,6 +264,10 @@ def codegen_mul(x,y):
     if isinstance(y,OnesCoeff) and x.isknown and x.isscalar:
         return OnesCoeff(y.n, y.coeff*x, y.transpose)
 
+    if isinstance(x, OnesCoeff) and isinstance(y, EyeCoeff) and x.transpose:
+        # ones^T eye
+        return OnesCoeff(x.n, y.coeff * x.coeff, x.transpose)
+
     return MulCoeff(x, y)
 
 def codegen_transpose(x):
