@@ -144,14 +144,4 @@ int main(int argc, char **argv) {
 
 def test_parse_and_compiles():
     yield properly_solves, "python"
-
-    # this fails because G and h are NULL; ECOS doesn't handle that gracefully
     yield properly_solves, "C"
-
-    # this fails... i guess that's fine?
-    # yield properly_solves, "python", np.matrix
-
-
-
-
-

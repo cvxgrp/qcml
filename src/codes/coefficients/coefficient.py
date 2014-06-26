@@ -109,7 +109,10 @@ class OnesCoeff(CoeffExpr):
         self.transpose = transpose
         self.isknown = True
         self.isscalar = False
-        self.is_matrix_param = False
+        if transpose:
+            self.is_matrix_param = True
+        else:
+            self.is_matrix_param = False
 
     def nnz(self): return self.n
 
@@ -277,6 +280,10 @@ def codegen_transpose(x):
         return x
     if isinstance(x, OnesCoeff):
         x.transpose = not x.transpose
+        if x.transpose:
+            x.is_matrix_param = True
+        else:
+            x.is_matrix_param = False
         return x
     if isinstance(x,TransposeCoeff):
         return x.arg

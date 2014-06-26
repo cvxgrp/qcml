@@ -8,6 +8,7 @@ def create_encoder(lookup):
         except TypeError:
             print x.arg
             print x.arg.left
+            print x.arg.left.is_matrix_param
             print x.arg.right
             # print x.isknown
             # print x.isscalar

@@ -3,6 +3,7 @@ Mixin for restricted multiplication
 """
 
 from .. properties.curvature import isconstant
+from .. codes.coefficients.coefficient import OnesCoeff, ConstantCoeff
 from variable_creation_mixin import VariableCreatorMixin
 
 class RestrictedMultiplyMixin(VariableCreatorMixin):
@@ -13,7 +14,7 @@ class RestrictedMultiplyMixin(VariableCreatorMixin):
 
     def expand_param(self, left, right, node):
         # ONLY FOR BINARY OPERATORS
-        if left.is_matrix_param and right.is_matrix_param:
+        if (left.is_matrix_param and right.is_matrix_param):
             # introduce a new variable for expr
             new_var = self.create_variable(node.right.shape)
 
@@ -91,4 +92,21 @@ class RestrictedMultiplyMixin(VariableCreatorMixin):
                 left[k] = right[k]
 
         self.expr_stack.append(left)
+
+    def visit_Sum(self, node):
+        self.generic_visit(node)
+
+        arg = self.expr_stack.pop()
+
+        n = node.expr.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+        left = OnesCoeff(n, ConstantCoeff(1), True)
+        # HAX: make the sum child node.right
+        node.right = list(node.children())[0]
+        if self.expand_param(left, arg.values()[0], node):
+            arg = self.expr_stack.pop()
+
+        for k in arg.keys():
+            arg[k] = left * arg[k]
+
+        self.expr_stack.append(arg)
 
