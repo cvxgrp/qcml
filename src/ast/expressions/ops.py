@@ -117,7 +117,7 @@ class Sum(e.Expression, e.UnaryOperatorMixin):
     def distribute(self):
         if isinstance(self.expr, Add):
             return (Sum(self.expr.left) + Sum(self.expr.right)).simplify()
-        if isinstance(self.expr, Mul) and e.isnumber(self.expr.left):
+        if isinstance(self.expr, Mul) and shape.isscalar(self.expr.left):
             return (Mul(self.expr.left, Sum(self.expr.right))).simplify()
         return self
 

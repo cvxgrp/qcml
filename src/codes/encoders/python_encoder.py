@@ -28,7 +28,11 @@ def add(x):
     return "%s + %s" % (toPython(x.left), toPython(x.right))
 
 def mul(x):
-    return "%(lhs)s.dot(%(rhs)s) if (isinstance(%(lhs)s, np.ndarray) and isinstance(%(rhs)s, np.ndarray)) else %(lhs)s * %(rhs)s" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
+    if x.left.is_matrix_param:
+        return "%(lhs)s.dot(%(rhs)s)" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
+    else:
+        return "%(lhs)s * %(rhs)s" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
+    #return "%(lhs)s.dot(%(rhs)s) if (isinstance(%(lhs)s, np.ndarray) and isinstance(%(rhs)s, np.ndarray)) else %(lhs)s * %(rhs)s" % {'lhs':toPython(x.left), 'rhs': toPython(x.right)}
 
 def just(elem):
     return "[%s]" % toPython(elem.x)

@@ -34,7 +34,10 @@ def add(x):
     raise Exception("Add not implemented.... %s + %s" % (x.left, x.right))
 
 def mul(x):
-    raise Exception("Multiply not implemented.... %s * %s" % (x.left, x.right))
+    if x.left.isscalar:
+        return "%s * %s" % (toC(x.left), toC(x.right))
+    else:
+        raise Exception("Multiply not implemented.... %s * %s" % (x.left, x.right))
 
 def just(elem):
     return "*%%(ptr)s++ = %s;" % toC(elem.x)

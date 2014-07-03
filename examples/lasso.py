@@ -47,6 +47,7 @@ if __name__ == '__main__':
 
     raw_input("press ENTER to generate C code and save it....")
     p.codegen("C")
+    print p.prob2socp.source
     p.save("lasso")
 
     raw_input("press ENTER to write the test C program....")

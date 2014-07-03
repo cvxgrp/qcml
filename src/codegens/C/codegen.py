@@ -53,13 +53,13 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
         # functions we are going to generate
         self._code = {}
-        self._code['prob2socp'] = CFunction("qc_%(name)s2socp",
-            arguments = ["const %(name)s_params * params",
-                         "const %(name)s_dims * dims"],
+        self._code['prob2socp'] = CFunction("qc_{name}2socp",
+            arguments = ["const {name}_params * params",
+                         "const {name}_dims * dims"],
             ret_type="qc_socp *")
-        self._code['socp2prob'] = CFunction("qc_socp2%(name)s",
-            arguments = ["double * x", "%(name)s_vars * vars",
-                         "const %(name)s_dims * dims"])
+        self._code['socp2prob'] = CFunction("qc_socp2{name}",
+            arguments = ["double * x", "{name}_vars * vars",
+                         "const {name}_dims * dims"])
         self._codekeyorder = ['prob2socp', 'socp2prob']
 
         # parameters and variables in the optimization problem
@@ -89,15 +89,14 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         data_dir = os.path.dirname(__file__)
         path = os.getcwd()
 
-        makefile_template = "%(data_dir)s/Makefile_template" % vars()
-        source_file_template = "%(data_dir)s/stuff_template.c" % vars()
-        header_file_template = "%(data_dir)s/stuff_template.h" % vars()
+        makefile_template = "{data_dir}/Makefile_template".format(**vars())
+        source_file_template = "{data_dir}/stuff_template.c".format(**vars())
+        header_file_template = "{data_dir}/stuff_template.h".format(**vars())
 
-        new_dir = "%(path)s/%(name)s" % vars()
-        makefile = "%(new_dir)s/Makefile" % vars()
-        source_file = "%(new_dir)s/%(name)s.c" % vars()
-        header_file = "%(new_dir)s/%(name)s.h" % vars()
-
+        new_dir = "{path}/{name}".format(**vars())
+        makefile = "{new_dir}/Makefile".format(**vars())
+        source_file = "{new_dir}/{name}.c".format(**vars())
+        header_file = "{new_dir}/{name}.h".format(**vars())
 
         # create the dictionary for the generated code
         if not os.path.exists(new_dir):
@@ -112,15 +111,15 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             'variables': self.variables,
             # the name of the source isn't known until this point, so we
             # interpolate the string and insert it here
-            'prob2socp': self.prob2socp.source % {'name': name},
-            'socp2prob': self.socp2prob.source % {'name': name},
-            'prob2socp_prototype': self.prob2socp.prototype % {'name': name},
-            'socp2prob_prototype': self.socp2prob.prototype % {'name': name}
+            'prob2socp': self.prob2socp.source.format(name=name),
+            'socp2prob': self.socp2prob.source.format(name=name),
+            'prob2socp_prototype': self.prob2socp.prototype.format(name=name),
+            'socp2prob_prototype': self.socp2prob.prototype.format(name=name)
         }
 
         # copy over the static utility files
-        shutil.copy("%s/qcml_utils.c" % data_dir, new_dir)
-        shutil.copy("%s/qcml_utils.h" % data_dir, new_dir)
+        shutil.copy("{0}/qcml_utils.c".format(data_dir), new_dir)
+        shutil.copy("{0}/qcml_utils.h".format(data_dir), new_dir)
 
         # write out the files
         write_template(makefile_template, makefile, codegen_dict)
@@ -328,7 +327,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
                 numel = math.ceil( float(end - start) / stride )
                 yield "for(i = 0; i < %d; ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, toC(expr), tag)
             else:
-                numel = "(%(diff)s %% %(stride)d > 0 ? (%(diff)s+%(stride)d)/%(stride)d : %(diff)s/%(stride)d" % {'diff': end - start, 'stride': stride}
+                numel = "(%(diff)s %% %(stride)d > 0 ? (%(diff)s+%(stride)d)/%(stride)d : %(diff)s/%(stride)d)" % {'diff': end - start, 'stride': stride}
                 yield "for(i = 0; i < (%s); ++i) data->h[%s * i + %s] = %s%s" % (numel, stride, start, toC(expr), tag)
         else:
             yield "for(i = 0; i < %s; ++i) data->h[i + %s] = %s%s" % (end-start, start, toC(expr), tag)

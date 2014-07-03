@@ -140,7 +140,7 @@ class CFunction(Function):
 
     def _generate_code(self, documentation, body):
         if documentation: documentation = ["%s/*" % self.indent] + documentation + ["%s */" % self.indent]
-        return [self.prototype, "{"] + documentation + body + ["}"]
+        return [self.prototype, "{{"] + documentation + body + ["}}"]
 
     def add_comment(self, lines):
         """ Adds comments lines to the source code

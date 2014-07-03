@@ -189,7 +189,6 @@ class SliceCoeff(CoeffExpr):
         self.arg = arg
         self.begin = begin
         self.end = end
-        self.transpose = transpose
         self.isknown = arg.isknown
         self.isscalar = arg.isscalar
         self.is_matrix_param = arg.is_matrix_param
@@ -293,6 +292,8 @@ def codegen_transpose(x):
     if isinstance(x, SliceCoeff):
         x.transpose = not x.transpose
         return x
+    if isinstance(x,MulCoeff) and x.left.isscalar and isinstance(x.right, TransposeCoeff):
+        return MulCoeff(x.left, x.right.arg)
 
     return TransposeCoeff(x)
 

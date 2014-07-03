@@ -16,8 +16,9 @@ py_hello = """def hello(x, y, z, a):
     a = 1"""
 
 c_helloWorld = CFunction("hello", arguments=["x", "y", "z", "a"], ret_type="int")
+# NB: extra braces are for escaping python .format
 c_hello = """int hello(x, y, z, a)
-{
+{{
     /*
      * documenting the function
      * this function just tests
@@ -32,7 +33,7 @@ c_hello = """int hello(x, y, z, a)
     print 'hello world'
     c = x + y + z
     a = 1
-}"""
+}}"""
 
 matlab_helloWorld = MatlabFunction("hello", arguments=["x", "y", "z", "a"], ret_args=["a", "b", "c"])
 matlab_hello = """function [a, b, c] = hello(x, y, z, a)

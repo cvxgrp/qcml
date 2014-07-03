@@ -6,10 +6,11 @@ def create_encoder(lookup):
             #encode_func = lookup.get(x.__class__, lambda x: x.__str__())
             return lookup[x.__class__](x)
         except TypeError:
-            print x.arg
-            print x.arg.left
-            print x.arg.left.is_matrix_param
-            print x.arg.right
+            print x
+            # print x.arg
+            # print x.arg.left
+            # print x.arg.left.is_matrix_param
+            # print x.arg.right
             # print x.isknown
             # print x.isscalar
             # print x.is_matrix_param
