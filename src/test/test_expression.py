@@ -39,7 +39,8 @@ expressions = [
     (Transpose(b*w*u), "2*w*u"),
     (Transpose(b*D*E)*x, "2*E'*D'*x"),
     (Sum(a + w), "1 + 1'*w"),
-    (Sum(w*x + Transpose(D)*x), "1'*w*x + 1'*D'*x")
+    (Sum(w*x + Transpose(D)*x), "1'*w*x + 1'*D'*x"),
+    (Sum(b*w), "2*1'*w")
 ]
 
 def constant_fold(e, expected):

@@ -159,6 +159,9 @@ class MulCoeff(CoeffExpr):
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
     def nnz(self): return code.NNZ("result")
+    # if self.left.isknown and self.left.isscalar:
+    #         return self.right.nnz()
+    #     else:
     def to_sparse(self): return code.Assign("result", self)
     def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
     def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
