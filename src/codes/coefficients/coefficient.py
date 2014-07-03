@@ -158,14 +158,31 @@ class MulCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
-    def nnz(self): return code.NNZ("result")
-    # if self.left.isknown and self.left.isscalar:
-    #         return self.right.nnz()
-    #     else:
-    def to_sparse(self): return code.Assign("result", self)
-    def I(self, row_offset, stride=1): return code.LoopRows("result", row_offset, stride)
-    def J(self, col_offset, stride=1): return code.LoopCols("result", col_offset, stride)
-    def V(self): return code.LoopOver("result")
+    def nnz(self): 
+        if self.left.isscalar:
+            return self.right.nnz()
+        else:
+            return code.NNZ("result")
+    def to_sparse(self):
+        if self.left.isscalar:
+            return code.Assign(self.right, self.right)
+        else:
+            return code.Assign("result", self)
+    def I(self, row_offset, stride=1): 
+        if self.left.isscalar:
+            return code.LoopRows(self.right, row_offset, stride)
+        else:
+            return code.LoopRows("result", row_offset, stride)
+    def J(self, col_offset, stride=1): 
+        if self.left.isscalar:
+            return code.LoopCols(self.right, col_offset, stride)
+        else:
+            return code.LoopCols("result", col_offset, stride)
+    def V(self): 
+        if self.left.isscalar:
+            return code.LoopOver(self.right, "{0}*%s".format(self.left.value))
+        else:
+            return code.LoopOver("result")
 
 
 class TransposeCoeff(CoeffExpr):

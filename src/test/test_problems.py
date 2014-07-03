@@ -19,6 +19,7 @@ variable x(2)
 parameter D(2,2)
 minimize sum(2*D*x)
 x >= 0
+2*D*x == 3
 """
 
 
@@ -38,7 +39,7 @@ def C_parse_and_codegen(prob):
     p.codegen("C")
     return p
 
-def C_parse_and_solve(prob):
+def C_parse_and_solve(prob, solution):
     p = C_parse_and_codegen(prob)
     p.save("test_problem")
 
@@ -82,7 +83,7 @@ int main(int argc, char **argv) {
 }
 """
     objval = make_and_execute_ecos_solve("test_problem", c_test_code)
-    assert objval == 0
+    assert objval == solution
 
 
 
@@ -91,7 +92,7 @@ def test_solves():
     yield C_parse_and_codegen, sum_lp
     yield python_parse_and_solve, sum_mat_lp
     yield C_parse_and_codegen, sum_mat_lp
-    yield C_parse_and_solve, sum_mat_lp
+    yield C_parse_and_solve, sum_mat_lp, 0
     yield python_parse_and_solve, sum_mat_lp_with_scale
     yield C_parse_and_codegen, sum_mat_lp_with_scale
-    yield C_parse_and_solve, sum_mat_lp_with_scale
+    yield C_parse_and_solve, sum_mat_lp_with_scale, 6
