@@ -320,6 +320,7 @@ class Codegen(NodeVisitor):
     def visit_LinearConstraint(self, node):
         # in canonical form, all relop's are affine <= 0 or affine == 0
         self.prob2socp.add_comment("for the constraint %s" % node)
+        self.generic_visit(node)
 
         if node.op == '==':
             start = self.num_lineqs
@@ -327,8 +328,6 @@ class Codegen(NodeVisitor):
         else:
             start = self.num_lps
             self.num_lps += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
-
-        self.generic_visit(node)
 
         # nothing is on RHS
         #right = self.expr_stack.pop()

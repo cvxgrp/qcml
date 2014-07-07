@@ -5,6 +5,7 @@ from . check_ecos import make_and_execute_ecos_solve
 sum_lp = """
 variable x(2)
 minimize sum(2*x)
+x >= 0
 """
 
 sum_mat_lp = """
@@ -19,16 +20,17 @@ variable x(2)
 parameter D(2,2)
 minimize sum(2*D*x)
 x >= 0
-2*D*x == 3
+2*D*x + x == 3
 """
 
 
-def python_parse_and_solve(prob):
+def python_parse_and_solve(prob, solution):
     from .. qc_lang import QCML
     p = QCML(debug=True)
     p.parse(prob)
-    D = np.eye(2)
-    p.solve()
+    D = np.matrix([[0.1, 0], [0, 3.1]])
+    sol = p.solve()
+    assert abs(sol['info']['pcost'] - solution) < 1e-6
     return p
 
 def C_parse_and_codegen(prob):
@@ -41,6 +43,7 @@ def C_parse_and_codegen(prob):
 
 def C_parse_and_solve(prob, solution):
     p = C_parse_and_codegen(prob)
+    print p.program
     p.save("test_problem")
 
     c_test_code = """
@@ -48,7 +51,7 @@ def C_parse_and_solve(prob, solution):
 #include "ecos.h"
 
 int main(int argc, char **argv) {
-    double Ddata[4] = {0.1,3.1};
+    double Ddata[2] = {0.1,3.1};
 
     long Di[2] = {0,1};
     long Dj[2] = {0,1};
@@ -83,16 +86,17 @@ int main(int argc, char **argv) {
 }
 """
     objval = make_and_execute_ecos_solve("test_problem", c_test_code)
-    assert objval == solution
+    print objval
+    assert abs(objval - solution) < 1e-6
 
 
 
 def test_solves():
-    yield python_parse_and_solve, sum_lp
+    yield python_parse_and_solve, sum_lp, 0
     yield C_parse_and_codegen, sum_lp
-    yield python_parse_and_solve, sum_mat_lp
+    yield python_parse_and_solve, sum_mat_lp, 0
     yield C_parse_and_codegen, sum_mat_lp
     yield C_parse_and_solve, sum_mat_lp, 0
-    yield python_parse_and_solve, sum_mat_lp_with_scale
+    yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333
     yield C_parse_and_codegen, sum_mat_lp_with_scale
-    yield C_parse_and_solve, sum_mat_lp_with_scale, 6
+    yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333

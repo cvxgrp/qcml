@@ -3,7 +3,7 @@ Mixin for restricted multiplication
 """
 
 from .. properties.curvature import isconstant
-from .. codes.coefficients.coefficient import OnesCoeff, ConstantCoeff
+from .. codes.coefficients.coefficient import EyeCoeff, OnesCoeff, ConstantCoeff
 from variable_creation_mixin import VariableCreatorMixin
 
 class RestrictedMultiplyMixin(VariableCreatorMixin):
@@ -81,6 +81,12 @@ class RestrictedMultiplyMixin(VariableCreatorMixin):
 
         for k in right.keys():
             if left.get(k, None) is not None:
+                # HACK to ensure that x + PARAM*x and PARAM*x + x is handled properly
+                if isinstance(left[k], EyeCoeff) and not isinstance(right[k], EyeCoeff):
+                    left[k].is_matrix_param = True
+                if isinstance(right[k], EyeCoeff) and not isinstance(left[k], EyeCoeff):
+                    right[k].is_matrix_param = True
+                    
                 if self.expand_param(left[k], right[k], node):
                     new_elem = self.expr_stack.pop()
                     name = new_elem.keys()[0]   # name of variable
