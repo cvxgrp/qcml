@@ -34,7 +34,7 @@ if args.svm:
 
     p.canonicalize()
     p.dims = {'m':m,'n':n}
-    if args.cvx:
+    if not args.cvx:
         p.codegen("python")
     else:
         p.codegen("matlab",cone_size=q)
@@ -56,7 +56,7 @@ elif args.portfolio:
 
     p.canonicalize()
     p.dims = {'m':m,'n':n}
-    if args.cvx:
+    if not args.cvx:
         p.codegen("python")
     else:
         p.codegen("matlab",cone_size=q)

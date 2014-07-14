@@ -212,15 +212,16 @@ class QCParser(object):
         '''dimlist : dimlist COMMA DIM_ID
                    | dimlist COMMA INTEGER
         '''
+        if not isinstance(p[3], int):
+            self.dimensions.add(p[3])
         p[0] = p[1] + [p[3]]
 
-    def p_dimlist_int(self,p):
-        '''dimlist : INTEGER'''
-        p[0] = [p[1]]
-
-    def p_dimlist_id(self,p):
-        '''dimlist : DIM_ID'''
-        self.dimensions.add(p[1])
+    def p_dimlist_singleton(self,p):
+        '''dimlist : INTEGER
+                   | DIM_ID
+        '''
+        if not isinstance(p[1], int):
+            self.dimensions.add(p[1])
         p[0] = [p[1]]
 
     # (for declaring multiple dimensions) id id id ...
