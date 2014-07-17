@@ -27,7 +27,7 @@ typedef struct %(name)s_dims {
 /* the solution struct
  *    users are responsible for keep track of the variable lengths
  */
-typedef struct %(name)s_sol {
+typedef struct %(name)s_vars {
 %(variables)s
 } %(name)s_vars;
   
