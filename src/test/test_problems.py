@@ -4,21 +4,24 @@ from . check_ecos import make_and_execute_ecos_solve
 
 sum_lp = """
 variable x(2)
-minimize sum(2*x)
+parameter c
+minimize sum(2*x) + c + 1
 x >= 0
 """
 
 sum_mat_lp = """
 variable x(2)
 parameter D(2,2)
-minimize sum(D*x)
+parameter c
+minimize sum(D*x) + c + 2
 x >= 0
 """
 
 sum_mat_lp_with_scale = """
 variable x(2)
 parameter D(2,2)
-minimize sum(2*D*x)
+parameter c
+minimize sum(2*D*x) + c + 3
 x >= 0
 2*D*x + x == 3
 """
@@ -29,6 +32,7 @@ def python_parse_and_solve(prob, solution):
     p = QCML(debug=True)
     p.parse(prob)
     D = np.matrix([[0.1, 0], [0, 3.1]])
+    c = 5
     sol = p.solve()
     assert abs(sol['info']['pcost'] - solution) < 1e-6
     return p
@@ -64,6 +68,7 @@ int main(int argc, char **argv) {
     test_problem_params p;
 
     p.D = &D;
+    p.c = 5.0;
 
     qc_socp *data = qc_test_problem2socp(&p, NULL);
 
