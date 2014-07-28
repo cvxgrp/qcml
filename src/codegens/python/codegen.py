@@ -33,6 +33,9 @@ class PythonCodegen(Codegen):
     def extension(self):
         return ".py"
 
+    def handle_constant_offset_in_objective(self, constant_expr):
+        self.objective_offset = toPython(constant_expr)
+
     # function to get problem dimensions
     def python_dimensions(self):
         yield "p, m, n = %s, %s, %s" % (self.num_lineqs, self.num_conic + self.num_lps, self.num_vars)

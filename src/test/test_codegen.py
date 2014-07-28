@@ -12,18 +12,21 @@ from nose import with_setup
 LP = """
 variable x
 parameter c
-minimize c*x
+parameter h
+minimize c*x + h
 x >= 0
 """
 SOCP = """
 variable x
 parameter c
-minimize c*x
+parameter h
+minimize c*x + h
 norm(x) <= 0
 """
 sq_norm = """
 variable x(3)
-minimize square(norm(x))
+parameter h
+minimize square(norm(x)) + h
 """
 
 C = C_Codegen()

@@ -142,6 +142,9 @@ class QCML(object):
             # set the objective value
             multiplier = self.__codegen.objective_multiplier
             offset = self.__codegen.objective_offset
+            if isinstance(offset, str):
+                # in this case, offset is likely python *code*
+                offset = eval(offset)
             result['objval'] = multiplier * sol['info']['pcost'] + offset
             return result
         return solve_func
@@ -163,18 +166,18 @@ class QCML(object):
 
         return self.solver(params, local_dims)
 
-    @property
-    def offset_and_multiplier(self):
-        """
-            Gets the offset and multiplier (+1 or -1) for converting the
-            solver objective value into the desired objective value.
+    # @property
+    # def offset_and_multiplier(self):
+    #     """
+    #         Gets the offset and multiplier (+1 or -1) for converting the
+    #         solver objective value into the desired objective value.
 
-            Usually, the desired objective is
-                multipler * solver objval + offset
+    #         Usually, the desired objective is
+    #             multipler * solver objval + offset
 
-            Returns (offset, multiplier).
-        """
-        return (self.__codegen.objective_offset, self.__codegen.objective_multiplier)
+    #         Returns (offset, multiplier).
+    #     """
+    #     return (self.__codegen.objective_offset, self.__codegen.objective_multiplier)
 
     def printsource(self):
         print '\n\n'.join(self.__codegen.source)

@@ -127,6 +127,9 @@ class Codegen(NodeVisitor):
         """
         return "%s" % ad
 
+    def handle_constant_offset_in_objective(self, constant_expr):
+        pass
+
     def codegen(self):
         # create the source code
         self.prob2socp.create()
@@ -302,7 +305,7 @@ class Codegen(NodeVisitor):
             for k,v in obj.iteritems():
                 # ignore constants
                 if k == '1':
-                    self.objective_offset = v.value
+                    self.handle_constant_offset_in_objective(v)
                     continue
                 start = self.varstart[k]
                 length = self.varlength[k]
