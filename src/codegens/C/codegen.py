@@ -220,10 +220,16 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         if self.nnz[matrix]:
             yield "%s_csc = qc_compress(&%s_coo);" % (matrix, matrix)
             yield "if (!%s_csc) return qc_socp_free(data);" % matrix
+            yield "/* free memory used for COO matrix, so it can be reassigned later */"
+            yield "free(data->%si);" % matrix
+            yield "free(data->%sp);" % matrix
+            yield "free(data->%sx);" % matrix
             yield "/* reassign into data, pointer now owned by data */"
             yield "data->%si = %s_csc->i;" % (matrix, matrix)
             yield "data->%sp = %s_csc->j;" % (matrix, matrix)
             yield "data->%sx = %s_csc->v;" % (matrix, matrix)
+            yield "/* only free temp CSC pointer, but not its data */"
+            yield "free(%s_csc);" % (matrix)
             yield ""
 
     def c_recover(self):
