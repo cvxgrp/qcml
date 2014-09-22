@@ -1,6 +1,6 @@
 from .. ast import NodeVisitor
 from .. ast.constraints import  SOC, SOCProd, LinearConstraint
-from .. properties.shape import isscalar
+from .. properties.shape import isscalar, isvector, ismatrix
 from .. properties.curvature import isconstant
 from .. codes import ConstantCoeff, ScalarParameterCoeff, ParameterCoeff, \
     EyeCoeff, OnesCoeff
@@ -234,7 +234,15 @@ class Codegen(NodeVisitor):
         # elif isvector(node):
         #     self.expr_stack.append({'1':VectorParameterCoeff(node.value)})
         else:
-            self.expr_stack.append({'1':ParameterCoeff(node.value)})
+            dims = []
+            for x in node.shape.dimensions:
+                if not x.concrete:
+                    dims.append(self.abstractdim_rewriter(str(x)))
+                else:
+                    dims.append(x)
+
+            shape = (dims[0], 1) if isvector(node) else dims
+            self.expr_stack.append({'1':ParameterCoeff(node.value, shape)})
 
     def visit_Number(self, node):
         self.expr_stack.append({'1':ConstantCoeff(node.value)})

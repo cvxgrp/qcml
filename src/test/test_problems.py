@@ -34,6 +34,12 @@ minimize sum(x)
 square(norm(D*x)) - 2*b'*x <= 0
 """
 
+github_issue_45 = """
+parameter b(2)
+variable x(2)
+minimize( norm(x) )
+b'*x==1
+"""
 
 def python_parse_and_solve(prob, solution):
     from .. qc_lang import QCML
@@ -115,4 +121,5 @@ def test_solves():
     yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333
     yield C_parse_and_codegen, sum_mat_lp_with_scale
     yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333
-    yield python_parse_and_solve, mix_quad_affine_constr, 0
+    yield python_parse_and_solve, mix_quad_affine_constr, -0.0519076361544
+    yield python_parse_and_solve, github_issue_45, 0.447213582782

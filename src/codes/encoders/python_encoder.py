@@ -60,9 +60,10 @@ def assign(x):
         lhs = toPython(x.lhs)
     if isinstance(x.rhs, codes.TransposeCoeff):
         rhs = toPython(x.rhs.arg)
+        return "%s = sp.coo_matrix(np.reshape(%s, (%s,%s)))" % (lhs, rhs, x.rhs.arg.rows, x.rhs.arg.cols)
     else:
         rhs = toPython(x.rhs)
-    return "%s = sp.coo_matrix(%s)" % (lhs, rhs)
+        return "%s = sp.coo_matrix(%s)" % (lhs, rhs)
 
 def nnz(x):
     return "%s.nnz" % (toPython(x.obj))

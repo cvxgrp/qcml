@@ -44,11 +44,12 @@ class ConstantCoeff(CoeffExpr):
     def V(self): return code.Just(self)
 
 class ParameterCoeff(CoeffExpr):
-    def __init__(self, value):
+    def __init__(self, value, shape):
         self.value = value
         self.isknown = True
         self.isscalar = False
         self.is_matrix_param = True
+        self.rows, self.cols = shape
 
     def nnz(self): return code.NNZ(self)
     def to_sparse(self): return code.Assign(self, self)
@@ -59,7 +60,7 @@ class ParameterCoeff(CoeffExpr):
 
 class ScalarParameterCoeff(ParameterCoeff):
     def __init__(self,value):
-        super(ScalarParameterCoeff, self).__init__(value)
+        super(ScalarParameterCoeff, self).__init__(value, (1,1))
         self.isscalar = True
         self.is_matrix_param = False
 
