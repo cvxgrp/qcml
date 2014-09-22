@@ -26,6 +26,14 @@ x >= 0
 2*D*x + x == 3
 """
 
+mix_quad_affine_constr = """
+variable x(2)
+parameter D(2,2)
+parameter b(2)
+minimize sum(x)
+square(norm(D*x)) - 2*b'*x <= 0
+"""
+
 
 def python_parse_and_solve(prob, solution):
     from .. qc_lang import QCML
@@ -33,7 +41,9 @@ def python_parse_and_solve(prob, solution):
     p.parse(prob)
     D = np.matrix([[0.1, 0], [0, 3.1]])
     c = 5
+    b = np.matrix([[1.0],[2.0]])
     sol = p.solve()
+    print "Expecting", sol['info']['pcost']
     assert abs(sol['info']['pcost'] - solution) < 1e-6
     return p
 
@@ -105,3 +115,4 @@ def test_solves():
     yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333
     yield C_parse_and_codegen, sum_mat_lp_with_scale
     yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333
+    yield python_parse_and_solve, mix_quad_affine_constr, 0

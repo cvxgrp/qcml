@@ -54,7 +54,15 @@ def repeat(x):
     return "itertools.repeat(%s, %s)" % (toPython(x.obj), x.n)
 
 def assign(x):
-    return "%s = sp.coo_matrix(%s)" % (toPython(x.lhs), toPython(x.rhs))
+    if isinstance(x.lhs, codes.TransposeCoeff):
+        lhs = toPython(x.lhs.arg)
+    else:
+        lhs = toPython(x.lhs)
+    if isinstance(x.rhs, codes.TransposeCoeff):
+        rhs = toPython(x.rhs.arg)
+    else:
+        rhs = toPython(x.rhs)
+    return "%s = sp.coo_matrix(%s)" % (lhs, rhs)
 
 def nnz(x):
     return "%s.nnz" % (toPython(x.obj))

@@ -158,7 +158,7 @@ class MulCoeff(CoeffExpr):
         self.isscalar = left.isscalar and right.isscalar
         self.is_matrix_param = left.is_matrix_param or right.is_matrix_param
 
-    def nnz(self): 
+    def nnz(self):
         if self.left.isscalar:
             return self.right.nnz()
         else:
@@ -168,17 +168,17 @@ class MulCoeff(CoeffExpr):
             return code.Assign(self.right, self.right)
         else:
             return code.Assign("result", self)
-    def I(self, row_offset, stride=1): 
+    def I(self, row_offset, stride=1):
         if self.left.isscalar:
             return code.LoopRows(self.right, row_offset, stride)
         else:
             return code.LoopRows("result", row_offset, stride)
-    def J(self, col_offset, stride=1): 
+    def J(self, col_offset, stride=1):
         if self.left.isscalar:
             return code.LoopCols(self.right, col_offset, stride)
         else:
             return code.LoopCols("result", col_offset, stride)
-    def V(self): 
+    def V(self):
         if self.left.isscalar:
             return code.LoopOver(self.right, "{0}*%s".format(self.left.value))
         else:
