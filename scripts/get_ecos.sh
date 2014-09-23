@@ -16,6 +16,9 @@ if ! $(python -m 'ecos'); then
     fi
 
     cd ecos/python
+    cp -r ../include .
+    cp -r ../external .
+    cp -r ../src .
     INSTALL_ECOS='pip install . --no-deps'
     if [ -n "$1" ]; then
         INSTALL_ECOS="$INSTALL_ECOS --prefix $1"
