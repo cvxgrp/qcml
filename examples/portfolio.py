@@ -11,6 +11,7 @@ if __name__ == '__main__':
     n = 100   # number of assets
     m = 10    # number of factors
     mu = np.exp(randn(n))
+    mu = np.reshape(mu, (n,1))
     F = randn(n,m)
     D = spdiags(rand(n),0,n,n)
     gamma = 1
