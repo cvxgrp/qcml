@@ -19,6 +19,7 @@ if ! $(python -m 'ecos'); then
     cp -r ../include .
     cp -r ../external .
     cp -r ../src .
+    mv .setup_dist.py setup.py
     INSTALL_ECOS='pip install . --no-deps'
     if [ -n "$1" ]; then
         INSTALL_ECOS="$INSTALL_ECOS --prefix $1"
