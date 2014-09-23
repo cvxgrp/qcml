@@ -16,7 +16,7 @@ if ! $(python -m 'ecos'); then
     fi
 
     cd ecos/python
-    INSTALL_ECOS='python setup.py install'
+    INSTALL_ECOS='pip install . --no-deps'
     if [ -n "$1" ]; then
         INSTALL_ECOS="$INSTALL_ECOS --prefix $1"
     fi

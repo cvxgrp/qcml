@@ -9,9 +9,9 @@ before_install:
     - sudo apt-get install python-numpy python-scipy python-cvxopt
 # install dependencies
 install:
-    - pip install ply coverage ecos
-    #- cd scripts; sudo ./get_ecos.sh    # installs python library
-    #- cd ecos; sudo make                # make the C static library
+    - pip install ply coverage
+    - cd scripts; sudo ./get_ecos.sh    # installs python library
+    - cd ecos; sudo make                # make the C static library
     - cd ../..; sudo python setup.py install
 # command to run tests
 script:
