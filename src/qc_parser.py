@@ -16,6 +16,8 @@ def _find_column(data, pos):
     last_cr = data.rfind('\n',0,pos)
     if last_cr < 0:
         last_cr = 0
+    else:
+        last_cr += 1 # since carriage return counts as a token
     column = (pos - last_cr) + 1
     return column
 
@@ -83,18 +85,18 @@ class QCParser(object):
         data = self.lex.lexer.lexdata
         s = data.split('\n')
 
-        if token is not None:
-            num = token.lineno
-            col = _find_column(data,token.lexpos)
+        if token:
+            num = token.lexer.lineno
+            col = _find_column(data, token.lexpos)
         else:
             num = self.lex.lexer.lineno
-            col = _find_column(data,self.lex.lexer.lexpos)
-        line = s[num - 1]
+            col = _find_column(data, self.lex.lexer.lexpos)
+        line = s[num-1]
 
         leader = 2*' '
         print "QCML error on line %s:" % num
         print leader, """>> %s """ % line.lstrip().rstrip()
-        print leader, "  ", (col-1)*" ", "^"
+        print leader, "   " + (" "*(col-1)) + "^"
         print
         print "Error:", msg
         print
@@ -354,5 +356,7 @@ class QCParser(object):
 
     # (Super ambiguous) error rule for syntax errors
     def p_error(self,p):
-        if p is None: self._print_err(None, "End of file reached")
-        else: self._print_err(p, "Syntax error at '%s'" % p.value)
+        if p:
+            self._print_err(p, "Syntax error at '%s'" % p.value)
+        else:
+            self._print_err(None, "End of file reached")

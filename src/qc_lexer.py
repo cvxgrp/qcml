@@ -32,6 +32,7 @@ class QCLexer(object):
         ('variables', 'VARIABLES'),
         ('parameters', 'PARAMETERS'),
         ('dimensions', 'DIMENSIONS'),
+        ('dual', 'DUAL'),   # modifier for "variable"
         #'expressions' : 'EXPRESSIONS',
         ('positive', 'SIGN'),
         ('negative', 'SIGN'),
@@ -47,8 +48,8 @@ class QCLexer(object):
 
     tokens = [
         'INTEGER','CONSTANT', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQ', 'LEQ', 'GEQ',
-        'COMMA', 'TRANSPOSE', 'LPAREN', 'RPAREN',
-        'ID', 'DIM_ID', 'VAR_ID', 'PARAM_ID', 'COMMENT', 'NL'
+        'COMMA', 'TRANSPOSE', 'LPAREN', 'RPAREN', 'COLON',
+        'ID', 'DIM_ID', 'VAR_ID', 'PARAM_ID', 'NL'
     ] + list(set(reserved.values()))
 
     t_PLUS      = r'\+'
@@ -60,6 +61,7 @@ class QCLexer(object):
     t_LEQ       = r'<='
     t_GEQ       = r'>='
     t_COMMA     = r','
+    t_COLON     = r':'
     # t_SEMI      = r';'
     t_TRANSPOSE = r'\''
     # t_LBRACE    = r'\['
@@ -104,16 +106,16 @@ class QCLexer(object):
 
         return tok
 
-    def t_COMMENT(self, tok):
-        r'\#.*'
-        pass
-        # comment token
-
-    # newline rule
+    # newline is used as an ending
     def t_NL(self, tok):
         r'\n+'
-        tok.lexer.lineno += len(tok.value)
+        tok.lexer.lineno += tok.value.count("\n")
         return tok
+
+    # comment token
+    def t_COMMENT(self, tok):
+        r'\#[^\\\n]*'
+        pass
 
     # things to ignore (spaces and tabs)
     t_ignore = ' \t'
@@ -122,4 +124,3 @@ class QCLexer(object):
     def t_error(self, tok):
         print "QC_LEX: Illegal character '%s'" % tok.value[0]
         tok.lexer.skip(1)
-
