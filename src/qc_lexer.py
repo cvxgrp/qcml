@@ -8,11 +8,6 @@ from . ast.atoms import atoms
 
 
 class QCLexer(object):
-    def __init__(self):
-        self.dimensions = set()
-        self.variables = {}
-        self.parameters = {}
-
     def build(self, **kwargs):
         """ Builds the lexer from the specification. Must be
             called after the lexer object is created.
@@ -49,7 +44,7 @@ class QCLexer(object):
     tokens = [
         'INTEGER','CONSTANT', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'EQ', 'LEQ', 'GEQ',
         'COMMA', 'TRANSPOSE', 'LPAREN', 'RPAREN', 'COLON',
-        'ID', 'DIM_ID', 'VAR_ID', 'PARAM_ID', 'NL'
+        'ID', 'NL'
     ] + list(set(reserved.values()))
 
     t_PLUS      = r'\+'
@@ -86,23 +81,23 @@ class QCLexer(object):
     def t_ID(self, tok):
         r'[a-zA-Z][a-zA-Z_0-9]*'
         tok.type = self.reserved.get(tok.value, 'ID')
-        if tok.type == 'ID':
-            # check to see if it's a dimension, variable, or parameter id
-            if tok.value in self.dimensions:
-                tok.type = 'DIM_ID'
-                return tok
-
-            new_value = self.variables.get(tok.value, None)
-            if new_value is not None:
-                tok.type = 'VAR_ID'
-                tok.value = new_value
-                return tok
-
-            new_value = self.parameters.get(tok.value, None)
-            if new_value is not None:
-                tok.type = 'PARAM_ID'
-                tok.value = new_value
-                return tok
+        # if tok.type == 'ID' and self.is_lex_expr:
+        #     # check to see if it's a dimension, variable, or parameter id
+        #     if tok.value in self.dimensions:
+        #         tok.type = 'DIM_ID'
+        #         return tok
+        #
+        #     new_value = self.variables.get(tok.value, None)
+        #     if new_value is not None:
+        #         tok.type = 'VAR_ID'
+        #         tok.value = new_value
+        #         return tok
+        #
+        #     new_value = self.parameters.get(tok.value, None)
+        #     if new_value is not None:
+        #         tok.type = 'PARAM_ID'
+        #         tok.value = new_value
+        #         return tok
 
         return tok
 

@@ -44,13 +44,19 @@ class QCParser(object):
         self.tokens = self.lex.tokens
         self.parser = yacc.yacc(module = self)
 
-        # while self.lex.parameters, self.lex.variables, and
-        # self.lex.dimensions keep track of *declared* variables, parameters,
+        self.decl_parameters = {}
+        self.decl_variables = {}
+        self.decl_dimensions = set()
+
+        # while self.decl_parameters, self.decl_variables, and
+        # self.decl_dimensions keep track of *declared* variables, parameters,
         # and dimensions, self.parameters, self.variables, and self.dimensions
         # keep track of *used* variables, parameters, and dimensions
         self.parameters = {}
         self.variables = {}
         self.dimensions = set()
+
+        self.error_msg = None
 
     def parse(self, text):
         """ Parses QCML and returns an AST.
@@ -72,7 +78,7 @@ class QCParser(object):
         # except Exception as e:
         #     self._print_err(e, False)
 
-    def _print_err(self, token, msg, raise_error=True):
+    def _print_err(self, msg, lineno, lexpos, raise_error=True):
         """ Prints a QCML parse error.
 
             msg:
@@ -85,17 +91,12 @@ class QCParser(object):
         data = self.lex.lexer.lexdata
         s = data.split('\n')
 
-        if token:
-            num = token.lexer.lineno
-            col = _find_column(data, token.lexpos)
-        else:
-            num = self.lex.lexer.lineno
-            col = _find_column(data, self.lex.lexer.lexpos)
-        line = s[num-1]
+        col = _find_column(data, lexpos)
+        line = s[lineno-1]
 
-        leader = 2*' '
-        print "QCML error on line %s:" % num
-        print leader, """>> %s """ % line.lstrip().rstrip()
+        leader = 3*' '
+        print "QCML error on line %s:" % lineno
+        print leader, """>> %s """ % line.strip()
         print leader, "   " + (" "*(col-1)) + "^"
         print
         print "Error:", msg
@@ -105,9 +106,9 @@ class QCParser(object):
             raise errors.QC_ParseError(msg)
 
     def _name_exists(self,s):
-        return (s in self.lex.dimensions) or \
-               (s in self.lex.variables.keys()) or \
-               (s in self.lex.parameters.keys())
+        return (s in self.decl_dimensions) or \
+               (s in self.decl_variables.keys()) or \
+               (s in self.decl_parameters.keys())
 
     # only a single objective allowed per program
     def p_program(self,p):
@@ -160,13 +161,13 @@ class QCParser(object):
     def p_create_dimension(self,p):
         'create : DIMENSION ID'
         if self._name_exists(p[2]):
-            self._print_err(p[2],"name '%s' already exists in namespace" % p[2])
+            self._print_err("name '%s' already exists in namespace" % p[2], p.lineno(2), p.lexpos(2))
         else:
-            self.lex.dimensions.add(p[2])
+            self.decl_dimensions.add(p[2])
 
     def p_create_dimensions(self,p):
         'create : DIMENSIONS idlist'
-        self.lex.dimensions.update(p[2])
+        self.decl_dimensions.update(p[2])
 
     def p_create_identifier(self,p):
         '''create : VARIABLE array
@@ -174,70 +175,76 @@ class QCParser(object):
         '''
         (name, shape) = p[2]
         if(p[1] == 'variable'):
-            self.lex.variables[name] = Variable(name, shape)
+            self.decl_variables[name] = Variable(name, shape)
         if(p[1] == 'parameter'):
-            self.lex.parameters[name] = Parameter(name, shape, Neither())
+            self.decl_parameters[name] = Parameter(name, shape, Neither())
 
     def p_create_identifiers(self,p):
         '''create : VARIABLES arraylist
                   | PARAMETERS arraylist
         '''
         if(p[1] == 'variables'):
-            self.lex.variables.update({name: Variable(name, shape) for (name,shape) in p[2]})
+            self.decl_variables.update({name: Variable(name, shape) for (name,shape) in p[2]})
         if(p[1] == 'parameters'):
-            self.lex.parameters.update({name: Parameter(name, shape, Neither()) for (name,shape) in p[2]})
+            self.decl_parameters.update({name: Parameter(name, shape, Neither()) for (name,shape) in p[2]})
 
     def p_create_signed_identifier(self,p):
         'create : PARAMETER array SIGN'
         (name, shape) = p[2]
         if p[3] == 'positive' or p[3] == 'nonnegative':
-            self.lex.parameters[name] = Parameter(name, shape, Positive())
+            self.decl_parameters[name] = Parameter(name, shape, Positive())
         else:
-            self.lex.parameters[name] = Parameter(name, shape, Negative())
+            self.decl_parameters[name] = Parameter(name, shape, Negative())
 
     def p_array_identifier(self,p):
         'array : ID LPAREN dimlist RPAREN'
         if self._name_exists(p[1]):
-            self._print_err(p[1],"name '%s' already exists in namespace" % p[1])
+            self._print_err("name '%s' already exists in namespace" % p[1], p.lineno(1), p.lexpos(1))
         else:
             p[0] = (p[1], Shape(p[3]))
 
     def p_array_identifier_scalar(self, p):
         'array : ID'
         if self._name_exists(p[1]):
-            self._print_err(p[1],"name '%s' already exists in namespace" % p[1])
+            self._print_err("name '%s' already exists in namespace" % p[1], p.lineno(1), p.lexpos(1))
         else:
             p[0] = (p[1],Scalar())
 
     # (for shape) id, id, id ...
     def p_dimlist_list(self,p):
-        '''dimlist : dimlist COMMA DIM_ID
+        '''dimlist : dimlist COMMA ID
                    | dimlist COMMA INTEGER
         '''
         if not isinstance(p[3], int):
-            self.dimensions.add(p[3])
+            if p[3] in self.decl_dimensions:
+                self.dimensions.add(p[3])
+            else:
+                self._print_err("name '%s' does not name a valid dimension" % p[3], p.lineno(3), p.lexpos(3))
         p[0] = p[1] + [p[3]]
 
     def p_dimlist_singleton(self,p):
         '''dimlist : INTEGER
-                   | DIM_ID
+                   | ID
         '''
         if not isinstance(p[1], int):
-            self.dimensions.add(p[1])
+            if p[1] in self.decl_dimensions:
+                self.dimensions.add(p[1])
+            else:
+                self._print_err("name '%s' does not name a valid dimension" % p[1], p.lineno(1), p.lexpos(1))
         p[0] = [p[1]]
 
     # (for declaring multiple dimensions) id id id ...
     def p_idlist_list(self,p):
         '''idlist : idlist ID'''
         if self._name_exists(p[2]):
-            self._print_err(p[2],"name '%s' already exists in namespace" % p[2])
+            self._print_err("name '%s' already exists in namespace" % p[2], p.lineno(2), p.lexpos(2))
         else:
             p[0] = p[1] + [p[2]]
 
     def p_idlist_id(self,p):
         'idlist : ID'
         if self._name_exists(p[1]):
-            self._print_err(p[2],"name '%s' already exists in namespace" % p[1])
+            self._print_err("name '%s' already exists in namespace" % p[1], p.lineno(1), p.lexpos(1))
         else:
             p[0] = [p[1]]
 
@@ -310,20 +317,26 @@ class QCParser(object):
     def p_expression_constant(self,p):
         '''expression : CONSTANT
                       | INTEGER
-                      | VAR_ID
-                      | PARAM_ID'''
+                      | ID'''
         # these are leaves in the expression tree
         if isinstance(p[1], float):
             p[0] = Number(p[1])
         elif isinstance(p[1], int):
             p[0] = Number(float(p[1]))
-        elif isinstance(p[1], Variable):
-            p[0] = p[1]
-            self.variables[p[1].value] = p[1]
-        elif isinstance(p[1], Parameter):
-            p[0] = p[1]
-            self.parameters[p[1].value] = p[1]
-        else: self._print_err(p[1], "Unknown identifier '%s'" % p[1])
+        else:
+            variable = self.decl_variables.get(p[1], None)
+            parameter = self.decl_parameters.get(p[1], None)
+            if not variable and not parameter:
+                self._print_err("Unknown identifier '%s'" % p[1], p.lineno(1), p.lexpos(1))
+            elif variable and parameter:
+                self._print_err("Unknown error: '%s' names *both* a variable and parameter" % p[1], p.lineno(1), p.lexpos(1))
+            elif variable and not parameter:
+                p[0] = variable
+                self.variables[p[1]] = variable
+            elif parameter and not variable:
+                p[0] = parameter
+                self.parameters[p[1]] = parameter
+
 
     def p_expression_sum(self,p):
         'expression : SUM LPAREN expression RPAREN'
@@ -357,6 +370,12 @@ class QCParser(object):
     # (Super ambiguous) error rule for syntax errors
     def p_error(self,p):
         if p:
-            self._print_err(p, "Syntax error at '%s'" % p.value)
+            self._print_err("Syntax error at '%s'" % p.value,
+                p.lexer.lineno,
+                p.lexpos
+            )
+
         else:
-            self._print_err(None, "End of file reached")
+            self._print_err("End of file reached; missing newline at end of file?",
+                self.lex.lexer.lineno,
+                self.lex.lexer.lexpos)
