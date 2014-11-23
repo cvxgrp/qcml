@@ -8,7 +8,7 @@ virtualenv:
 # cvxopt is for examples
 before_install:
     - sudo apt-get install python-numpy python-scipy python-cvxopt
-    - sudo apt-get install python3-numpy python3-scipy python3-cvxopt
+    - sudo apt-get install python3-numpy python3-scipy 
 # install dependencies
 install:
     - pip install ply coverage ecos
