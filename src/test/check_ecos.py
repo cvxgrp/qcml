@@ -5,7 +5,7 @@ import platform
 import re
 
 FILE_PATH = os.path.dirname(__file__)
-DEFAULT = os.path.join(FILE_PATH, "../../scripts/ecos")
+DEFAULT = os.path.join(FILE_PATH, "../../ecos")
 ECOS_PATH = os.environ.get("ECOS_PATH")
 ECOS_PATH = ECOS_PATH if ECOS_PATH else DEFAULT
 

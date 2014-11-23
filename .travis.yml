@@ -1,14 +1,14 @@
 language: python
 python:
     - "2.7"
-    - "3.2"
+    # - "3.2"
 virtualenv:
     system_site_packages: true
 # install scipy and numpy
 # cvxopt is for examples
 before_install:
     - sudo apt-get install python-numpy python-scipy python-cvxopt
-    - sudo apt-get install python3-numpy python3-scipy 
+    # - sudo apt-get install python3-numpy python3-scipy 
 # install dependencies
 install:
     - pip install ply coverage
