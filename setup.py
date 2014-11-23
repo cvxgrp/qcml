@@ -28,7 +28,7 @@ setup(
          'codegens/C/qcml_utils.*',
          'test/problems/*.prob']
     },
-        url='http://github.com/cvxgrp/qcml/',
+    url='http://github.com/cvxgrp/qcml/',
     license='BSD',
     description='A parser for modeling convex optimization problems in Python.',
     long_description=open('README.md').read(),
