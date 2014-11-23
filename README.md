@@ -38,9 +38,10 @@ Python string as follows:
     parameter gamma positive
     parameter F(n,m)
     parameter D(n,n)
+    dual variable u
     maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
         sum(x) == 1
-        x >= 0
+        u : x >= 0
     """
 
 Our tool parses the problem and rewrites it, after which it can generate
@@ -110,7 +111,8 @@ For the most basic usage, this project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
 * [PLY](http://www.dabeaz.com/ply/), the Python Lex-Yacc parsing framework.  Available as python-ply or py-ply package in most distributions
-* [ECOS](http://github.com/ifa-ethz/ecos)
+* [ECOS](http://github.com/embotech/ecos)
+* [ECOS Python module](http://github.com/embotech/ecos-python)
 * [NUMPY](http://numpy.org)
 * [SCIPY](http://scipy.org)
 
@@ -154,6 +156,12 @@ all `parameters` are assumed to be (sparse) matrices. For example, the code
 declares two dimensions, `m` and `n`; two variables of length `n` and `m`,
 respectively; an elementwise positive (sparse) parameter matrix, `A`; the
 scalar parameter `b`; and the vector parameter `c`.
+
+Furthermore, a variable may be marked as a dual variable by prefixing the 
+declaration with `dual`. Thus, `dual variable y` (no dimensions) declares
+`y` to be a dual variable. Dual variables are associated with constraints
+with a colon: `y : x >= 0`, associates the dual variable `y` with the 
+nonnegativity constraint.
 
 Abstract dimensions
 -------------------
