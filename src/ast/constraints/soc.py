@@ -36,7 +36,12 @@ class SOC(SOCConstraint):
             raise TypeError("Cannot form SOC constraint with vector '%s' right-hand side." % t)
         super(SOC, self).__init__(args, t, shape.Scalar())
 
-    def __str__(self): return "norm([%s]) <= %s" % ('; '.join(map(str,self.left)), self.right)
+    def __str__(self):
+        constr = "norm([%s]) <= %s" % ('; '.join(map(str,self.left)), self.right)
+        if self.dual_var:
+            return self.dual_var + " : " + constr
+        else:
+            return constr
 
 class SOCProd(SOCConstraint):
     """ SOCProd AST node.
@@ -64,7 +69,14 @@ class SOCProd(SOCConstraint):
 
     def __str__(self):
         if self.nargs == 1:
-            return "abs(%s) <= %s" % (self.left[0], self.right)
+            constr = "abs(%s) <= %s" % (self.left[0], self.right)
+            if self.dual_var:
+                return self.dual_var + " : " + constr
+            else:
+                return constr
         else:
-            return "norm(%s) <= %s" % (', '.join(map(str, self.left)), self.right)
-
+            constr = "norm(%s) <= %s" % (', '.join(map(str, self.left)), self.right)
+            if self.dual_var:
+                return self.dual_var + " : " + constr
+            else:
+                return constr

@@ -19,6 +19,7 @@ class Constraint(Node):
         self.right = right
         self.shape = shape
         self.is_dcp = is_dcp
+        self.dual_var = None
 
     @abstractmethod
     def __str__(self):
@@ -70,6 +71,3 @@ class Constraint(Node):
     #     return self
 
     attr_names = ('is_dcp', 'shape')
-
-
-

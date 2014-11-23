@@ -62,13 +62,22 @@ problem_list = [
     minimize lambda*sum(x) + sum(square(x))
     subject to
         x <= 4
+        10 >= x >= 0
         # bogus stuff
 """,
 """ dimension n
     variable x(n)
     parameter c(n)
     minimize c'*x
-"""
+        c <= x <= 5
+""",
+""" dimensions n
+    variable x(n)
+    dual variable y
+    minimize sum(square(x))
+    subject to
+        y : x <= 4
+""",
 ]
 
 bad_problem_list = [
@@ -89,7 +98,14 @@ bad_problem_list = [
 """ variable y(3)
     dual variable x(4)""",
 """ variable x(3)
-    dual variable x"""
+    dual variable x""",
+""" dimension n
+    variable x(n)
+    dual variable y
+    parameter c(n)
+    minimize c'*x
+        y : c <= x <= 5
+"""
 ]
 
 # check keywords: variable, parameters, and dimensions

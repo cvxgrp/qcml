@@ -8,7 +8,12 @@ class LinearConstraint(Constraint):
         self.op = op
         super(LinearConstraint, self).__init__(linear_component, None, shape, is_dcp)
 
-    def __str__(self): return "%s %s 0" % (self.left, self.op)
+    def __str__(self):
+        constr = "%s %s 0" % (self.left, self.op)
+        if self.dual_var:
+            return self.dual_var + " : " + constr
+        else:
+            return constr
 
     def canonicalize(self):
         self.left, lh_constr = self.left.canonicalize()

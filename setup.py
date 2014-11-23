@@ -21,7 +21,6 @@ setup(
                 'qcml.codes',
                 'qcml.codes.encoders',
                 'qcml.codes.coefficients',
-                'qcml.errors',
                 'qcml.test'],
     package_dir={'qcml': 'src'},
     package_data = {'qcml':

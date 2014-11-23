@@ -70,6 +70,8 @@ class QCParser(object):
         """
 
         # always append a newline to the end
+        s = text.split('\n')
+        text = '\n'.join(line.strip() for line in s)
         text += '\n'
 
         # try:
@@ -159,6 +161,8 @@ class QCParser(object):
     def p_statement(self,p):
         '''statement : create
                      | constraint
+                     | dual_constraint
+                     | chained_constraint
                      | empty
         '''
         # create returns None
@@ -274,14 +278,23 @@ class QCParser(object):
         else:
             p[0] = [p[1] >= p[3]]
 
+    def p_dual_constraint(self,p):
+        'dual_constraint : ID COLON constraint'
+        if p[1] in self.decl_dual_variables:
+            self.dual_variables.add(p[1])
+            # a constraint is a singleton list
+            p[3][0].dual_var = p[1]
+        p[0] = p[3]
+
+
     # more generic chained constraint is
     #    constraint EQ expression
     #    constraint LEQ expression
     #    constraint GEQ expression
     # not sure if we need to handle that
     def p_chained_constraint(self,p):
-        '''constraint : expression LEQ expression LEQ expression
-                      | expression GEQ expression GEQ expression
+        '''chained_constraint : expression LEQ expression LEQ expression
+                              | expression GEQ expression GEQ expression
         '''
         if p[2] == '<=':
             p[0] = [ p[1] <= p[3], p[3] <= p[5] ]
