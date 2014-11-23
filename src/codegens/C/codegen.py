@@ -15,6 +15,10 @@ Need to compile qcml_utils.c to a qcml_utils.o, but only need to link it into
 the matrix stuffing object.
 
 Links with ECOS library.
+
+An easy way to stuff the matrices (without calling "compress" on the
+triplet form) is to write the matrix column by column, but I haven't
+done this yet. It would be a slight improvement in performance.
 """
 import os, shutil, site, math
 from collections import Counter
