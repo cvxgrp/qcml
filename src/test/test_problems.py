@@ -4,44 +4,49 @@ from . check_ecos import make_and_execute_ecos_solve
 
 sum_lp = """
 variable x(2)
+dual variable y
 parameter c
 minimize sum(2*x) + c + 1
-x >= 0
+y : x >= 0
 """
 
 sum_mat_lp = """
 variable x(2)
+dual variable y
 parameter D(2,2)
 parameter c
 minimize sum(D*x) + c + 2
-x >= 0
+y : x >= 0
 """
 
 sum_mat_lp_with_scale = """
 variable x(2)
+dual variables u v
 parameter D(2,2)
 parameter c
 minimize sum(2*D*x) + c + 3
-x >= 0
-2*D*x + x == 3
+u : x >= 0
+v : 2*D*x + x == 3
 """
 
 mix_quad_affine_constr = """
 variable x(2)
+dual variable y
 parameter D(2,2)
 parameter b(2)
 minimize sum(x)
-square(norm(D*x)) - 2*b'*x <= 0
+y : square(norm(D*x)) - 2*b'*x <= 0
 """
 
 github_issue_45 = """
 parameter b(2)
 variable x(2)
+dual variable y
 minimize( norm(x) )
-b'*x==1
+y : b'*x==1
 """
 
-def python_parse_and_solve(prob, solution):
+def python_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
     from .. qc_lang import QCML
     p = QCML(debug=True)
     p.parse(prob)
@@ -50,7 +55,15 @@ def python_parse_and_solve(prob, solution):
     b = np.matrix([[1.0],[2.0]])
     sol = p.solve()
     print "Expecting", sol['info']['pcost']
-    assert abs(sol['info']['pcost'] - solution) < 1e-6
+    assert abs(sol['info']['pcost'] - expected_objval) < 1e-6
+    if dual1 is not None and dual2 is not None:
+        print "Expecting", dual1, "but got", sol['u']
+        assert np.linalg.norm(sol['u'] - dual1) < 1e-6
+        print "Expecting", dual2, "but got", sol['v']
+        assert np.linalg.norm(sol['v'] - dual2) < 1e-6
+    elif dual1 is not None:
+        print "Expecting", dual1, "but got", sol['y']
+        assert np.linalg.norm(sol['y'] - dual1) < 1e-6
     return p
 
 def C_parse_and_codegen(prob):
@@ -61,10 +74,26 @@ def C_parse_and_codegen(prob):
     p.codegen("C")
     return p
 
-def C_parse_and_solve(prob, solution):
+def C_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
     p = C_parse_and_codegen(prob)
     print p.program
     p.save("test_problem")
+
+    def print_dual():
+        if dual1 is not None and dual2 is not None:
+            float_format = ','.join(["%f"]*dual1.size)
+            floats = ','.join("v.u[%d]" % i for i in range(dual1.size))
+            line1 = """printf("Dual: %s\\n", %s);""" % (float_format, floats)
+            float_format = ','.join(["%f"]*dual1.size)
+            floats = ','.join("v.v[%d]" % i for i in range(dual1.size))
+            line2 = """printf("Dual: %s\\n", %s);""" % (float_format, floats)
+            line = " "*8 + line1 + "\n" + " "*8 + line2
+        elif dual1 is not None:
+            float_format = ','.join(["%f"]*dual1.size)
+            floats = ','.join("v.y[%d]" % i for i in range(dual1.size))
+            line = " "*8 + """printf("Dual: %s\\n", %s);""" % (float_format, floats)
+
+        return line
 
     c_test_code = """
 #include "test_problem.h"
@@ -82,6 +111,8 @@ int main(int argc, char **argv) {
     D.m = 2; D.n = 2;
 
     test_problem_params p;
+    test_problem_vars v;
+    test_problem_dims dims;
 
     p.D = &D;
     p.c = 5.0;
@@ -99,6 +130,9 @@ int main(int argc, char **argv) {
     {
         ECOS_solve(mywork);
         printf("Objective value at termination of C program is %f\\n", mywork->info->pcost);
+        qc_socp2test_problem(mywork->x, mywork->y, mywork->z, &v, &dims);
+""" + print_dual() + \
+"""
         ECOS_cleanup(mywork, 0);
     }
     qc_socp_free(data);
@@ -106,20 +140,31 @@ int main(int argc, char **argv) {
     return 0;
 }
 """
-    objval = make_and_execute_ecos_solve("test_problem", c_test_code)
+    objval, duals = make_and_execute_ecos_solve("test_problem", c_test_code)
     print objval
-    assert abs(objval - solution) < 1e-6
+    print print_dual()
+
+    assert abs(objval - expected_objval) < 1e-6
+    if dual1 is not None and dual2 is not None:
+        print "Expecting", dual1, "but got", duals[0]
+        assert np.linalg.norm(np.array(duals[0]) - dual1) < 1e-6
+        print "Expecting", dual2, "but got", duals[1]
+        assert np.linalg.norm(np.array(duals[1]) - dual2) < 1e-6
+    elif dual1 is not None:
+        print "Expecting", dual1, "but got", duals[0]
+        assert np.linalg.norm(np.array(duals[0]) - dual1) < 1e-6
+
 
 
 
 def test_solves():
-    yield python_parse_and_solve, sum_lp, 0
+    yield python_parse_and_solve, sum_lp, 0, np.array([2, 2])
     yield C_parse_and_codegen, sum_lp
-    yield python_parse_and_solve, sum_mat_lp, 0
+    yield python_parse_and_solve, sum_mat_lp, 0, np.array([0.1, 3.1])
     yield C_parse_and_codegen, sum_mat_lp
-    yield C_parse_and_solve, sum_mat_lp, 0
-    yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333
+    yield C_parse_and_solve, sum_mat_lp, 0, np.array([0.1, 3.1])
+    yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333, np.array([0,0]), np.array([-0.16666666,-0.86111111])
     yield C_parse_and_codegen, sum_mat_lp_with_scale
-    yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333
-    yield python_parse_and_solve, mix_quad_affine_constr, -0.0519076361544
-    yield python_parse_and_solve, github_issue_45, 0.447213582782
+    yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333, np.array([0,0]), np.array([-0.16666666,-0.86111111])
+    yield python_parse_and_solve, mix_quad_affine_constr, -0.0519076361544, np.array([0.49922209012352059])
+    yield python_parse_and_solve, github_issue_45, 0.447213582782, np.array([-0.4472135906730919])

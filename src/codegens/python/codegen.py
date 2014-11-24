@@ -17,7 +17,7 @@ class PythonCodegen(Codegen):
         super(PythonCodegen, self).__init__()
         self._code = {
             'prob2socp': PythonFunction('prob_to_socp', ['params', 'dims={}']),
-            'socp2prob': PythonFunction('socp_to_prob', ['x', 'dims={}']),
+            'socp2prob': PythonFunction('socp_to_prob', ['x', 'y', 'z', 'dims={}']),
         }
         self._codekeyorder = ['prob2socp', 'socp2prob']
 
@@ -55,8 +55,14 @@ class PythonCodegen(Codegen):
 
     def python_recover(self):
         for k in self.program.variables.keys():
-            start, length = self.primal_variables[k]
+            start, length = self.primal_vars[k]
             yield "'%s' : x[%s:%s]" % (k, start, start+length)
+        for k in self.dual_equality_vars.keys():
+            start, length = self.dual_equality_vars[k]
+            yield "'%s' : y[%s:%s]" % (k, start, start+length)
+        for k in self.dual_conic_vars.keys():
+            start, length = self.dual_conic_vars[k]
+            yield "'%s' : z[%s:%s]" % (k, start, start+length)
 
     def functions_setup(self):
         # add some documentation
@@ -99,7 +105,7 @@ class PythonCodegen(Codegen):
         self.prob2socp.add_lines("else: A, b = None, None")
         self.prob2socp.add_lines("return {'c': c, 'G': G, 'h': h, 'A': A, 'b': b, 'dims': cones}")
 
-        self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
+        self.socp2prob.document("recovers the problem variables from the solver variable 'x' and dual variables 'y' (equality constraints) and 'z' (conic constraints)")
         # recover the old variables
         self.socp2prob.add_lines("return {%s}" % ', '.join(self.python_recover()))
 

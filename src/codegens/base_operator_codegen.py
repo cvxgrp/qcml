@@ -1,4 +1,4 @@
-from base_codegen import Codegen
+from base_codegen import Codegen, CodegenVariable
 from .. ast.constraints import  SOC, SOCProd, LinearConstraint
 from .. properties.shape import isscalar
 from .. properties.curvature import isconstant
@@ -114,12 +114,19 @@ class OperatorCodegen(Codegen):
             self.fA.add_comment("for the constraint %s" % node)
             self.fAT.add_comment("for the constraint %s" % node)
             start = self.num_lineqs
-            self.num_lineqs += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            length = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            self.num_lineqs += length
+            if node.dual_var:
+                self.dual_equality_vars[node.dual_var] = CodegenVariable(start, length)
         else:
             self.fG.add_comment("for the constraint %s" % node)
             self.fGT.add_comment("for the constraint %s" % node)
             start = self.num_lps
-            self.num_lps += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            length = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            self.num_lps += length
+            if node.dual_var:
+                self.dual_conic_vars[node.dual_var] = CodegenVariable(start, length)
+
 
         self.generic_visit(node)
 
@@ -135,7 +142,7 @@ class OperatorCodegen(Codegen):
                 else:
                     self.prob2socp.add_lines(self.stuff_h(start, self.num_lps, -v))
             else:
-                xstart, xlength = self.primal_variables[k]
+                xstart, xlength = self.primal_vars[k]
                 xend = xstart + xlength
                 if node.op == '==':
                     self.stuff_A(start, self.num_lineqs, xstart, xend, v)
@@ -152,6 +159,8 @@ class OperatorCodegen(Codegen):
         self.visit_LinearConstraint(node)
 
     def visit_SOC(self, node):
+        assert (not node.dual_var), "Did not expect dual var '%s' to be associated with SOC constraints" % node.dual_var
+
         self.prob2socp.add_comment("for the SOC constraint %s" % node)
         self.fG.add_comment("for the SOC constraint %s" % node)
         self.fGT.add_comment("for the SOC constraint %s" % node)
@@ -180,7 +189,7 @@ class OperatorCodegen(Codegen):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v))
                 else:
-                    xstart, xlength = self.primal_variables[k]
+                    xstart, xlength = self.primal_vars[k]
                     xend = xstart + xlength
                     self.stuff_G(conestart, coneend, xstart, xend, -v)
 
@@ -188,6 +197,8 @@ class OperatorCodegen(Codegen):
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
     def visit_SOCProd(self, node):
+        assert (not node.dual_var), "Did not expect dual var '%s' to be associated with SOC product constraints" % node.dual_var
+
         self.prob2socp.add_comment("for the SOC product constraint %s" % node)
         self.fG.add_comment("for the SOC product constraint %s" % node)
         self.fGT.add_comment("for the SOC product constraint %s" % node)
@@ -213,7 +224,7 @@ class OperatorCodegen(Codegen):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v, stride))
                 else:
-                    xstart, xlength = self.primal_variables[k]
+                    xstart, xlength = self.primal_vars[k]
                     xend = xstart + xlength
                     self.stuff_G(conestart, coneend, xstart, xend, -v, stride)
 

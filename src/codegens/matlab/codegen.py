@@ -10,7 +10,7 @@ class MatlabCodegen(Codegen):
         self._code = {
             'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
             'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
-            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars']),
+            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'y', 'z', 'dims'], ['vars']),
         }
         self._codekeyorder = ['wrap', 'prob2socp', 'socp2prob']
 
@@ -36,8 +36,14 @@ class MatlabCodegen(Codegen):
 
     def matlab_recover(self):
         for k in self.program.variables.keys():
-            start, length = self.primal_variables[k]
+            start, length = self.primal_vars[k]
             yield "'%s', x(%s:%s)" % (k, 1+start, start+length)
+        for k in self.dual_equality_vars.keys():
+            start, length = self.dual_equality_vars[k]
+            yield "'%s', y(%s:%s)" % (k, start, start+length)
+        for k in self.dual_conic_vars.keys():
+            start, length = self.dual_conic_vars[k]
+            yield "'%s', z(%s:%s)" % (k, start, start+length)
 
     def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')

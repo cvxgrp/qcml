@@ -11,17 +11,19 @@ from nose import with_setup
 
 LP = """
 variable x
+dual variable y
 parameter c
 parameter h
 minimize c*x + h
-x >= 0
+y : x >= 0
 """
 SOCP = """
 variable x
+dual variable y
 parameter c
 parameter h
 minimize c*x + h
-norm(x) <= 0
+y : norm(x) <= 0
 """
 sq_norm = """
 variable x(3)
@@ -53,7 +55,7 @@ def test_empty_python_prob2socp():
     assert python.prob2socp.source == "def prob_to_socp(params, dims={}):\n    pass"
 
 def test_empty_python_socp2prob():
-    assert python.socp2prob.source == "def socp_to_prob(x, dims={}):\n    pass"
+    assert python.socp2prob.source == "def socp_to_prob(x, y, z, dims={}):\n    pass"
 
 c_files = [
     "test_problem",
@@ -140,4 +142,3 @@ def test_parse_and_compiles():
     yield parse_and_generate, sq_norm, "matlab"
     yield parse_and_generate, sq_norm, "C"
     yield parse_and_generate, sq_norm, "operator"
-
