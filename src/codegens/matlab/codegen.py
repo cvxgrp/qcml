@@ -45,6 +45,7 @@ class MatlabCodegen(Codegen):
             start, length = self.dual_conic_vars[k]
             yield "'%s', z(%s:%s)" % (k, 1+start, start+length)
 
+
     def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
         self.prob2socp.document('Where input struct PARAMS has the following fields:')
