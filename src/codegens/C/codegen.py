@@ -238,10 +238,11 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
     def c_recover(self):
         for k,v in self.program.variables.iteritems():
+            start, length = self.primal_variables[k]
             if shape.isscalar(v):
-                yield "vars->%s = *(x + %s);" % (k, self.varstart[k])
+                yield "vars->%s = *(x + %s);" % (k, start)
             else:
-                yield "vars->%s = x + %s;  /* length %s */" % (k, self.varstart[k], self.varlength[k])
+                yield "vars->%s = x + %s;  /* length %s */" % (k, start, length)
 
 
     def functions_setup(self):

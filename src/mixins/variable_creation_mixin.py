@@ -4,6 +4,7 @@ Mixin for creating new variables in the code generator.
 
 from .. ast.expressions import expression
 from .. properties import shape
+from .. codegens.base_codegen import CodegenVariable
 
 class VariableCreatorMixin(object):
     """ This adds a variable creation to the base code generators.
@@ -18,9 +19,7 @@ class VariableCreatorMixin(object):
         # add it to the list of lookups for building constraints
         # doesn't matter that it's at the end, since it's only for eq
         # constraints
-        self.varlength[v.value] = size
-        self.varstart[v.value] = self.num_vars
+        self.primal_variables[v.value] = CodegenVariable(self.num_vars, size)
         self.num_vars += size
 
         return v
-

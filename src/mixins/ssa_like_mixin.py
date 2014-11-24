@@ -29,7 +29,7 @@ class SSALikeMixin(VariableCreatorMixin):
 
     def visit_Variable(self, node):
         k = node.value
-        n = self.varlength[k]
+        n = self.primal_variables[k].length
 
         if not self.__is_adding_new_var and \
            not self.__is_objective and \

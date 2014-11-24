@@ -53,6 +53,11 @@ class PythonCodegen(Codegen):
 
         yield "cones = {'l': %s, 'q': %s, 's': []}" % (self.num_lps, cone_list_str)
 
+    def python_recover(self):
+        for k in self.program.variables.keys():
+            start, length = self.primal_variables[k]
+            yield "'%s' : x[%s:%s]" % (k, start, start+length)
+
     def functions_setup(self):
         # add some documentation
         self.prob2socp.document("maps 'params' into a dictionary of SOCP matrices")
@@ -96,11 +101,7 @@ class PythonCodegen(Codegen):
 
         self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
         # recover the old variables
-        recover = (
-            "'%s' : x[%s:%s]" % (k, self.varstart[k], self.varstart[k]+self.varlength[k])
-                for k in self.program.variables.keys()
-        )
-        self.socp2prob.add_lines("return {%s}" % ', '.join(recover))
+        self.socp2prob.add_lines("return {%s}" % ', '.join(self.python_recover()))
 
     def stuff_c(self, start, end, expr):
         yield "c[%s:%s] = np.squeeze(%s)" % (start, end, toPython(expr))

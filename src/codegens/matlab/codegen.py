@@ -34,6 +34,11 @@ class MatlabCodegen(Codegen):
             else:        return "%s*ones(%s,1)" % (sz, num)
         yield '; '.join(map(cone_tuple_to_str, self.cone_list))
 
+    def matlab_recover(self):
+        for k in self.program.variables.keys():
+            start, length = self.primal_variables[k]
+            yield "'%s', x(%s:%s)" % (k, 1+start, start+length)
+
     def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
         self.prob2socp.document('Where input struct PARAMS has the following fields:')
@@ -61,11 +66,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_comment('Build output')
         self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', cones);")
 
-        recover = (
-            "'%s', x(%s:%s)" % (k, 1+self.varstart[k], self.varstart[k]+self.varlength[k])
-            for k in self.program.variables.keys()
-        )
-        self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
+        self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(self.matlab_recover()))
 
         self.wrap.add_lines("data = prob2socp(params, dims);")
         self.wrap.add_lines("[x,y,info,s,z] = ECOS(data.c, data.G, data.h, data.dims, data.A, data.b);")

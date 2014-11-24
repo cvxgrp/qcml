@@ -135,8 +135,8 @@ class OperatorCodegen(Codegen):
                 else:
                     self.prob2socp.add_lines(self.stuff_h(start, self.num_lps, -v))
             else:
-                xstart = self.varstart[k]
-                xend = xstart + self.varlength[k]
+                xstart, xlength = self.primal_variables[k]
+                xend = xstart + xlength
                 if node.op == '==':
                     self.stuff_A(start, self.num_lineqs, xstart, xend, v)
                 else:
@@ -180,8 +180,8 @@ class OperatorCodegen(Codegen):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v))
                 else:
-                    xstart = self.varstart[k]
-                    xend = xstart + self.varlength[k]
+                    xstart, xlength = self.primal_variables[k]
+                    xend = xstart + xlength
                     self.stuff_G(conestart, coneend, xstart, xend, -v)
 
         self.prob2socp.newline()
@@ -213,10 +213,9 @@ class OperatorCodegen(Codegen):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v, stride))
                 else:
-                    xstart = self.varstart[k]
-                    xend = xstart + self.varlength[k]
+                    xstart, xlength = self.primal_variables[k]
+                    xend = xstart + xlength
                     self.stuff_G(conestart, coneend, xstart, xend, -v, stride)
 
         self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
-
