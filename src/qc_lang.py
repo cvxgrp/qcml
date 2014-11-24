@@ -135,7 +135,7 @@ class QCML(object):
         def solve_func(params, dims):
             data = self.prob2socp(params, dims)
             sol = ecos.solve(**data)
-            result = self.socp2prob(sol['x'], dims)
+            result = self.socp2prob(sol['x'], sol['y'], sol['z'], dims)
             result['info'] = sol['info']
 
             # set the objective value

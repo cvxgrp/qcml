@@ -19,7 +19,7 @@ class VariableCreatorMixin(object):
         # add it to the list of lookups for building constraints
         # doesn't matter that it's at the end, since it's only for eq
         # constraints
-        self.primal_variables[v.value] = CodegenVariable(self.num_vars, size)
+        self.primal_vars[v.value] = CodegenVariable(self.num_vars, size)
         self.num_vars += size
 
         return v

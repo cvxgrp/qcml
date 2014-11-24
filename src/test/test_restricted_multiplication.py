@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 """
-        objval = make_and_execute_ecos_solve("test_problem", c_test_code)
+        objval, _ = make_and_execute_ecos_solve("test_problem", c_test_code)
         assert objval == solution
     else:
         p.codegen(lang)
