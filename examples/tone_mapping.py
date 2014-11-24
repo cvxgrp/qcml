@@ -91,5 +91,3 @@ p.parse(s)
 # <codecell>
 
 sol = p.solve()
-
-

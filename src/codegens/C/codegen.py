@@ -47,11 +47,11 @@ def shape_to_c_type(x):
         if x.length == 1:
             return "double"
         else:
-            return "const double *"
+            return "double *"
     else:
         if shape.isscalar(x): return "double"
-        if shape.isvector(x): return "const double *"
-        if shape.ismatrix(x): return "const qc_matrix *"
+        if shape.isvector(x): return "double *"
+        if shape.ismatrix(x): return "qc_matrix *"
     raise Exception("Unknown shape...")
 
 class C_Codegen(RestrictedMultiplyMixin, Codegen):
@@ -180,11 +180,20 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
     # function to get variables
     def c_variables(self):
         for (k,v) in self.program.variables.iteritems():
-            yield "%s%s %s;" % (self.indent, shape_to_c_type(v),k)
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
         for (k,v) in self.dual_equality_vars.iteritems():
-            yield "%s%s %s;" % (self.indent, shape_to_c_type(v),k)
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
         for (k,v) in self.dual_conic_vars.iteritems():
-            yield "%s%s %s;" % (self.indent, shape_to_c_type(v),k)
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
 
     # generator to allocate socp data structures
     def c_allocate_socp(self):

@@ -114,7 +114,7 @@ class PythonFunction(Function):
         try:
             exec code_str in vars()
         except:
-            print code_str
+            print '\n'.join("{:<4} {:}".format(lineno+1, line) for lineno, line in enumerate(code))
             raise
         self.generated_func = vars()[self.name]
 
@@ -146,4 +146,3 @@ class CFunction(Function):
         """ Adds comments lines to the source code
         """
         self.add_lines("/* %s */" % line for line in iterable_line(lines))
-
