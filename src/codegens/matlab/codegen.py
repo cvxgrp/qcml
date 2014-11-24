@@ -40,10 +40,10 @@ class MatlabCodegen(Codegen):
             yield "'%s', x(%s:%s)" % (k, 1+start, start+length)
         for k in self.dual_equality_vars.keys():
             start, length = self.dual_equality_vars[k]
-            yield "'%s', y(%s:%s)" % (k, start, start+length)
+            yield "'%s', y(%s:%s)" % (k, 1+start, start+length)
         for k in self.dual_conic_vars.keys():
             start, length = self.dual_conic_vars[k]
-            yield "'%s', z(%s:%s)" % (k, start, start+length)
+            yield "'%s', z(%s:%s)" % (k, 1+start, start+length)
 
     def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
