@@ -2,7 +2,7 @@
 
 \usepackage{fullpage, xspace, hyperref, amsmath, multirow}
 
-\def\qcmlver{0.1\xspace}
+\def\qcmlver{0.2.0\xspace}
 \def\qcml{\texttt{QCML}\xspace}
 \def\cvxpy{\texttt{CVXPY}\xspace}
 \def\cvx{\texttt{CVX}\xspace}
@@ -11,7 +11,7 @@
 % for captions
 \makeatletter
 \long\def\@makecaption#1#2{
-   \vskip 9pt 
+   \vskip 9pt
    \begin{small}
    \setbox\@tempboxa\hbox{{\bf #1:} #2}
    \ifdim \wd\@tempboxa > 5.5in
@@ -22,8 +22,8 @@
         \addtolength{\baselineskip}{0.95pt}
         \end{minipage}
         \end{center}
-   \else 
-	\hbox to\hsize{\hfil\box\@tempboxa\hfil}  
+   \else
+	\hbox to\hsize{\hfil\box\@tempboxa\hfil}
    \fi
    \end{small}\par
 }
@@ -52,14 +52,14 @@ Stephen Boyd\\\texttt{boyd@stanford.edu}
 
 \begin{document}
   \maketitle
-  
+
 \qcml is a Python module that provides a simple and lightweight domain
 specific language (DSL) for describing convex optimization problem families
 representable as second-order cone problems (SOCP). It is a code generator
 that produces lightweight Python, Matlab, or C code for \emph{matrix
-stuffing}. This allows one to extend SOCP solvers in these languages to a 
-variety of problem classes. It is intended to complement the paper, 
-\emph{Code Generation for Embedded Second-order Cone Programming} \cite{CPD:13}, 
+stuffing}. This allows one to extend SOCP solvers in these languages to a
+variety of problem classes. It is intended to complement the paper,
+\emph{Code Generation for Embedded Second-order Cone Programming} \cite{CPD:13},
 although the main ideas in its
 implementation are well-documented in \emph{Graph Implementation for Nonsmooth Convex Programs}
 \cite{GB:08}.
@@ -82,7 +82,7 @@ source code.
 
 Some important features:
 \begin{itemize}
-\item \qcml is similar in spirit to \cvx, \cvxgen, and 
+\item \qcml is similar in spirit to \cvx, \cvxgen, and
 \cvxpy. Unlike these packages, however, \qcml exposes and generates code
 for matrix stuffing, allowing the resulting code to be paired with any solver
 that targets a standard SOCP.
@@ -94,21 +94,21 @@ the code if given problem dimensions before code is generated.
 That said, there are several important caveats:
 \begin{itemize}
 \item \qcml is intended for use by \emph{developers} wishing to employ convex
-optimization in their source code with little to no overhead from the modeling 
+optimization in their source code with little to no overhead from the modeling
 layer. Typically, these are users familiar with \cvx or \cvxpy who wish to
 do away with modeling overhead in their applications.
 \item \qcml is not a full-featured modeling language. Several features are
 conspicuously missing and unless specifically requested, will remain missing.
 \item For general purpose convex optimization in Python with more flexibility
-than \qcml, we recommend \cvxpy 
+than \qcml, we recommend \cvxpy
 (\url{http://github.com/cvxgrp/cvxpy}).
-\item For general purpose convex optimization in Matlab, we recommend 
+\item For general purpose convex optimization in Matlab, we recommend
 \cvx (\url{http://cvxr.com}).
 \end{itemize}
 Please send your feedback or report any bugs through our Github repository.
 
 The rest of this document covers the basic use of \qcml and walks through a
-full example with a lasso ($\ell_1$-regularized least-squares) problem. 
+full example with a lasso ($\ell_1$-regularized least-squares) problem.
 \qcml is licensed under BSD.
 
 \newpage
@@ -117,11 +117,12 @@ full example with a lasso ($\ell_1$-regularized least-squares) problem.
 
 \section{Installing \qcml}
 \qcml depends on the following:
-\begin{itemize} 
+\begin{itemize}
 \item Python 2.7.2+ (no Python 3 support)
 \item \href{http://www.dabeaz.com/ply/}{\tt PLY}, the Python Lex-Yacc parsing framework,
   available as the {\tt python-ply} or {\tt py-ply} package in most distributions.
-\item {\tt ECOS} (\url{http://github.com/ifa-ethz/ecos})
+\item {\tt ECOS} (\url{http://github.com/embotech/ecos})
+\item {\tt ECOS Python module} (\url{http://github.com/embotech/ecos-python})
 \item {\tt NUMPY} (\url{http://numpy.org})
 \item {\tt SCIPY} (\url{http://scipy.org})
 \end{itemize}
@@ -137,7 +138,7 @@ Once these dependencies are installed, typically through a package manager,
 \noindent at the command line. The unit tests can be run with {\tt nosetests}.
 
 \section{Basic usage}
-A \qcml problem must be specified following the language described in 
+A \qcml problem must be specified following the language described in
 \S\ref{s-ug-language}, but we give a basic example of \qcml here. The \qcml
 API consists of four main functions, {\tt parse}, {\tt canonicalize},
 {\tt codegen}, and {\tt save}. All optimization problems in \qcml are
@@ -158,7 +159,7 @@ in the following Python code:
 to the rules described in \S\ref{s-ug-language}.
 
 The {\tt canonicalize} step converts a \qcml problem into the
-standard conic form 
+standard conic form
 \begin{equation}
   \label{e-stdform}
 \begin{array}{ll}
@@ -168,19 +169,19 @@ standard conic form
   & s \in \mathcal{K},
 \end{array}
 \end{equation}
-where $x \in \reals^n$ and $s \in \reals^m$ are the optimization variables, 
+where $x \in \reals^n$ and $s \in \reals^m$ are the optimization variables,
 $c \in \reals^n$, $h \in \reals^m$, $b \in \reals^p$, $G \in \reals^{m\times n}$,
-$A \in \reals^{p \times n}$, and the convex cone $\mathcal{K}$ are problem 
-data. The generated code is thus compatible with any solver that solves 
+$A \in \reals^{p \times n}$, and the convex cone $\mathcal{K}$ are problem
+data. The generated code is thus compatible with any solver that solves
 \eqref{e-stdform}. We do not give more detail about canonicalization in this
 user guide; for more detail, consult \cite{CVX, GB:08, CPD:13}.
 
-The {\tt codegen} and {\tt save} steps target three different languages, 
+The {\tt codegen} and {\tt save} steps target three different languages,
 Python, C, and Matlab. We detail these in \S\ref{s-ug-codegen}.
 
 \section{\qcml language}
 \label{s-ug-language}
-Optimization problems in \qcml are specified as \emph{strings} which must adhere to 
+Optimization problems in \qcml are specified as \emph{strings} which must adhere to
 the rules of the \qcml modeling language. The {\tt parse} function checks that
 the problem string adheres to these rules. We describe that language and its
 rules here.
@@ -194,7 +195,7 @@ There are three basic types in \qcml:
 \end{itemize}
 Objects named and declared in this fashion are entirely \emph{abstract}.
 Numeric literals such as {\tt 2}, {\tt 0.52}, \etc, in \qcml are
-\emph{concrete} and can be used directly in the \qcml problem string. 
+\emph{concrete} and can be used directly in the \qcml problem string.
 
 The {\tt dimension} objects are used to specify the (optional) sizes of {\tt
 variable}s and {\tt parameter}s. So a single {\tt variable} or {\tt
@@ -205,30 +206,37 @@ can represent vectors (one-dimensional arrays), and {\tt parameters} can
 represent vectors or matrices (two-dimensional arrays). If a {\tt parameter}
 represents a matrix, it is assumed to represent a \emph{sparse} matrix.
 
-A {\tt parameter} may optionally take a sign modifier ({\tt positive} or 
-{\tt negative}). These are shorthand for `nonnegative' and `nonpositive', 
+A {\tt variable} may also be labeled a \emph{dual} variable via the
+{\tt dual} (prefix) keyword. Note that the size of a dual
+variable is automatically inferrred when the dual variable is attached
+to a constraint.
+
+A {\tt parameter} may optionally take a sign modifier ({\tt positive} or
+{\tt negative}). These are shorthand for `nonnegative' and `nonpositive',
 respectively.
 
-To declare an object, give its type, followed by its name, and (optionally) 
+To declare an object, give its type, followed by its name, and (optionally)
 its size: for instance,
 {\tt
 \begin{tabbing}
   \qquad \= variable x(n)
 \end{tabbing}}
 \noindent declares a vector variable named {\tt
-x} with length {\tt n}. 
+x} with length {\tt n}.
 Integer literals can also be used in place of dimensions. A more involved
 example is the following code
 {\tt
 \begin{tabbing}
   \qquad \= dimensions m n \\
   \> variables x(n) y(m) z(5)\\
+  \> dual variables u v \\
   \> parameter A(m,n) positive \\
   \> parameters b c(n)
 \end{tabbing}}
-\noindent which declares two dimensions, {\tt m} and {\tt n}; three variables
-{\tt x}, {\tt y}, and {\tt z} of length {\tt n}, {\tt m}, and {\tt 5},
-respectively; an elementwise positive (sparse) parameter matrix, {\tt A}; the
+\noindent which declares two dimensions, {\tt m} and {\tt n}; three
+(primal) variables {\tt x}, {\tt y}, and {\tt z} of length {\tt n},
+{\tt m}, and {\tt 5},respectively; two (dual) variables {\tt u} and
+{\tt v}; an elementwise positive (sparse) parameter matrix, {\tt A}; the
 scalar parameter {\tt b}; and the vector parameter {\tt c} with dimension
 {\tt n}.
 
@@ -236,16 +244,16 @@ scalar parameter {\tt b}; and the vector parameter {\tt c} with dimension
 \qcml provides a set of operators for use with modeling. These are used in
 conjunction with the basic {\tt variable} and {\tt parameter} types to
 construct (affine) expressions. The standard (infix) operators are: {\tt +},
-{\tt -}, {\tt *}, and {\tt /}. We also provide the (postfix) transpose 
+{\tt -}, {\tt *}, and {\tt /}. We also provide the (postfix) transpose
 operator: {\tt '}, following Matlab convention. The {\tt -}
 operator can also be used as a prefix to denote negation.
 
-While the addition, subtraction, transposition, and negation operators 
-behave as standard linear operators and can act on any objects, the 
+While the addition, subtraction, transposition, and negation operators
+behave as standard linear operators and can act on any objects, the
 multiplication and division operators are more restrictive:
 \begin{itemize}
-\item The division operator {\tt /} has the restriction that both operands 
-must be numeric constants. 
+\item The division operator {\tt /} has the restriction that both operands
+must be numeric constants.
 \item The multiplication operator {\tt *} has the restriction that the
 \emph{lefthand size} must be a parameter.
 \end{itemize}
@@ -253,12 +261,12 @@ These restrictions are in place to ensure that expressions are \emph{affine}
 (or linear) as a function of the variable objects (\ie, variables).
 
 \subsection{Functions}
-\qcml also provides a set of atoms (or functions) which take expressions 
-constructed from the basic operations as arguments. These functions have 
+\qcml also provides a set of atoms (or functions) which take expressions
+constructed from the basic operations as arguments. These functions have
 additional properties associated with them:
 \begin{itemize}
 \item the \emph{sign} of the output expression (either positive, negative, or unknown),
-\item the \emph{monotonicity} of the function in each argument 
+\item the \emph{monotonicity} of the function in each argument
 (either increasing, decreasing, or nonmonotone),
 \item and the \emph{curvature} of the function (either convex, concave, or affine).
 \end{itemize}
@@ -269,8 +277,8 @@ monotonicities of a function may change depending on the sign of the input.
 For instance, the {\tt square} function has positive sign (its outputs are
 always positive) and is typically a nonmonotone function. However, when its
 input is restricted to be positive, it is an increasing function. When a
-\emph{convex} function has this property, we say that its monotonicity is 
-\emph{signed}. This means it is increasing if the argument is positive, 
+\emph{convex} function has this property, we say that its monotonicity is
+\emph{signed}. This means it is increasing if the argument is positive,
 decreasing if the argument is negative, and nonmonotone otherwise. When a
 \emph{concave} function has a signed monotonicity, it means that it is
 decreasing if the argument is positive, increasing if the argument is negative,
@@ -286,7 +294,7 @@ science way---as a \emph{type signature} for the function $f$. As an example,
 the $\log$ function has the following type signature, $\log : \reals \to
 \reals$, although $\dom f$ is the set of strictly positive reals.
 
-  
+
 \subsubsection{Scalar atoms}
 A scalar atom is a function with the type signature $f : \reals \to \reals$.
 Table~\ref{t-scalar-atoms} lists out all the scalar atoms in our library
@@ -321,18 +329,18 @@ and {\tt q} chosen. If $p > q$, the function is increasing and convex.
 If $p < q$, the function is decreasing and concave. If $p = q$, the function
 is affine and, moreover, is the identity function.
 
-We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$, 
+We can define the \emph{extension}, $\tilde f : \reals^n \to \reals^n$,
 of a scalar atom $f$ to a vector argument $x = (x_1, x_2, \ldots, x_n)$ as
 \[
 \tilde f(x) = \left( f(x_1), f(x_2), \ldots, f(x_n) \right),
 \]
 \ie, $\tilde f$ is $f$ applied elementwise.
 Whenever scalar functions are called with vector arguments, this extension
-is automatically applied. For scalar functions with the signature 
+is automatically applied. For scalar functions with the signature
 $f : \reals \times \reals \to \reals$, their extension has the signature
 $\tilde f : \reals^n \times \reals^n \to \reals^n$.
 
-\subsubsection{Vector atom}
+\subsubsection{Vector atoms}
 A vector atom is a function with the type signature $f : \reals^n \to \reals$.
 Table~\ref{t-vector-atoms} lists out all the scalar atoms in our library
 and their signs, monotonicity, and curvatures.
@@ -379,8 +387,8 @@ With the exception of {\tt quad\_over\_lin}, vector atoms can take variable
 arguments. The \emph{extension}, $\tilde f : \reals^n \times \reals^n \to
 \reals^n$, of a vector atom $f$ to two vector arguments is
 \[
-\tilde f(x, y) = \left( f\left(\begin{bmatrix} x_1 \\ y_1 \end{bmatrix}\right), 
-  f\left(\begin{bmatrix}x_2 \\ y_2 \end{bmatrix}\right), \ldots, 
+\tilde f(x, y) = \left( f\left(\begin{bmatrix} x_1 \\ y_1 \end{bmatrix}\right),
+  f\left(\begin{bmatrix}x_2 \\ y_2 \end{bmatrix}\right), \ldots,
   f\left(\begin{bmatrix}x_n \\ y_n\end{bmatrix}\right) \right).
 \]
 The extension to an arbitrary number of input arguments can be obtained inductively.
@@ -389,7 +397,7 @@ is automatically applied.
 
 As an example, the expression {\tt norm(x,y,z)} forms the vector expression
 \[
-\left(  
+\left(
   \|(x_1,y_1,z_1)\|_2,
   \|(x_2, y_2, z_2)\|_2
 \right),
@@ -419,30 +427,30 @@ rules. We detail the DCP rules in \S\ref{s-ug-dcp}.
 % $\reals$ to refer to the set of all scalar-valued \emph{expressions} and $\reals_+$ to refer to the set of all scalar-valued expressions with positive sign. Similarly, $\reals^n$ and $\reals_-$ refer to the set of all vector-valued expressions of length $n$ and negative expressions, respectively.
 
 %  associate shape scalar, vector, or matrix) and is categorized by its sign: positive, negative, or neither.
-% 
-% 
+%
+%
 % .. blah blah, must adhere to DCP rules
-% 
+%
 % can use numeric constants....
-% 
+%
 % symbols must have been previously declared (basic types).
-% 
+%
 % have sign and shape (vector or matrix) associated with them.
 
 
 \subsection{Objectives}
 Objectives are optional in \qcml. If no objective is provided, the problem
 is assumed to be a feasibility problem. A (nonempty) objective consists of a
-\emph{sense}, either {\tt minimize} or {\tt maximize} and a scalar objective 
+\emph{sense}, either {\tt minimize} or {\tt maximize} and a scalar objective
 expression.
 
-The objective expression must agree with the objective sense. 
+The objective expression must agree with the objective sense.
 If the sense is {\tt minimize}, then the expression must be convex (or affine).
-If the sense if {\tt maximize}, then the expression must be concave (or affine). 
+If the sense if {\tt maximize}, then the expression must be concave (or affine).
 
 \subsection{Constraints}
 Constraints are formed using the typical relational operators: {\tt <=},
-{\tt >=}, and {\tt ==}. The only restriction for these operators is the 
+{\tt >=}, and {\tt ==}. The only restriction for these operators is the
 curvature of the lefthand and righthand sides. Valid constraints are:
 \begin{itemize}
 \item affine expression {\tt ==} affine expression
@@ -459,10 +467,11 @@ objective, and zero or more constraints. Here is a \qcml problem for
 completeness:
 {\tt
 \begin{tabbing}
-\qquad 
+\qquad
 \= dimensions m n \\
 \> variable x(n) \\
-\> parameter mu(n)\\ 
+\> dual variable y \\
+\> parameter mu(n)\\
 \> parameter gamma positive\\
 \> parameter F(n,m) \\
 \> parameter D(n,n) \\
@@ -470,11 +479,12 @@ completeness:
 \> maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x)))) \\
 \> subject to \\
 \> \qquad \= sum(x) == 1 \\
-\> \> x >= 0
+\> \> y : x >= 0
 \end{tabbing}
 }
 This sample problem has six type declarations, one maximization objective, and
-two constraints. The {\tt subject to} keyword is optional.
+two constraints. The nonnegativity constraint has the dual variable {\tt y}
+associated with it. The {\tt subject to} keyword is optional.
 
 \section{Disciplined convex programming}
 \label{s-ug-dcp}
@@ -489,19 +499,19 @@ following composition rule:
 $\phi(g_1(x),\ldots, g_n(x))$ is convex if the atom $\phi$ is convex and for each $i$
 \begin{itemize}
   \item $g_i$ is affine, or
-  \item $\phi$ is increasing in the $i$th argument and $g_i$ is convex, or 
+  \item $\phi$ is increasing in the $i$th argument and $g_i$ is convex, or
   \item $\phi$ is decreasing in the $i$th argument and $g_i$ is
 concave.
 \end{itemize}
 The rule for verifying concavity is similar.  The expression is
-affine if $\phi$ is affine and $g_1,\ldots, g_n$ are all affine. 
+affine if $\phi$ is affine and $g_1,\ldots, g_n$ are all affine.
 %This extends the basic idea that the sum of two convex functions is convex.
 
 \section{Abstract dimensions}
 \label{s-abstract-dims}
 Dimensions are initially specified as abstract values and can be left abstract
 in \qcml. These abstract values must be converted into concrete values
-before the problem can be solved. There are two ways to make dimensions 
+before the problem can be solved. There are two ways to make dimensions
 concrete:
 \begin{enumerate}
 \item specified prior to code generation
@@ -510,7 +520,7 @@ concrete:
 \end{enumerate}
 
 Dimensions can be set prior to code generation by supplying
-a partial map, \ie, if {\tt problem} contains a \qcml problem with 
+a partial map, \ie, if {\tt problem} contains a \qcml problem with
 dimensions \texttt{m} and \texttt{n}, then the Python code
 {\tt
 \begin{tabbing}
@@ -519,7 +529,7 @@ dimensions \texttt{m} and \texttt{n}, then the Python code
   \> >>> p.dims = \{'m': 5\}
 \end{tabbing}
 }
-\noindent will set the dimension {\tt m} to $5$ in all expressions, but leave 
+\noindent will set the dimension {\tt m} to $5$ in all expressions, but leave
 the dimension {\tt n} to be specified later.
 
 Any dimensions specified before code generation will be hard-coded into the
@@ -555,7 +565,7 @@ To generate Python code, invoke the {\tt codegen} function with the string
 {\tt `python'} as the argument. This will generate two functions
 \begin{itemize}
 \item {\tt prob\_to\_socp(params, dims)} and
-\item {\tt socp\_to\_prob(x, dims)}.
+\item {\tt socp\_to\_prob(x, y, z, dims)}.
 \end{itemize}
 Invoking the {\tt save} function will save the two functions to a folder.
 
@@ -564,7 +574,7 @@ The {\tt prob\_to\_socp} function takes two dictionary
 arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
 concrete before {\tt codegen} is invoked, the {\tt dims} argument is optional.
 The keys in these
-dictionaries correspond to the names of the {\tt parameter}s and the 
+dictionaries correspond to the names of the {\tt parameter}s and the
 remaining (abstract)
 {\tt dimension}s specified in the problem string.
 
@@ -572,7 +582,7 @@ The {\tt dims} values must be Python integers. Vector {\tt parameter}s are
 supplied by Numpy arrays (not matrices), and matrix {\tt parameter}s can be
 either Numpy arrays or Scipy sparse matrices.
 
-Any extra parameters or dimensions will be unused. 
+Any extra parameters or dimensions will be unused.
 
 The function will return a dictionary which contains all the information
 necessary for solving a cone program. This consists of the key-value pairs
@@ -588,9 +598,9 @@ necessary for solving a cone program. This consists of the key-value pairs
     \item {\tt q}, a list of the size of second-order cones.
   \end{itemize}
 \end{itemize}
-The {\tt dims} output dictionary, which describes the cones, 
-is not to be confused with the {\tt dims} input 
-dictionary, which specifies problem dimensions. 
+The {\tt dims} output dictionary, which describes the cones,
+is not to be confused with the {\tt dims} input
+dictionary, which specifies problem dimensions.
 The output dictionary corresponds to the problem data in \eqref{e-stdform}
 and are sufficient for \emph{any} conic solver.
 
@@ -600,11 +610,16 @@ The data {\tt G} and {\tt h} may be `None,' in which case the standard form
 constraints.
 
 \subsubsection{The {\tt socp\_to\_prob} function}
-The {\tt socp\_to\_prob} function takes two arguments, {\tt x} and {\tt dims}.
+The {\tt socp\_to\_prob} function takes four arguments, {\tt x}, {\tt y},
+{\tt z}, and {\tt dims} and returns a dictionary with keys
+corresponding to the names of the {\tt variable}s (including any dual
+variables) in the given \qcml problem.
 The {\tt dims} argument is the same as in {\tt prob\_to\_socp}; the {\tt x}
-argument is
-the solution to the cone program and returns a dictionary with keys
-corresponding to the names of the {\tt variable}s in the given \qcml problem.
+argument is the (primal) solution to the cone program; the {\tt y}
+argument is the (dual) solution corresponding to the
+affine equality constraint $Ax=b$ in \eqref{e-stdform}; and the {\tt z}
+argument is the (dual) solution corresponding
+to the conic constraints $s \in \mathcal{K}$ in \eqref{e-stdform}.
 The values of these entries are Numpy arrays (if vectors) or Python floats.
 
 The input argument is a Numpy array.
@@ -622,7 +637,7 @@ To generate Matlab code, invoke the {\tt codegen} function with the string
 {\tt `matlab'} as the argument. This will generate two functions
 \begin{itemize}
 \item {\tt prob\_to\_socp(params, dims)} and
-\item {\tt socp\_to\_prob(x, dims)}.
+\item {\tt socp\_to\_prob(x, y, z, dims)}.
 \end{itemize}
 Invoking the {\tt save} function will save the two functions to a folder.
 
@@ -631,11 +646,11 @@ The {\tt prob\_to\_socp} function takes two Matlab struct
 arguments, a {\tt params} and a {\tt dims} dictionary. If all dimensions are
 concrete before {\tt codegen} is invoked, the {\tt dims} argument is unused.
 The fields in these
-structs correspond to the names of the {\tt parameter}s and the 
+structs correspond to the names of the {\tt parameter}s and the
 remaining (abstract)
 {\tt dimension}s specified in the problem string.
 
-Any extra parameters or dimensions will be unused. 
+Any extra parameters or dimensions will be unused.
 
 The function will return a struct which contains all the information
 necessary for solving a cone program. This consists of the fields
@@ -651,9 +666,9 @@ necessary for solving a cone program. This consists of the fields
     \item {\tt q}, a vector with the size of second-order cones.
   \end{itemize}
 \end{itemize}
-The {\tt dims} output struct, which describes the cones, 
-is not to be confused with the {\tt dims} input 
-struct, which specifies problem dimensions. 
+The {\tt dims} output struct, which describes the cones,
+is not to be confused with the {\tt dims} input
+struct, which specifies problem dimensions.
 The output struct corresponds to the problem data in \eqref{e-stdform}
 and are sufficient for \emph{any} conic solver.
 
@@ -663,18 +678,29 @@ standard form \qcml problem has no conic constraints. Similarly, {\tt A} and
 equality constraints.
 
 \subsubsection{The {\tt socp\_to\_prob} function}
-The {\tt socp\_to\_prob} function takes two arguments, {\tt x} and {\tt dims}.
+The {\tt socp\_to\_prob} function takes four arguments, {\tt x}, {\tt y},
+{\tt z}, and {\tt dims} and returns a struct with fields
+corresponding to the names of the {\tt variable}s (including any dual
+variables) in the given \qcml problem.
 The {\tt dims} argument is the same as in {\tt prob\_to\_socp}; the {\tt x}
-argument is
-the solution to the cone program and returns a struct with fields
-corresponding to the names of the {\tt variable}s in the given \qcml problem.
+argument is the (primal) solution to the cone program; the {\tt y}
+argument is the (dual) solution corresponding to the
+affine equality constraint $Ax=b$ in \eqref{e-stdform}; and the {\tt z}
+argument is the (dual) solution corresponding
+to the conic constraints $s \in \mathcal{K}$ in \eqref{e-stdform}.
 
 \subsection{C}
 To generate C code, invoke the {\tt codegen} function with the string
 {\tt `C'} as the argument. This will generate two functions
 \begin{itemize}
 \item {\tt qc\_socp *qc\_prob2socp(const prob\_params *params, const prob\_dims *dims)}, and
-\item {\tt void qc\_socp2prob(double *x, prob\_vars *vars, const prob\_dims *dims)}.
+\item
+{\tt
+\begin{tabbing}
+void qc\_socp2prob(\=const double *x, const double *y, const double *z,\\
+\> prob\_vars *vars, const prob\_dims *dims).
+\end{tabbing}
+}
 \end{itemize}
 Invoking the {\tt save} function will save the two functions to a folder along
 with several other files:
@@ -711,27 +737,27 @@ are supplied as a pointer to (dense) double arrays, and matrix {\tt
 parameter}s are supplied as a pointer to the custom {\tt qc\_matrix} struct,
 which stores the matrix in triplet ($i,j,v$) format.
 
-Any extra parameters or dimensions will be unused. 
+Any extra parameters or dimensions will be unused.
 
 The function will return a {\tt qc\_socp} struct which contains all the
-information necessary for solving a cone program. This consists of the 
+information necessary for solving a cone program. This consists of the
 fields (with their type):
 \begin{itemize}
   \item {\tt long n}, the number of variables in \eqref{e-stdform},
   \item {\tt long m}, number of cone constraints in \eqref{e-stdform},
   \item {\tt long p}, number of equality constraints in \eqref{e-stdform},
   \item {\tt long l}, number of linear cones,
-  \item {\tt long nsoc}, number of second-order cones, 
+  \item {\tt long nsoc}, number of second-order cones,
   \item {\tt long *q}, list of second-order cone sizes,
-  \item {\tt double *G}, nonzero values of G (in column-compressed format),  
-  \item {\tt long *Gp}, column pointers of G (in column-compressed format), 
-  \item {\tt long *Gi}, row values of G (in column-compressed format), 
-  \item {\tt double *A}, nonzero values of A (in column-compressed format),  
-  \item {\tt long *Ap}, column pointers of A (in column-compressed format), 
-  \item {\tt long *Ai}, row values of A (in column-compressed format), 
-  \item {\tt double *c}, c vector (dense),       
-  \item {\tt double *h}, h vector (dense), and            
-  \item {\tt double *b}, b vector (dense),              
+  \item {\tt double *G}, nonzero values of G (in column-compressed format),
+  \item {\tt long *Gp}, column pointers of G (in column-compressed format),
+  \item {\tt long *Gi}, row values of G (in column-compressed format),
+  \item {\tt double *A}, nonzero values of A (in column-compressed format),
+  \item {\tt long *Ap}, column pointers of A (in column-compressed format),
+  \item {\tt long *Ai}, row values of A (in column-compressed format),
+  \item {\tt double *c}, c vector (dense),
+  \item {\tt double *h}, h vector (dense), and
+  \item {\tt double *b}, b vector (dense),
 \end{itemize}
 The {\tt qc\_socp} struct corresponds to the problem data in \eqref{e-stdform}
 and are sufficient for \emph{any} conic solver. It must be freed when no
@@ -745,10 +771,15 @@ constraints.
 
 
 \subsubsection{The {\tt socp\_to\_prob} function}
-The {\tt socp\_to\_prob} function takes three arguments: a {\tt double *}, which
-points to a double array containing the solution to the cone program; 
+The {\tt socp\_to\_prob} function takes five arguments: a {\tt double *}, which
+points to a double array containing the (primal) solution to the cone program;
+a second {\tt double *}, which points to a double array containing the (dual) solution
+corresponding to the
+affine equality constraint $Ax=b$ in \eqref{e-stdform}; a third {\tt double *},
+which points to a double array containing the (dual) solution corresponding
+to the conic constraints $s \in \mathcal{K}$ in \eqref{e-stdform};
 a {\tt prob\_vars} struct, which is set to
-the \emph{pointers} in the underlying {\tt prob\_vars} struct to the 
+the \emph{pointers} in the underlying {\tt prob\_vars} struct to the
 {\tt variable}s in the \qcml problem; and a {\tt prob\_dims} struct.
 
 
@@ -767,11 +798,11 @@ Thus, if {\tt prob} is a \qcml problem, then
   \> >>> p.solve()
 \end{tabbing}
 }
-\noindent 
+\noindent
 will use parameters and dimensions defined locally to stuff the matrices and
 invoke the ECOS solver to solve the problem.
 
-This feature is useful in Python to test (small) models before committing to 
+This feature is useful in Python to test (small) models before committing to
 a source code.
 
 \section{Lasso example}
@@ -785,7 +816,7 @@ The lasso problem is
   \mbox{minimize} & \|Ax - b\|_2^2 + \lambda \|x\|_1,
 \end{array}
 \]
-with variable $x \in \reals^n$ and problem data $A\in\reals^{m\times n}$, 
+with variable $x \in \reals^n$ and problem data $A\in\reals^{m\times n}$,
 $b \in \reals^m$, and $\lambda > 0$. We can solve this problem using a
 standard interior-point solver, such as ECOS, with the transformation
 to standard cone form provided by \qcml.
@@ -804,10 +835,10 @@ First, we begin by generating some random problem data using Numpy,
 \noindent We then specify the lasso problem in \qcml as follows:
 {\tt
 \begin{tabbing}
-\qquad 
+\qquad
 \= dimensions m n \\
 \> variable x(n) \\
-\> parameters A(m,n) b(m)\\ 
+\> parameters A(m,n) b(m)\\
 \> parameter gamma positive\\
 \\
 \> minimize square(norm(A*x - b)) + gamma*norm1(x)
@@ -824,8 +855,8 @@ we first solve the problem using ECOS,
 \end{tabbing}
 }
 \noindent Typically, at this stage, one would tweak the model as needed to
-obtain better performance (on a cross-validation set, say), but since we 
-have committed to solving the lasso problem, this step is only to verify that 
+obtain better performance (on a cross-validation set, say), but since we
+have committed to solving the lasso problem, this step is only to verify that
 the problem is properly solved.
 
 We can print the value of {\tt res['objval']} to see the optimal
@@ -839,7 +870,7 @@ code for the lasso problem
 \end{tabbing}
 }
 
-This will create a directory named `{\tt lasso}' which contains the source code 
+This will create a directory named `{\tt lasso}' which contains the source code
 along with a Makefile. The
 generated functions will be named {\tt qc\_lasso2socp} and {\tt qc\_socp2lasso}.
 We can then write a separate main function which calls the {\tt qc\_lasso2socp}
@@ -880,14 +911,14 @@ to create the necessary data structures for calling the ECOS solver:
 \> \quad \= ECOS\_solve(mywork);\\
 \\
 \> \> /* recover the solution */ \\
-\> \> qc\_socp2lasso(mywork->x, \&sol, \&d);\\
+\> \> qc\_socp2lasso(mywork->x, mywork->y, mywork->z, \&sol, \&d);\\
 \> \> ... sol.x ... /* do something with solution */\\
 \> \}\\
 \\
 \> /* free the data */ \\
 \> qc\_socp\_free(data);\\
 \> if (mywork) ECOS\_cleanup(mywork, 0);
-\end{tabbing}  
+\end{tabbing}
 }
 
 Finally, the main file can be linked against the {\tt qcml\_utils} and
