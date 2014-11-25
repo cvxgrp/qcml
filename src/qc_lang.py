@@ -7,6 +7,7 @@ from . helpers import profile, default_locals
 from . exceptions import DCPError, QCMLException
 from . ast.expressions import Variable
 from . ast import NodeVisitor
+import sys
 
 PARSE, CANONICALIZE, CODEGEN, COMPLETE = range(4)
 
@@ -49,7 +50,7 @@ class QCML(object):
         """
         self.program = QCParser().parse(text)
         if self.debug:
-            self.program.show()
+            self.program.show(buf=sys.stdout)
 
         if not self.program.is_dcp:
             # TODO: if debug, walk the tree and find the problem
@@ -64,7 +65,7 @@ class QCML(object):
 
         self.program.canonicalize()
         if self.debug:
-            print self.program
+            self.program.show(buf=sys.stdout)
         self.state = CODEGEN
 
     @property
