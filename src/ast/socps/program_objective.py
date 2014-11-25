@@ -51,7 +51,7 @@ class ProgramObjective(Node):
     def canonicalize(self):
         obj, constraints = self.expr.canonicalize()
         self.expr = obj.simplify()
-        return (obj, constraints)
+        return (obj, [constr.simplify() for constr in constraints])
 
     # TODO: below is "future"
     # def canonical_form(self):

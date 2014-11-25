@@ -1,6 +1,6 @@
 import numpy as np
 from . check_ecos import make_and_execute_ecos_solve
-
+from .. qc_lang import QCML
 
 sum_lp = """
 variable x(2)
@@ -46,8 +46,16 @@ minimize( norm(x) )
 y : b'*x==1
 """
 
+multi_parameters = """
+variable x(2)
+parameter D(2,2)
+parameter b(2)
+parameter c
+minimize sum(square((D*x  - b'*x + c)))
+"""
+
+
 def python_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
-    from .. qc_lang import QCML
     p = QCML(debug=True)
     p.parse(prob)
     D = np.matrix([[0.1, 0], [0, 3.1]])
@@ -67,7 +75,6 @@ def python_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
     return p
 
 def C_parse_and_codegen(prob):
-    from .. qc_lang import QCML
     p = QCML(debug=True)
     p.parse(prob)
     p.canonicalize()
@@ -160,11 +167,15 @@ int main(int argc, char **argv) {
 def test_solves():
     yield python_parse_and_solve, sum_lp, 0, np.array([2, 2])
     yield C_parse_and_codegen, sum_lp
+
     yield python_parse_and_solve, sum_mat_lp, 0, np.array([0.1, 3.1])
     yield C_parse_and_codegen, sum_mat_lp
     yield C_parse_and_solve, sum_mat_lp, 0, np.array([0.1, 3.1])
+
     yield python_parse_and_solve, sum_mat_lp_with_scale, 3.08333333, np.array([0,0]), np.array([-0.16666666,-0.86111111])
     yield C_parse_and_codegen, sum_mat_lp_with_scale
     yield C_parse_and_solve, sum_mat_lp_with_scale, 3.083333333, np.array([0,0]), np.array([-0.16666666,-0.86111111])
+
     yield python_parse_and_solve, mix_quad_affine_constr, -0.0519076361544, np.array([0.49922209012352059])
     yield python_parse_and_solve, github_issue_45, 0.447213582782, np.array([-0.4472135906730919])
+    yield python_parse_and_solve, multi_parameters, 0
