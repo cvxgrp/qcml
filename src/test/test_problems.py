@@ -54,6 +54,12 @@ parameter c
 minimize sum(square((D*x  - b'*x + c)))
 """
 
+scalar_times_vector_parameter = """
+variable x(2)
+parameter b(2)
+
+minimize abs(2*b'*x)
+"""
 
 def python_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
     p = QCML(debug=True)
@@ -84,9 +90,11 @@ def C_parse_and_codegen(prob):
 def C_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
     p = C_parse_and_codegen(prob)
     print p.program
+
     p.save("test_problem")
 
     def print_dual():
+        line = ""
         if dual1 is not None and dual2 is not None:
             float_format = ','.join(["%f"]*dual1.size)
             floats = ','.join("v.u[%d]" % i for i in range(dual1.size))
@@ -107,26 +115,32 @@ def C_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
 #include "ecos.h"
 
 int main(int argc, char **argv) {
+""" + \
+("""
     double Ddata[2] = {0.1,3.1};
 
     long Di[2] = {0,1};
     long Dj[2] = {0,1};
-
     qc_matrix D;
-
+""" if 'D' in p.program.parameters else "") + \
+("""
+    double bdata[2] = {-1.2, 3.1};
+""" if 'b' in p.program.parameters else "") + \
+("""
     D.v = Ddata; D.i = Di; D.j = Dj; D.nnz = 2;
     D.m = 2; D.n = 2;
-
+""" if 'D' in p.program.parameters else "") + \
+"""
     test_problem_params p;
     test_problem_vars v;
     test_problem_dims dims;
-
-    p.D = &D;
-    p.c = 5.0;
-
+""" + ("p.D = &D;" if 'D' in p.program.parameters else "") \
+    + ("p.c = 5.0;" if 'c' in p.program.parameters else "") \
+    + ("p.b = bdata;" if 'b' in p.program.parameters else "") + \
+"""
     qc_socp *data = qc_test_problem2socp(&p, NULL);
 
-    // run ecos and solve it
+    /* run ecos and solve it */
     pwork *mywork = ECOS_setup(data->n, data->m, data->p,
         data->l, data->nsoc, data->q,
         data->Gx, data->Gp, data->Gi,
@@ -162,8 +176,6 @@ int main(int argc, char **argv) {
         assert np.linalg.norm(np.array(duals[0]) - dual1) < 1e-6
 
 
-
-
 def test_solves():
     yield python_parse_and_solve, sum_lp, 0, np.array([2, 2])
     yield C_parse_and_codegen, sum_lp
@@ -179,3 +191,7 @@ def test_solves():
     yield python_parse_and_solve, mix_quad_affine_constr, -0.0519076361544, np.array([0.49922209012352059])
     yield python_parse_and_solve, github_issue_45, 0.447213582782, np.array([-0.4472135906730919])
     yield python_parse_and_solve, multi_parameters, 0
+
+    yield python_parse_and_solve, scalar_times_vector_parameter, 0
+    yield C_parse_and_codegen, scalar_times_vector_parameter
+    yield C_parse_and_solve, scalar_times_vector_parameter, 0
