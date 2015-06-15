@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     optval = sol.get("info").get("pcost")
     print "The minimum attenuation in the stop band is " + str(10*log10(optval)) + " dB."
-    vars = p.socp2prob(sol['x'])
+    vars = p.socp2prob(sol['x'], sol['y'], sol['z'])
     r = transpose(asmatrix(vars['r']))
 
     # Spectral Factorization

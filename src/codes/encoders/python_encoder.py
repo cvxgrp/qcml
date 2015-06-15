@@ -58,9 +58,10 @@ def assign(x):
         lhs = toPython(x.lhs.arg)
     else:
         lhs = toPython(x.lhs)
+
     if isinstance(x.rhs, codes.TransposeCoeff):
         rhs = toPython(x.rhs.arg)
-        return "%s = sp.coo_matrix(np.reshape(%s, (%s,%s)))" % (lhs, rhs, x.rhs.arg.rows, x.rhs.arg.cols)
+        return "%s = sp.coo_matrix(%s.reshape((%s,%s))) if not sp.isspmatrix_coo(%s) else %s" % (lhs, rhs, x.rhs.arg.rows, x.rhs.arg.cols, rhs, rhs)
     else:
         rhs = toPython(x.rhs)
         return "%s = sp.coo_matrix(%s)" % (lhs, rhs)

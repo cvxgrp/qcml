@@ -10,7 +10,7 @@ class MatlabCodegen(Codegen):
         self._code = {
             'wrap': MatlabFunction('qc_wrap', ['params', 'dims'], ['vars', 'optval']),
             'prob2socp': MatlabFunction('prob_to_socp', ['params', 'dims'], ['data']),
-            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'dims'], ['vars']),
+            'socp2prob': MatlabFunction('socp_to_prob', ['x', 'y', 'z', 'dims'], ['vars']),
         }
         self._codekeyorder = ['wrap', 'prob2socp', 'socp2prob']
 
@@ -33,6 +33,18 @@ class MatlabCodegen(Codegen):
             if num == 1: return str(sz)
             else:        return "%s*ones(%s,1)" % (sz, num)
         yield '; '.join(map(cone_tuple_to_str, self.cone_list))
+
+    def matlab_recover(self):
+        for k in self.program.variables.keys():
+            start, length = self.primal_vars[k]
+            yield "'%s', x(%s:%s)" % (k, 1+start, start+length)
+        for k in self.dual_equality_vars.keys():
+            start, length = self.dual_equality_vars[k]
+            yield "'%s', y(%s:%s)" % (k, 1+start, start+length)
+        for k in self.dual_conic_vars.keys():
+            start, length = self.dual_conic_vars[k]
+            yield "'%s', z(%s:%s)" % (k, 1+start, start+length)
+
 
     def functions_setup(self):
         self.prob2socp.document('PROB2SOCP: maps PARAMS into a struct of SOCP matrices')
@@ -61,11 +73,7 @@ class MatlabCodegen(Codegen):
         self.prob2socp.add_comment('Build output')
         self.prob2socp.add_lines("data = struct('c', c, 'b', b, 'h', h, 'G', G, 'A', A, 'dims', cones);")
 
-        recover = (
-            "'%s', x(%s:%s)" % (k, 1+self.varstart[k], self.varstart[k]+self.varlength[k])
-            for k in self.program.variables.keys()
-        )
-        self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(recover))
+        self.socp2prob.add_lines("vars = struct(%s);" % ', '.join(self.matlab_recover()))
 
         self.wrap.add_lines("data = prob2socp(params, dims);")
         self.wrap.add_lines("[x,y,info,s,z] = ECOS(data.c, data.G, data.h, data.dims, data.A, data.b);")

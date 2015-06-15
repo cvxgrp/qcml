@@ -4,9 +4,10 @@ from . codegens import PythonCodegen, \
     C_Codegen, \
     PythonOperatorCodegen
 from . helpers import profile, default_locals
-from . errors import QC_DCPError
+from . exceptions import DCPError, QCMLException
 from . ast.expressions import Variable
 from . ast import NodeVisitor
+import sys
 
 PARSE, CANONICALIZE, CODEGEN, COMPLETE = range(4)
 
@@ -17,7 +18,6 @@ SUPPORTED_LANGUAGES = {
     "matlab": MatlabCodegen
 }
 
-# TODO: add custom Exception classes
 # TODO: add test cases for ensuring that errors are properly triggered in
 # all cases
 # TODO: what happens when the transformed code has offsets, etc?
@@ -50,22 +50,22 @@ class QCML(object):
         """
         self.program = QCParser().parse(text)
         if self.debug:
-            self.program.show()
+            self.program.show(buf=sys.stdout)
 
         if not self.program.is_dcp:
             # TODO: if debug, walk the tree and find the problem
-            raise QC_DCPError("QCML parse: The problem is not DCP compliant.")
+            raise DCPError("QCML parse: The problem is not DCP compliant.")
         self.state = CANONICALIZE
 
     @profile
     def canonicalize(self):
         if self.state > CANONICALIZE: return
         if self.state is PARSE:
-            raise Exception("QCML canonicalize: No problem currently parsed.")
+            raise QCMLException("QCML canonicalize: No problem currently parsed.")
 
         self.program.canonicalize()
         if self.debug:
-            print self.program
+            self.program.show(buf=sys.stdout)
         self.state = CODEGEN
 
     @property
@@ -75,7 +75,7 @@ class QCML(object):
     @dims.setter
     def dims(self, dims):
         if self.state is PARSE:
-            raise Exception("QCML set_dims: No problem currently parsed.")
+            raise QCMLException("QCML set_dims: No problem currently parsed.")
 
         self.program.dimensions = dims
 
@@ -87,14 +87,14 @@ class QCML(object):
         if self.state is COMPLETE:
             self.state = CODEGEN
         if self.state is PARSE:
-            raise Exception("QCML codegen: No problem currently parsed.")
+            raise QCMLException("QCML codegen: No problem currently parsed.")
         if self.state is CANONICALIZE:
-            raise Exception("QCML codegen: No problem currently canonicalized.")
+            raise QCMLException("QCML codegen: No problem currently canonicalized.")
 
         try:
             codegen_class = SUPPORTED_LANGUAGES[language]
         except KeyError:
-            raise Exception("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
+            raise QCMLException("QCML codegen: Invalid code generator. Must be one of: ", SUPPORTED_LANGUAGES.keys())
         else:
             self.__codegen = codegen_class()
             self.__codegen.visit(self.program)
@@ -119,14 +119,14 @@ class QCML(object):
         if self.state is COMPLETE:
             self.__codegen.save(name)
         else:
-            raise Exception("QCML save: No generated code to save.")
+            raise QCMLException("QCML save: No generated code to save.")
 
     @property
     def solver(self):
         if self.language != "python":
-            raise Exception("QCML solver: Cannot execute code generated in %s" % self.language)
+            raise QCMLException("QCML solver: Cannot execute code generated in %s" % self.language)
         if self.state is not COMPLETE:
-            raise Exception("QCML solver: No python code currently generated.")
+            raise QCMLException("QCML solver: No python code currently generated.")
 
         try:
             import ecos
@@ -136,7 +136,7 @@ class QCML(object):
         def solve_func(params, dims):
             data = self.prob2socp(params, dims)
             sol = ecos.solve(**data)
-            result = self.socp2prob(sol['x'], dims)
+            result = self.socp2prob(sol['x'], sol['y'], sol['z'], dims)
             result['info'] = sol['info']
 
             # set the objective value
@@ -159,7 +159,7 @@ class QCML(object):
         """
         # TODO: what happens if we call solve after codegen(C)?
         if self.state is PARSE:
-            raise Exception("QCML solve: No problem currently parsed.")
+            raise QCMLException("QCML solve: No problem currently parsed.")
         local_dims = dims if dims else params
         self.canonicalize()
         self.codegen("python")

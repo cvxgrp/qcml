@@ -1,5 +1,5 @@
 from .. import QCML
-from .. errors import QC_ParseError, QC_DCPError
+from .. exceptions import ParseError, DCPError
 from nose.tools import assert_raises
 import os
 
@@ -31,7 +31,9 @@ keyword_list = [
     "parameter A positive",
     "variables x y z",
     "parameters A b c",
-    "dimensions m n f"
+    "dimensions m n f",
+    "dual variables x y z",
+    "dual variable g"
 ]
 
 problem_list = [
@@ -60,13 +62,22 @@ problem_list = [
     minimize lambda*sum(x) + sum(square(x))
     subject to
         x <= 4
+        10 >= x >= 0
         # bogus stuff
 """,
 """ dimension n
     variable x(n)
     parameter c(n)
     minimize c'*x
-"""
+        c <= x <= 5
+""",
+""" dimensions n
+    variable x(n)
+    dual variable y
+    minimize sum(square(x))
+    subject to
+        y : x <= 4
+""",
 ]
 
 bad_problem_list = [
@@ -84,6 +95,17 @@ bad_problem_list = [
     parameter b positive
 
     minimize sum(b*x)+""",
+""" variable y(3)
+    dual variable x(4)""",
+""" variable x(3)
+    dual variable x""",
+""" dimension n
+    variable x(n)
+    dual variable y
+    parameter c(n)
+    minimize c'*x
+        y : c <= x <= 5
+"""
 ]
 
 # check keywords: variable, parameters, and dimensions
@@ -103,13 +125,13 @@ def test_problem():
 def test_bad_problem():
     # ensure that these fail
     for problem in bad_problem_list:
-        yield assert_raises, QC_ParseError, parse, problem
+        yield assert_raises, ParseError, parse, problem
 
     for p in nondcp_problems:
-        yield assert_raises, QC_DCPError, check_problem, p
+        yield assert_raises, DCPError, check_problem, p
 
     for p in syntax_error_problems:
-        yield assert_raises, QC_ParseError, check_problem, p
+        yield assert_raises, ParseError, check_problem, p
 
 def test_unused_variable():
     p = QCML(debug=True)

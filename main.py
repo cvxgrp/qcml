@@ -49,9 +49,10 @@ elif args.portfolio:
         parameter gamma positive
         parameter F(n,m)
         parameter D(n,n)
+        dual variables u v
         maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
-            sum(x) == 1
-            x >= 0
+            u : sum(x) == 1
+            v : x >= 0
     """)
 
     p.canonicalize()

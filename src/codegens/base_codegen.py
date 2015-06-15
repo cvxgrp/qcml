@@ -6,7 +6,10 @@ from .. codes import ConstantCoeff, ScalarParameterCoeff, ParameterCoeff, \
     EyeCoeff, OnesCoeff
 
 from abc import ABCMeta, abstractmethod, abstractproperty
+from collections import namedtuple
 import os
+
+CodegenVariable = namedtuple('CodegenVariable', ['start', 'length'])
 
 def write_file(new_file, code):
     with open(new_file, 'w') as output:
@@ -50,8 +53,9 @@ class Codegen(NodeVisitor):
         """ Walks the tree and creates the data structures.
             Creates the functions to stuff and un-stuff the matrices.
         """
-        self.varlength = {}
-        self.varstart = {}
+        self.primal_vars = {}      # primal variables
+        self.dual_conic_vars = {}       # dual variables (ECOS' z variable)
+        self.dual_equality_vars = {}    # dual variables (ECOS' y variable)
         self.num_vars = 0
         self.expr_stack = []
         self.num_lineqs = 0
@@ -180,6 +184,12 @@ class Codegen(NodeVisitor):
     @property
     def conesl(self): yield self.num_lps
 
+    def _make_codegen_variable(self, variable_obj):
+        length = variable_obj.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+        start = self.num_vars
+        self.num_vars += length
+        return CodegenVariable(start, length)
+
     def visit_SOCP(self, node):
         """ Visit the Program node; stores the needed information for codegen.
 
@@ -192,21 +202,15 @@ class Codegen(NodeVisitor):
 
         # create variable ordering
         # XXX: at this moment, assumes that variables are vectors (not arrays)
-        # varlength contains the vector lengths as ints
-        self.varlength = {k: v.shape.size(abstractdim_rewriter=self.abstractdim_rewriter) \
-            for k,v in node.variables.iteritems()
+        self.primal_vars = {
+            name: self._make_codegen_variable(variable_obj) \
+            for name, variable_obj in node.variables.iteritems()
         }
-        self.varlength.update({k: v.shape.size(abstractdim_rewriter=self.abstractdim_rewriter) \
-            for k,v in node.new_variables.iteritems()
+
+        self.primal_vars.update({
+            name: self._make_codegen_variable(variable_obj) \
+            for name, variable_obj in node.new_variables.iteritems()
         })
-
-        self.varstart = []
-        for k,v in self.varlength.iteritems():
-            self.varstart.append( (k, self.num_vars) )
-            self.num_vars += v
-
-        # varstart contains the start indicies as ints
-        self.varstart = dict(self.varstart)
 
         # set up the functions we want to write
         self.functions_setup()
@@ -219,7 +223,7 @@ class Codegen(NodeVisitor):
 
     def visit_Variable(self, node):
         k = node.value
-        n = self.varlength[k]
+        n = self.primal_vars[k].length
 
         if n == 1:
             lineq = {k: ConstantCoeff(1)}
@@ -315,8 +319,7 @@ class Codegen(NodeVisitor):
                 if k == '1':
                     self.handle_constant_offset_in_objective(v)
                     continue
-                start = self.varstart[k]
-                length = self.varlength[k]
+                start, length = self.primal_vars[k]
                 if node.sense == 'minimize':
                     objective_c = v.trans()
                     self.objective_multiplier = 1
@@ -335,10 +338,16 @@ class Codegen(NodeVisitor):
 
         if node.op == '==':
             start = self.num_lineqs
-            self.num_lineqs += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            length = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            self.num_lineqs += length
+            if node.dual_var:
+                self.dual_equality_vars[node.dual_var] = CodegenVariable(start, length)
         else:
             start = self.num_lps
-            self.num_lps += node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            length = node.shape.size(abstractdim_rewriter=self.abstractdim_rewriter)
+            self.num_lps += length
+            if node.dual_var:
+                self.dual_conic_vars[node.dual_var] = CodegenVariable(start, length)
 
         # nothing is on RHS
         #right = self.expr_stack.pop()
@@ -352,8 +361,8 @@ class Codegen(NodeVisitor):
                 else:
                     self.prob2socp.add_lines(self.stuff_h(start, self.num_lps, -v))
             else:
-                xstart = self.varstart[k]
-                xend = xstart + self.varlength[k]
+                xstart, xlength = self.primal_vars[k]
+                xend = xstart + xlength
                 if node.op == '==':
                     A_string = self.stuff_A(start, self.num_lineqs, xstart, xend, v)
                     self.prob2socp.add_lines(A_string)
@@ -370,8 +379,8 @@ class Codegen(NodeVisitor):
     def visit_LinearInequality(self, node):
         self.visit_LinearConstraint(node)
 
-
     def visit_SOC(self, node):
+        assert (not node.dual_var), "Did not expect dual var '%s' to be associated with SOC constraints" % node.dual_var
         self.prob2socp.add_comment("for the SOC constraint %s" % node)
 
         # we assume linear constraints have already been handled
@@ -398,14 +407,15 @@ class Codegen(NodeVisitor):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v))
                 else:
-                    xstart = self.varstart[k]
-                    xend = xstart + self.varlength[k]
+                    xstart, xlength = self.primal_vars[k]
+                    xend = xstart + xlength
                     self.prob2socp.add_lines(self.stuff_G(conestart, coneend, xstart, xend, -v))
 
         self.prob2socp.newline()
         assert (not self.expr_stack), "Expected empty expression stack but still has %s left" % self.expr_stack
 
     def visit_SOCProd(self, node):
+        assert (not node.dual_var), "Did not expect dual var '%s' to be associated with SOC product constraints" % node.dual_var
         self.prob2socp.add_comment("for the SOC product constraint %s" % node)
 
         # we assume linear constraints have already been handled
@@ -429,8 +439,8 @@ class Codegen(NodeVisitor):
                 if k == '1':
                     self.prob2socp.add_lines(self.stuff_h(conestart, coneend, v, stride))
                 else:
-                    xstart = self.varstart[k]
-                    xend = xstart + self.varlength[k]
+                    xstart, xlength = self.primal_vars[k]
+                    xend = xstart + xlength
                     self.prob2socp.add_lines(self.stuff_G(conestart, coneend, xstart, xend, -v, stride))
 
         self.prob2socp.newline()

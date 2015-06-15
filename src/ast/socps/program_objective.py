@@ -1,5 +1,5 @@
 from .. node import Node
-from ... errors import QC_DCPError
+from ... exceptions import DCPError
 from ... properties import shape, curvature
 
 class ProgramObjective(Node):
@@ -25,7 +25,7 @@ class ProgramObjective(Node):
         # for debugging, ensure that objectives are canonicalizable and showable
         assert(isinstance(expr, Node))
         if not shape.isscalar(expr):
-            raise QC_DCPError("Objective is not scalar")
+            raise DCPError("Objective is not scalar")
 
         self.sense = sense
         self.expr = expr
@@ -51,7 +51,7 @@ class ProgramObjective(Node):
     def canonicalize(self):
         obj, constraints = self.expr.canonicalize()
         self.expr = obj.simplify()
-        return (obj, constraints)
+        return (obj, [constr.simplify() for constr in constraints])
 
     # TODO: below is "future"
     # def canonical_form(self):
@@ -60,4 +60,3 @@ class ProgramObjective(Node):
     #     for child in children:
     #         p += child.canonical_form()  # this returns an SOCP
     #     return p
-

@@ -74,6 +74,8 @@ def repeat(x):
     return "%s*ones(%s,1)" % (toMatlab(x.obj), x.n)
 
 def assign(x):
+    # echu: probably will be source of some massive bugs in matlab
+    # see, for instance, the python_encoder
     return "%s = sparse(%s);" % (toMatlab(x.lhs), toMatlab(x.rhs))
 
 def nnz(x):

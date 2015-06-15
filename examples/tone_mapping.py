@@ -63,7 +63,7 @@ s_down = np.diag(s_down)
 from qcml import QCML
 import cvxopt
 
-p = QCML()
+p = QCML(debug=True)
 
 rows = (m-1)*n
 cols = m*n
@@ -91,5 +91,3 @@ p.parse(s)
 # <codecell>
 
 sol = p.solve()
-
-

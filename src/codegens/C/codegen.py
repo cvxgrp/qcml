@@ -15,10 +15,14 @@ Need to compile qcml_utils.c to a qcml_utils.o, but only need to link it into
 the matrix stuffing object.
 
 Links with ECOS library.
+
+An easy way to stuff the matrices (without calling "compress" on the
+triplet form) is to write the matrix column by column, but I haven't
+done this yet. It would be a slight improvement in performance.
 """
 import os, shutil, site, math
 from collections import Counter
-from .. base_codegen import Codegen
+from .. base_codegen import Codegen, CodegenVariable
 
 from ... mixins import RestrictedMultiplyMixin
 
@@ -39,9 +43,15 @@ def write_template(template_file, new_file, code):
             output.write(line % (code))
 
 def shape_to_c_type(x):
-    if shape.isscalar(x): return "double"
-    if shape.isvector(x): return "double *"
-    if shape.ismatrix(x): return "qc_matrix *"
+    if isinstance(x, CodegenVariable):
+        if x.length == 1:
+            return "double"
+        else:
+            return "double *"
+    else:
+        if shape.isscalar(x): return "double"
+        if shape.isvector(x): return "double *"
+        if shape.ismatrix(x): return "qc_matrix *"
     raise Exception("Unknown shape...")
 
 class C_Codegen(RestrictedMultiplyMixin, Codegen):
@@ -58,7 +68,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
                          "const {name}_dims * dims"],
             ret_type="qc_socp *")
         self._code['socp2prob'] = CFunction("qc_socp2{name}",
-            arguments = ["double * x", "{name}_vars * vars",
+            arguments = ["const double * x", "const double * y", "const double * z", "{name}_vars * vars",
                          "const {name}_dims * dims"])
         self._codekeyorder = ['prob2socp', 'socp2prob']
 
@@ -108,7 +118,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             'NAME': name.upper(),
             'params': self.params,
             'dims': self.abstract_dims,
-            'variables': self.variables,
+            'variables': '\n'.join(self.variables),
             # the name of the source isn't known until this point, so we
             # interpolate the string and insert it here
             'prob2socp': self.prob2socp.source.format(name=name),
@@ -165,11 +175,25 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         if self.program.abstract_dims:
             return ["%slong %s;" % (self.indent, k) for k in self.program.abstract_dims]
         else:
-            return ["%schar SENTINEL; /* empty dims struct */" % self.indent]
+            return ["%sconst char SENTINEL; /* empty dims struct */" % self.indent]
 
     # function to get variables
     def c_variables(self):
-        return ["%s%s %s;" % (self.indent, shape_to_c_type(v),k) for (k,v) in self.program.variables.iteritems()]
+        for (k,v) in self.program.variables.iteritems():
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
+        for (k,v) in self.dual_equality_vars.iteritems():
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
+        for (k,v) in self.dual_conic_vars.iteritems():
+            shape_type = shape_to_c_type(v)
+            if shape_type == "double *":
+                shape_type = "const double *"
+            yield "%s%s %s;" % (self.indent, shape_type,k)
 
     # generator to allocate socp data structures
     def c_allocate_socp(self):
@@ -233,12 +257,24 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
             yield ""
 
     def c_recover(self):
-        for k,v in self.program.variables.iteritems():
-            if shape.isscalar(v):
-                yield "vars->%s = *(x + %s);" % (k, self.varstart[k])
+        for k in self.program.variables.keys():
+            start, length = self.primal_vars[k]
+            if length == 1:
+                yield "vars->%s = *(x + %s);" % (k, start)
             else:
-                yield "vars->%s = x + %s;  /* length %s */" % (k, self.varstart[k], self.varlength[k])
-
+                yield "vars->%s = x + %s;  /* length %s */" % (k, start, length)
+        for k in self.dual_equality_vars.keys():
+            start, length = self.dual_equality_vars[k]
+            if length == 1:
+                yield "vars->%s = *(y + %s);" % (k, start)
+            else:
+                yield "vars->%s = y + %s;  /* length %s */" % (k, start, length)
+        for k in self.dual_conic_vars.keys():
+            start, length = self.dual_conic_vars[k]
+            if length == 1:
+                yield "vars->%s = *(z + %s);" % (k, start)
+            else:
+                yield "vars->%s = z + %s;  /* length %s */" % (k, start, length)
 
     def functions_setup(self):
         # add some documentation
@@ -249,7 +285,8 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
 
         self.params = '\n'.join(self.c_params())
         self.abstract_dims = '\n'.join(self.c_dims())
-        self.variables = '\n'.join(self.c_variables())
+        # join later, because the dual variables aren't yet populated
+        self.variables = self.c_variables()
 
         self.prob2socp.add_comment("all local variables")
         self.prob2socp.add_lines("long i;  /* loop index */")
@@ -307,7 +344,7 @@ class C_Codegen(RestrictedMultiplyMixin, Codegen):
         self.prob2socp.add_lines(self.c_compress("A"))
         self.prob2socp.add_lines("return data;")
 
-        self.socp2prob.document("recovers the problem variables from the solver variable 'x'")
+        self.socp2prob.document("recovers the problem variables from the solver variable 'x' and dual variables 'y' (equality constraints) and 'z' (conic constraints)")
         self.socp2prob.document("assumes the variables struct is externally allocated")
         self.socp2prob.document("the user must keep track of the variable length;")
         # recover the old variables

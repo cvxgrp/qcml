@@ -6,7 +6,7 @@ QCML: Quadratic Cone Modeling Language
 Who is this for?
 ================
 For casual users of convex optimization, the [CVXPY](http://github.com/cvxgrp/cvxpy) project
-is a friendlier user experience, and we recommend all beginners start there. 
+is a friendlier user experience, and we recommend all beginners start there.
 
 This project is designed primarily for **developers** who want to deploy optimization
 code. It generates a lightweight wrapper to [ECOS](http://github.com/ifa-ethz/ecos)
@@ -14,7 +14,7 @@ for use in Matlab, Python, or C. This avoids repeated parsing and also allows pr
 dimensions to change. This means you can re-use the same optimization model in C
 without having to re-generate the problem.
 
-If you are a developer looking to use optimization, feel free to contact 
+If you are a developer looking to use optimization, feel free to contact
 [us](mailto:eytchu@gmail.com) with issues or support. Complete
 documentation is available [**here**](doc/userguide.pdf).
 
@@ -38,9 +38,10 @@ Python string as follows:
     parameter gamma positive
     parameter F(n,m)
     parameter D(n,n)
+    dual variable u
     maximize (mu'*x - gamma*(square(norm(F'*x)) + square(norm(D*x))))
         sum(x) == 1
-        x >= 0
+        u : x >= 0
     """
 
 Our tool parses the problem and rewrites it, after which it can generate
@@ -61,14 +62,14 @@ We will walk through each line:
 2. `canonicalize` the problem by symbolically converting it to a second-order
    cone program
 3. assign some `dims` of the problem; others can be left abstract (see [below] (#abstract-dimensions))
-4. generate `python` code for converting parameters into SOCP data and for 
+4. generate `python` code for converting parameters into SOCP data and for
    converting the SOCP solution into the problem variables
-5. run the `prob2socp` conversion code on an instance of problem data, pulling 
-   in local variables such as `mu`, `F`, `D`; because only one dimension was 
-   specified in the codegen step (3), the other dimension must be supplied when 
+5. run the `prob2socp` conversion code on an instance of problem data, pulling
+   in local variables such as `mu`, `F`, `D`; because only one dimension was
+   specified in the codegen step (3), the other dimension must be supplied when
    the conversion code is run
 6. call the solver `ecos` with the SOCP data structure
-7. recover the original solution with the generated `socp2prob` function; 
+7. recover the original solution with the generated `socp2prob` function;
    again, the dimension left unspecified at codegen step (3) must be given here
 
 For rapid prototyping, we provide the convenience function:
@@ -82,7 +83,7 @@ namespace.
 Finally, you can call
 
     p.codegen("C", name="myprob")
-    
+
 which will produce a directory called `myprob` with five files:
 
 * `myprob.h` -- header file for the `prob2socp` and `socp2prob` functions
@@ -96,13 +97,13 @@ supply your own solver. The code simply stuffs the matrices for you; you are
 still responsible for using the proper solver and linking it. An example of how
 this might work is in `examples/lasso.py`.
 
-The `qc_utils` files are static; meaning, if you have multiple sources you wish 
+The `qc_utils` files are static; meaning, if you have multiple sources you wish
 to use in a project, you only need one copy of `qc_utils.h` and `qc_utils.c`.
 
-The generated code uses portions of CSparse, which is LGPL. Although QCML is 
+The generated code uses portions of CSparse, which is LGPL. Although QCML is
 BSD, the generated code is LGPL for this reason.
 
-For more information, see the [features](#features) section. 
+For more information, see the [features](#features) section.
 
 Prerequisites
 =============
@@ -110,7 +111,8 @@ For the most basic usage, this project requires:
 
 * Python 2.7.2+ (no Python 3 support yet)
 * [PLY](http://www.dabeaz.com/ply/), the Python Lex-Yacc parsing framework.  Available as python-ply or py-ply package in most distributions
-* [ECOS](http://github.com/ifa-ethz/ecos)
+* [ECOS](http://github.com/embotech/ecos)
+* [ECOS Python module](http://github.com/embotech/ecos-python)
 * [NUMPY](http://numpy.org)
 * [SCIPY](http://scipy.org)
 
@@ -155,34 +157,40 @@ declares two dimensions, `m` and `n`; two variables of length `n` and `m`,
 respectively; an elementwise positive (sparse) parameter matrix, `A`; the
 scalar parameter `b`; and the vector parameter `c`.
 
+Furthermore, a variable may be marked as a dual variable by prefixing the
+declaration with `dual`. Thus, `dual variable y` (no dimensions) declares
+`y` to be a dual variable. Dual variables are associated with constraints
+with a colon: `y : x >= 0`, associates the dual variable `y` with the
+nonnegativity constraint.
+
 Abstract dimensions
 -------------------
-Dimensions are initially specified as abstract values, e.g. `m` and `n` in the 
+Dimensions are initially specified as abstract values, e.g. `m` and `n` in the
 examples above.  These abstract values must be converted into concrete values
-before the problem can be solved.  There are two ways to make dimensions 
-concrete: 
+before the problem can be solved.  There are two ways to make dimensions
+concrete:
 
 1. specified prior to code generation with a call to `dims = {...}`
-2. specified after code generation by passing a `dims` dict/struct to the 
+2. specified after code generation by passing a `dims` dict/struct to the
    generated functions, e.g. `prob2socp`, `socp2prob`
 
 Any dimensions specified using `dims = {...}` prior to calling `codegen()`
-will be hard-coded into the resulting problem formulation functions.  Thus all 
-problem data fed into the generated code must match these prespecified 
+will be hard-coded into the resulting problem formulation functions.  Thus all
+problem data fed into the generated code must match these prespecified
 dimensions.
 
-Alternatively, some dimensions can be left in abstract form for code 
-generation.  In this case, problems of variable size can be fed into the 
-generated functions, but the dimensions of the input problem must be fed in 
-at the same time.  Problem dimensions must also be given at the recovery step 
+Alternatively, some dimensions can be left in abstract form for code
+generation.  In this case, problems of variable size can be fed into the
+generated functions, but the dimensions of the input problem must be fed in
+at the same time.  Problem dimensions must also be given at the recovery step
 to allow variables to be recovered from the solver output.
 
 The user may freely mix prespecified and postspecified dimensions.
 
-(A future release may allow some dimensions to be inferred from the size of 
+(A future release may allow some dimensions to be inferred from the size of
 the inputs.)  
-<!-- Another possible future change would remove the requirement to 
-specify problem dimensions in the variable recovery step by embedding that 
+<!-- Another possible future change would remove the requirement to
+specify problem dimensions in the variable recovery step by embedding that
 information in the output of the problem formulation function. -->
 
 
@@ -220,9 +228,9 @@ supplied with the problem parameters, will call an interior-point solver to
 solve the problem. In deployment mode (or code generation mode), *source
 code* (in a target language) is generated which solves problem instances.  
 
-The generated code can have problem dimensions hard-coded if dims were 
-specified prior to codegen, or it can have 
-[abstract dimensions] (#abstract-dimensions) to allow problems of variable size 
+The generated code can have problem dimensions hard-coded if dims were
+specified prior to codegen, or it can have
+[abstract dimensions] (#abstract-dimensions) to allow problems of variable size
 to be solved.
 
 The valid choice of languages are:
@@ -251,11 +259,11 @@ In this section, we document the data structures used for each language.
 
 The input of `prob2socp` is a dictionary/struct containing the parameters.
 No sign checking is currently done. Parameters can be scalar, vector, or
-(sparse) matrices. In Matlab, these use the native data types. In C, a scalar 
+(sparse) matrices. In Matlab, these use the native data types. In C, a scalar
 is a `double`, a vector is a `double []`, and a (sparse) matrices is also a
-`double []` containing the (nonzero) entries of the matrix in column-manjor 
+`double []` containing the (nonzero) entries of the matrix in column-manjor
 order. (This corresponds to the storage pattern of column-compressed storage.)
-In Python, a scalar is any numeric type, a vector is a Numpy array, and 
+In Python, a scalar is any numeric type, a vector is a Numpy array, and
 (sparse) matrices are Scipy matrices in CSC format.
 
 The output of the `prob2socp` function is a dictionary/struct with the fields:
@@ -273,7 +281,7 @@ format. In Python, vectors are represented by Numpy arrays and sparse matrices
 are represented in CSC format.
 
 (Note that the `dims` field in the output of `prob2socp` does not correspond to
-the `dims` input into `prob2socp`.  The output represents number of conic 
+the `dims` input into `prob2socp`.  The output represents number of conic
 constraints, while the input specifies input problem dimensions left abstract
 at codegen time.  The output might better be named `cones`, but it is called
 `dims` to be compatible with the ECOS solver.
@@ -336,7 +344,7 @@ Inside Python, the code might look like
 
           minimize sum(square(A*x - 4)) + lambda*norm(x)
         """)
-        
+
         p.canonicalize()
 
 This will canonicalize the problem and build an internal problem parse
@@ -395,6 +403,7 @@ The atoms we provide are:
   * `inv_pos(x)`
   * `geo_mean(x,y)`
   * `sqrt(x)`
+  * `huber(x)`
 * vector atoms (map vectors to scalars)
   * `max(x)`, the max elem of `x`
   * `max(x,y,..)`, the max vector consisting of max elements across rows
@@ -421,4 +430,3 @@ Support
 =======
 This project is supported in large part by an XDATA grant, supported by the
 Air Force Research Laboratory grant FA8750-12-2-0306.
-

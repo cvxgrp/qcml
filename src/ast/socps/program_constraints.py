@@ -87,4 +87,3 @@ class ProgramConstraints(Node):
         self.clear()
         for constr in constraints:
             self.add(constr)
-

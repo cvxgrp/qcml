@@ -25,7 +25,6 @@
     them all here.
 """
 from abc import ABCMeta, abstractmethod
-import sys
 
 
 class Node(object):
@@ -47,7 +46,7 @@ class Node(object):
     #     self.__program = parent_program
     #     super(Node, self).__init__(*args, **kwargs)
 
-    def show(self, buf = sys.stdout, offset = 0):
+    def show(self, buf, offset = 0):
         """ Defines what to show; usually via buf.write
         """
         buf.write("%s%s\n" % (offset*' ', self.info()))
@@ -91,4 +90,3 @@ class Node(object):
     #     """ Defines a generator that yields the constraints of the tree
     #     """
     #     pass
-

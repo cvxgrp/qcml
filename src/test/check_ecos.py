@@ -5,7 +5,7 @@ import platform
 import re
 
 FILE_PATH = os.path.dirname(__file__)
-DEFAULT = os.path.join(FILE_PATH, "../../scripts/ecos")
+DEFAULT = os.path.join(FILE_PATH, "../../ecos")
 ECOS_PATH = os.environ.get("ECOS_PATH")
 ECOS_PATH = ECOS_PATH if ECOS_PATH else DEFAULT
 
@@ -46,9 +46,12 @@ def make_and_execute_ecos_solve(problem_name, c_code):
         print "There is a bug in the compiled C code."
         print ""
         raise
-    objval = re.findall(r'Objective value at termination of C program is [-]?(\d+\.\d*)', output)
+    objval = re.findall(r'Objective value at termination of C program is ([-]?\d+\.\d*)', output)
+    duals = re.findall(r'Dual: (.*)', output)
     os.chdir("..")
     shutil.rmtree("%s/test_problem" % os.getcwd())
 
     assert len(objval) == 1
-    return float(objval[0])
+    print objval
+    print duals
+    return (float(objval[0]), [map(float, vals.split(",")) for vals in duals])

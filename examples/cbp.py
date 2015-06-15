@@ -65,7 +65,7 @@ if __name__ == "__main__":
     #socp_data = p.prob2socp(params=locals())
     #import ecos
     #sol = ecos.ecos(**socp_data)
-    #my_vars = p.socp2prob(sol['x'])
+    #my_vars = p.socp2prob(sol['x'], sol['y'], sol['z'])
     #pr.disable()
     #ps = pstats.Stats(pr)
     #ps.sort_stats('cumulative').print_stats(.5)

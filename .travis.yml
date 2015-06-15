@@ -1,18 +1,21 @@
 language: python
 python:
     - "2.7"
+    # - "3.2"
 virtualenv:
     system_site_packages: true
 # install scipy and numpy
 # cvxopt is for examples
 before_install:
     - sudo apt-get install python-numpy python-scipy python-cvxopt
+    # - sudo apt-get install python3-numpy python3-scipy 
 # install dependencies
 install:
     - pip install ply coverage
-    - cd scripts; sudo ./get_ecos.sh    # installs python library
-    - cd ecos; sudo make                # make the C static library
-    - cd ../..; sudo python setup.py install
+    # install ecos without deps since scipy and numpy are outdated
+    - pip install --no-deps ecos
+    - git clone https://github.com/embotech/ecos; cd ecos; sudo make; cd ..
+    - pip install .
 # command to run tests
 script:
     - cd scripts; ./run_examples.sh

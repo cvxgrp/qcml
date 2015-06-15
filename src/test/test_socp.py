@@ -3,7 +3,7 @@
     Also tests the objective and constraints.
 """
 from nose.tools import assert_raises
-from .. errors import QC_DCPError
+from .. exceptions import DCPError
 from .. import ast
 from .. ast.atoms import atom
 
@@ -92,7 +92,7 @@ def test_unknown_sense_error():
 def test_dcp_error():
     """ Check that problem throws error when nonscalar objective given.
     """
-    yield assert_raises, QC_DCPError, ast.ProgramObjective, "find", x
+    yield assert_raises, DCPError, ast.ProgramObjective, "find", x
 
 def test_non_node_objective():
     """ Check that objective throws error when objective expression is not a
