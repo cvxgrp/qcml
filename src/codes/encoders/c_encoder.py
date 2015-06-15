@@ -19,7 +19,13 @@ eye = NotImplemented
 def ones(x):
     return "%s" % toC(x.coeff)
 
-trans = NotImplemented
+def trans(x):
+    # if x is a TransposeCoeff with arg having col=1, then we should
+    # treat it as a "dense" vector
+    if isinstance(x.arg, codes.ParameterCoeff) and x.arg.cols == 1:
+        return toC(x.arg)
+    else:
+        raise NotImplementedError
 
 def scalar_parameter(x):
     return "params->%s" % x.value
@@ -45,13 +51,49 @@ def just(elem):
 def loop(ijv):
     def to_str(x):
         matrix = toC(x.matrix)
+        # only used for transposes..
+        if isinstance(x.matrix, codes.TransposeCoeff):
+            if ijv == "i":
+                val = "0"
+            elif ijv == "j":
+                val = "i"
+            else:
+                val = "%(matrix)s[i]"
+        # or for vector parameters (which are treated as dense vectors)
+        if isinstance(x.matrix, codes.ParameterCoeff) and x.matrix.cols == 1:
+            if ijv == "i":
+                val = "i"
+            elif ijv == "j":
+                val = "0"
+            else:
+                val = "%(matrix)s[i]"
         if hasattr(x, 'offset') and hasattr(x, 'stride'):
             if x.offset == 0 and x.stride == 1:
-                s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(matrix)s->%(ijv)s[i];"
+                # we only get here if it was a transpose of a vector coeff
+                if isinstance(x.matrix, codes.TransposeCoeff):
+                    s = "for(i = 0; i < {length}; ++i) *%%(ptr)s++ = {value};".format(length=x.matrix.arg.rows, value = val)
+                elif isinstance(x.matrix, codes.ParameterCoeff) and x.matrix.cols == 1:
+                    s = "for(i = 0; i < {length}; ++i) *%%(ptr)s++ = {value};".format(length=x.matrix.rows, value = val)
+                else:
+                    s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(matrix)s->%(ijv)s[i];"
             else:
-                s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(offset)s + %(stride)s*(%(matrix)s->%(ijv)s[i]);"
+                if isinstance(x.matrix, codes.TransposeCoeff):
+                    s = "for(i = 0; i < {length}; ++i) *%%(ptr)s++ = %(offset)s + %(stride)s*({value});".format(length=x.matrix.arg.rows, value = val)
+                elif isinstance(x.matrix, codes.ParameterCoeff) and x.matrix.cols == 1:
+                    s = "for(i = 0; i < {length}; ++i) *%%(ptr)s++ = %(offset)s + %(stride)s*({value});".format(length=x.matrix.rows, value = val)
+                else:
+                    s = "for(i = 0; i < %(matrix)s->nnz; ++i) *%%(ptr)s++ = %(offset)s + %(stride)s*(%(matrix)s->%(ijv)s[i]);"
             return  s % ({'matrix': matrix, 'offset': x.offset, 'stride': x.stride, 'ijv': ijv})
-        return "for(i = 0; i < %s->nnz; ++i) *%%(ptr)s++ = %s;" % (matrix, x.op % ("%s->%s[i]" % (matrix, ijv)))
+        if isinstance(x.matrix, codes.TransposeCoeff):
+            if ijv == "v":
+                val = x.op % ("%s[i]" % matrix)
+            return "for(i = 0; i < {length}; ++i) *%(ptr)s++ = {value};".format(length=x.matrix.arg.rows, value = val)
+        elif isinstance(x.matrix, codes.ParameterCoeff) and x.matrix.cols == 1:
+            if ijv == "v":
+                val = x.op % ("%s[i]" % matrix)
+            return "for(i = 0; i < {length}; ++i) *%(ptr)s++ = {value};".format(length=x.matrix.rows, value = val)
+        else:
+            return "for(i = 0; i < %s->nnz; ++i) *%%(ptr)s++ = %s;" % (matrix, x.op % ("%s->%s[i]" % (matrix, ijv)))
     return to_str
 
 def _range(x):
@@ -67,6 +109,8 @@ def assign(x):
     raise Exception("Assignment not implemented.... %s = %s" % (x.lhs, x.rhs))
 
 def nnz(x):
+    if isinstance(x.obj, codes.ParameterCoeff) and x.obj.cols == 1:
+        return "%s" % (x.obj.rows)
     return "%s->nnz" % (toC(x.obj))
 
 lookup = {
