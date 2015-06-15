@@ -58,7 +58,7 @@ scalar_times_vector_parameter = """
 variable x(2)
 parameter b(2)
 
-minimize abs(2*b'*x)
+minimize abs(2*b'*x) + abs(b'*x)
 """
 
 def python_parse_and_solve(prob, expected_objval, dual1=None, dual2=None):
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     qc_matrix D;
 """ if 'D' in p.program.parameters else "") + \
 ("""
-    double bdata[2] = {-1.2, 3.1};
+    double bdata[2] = {1.2, 3.1};
 """ if 'b' in p.program.parameters else "") + \
 ("""
     D.v = Ddata; D.i = Di; D.j = Dj; D.nnz = 2;
