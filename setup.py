@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='qcml',
-    version='0.1.2',
+    version='0.2.0',
     author='Eric Chu',
     author_email='eytchu@gmail.com',
     packages=[  'qcml',
