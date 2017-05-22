@@ -132,7 +132,7 @@ int main(void) {
 
 	// run ecos and solve it
 	pwork *mywork = ECOS_setup(data->n, data->m, data->p,
-		data->l, data->nsoc, data->q,
+		data->l, data->nsoc, data->q, 0,
 		data->Gx, data->Gp, data->Gi,
 		data->Ax, data->Ap, data->Ai,
 		data->c, data->h, data->b);
